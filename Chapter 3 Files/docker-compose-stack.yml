@@ -1,0 +1,166 @@
+version: '3.9'
+###########################
+# LME Stack deploy file   #
+###########################
+services:
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.1
+    environment:
+      - node.name=es01
+      # - discovery.seed_hosts=es01
+      # - discovery.type=single-node
+      - cluster.initial_master_nodes=es01
+      - ELASTIC_PASSWORD=temp
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=/usr/share/elasticsearch/config/certificates/elasticsearch.key
+      - xpack.security.http.ssl.certificate_authorities=/usr/share/elasticsearch/config/certificates/ca.crt
+      - xpack.security.http.ssl.certificate=/usr/share/elasticsearch/config/certificates/elasticsearch.crt
+      - xpack.security.http.ssl.supported_protocols=TLSv1.3,TLSv1.2
+      - xpack.security.transport.ssl.enabled=true
+      # - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.certificate_authorities=/usr/share/elasticsearch/config/certificates/ca.crt
+      - xpack.security.transport.ssl.certificate=/usr/share/elasticsearch/config/certificates/elasticsearch.crt
+      - xpack.security.transport.ssl.key=/usr/share/elasticsearch/config/certificates/elasticsearch.key
+      - xpack.security.transport.ssl.supported_protocols=TLSv1.3,TLSv1.2
+      #- xpack.monitoring.enabled=false
+      - xpack.security.authc.api_key.enabled=true
+      - cluster.name=loggingmadeeasy-es
+      - path.repo=/usr/share/elasticsearch/data,/usr/share/elasticsearch/backups
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xmsram-countg -Xmxram-countg -Des.enforce.bootstrap.checks=true"
+    command: /bin/bash -c "cp -r /run/secrets /usr/share/elasticsearch/config/certificates && /usr/local/bin/docker-entrypoint.sh eswrapper"
+    volumes:
+      - type: volume
+        source: esdata
+        target: /usr/share/elasticsearch/data
+      - type: bind
+        source: /opt/lme/backups
+        target: /usr/share/elasticsearch/backups
+    networks:
+      - esnet
+    ports:
+      - 9200:9200
+    secrets:
+      - ca.crt
+      - elasticsearch.crt
+      - elasticsearch.key
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s --cacert /usr/share/elasticsearch/config/certificates/ca.crt https://127.0.0.1:9200 | grep -q 'missing authentication credentials'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+
+  kibana:
+    # depends_on:
+    # elasticsearch:
+    #   condition: service_healthy
+    image: docker.elastic.co/kibana/kibana:8.7.1
+    environment:
+      SERVER_NAME: kibana
+      ELASTICSEARCH_HOSTS: https://elasticsearch:9200
+      ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES: /usr/share/kibana/certificates/ca.crt
+      SERVER_SSL_ENABLED: "true"
+      SERVER_SSL_KEY: /usr/share/kibana/certificates/kibana.key
+      SERVER_SSL_CERTIFICATE: /usr/share/kibana/certificates/kibana.crt
+      SERVER_PUBLICBASEURL: insertpublicurlhere
+      SERVER_SSL_SUPPORTEDPROTOCOLS: '["TLSv1.3","TLSv1.2"]'
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: insertkibanapasswordhere
+      # XPACK_SECURITY_ENABLED: "true"
+      XPACK_SECURITY_ENCRYPTIONKEY: kibanakey
+      XPACK_REPORTING_ENCRYPTIONKEY: kibanakey
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: kibanakey
+    command: /bin/bash -c "cp -r /run/secrets /usr/share/kibana/certificates && /usr/local/bin/kibana-docker"
+    secrets:
+      - ca.crt
+      - kibana.crt
+      - kibana.key
+    networks:
+      - esnet
+    ports:
+      - 443:5601
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -k -s -I https://127.0.0.1:5601 | grep -q 'HTTP/1.1 302 Found'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.7.1
+    environment:
+      XPACK_MONITORING_ENABLED: "false"
+      PIPELINE_ECS_COMPATIBILITY: v8
+      QUEUE_TYPE: persisted
+    volumes:
+      - type: volume
+        source: logstashdata
+        target: /usr/share/logstash/data
+    ports:
+      - 5044:5044
+    networks:
+      - esnet
+    configs:
+      - source: logstash.conf
+        target: /usr/share/logstash/pipeline/logstash.conf
+        mode: 0444
+      - source: logstash_custom.conf
+        target: /usr/share/logstash/pipeline/logstash_custom.conf
+        mode: 0444 
+    secrets:
+      - ca.crt
+      - logstash.crt
+      - logstash.key
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s http://localhost:9600 | grep -q '\"status\":\"green\"'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+secrets:
+  ca.crt:
+    external: true
+  logstash.crt:
+    external: true
+  logstash.key:
+    external: true
+  elasticsearch.crt:
+    external: true
+  elasticsearch.key:
+    external: true
+  kibana.crt:
+    external: true
+  kibana.key:
+    external: true
+configs:
+  logstash.conf:
+    external: true
+  logstash_custom.conf:
+    external: true
+volumes:
+  esdata:
+    driver: local
+  logstashdata:
+    driver: local
+
+networks:
+  esnet:
+    driver: overlay

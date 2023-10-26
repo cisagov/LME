@@ -1,0 +1,32 @@
+winlogbeat.event_logs:
+  - name: Application
+    ignore_older: 72h
+
+  - name: System
+
+  - name: Security
+
+  - name: Microsoft-Windows-Sysmon/Operational
+
+  - name: Windows PowerShell
+    event_id: 400, 403, 600, 800
+
+  - name: Microsoft-Windows-PowerShell/Operational
+    event_id: 4103, 4104, 4105, 4106
+
+  - name: ForwardedEvents
+    tags: [forwarded]
+
+output.logstash:
+  # The Logstash hosts
+  hosts: ["logstash_dns_name:5044"]
+
+  # Optional SSL. By default is off.
+  # List of root certificates for HTTPS server verifications
+  ssl.certificate_authorities: ["C:\\Program Files\\lme\\root-ca.crt"]
+
+  # Certificate for SSL client authentication
+  ssl.certificate: "C:\\Program Files\\lme\\wlbclient.crt"
+
+  # Client Certificate Key
+  ssl.key: "C:\\Program Files\\lme\\wlbclient.key"

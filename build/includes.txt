@@ -1,0 +1,15 @@
+Readme.md
+./docs/markdown/prerequisites.md
+./docs/markdown/chapter1/chapter1.md
+./docs/markdown/chapter1/guide_to_ous.md
+./docs/markdown/chapter3/chapter3.md
+./docs/markdown/chapter3/resilience.md
+./docs/markdown/chapter4.md
+./docs/markdown/logging-guidance/retention.md
+./docs/markdown/logging-guidance/other-logging.md
+./docs/markdown/maintenance/backups.md
+./docs/markdown/maintenance/certificates.md
+./docs/markdown/maintenance/upgrading.md
+./docs/markdown/reference/troubleshooting.md
+./docs/markdown/reference/faq.md
+

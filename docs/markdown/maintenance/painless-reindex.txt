@@ -1,0 +1,13 @@
+POST _reindex?wait_for_completion=false
+{
+  "source": {
+    "index": "winlogbeat-*"
+  },
+  "dest": {
+    "index": "winlogbeat"
+  },
+  "script": {
+    "lang": "painless",
+    "source": "ctx._index = 'winlogbeat-' + (ctx._index.substring('winlogbeat-'.length(), ctx._index.length())) + '-1'"
+  }
+}
