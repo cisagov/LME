@@ -60,7 +60,7 @@ From here, ensure that the maximum number of rows is shown so that all of the re
 
 ![Enable siem](/docs/imgs/siem5.png)
 
-Lastly, select all of the displayed rules, expand "Bulk actions" and choose "Activate selected":
+Lastly, select all of the displayed rules, expand "Bulk actions" and choose "Enable":
 
 ![Enable siem](/docs/imgs/alert-enable-menu.png)
 
