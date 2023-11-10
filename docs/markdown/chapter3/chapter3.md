@@ -140,7 +140,8 @@ If you wish to update log retention time, refer to the [Retention doc](/docs/mar
 **Note:** The software starts deleting events based upon whichever retention criteria is met first.
 
 ### 3.2.4 LME automatic updates
-Optionally you can choose to have dashboard_update.sh and lme_update.sh run in cron jobs. If you desire this (**NOTE**: If you automatically upgrade LME, your ELK services will go down while upgrades occur. Plan accordingly.)
+
+Optionally you can choose to have dashboard_update.sh and lme_update.sh run in cron jobs. If you desire this (**NOTE**: If you automatically upgrade LME, your ELK services will go down while upgrades occur. Plan accordingly.). 
 
 To have dashboard and lme update run as cron jobs: 
 ```
@@ -166,6 +167,22 @@ Do you want to automatically update Dashboards ([y]es/[n]o): y
 Specify the crontab entry in quotes: "0 1 * * *"
 [X] Creating dashboard update with crontab: 0 1 * * *
 ```
+
+These scripts utilize git to pull updates, and will work seamlessly if you have pulled the repository as directed above, and you allow port 443 outbound on your linux server. You can check this via the below command: 
+```
+$ git remote get-url origin
+https://github.com/cisagov/LME.git
+```
+
+In addition, when the cronjobs run you should see logs appear in: `/var/log/cron_logs/`. You can check that below: 
+```
+$ ls /var/log/cron_logs
+dashboard_update.sh+2023-11-10-18:50:01.log  dashboard_update.sh+2023-11-10-18:54:01.log  lme_update.sh+2023-11-10-18:52:01.log
+dashboard_update.sh+2023-11-10-18:51:01.log  dashboard_update.sh+2023-11-10-18:55:01.log  lme_update.sh+2023-11-10-18:53:01.log
+dashboard_update.sh+2023-11-10-18:52:01.log  lme_update.sh+2023-11-10-18:50:01.log        lme_update.sh+2023-11-10-18:54:01.log
+dashboard_update.sh+2023-11-10-18:53:01.log  lme_update.sh+2023-11-10-18:51:01.log        lme_update.sh+2023-11-10-18:55:01.log
+```
+During testing we set the cron expression to run everyminute, so the above date stamps reflect that. You can choose whatever time period is best for you and your organization.
 
 ### 3.2.5 Download Files for Windows Event Collector
 
