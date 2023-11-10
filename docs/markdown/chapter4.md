@@ -29,7 +29,7 @@ sudo ./dashboard_update.sh
 
 ### 4.1.2 Check you are receiving logs
 
-While on the Elastic home page, click on the hamburger icon on the left, then under "Analytics," find and click "Dashboard." From there, find and select "NEW - User Security." This will show a dashboard similar to Figure 2.
+While on the Elastic home page, click on the hamburger icon on the left, then under "Analytics," find and click "Dashboard." From there, find and select "User Security." This will show a dashboard similar to Figure 2.
 
 <p align="center">
     <img src="/docs/imgs/usersec.png" width="66%" />
