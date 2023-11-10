@@ -28,14 +28,14 @@ Example:
 ```
 
 ## Running Using Azure Shell
-| **#** | **Step**                                                                                                                                                                 |
-|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                        |
-| 2     | Select PowerShell.                                                                                                                                                       |
-| 3     | Upload `SetupTestbed.ps1` by clicking the "Upload/Download files" icon                                                                                                   |
-| 4     | Run the script, providing values for the parameters when promoted (see [Usage](#usage)). The script will take ~20 minutes to run to completion.                           |
-| 5     | Save the login credentials printed to the terminal at the end. At this point you can login to each VM using RDP (for the Windows servers) or SSH (for the Linux server). |
-| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                            |
+| **#** | **Step**                                                                                                                                                                 | **Screenshot**                                        |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
+| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                        | ![image](/docs/imgs/testing-screenshots/shell.png)    |
+| 2     | Select PowerShell.                                                                                                                                                       | ![image](/docs/imgs/testing-secreenshots/shell2.png)  |
+| 3     | Upload `SetupTestbed.ps1` by clicking the "Upload/Download files" icon                                                                                                   | ![image](/docs/imgs/testing-screenshots/shell3.png)   |
+| 4     | Run the script, providing values for the parameters when promoted (see [Usage](#usage)). The script will take ~20 minutes to run to completion.                          | ![image](/docs/imgs/testing-screenshots/shell4.png)  |
+| 5     | Save the login credentials printed to the terminal at the end. At this point you can login to each VM using RDP (for the Windows servers) or SSH (for the Linux server). | ![image](/docs/imgs/testing-screenshots/shell5.png)                                           |
+| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                            | ![image](/docs/imgs/testing-screenshots/delete.png)                                           |
 
 # Extra Functionality:
  
