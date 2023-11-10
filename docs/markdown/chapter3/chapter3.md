@@ -85,14 +85,36 @@ The domain name needs to be resolvable from the event collector. If you're unsur
 Now that you have an Ubuntu machine ready to go as well as its local IP address and hostname, SSH into your Linux server and run the following commands to install LME:
 
 ```
-# Install Git client to be able to clone the LME repository
-sudo apt update
-sudo apt install git -y
-# Download a copy of the LME files
-sudo git clone https://github.com/cisagov/lme.git /opt/lme/
-# Change to the LME directory containing files for the Linux server
-cd /opt/lme/Chapter\ 3\ Files/
-# Execute script with root privileges
+#!/bin/bash
+# Install Git client and clone the LME repository if not already present
+
+# Update package lists, only if needed
+echo "Checking for package updates..."
+sudo apt update -qq
+
+# Install Git if not already installed
+if ! command -v git &> /dev/null
+then
+    echo "Installing Git..."
+    sudo apt install git -y
+else
+    echo "Git is already installed."
+fi
+
+# Clone the LME repository if it hasn't been cloned
+LME_DIR="/opt/lme"
+if [ ! -d "$LME_DIR" ]; then
+    echo "Cloning LME repository..."
+    sudo git clone https://github.com/cisagov/lme.git "$LME_DIR"
+else
+    echo "LME repository already cloned."
+fi
+
+# Navigate to the directory containing files for the Linux server
+cd "$LME_DIR/Chapter 3 Files/" || exit
+
+# Execute the deploy script with root privileges
+echo "Executing deploy script..."
 sudo ./deploy.sh install
 ```
 
