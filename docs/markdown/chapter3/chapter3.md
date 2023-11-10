@@ -203,7 +203,7 @@ These are certificates, keys, and configuration files required for the Event Col
 
 **Download winlogbeat:**
 
-You will also require the latest supported version of `Winlogbeat`. You can download it as a zip file from Elastic's website [here](https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-8.5.0-windows-x86_64.zip). **The current version officially supported by LME is 8.5.0.**
+You will also require the latest supported version of `Winlogbeat`. You can download it as a zip file from Elastic's website [here]([https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-8.5.0-windows-x86_64.zip](https://www.elastic.co/downloads/past-releases/winlogbeat-8-5-0)). **The current version officially supported by LME is 8.5.0.**
 
 ### 3.3.2 Install Winlogbeat
 On the Windows Event Collector server extract the 'files_for_windows.zip' archive and copy the 'lme' folder (contained within 'tmp' inside the extracted files) to the following location:
