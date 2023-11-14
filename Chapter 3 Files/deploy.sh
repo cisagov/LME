@@ -691,8 +691,9 @@ function fixreadability() {
  chmod -077 -R .
 
  #some permissions to help with seeing files
- chmod 750 /opt/lme/
  chown root:sudo /opt/lme/
+ chmod 750 /opt/lme/
+ chmod 644 files_for_windows.zip
 }
 
 function install() {
