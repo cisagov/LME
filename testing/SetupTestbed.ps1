@@ -28,6 +28,12 @@ param (
   )]
   $AutoShutdownEmail=$null,
 
+  [Alias("l")]
+  [Parameter(
+    HelpMessage="Location where the cluster will be built. Default westus"
+  )]
+  [string]$Location="westus",
+
   [Alias("g")]
   [Parameter(Mandatory=$true)]
   [string]$ResourceGroup,
@@ -59,7 +65,7 @@ $DcIP = "10.1.0.4"
 $LsIP = "10.1.0.5"
 
 #Default Azure Region:
-$Location = "westus"
+# $Location = "westus"
 
 #Domain information:
 $VMAdmin = "admin.ackbar"
@@ -177,6 +183,7 @@ if ($NumClients -lt 1 -or $NumClients -gt 16) {
 ################
 Write-Output "Supplied configuration:`n"
 
+Write-Output "Location: $Location"
 Write-Output "Resource group: $ResourceGroup"
 Write-Output "Number of clients: $NumClients"
 Write-Output "Allowed sources (IP's): $AllowedSourcesList"
