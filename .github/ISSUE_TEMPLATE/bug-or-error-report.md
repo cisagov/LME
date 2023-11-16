@@ -13,7 +13,7 @@ assignees: ''
  - [ ] [Troubleshooting](https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md)
  - [ ] Searched other issues for my same question, and utilized github/google search to see if an answer exists for my error I'm encountering.  
 
-IF the above have not answered your question, proceed with creating an issue below: 
+IF the above did not answered your question, proceed with creating an issue below: 
 
 ## Describe the bug
 A clear and concise description of what the bug is.
