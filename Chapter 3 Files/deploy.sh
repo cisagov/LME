@@ -101,10 +101,19 @@ function setpasswords() {
     temp=$OLD_ELASTIC_PASS
   fi
 
-  echo -e "\e[32m[X]\e[0m Waiting for elasticsearch to be ready"
-  while [[ "$(curl --cacert certs/root-ca.crt --user elastic:${temp} -s -o /dev/null -w ''%{http_code}'' https://127.0.0.1:9200)" != "200" ]]; do
+  echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
+  max_attempts=60
+  attempt=0
+  while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' --cacert certs/root-ca.crt --user elastic:${temp} https://127.0.0.1:9200)" != "200" ]]; do
+    printf '.'
     sleep 1
+    ((attempt++))
+    if ((attempt > max_attempts)); then
+        echo "Elasticsearch is not responding after $max_attempts attempts - exiting."
+        exit 1
+    fi
   done
+  echo "Elasticsearch is up and running."
 
   echo -e "\e[32m[X]\e[0m Setting elastic user password"
   curl --cacert certs/root-ca.crt --user elastic:${temp} -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H 'Content-Type: application/json' -d' { "password" : "'"$elastic_user_pass"'"} '
