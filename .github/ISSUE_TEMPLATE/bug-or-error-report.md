@@ -13,7 +13,7 @@ assignees: ''
  - [ ] [Troubleshooting](https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md)
  - [ ] Searched other issues for my same question, and utilized github/google search to see if an answer exists for my error I'm encountering.  
 
-IF the above did not answered your question, proceed with creating an issue below: 
+IF the above did not answer your question, proceed with creating an issue below: 
 
 ## Describe the bug
 A clear and concise description of what the bug is.
@@ -21,9 +21,9 @@ A clear and concise description of what the bug is.
 ## To Reproduce
 Steps to reproduce the behavior. These should be clear enough that our team can understand your running environment, software/operating system versions, and anything else we might need to debug the issue. 
 
-An example of a usable reproducable list is this issue: [Issue1](https://github.com/cisagov/LME/issues/15) [Issue2](https://github.com/cisagov/LME/issues/19). 
+An example of a usable reproducible list is this issue: [Issue1](https://github.com/cisagov/LME/issues/15) [Issue2](https://github.com/cisagov/LME/issues/19). 
 
-To increase the speed and ability of reply we suggest you list down debugging steps you have tried, as well as the following information:
+To increase the speed and relevance of the reply we suggest you list down debugging steps you have tried, as well as the following information:
 
 ### Please complete the following information
 **Desktop:**
