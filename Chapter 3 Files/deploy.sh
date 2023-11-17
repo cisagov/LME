@@ -694,6 +694,11 @@ function fixreadability() {
  chown root:sudo /opt/lme/
  chmod 750 /opt/lme/
  chmod 644 files_for_windows.zip
+
+ #fix backups
+ chown -R 1000:1000 /opt/lme/backups
+ chmod -R  go-rwx /opt/lme/backups
+ 
 }
 
 function install() {
