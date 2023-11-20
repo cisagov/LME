@@ -7,7 +7,11 @@ Below you can find the upgrade paths that are currently supported and what steps
 
 Applying these changes is automated for any new installations. But, if you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
 
-### 1.1 Upgrade from v0.5
+### 1.1 Upgrade from v1.0.0
+You may want to delete and reimport the dashboards on upgrade from 1.0.0 to 1.1.0. [Updating dashboards](/Chapter%204%20Files/dashboards/Readme.md). This way you are not left with old dashboards when you export.  
+
+
+### 1.2 Upgrade from v0.5
 
 Since LME's transition from the NCSC to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository. Because vital configuration files are stored within the same folder as the git repo, it's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
 
