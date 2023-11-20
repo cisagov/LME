@@ -3,6 +3,7 @@
 # LME Deploy Script        #
 ############################
 # This script configures a host for LME including generating certificates and populating configuration files.
+DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
 #prompt for y/n
 prompt() {
@@ -32,6 +33,7 @@ prompt() {
 	 esac
 	done
 }
+
 
 function customlogstashconf() {
   #add option for custom logstash config
@@ -480,6 +482,43 @@ function pipelineupdate() {
 '
 }
 
+function compose_upgrade() {
+      #vars:
+      old_old_live="/opt/lme/Chapter 3 Files/docker-compose-stack-live.yml"
+      old_live="/opt/lme/Chapter 3 Files/docker-compose-stack-live.yml.old-$(echo -n $version | sed 's/\./-/g')-$DATE"
+      new_template="/opt/lme/Chapter 3 Files/docker-compose-stack.yml"
+      new_live="/opt/lme/Chapter 3 Files/docker-compose-stack-live.yml"
+
+      echo -e "\e[32m[X]\e[0m Upgrading $new_live, backing up $old_old_live to $old_live"
+
+      #Update Docker Config
+      #Move old docker config to .old
+      cp "$old_old_live" "$old_live"
+      #copy new git version
+      cp "$new_template" "$new_live"
+
+      # copy ramcount into var
+      Ram_from_conf="$(grep -P -o "(?<=Xms)\d+" "$old_live")"
+      # update Config file with ramcount
+      sed -i "s/ram-count/$Ram_from_conf/g" "$new_live" 
+      # copy elastic pass into var
+      Kibanapass_from_conf="$(grep -P -o "(?<=ELASTICSEARCH_PASSWORD: ).*" "$old_live")"
+      #update config with kibana password
+      sed -i "s/insertkibanapasswordhere/$Kibanapass_from_conf/g" "$new_live" 
+      #copy kibana encryption key
+      kibanakey="$(grep -P -o "(?<=XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ).*" "$old_live")"
+      #update config with kibana key
+      sed -i "s/kibanakey/$kibanakey/g" "$new_live" 
+      # copy publicbaseurl
+      baseurl_from_conf="$(grep -P -o "(?<=SERVER_PUBLICBASEURL: ).*" "$old_live")"
+      #update config with publicbaseurl
+      if [ -n "$baseurl_from_conf" ] && [ "$baseurl_from_conf" != "insertpublicurlhere" ]; then
+        sed -i "s,insertpublicurlhere,$baseurl_from_conf,g" "$new_live" 
+      elif [ -n "$hostname" ]; then
+        sed -i "s/insertpublicurlhere/https:\/\/$hostname/g" "$new_live" 
+      fi
+}
+
 function data_retention() {
   #show ext4 disk
   DF_OUTPUT="$(df -h -l -t ext4 --output=source,size /var/lib/docker)"
@@ -604,6 +643,25 @@ function configelasticsearch() {
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_template/number_of_replicas" -H 'Content-Type: application/json' -d' {  "template": "*",  "settings": {    "number_of_replicas": 0  }}'
   #set all current indices to have 0 replicas
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_all/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
+}
+
+function set_version() {
+  new_version=$1
+  replace_string="s/([0-9]+)\.([0-9]+)(\.[0-9]+)?/$new_version/g"
+  sed -i -E $replace_string /opt/lme/lme.conf
+}
+
+function write_update_scripts() {
+  update_user_pass=$1
+
+  cp dashboard_update.sh /opt/lme/
+  chmod 700 /opt/lme/dashboard_update.sh
+
+  echo -e "\e[32m[X]\e[0m Updating dashboard update configuration with dashboard update user credentials"
+  sed -i "s/dashboardupdatepassword/$update_user_pass/g" /opt/lme/dashboard_update.sh
+
+  cp lme_update.sh /opt/lme/
+  chmod 700 /opt/lme/lme_update.sh
 }
 
 function writeconfig() {
@@ -904,6 +962,9 @@ function uninstall() {
 }
 
 function upgrade() {
+  #TODO: get current/latest from git 
+  latest="1.1.0"
+
   #check if the config file we're now creating on new installs exists
   if [ -r /opt/lme/lme.conf ]; then
     #reference this file as a source
@@ -975,8 +1036,33 @@ function upgrade() {
       fi
       zipfiles
       fixreadability
-    elif [ "$version" == "1.0" ]; then
-       echo -e "\e[32m[X]\e[0m You're on 1.0 the latest version!"
+    elif [[ ("$version" == "1.0.0" || "$version" == "1.0") ]]; then
+       echo -e "\e[32m[X]\e[0m You're on $version Time to upgrade to $latest" 
+
+       echo -e "\e[32m[X]\e[0m Updating from git repo"
+       git -C /opt/lme/ pull
+
+       echo -e "\e[32m[X]\e[0m Removing existing Docker stack"
+       docker stack rm lme
+
+      echo -e "\e[32m[X]\e[0m Sleeping for one minute to allow Docker actions to complete..."
+      sleep 1m
+
+      #Update Docker Config
+      compose_upgrade
+
+      #Update update_scripts
+      upgradepass="$(grep -o -E 'dashboard_update:[0-9A-Za-z]+' /opt/lme/dashboard_update.sh)"
+      write_update_scripts $upgradepass
+
+      #deploy:
+      deploylme
+
+      #now updated :) 
+      set_version "1.1.0"
+
+    elif [ "$version" == $latest ]; then
+       echo -e "\e[32m[X]\e[0m You're on $version the latest version!"
     else
       echo -e "\e[31m[!]\e[0m Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
     fi
