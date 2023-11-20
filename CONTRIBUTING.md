@@ -17,7 +17,7 @@ Please follow the provided template and fill out all sections. We have a `BUG` a
 
 ## Pull Requests (PR)
 
-If you choose to submit a pull request, it will be required to pass various sanity checks in our continuous integration (CI) pipeline, before we merge it. Your pull request may fail these checks, and that's OK. If you want you can stop there and wait for us to make the necessary corrections to ensure your code passes the CI checks, you're more than within your rights; however, (and it helps our team greatly) if you fix the issues found by our CI pipeline. 
+If you choose to submit a pull request, it will be required to pass various sanity checks in our continuous integration (CI) pipeline, before we merge it. Your pull request may fail these checks, and that's OK. If you want you can stop there and wait for us to make the necessary corrections to ensure your code passes the CI checks, you're more than within your rights; however, it helps our team greatly if you fix the issues found by our CI pipeline. 
 
 Below are some loose requirements we'd like all PR's to follow. Our release process is documented in [Releases](releases.md).
 
@@ -30,7 +30,7 @@ All PRs will be tested, vetted, and reviewed by our team before being merged wit
   - If the PR corresponds to an issue we are already tracking on LME's public Github [project](https://github.com/orgs/cisagov/projects/68), please comment the PR in the issue, and we will update the issue. 
   - If the PR does not have an issue, please add a comment at the top of the pull request describing the PR and how it fits into LME's project/code. If the PR follows our other requirements listed here, we'll add it into our public project linked previously.
   - We'll work with you to mold it to our development goals/process, so your work can be merged into LME and your Github profile gets credit for the contributions. 
-  - Before merging we request that all commits be squashed into one commit. This way your changes to the repository are tracked, but our `git log` history does not rapidly exapnd. 
+  - Before merging we request that all commits be squashed into one commit. This way your changes to the repository are tracked, but our `git log` history does not rapidly expand. 
   - Thanks for wanting to submit and develop improvements for LME!!
 
 ## Public domain 
