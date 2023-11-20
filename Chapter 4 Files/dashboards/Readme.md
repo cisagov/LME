@@ -6,7 +6,20 @@
 ./dashboard_update.sh
 ```
 
-## Exporting dashboards:
+### Updating to new dashboards and removing old ones (Starting with 1.1.0)
+Browse to `Kibana->Stack Management` then select `Saved Objects`.
+On the Saved Objects page, you can filter by dashboards.
+
+Select the filter `Type` and select `dashboard`. 
+
+* It is suggested that you export the dashboards first (readme below) so you have a backup. 
+You can delete all of the dashboards before importing the new ones. 
+
+After having backed up the dashboards and deleting them, you can then run 
+`dashboard_update.sh` in the `/opt/lme` directory. 
+
+
+### Exporting dashboards:
 It is recommended that you export your dashboards before updating them, especially if you have customized them or created new ones. 
 To export the dashboards use the `export_dashboards.py` file in the Chapter 4 directory. 
 It is easiest to export them from the ubuntu machine where you have installed the ELK stack because the 
