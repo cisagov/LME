@@ -1,2 +1,6 @@
 *.pdf
 .DS_Store
+/.idea/
+/.vscode/
+/Chapter 4 Files/*.dumped.ndjson
+/Chapter 4 Files/exported/

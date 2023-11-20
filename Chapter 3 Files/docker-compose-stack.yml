@@ -5,7 +5,7 @@ version: '3.9'
 services:
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     environment:
       - node.name=es01
       # - discovery.seed_hosts=es01
@@ -65,7 +65,7 @@ services:
     # depends_on:
     # elasticsearch:
     #   condition: service_healthy
-    image: docker.elastic.co/kibana/kibana:8.7.1
+    image: docker.elastic.co/kibana/kibana:8.11.1
     environment:
       SERVER_NAME: kibana
       ELASTICSEARCH_HOSTS: https://elasticsearch:9200
@@ -101,7 +101,7 @@ services:
       retries: 120
 
   logstash:
-    image: docker.elastic.co/logstash/logstash:8.7.1
+    image: docker.elastic.co/logstash/logstash:8.11.1
     environment:
       XPACK_MONITORING_ENABLED: "false"
       PIPELINE_ECS_COMPATIBILITY: v8
