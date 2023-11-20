@@ -1,5 +1,3 @@
-# <!-- Use the title to describe PR changes in the imperative mood --> #
- 
 
 ## 🗣 Description ##
 
@@ -23,7 +21,8 @@
 
 ## ✅ Pre-approval checklist ##
 
-- [ ] Changes are limited to a single goal and the title reflects this in a clear human readable format
+- [ ] Changes are limited to a single goal **AND** 
+      the title reflects this in a clear human readable format
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
 - [ ] The PR adheres to LME's requirements in [RELEASES.md](https://github.com/cisagov/LME/RELEASES.md#steps-to-submit-a-PR)
 - [ ] These code changes follow [cisagov code standards](https://github.com/cisagov/development-guide).
