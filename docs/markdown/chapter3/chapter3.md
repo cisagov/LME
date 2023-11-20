@@ -139,7 +139,52 @@ If you wish to update log retention time, refer to the [Retention doc](/docs/mar
 
 **Note:** The software starts deleting events based upon whichever retention criteria is met first.
 
-### 3.2.4 Download Files for Windows Event Collector
+### 3.2.4 LME automatic updates
+
+Optionally you can choose to have dashboard_update.sh and lme_update.sh run in cron jobs. If you desire this (**NOTE**: If you automatically upgrade LME, your ELK services will go down while upgrades occur. Plan accordingly.). 
+
+To have dashboard and lme update run as cron jobs: 
+```
+# Change to the LME directory containing files for the Linux server
+cd /opt/lme/Chapter\ 3\ Files/
+# Execute script with root privileges
+sudo ./deploy.sh update
+```
+
+Default Input of the script. You can customize when updates will occur using crontab.
+```
+root@master:/opt/lme/Chapter 3 Files# sudo ./deploy.sh update
+Do you want to automatically upgrade LME ([y]es/[n]o): y
+**Before proceeding**: Use https://crontab.cronhub.io/ to create a crontab expression.
+Press Any key to continue when done. (Enter)
+
+[X] Enabling LME Automatic Update
+Specify the crontab entry in quotes: "0 1 * * *"
+[X] Creating lme_update with crontab: 0 1 * * *
+[X] Creating LME update crontab
+Do you want to automatically update Dashboards ([y]es/[n]o): y
+[X] Enabling Dashboard Automatic Update
+Specify the crontab entry in quotes: "0 1 * * *"
+[X] Creating dashboard update with crontab: 0 1 * * *
+```
+
+These scripts utilize git to pull updates, and will work seamlessly if you have pulled the repository as directed above, and you allow port 443 outbound on your linux server. You can check this via the below command: 
+```
+$ git remote get-url origin
+https://github.com/cisagov/LME.git
+```
+
+In addition, when the cronjobs run you should see logs appear in: `/var/log/cron_logs/`. You can check that below: 
+```
+$ ls /var/log/cron_logs
+dashboard_update.sh+2023-11-10-18:50:01.log  dashboard_update.sh+2023-11-10-18:54:01.log  lme_update.sh+2023-11-10-18:52:01.log
+dashboard_update.sh+2023-11-10-18:51:01.log  dashboard_update.sh+2023-11-10-18:55:01.log  lme_update.sh+2023-11-10-18:53:01.log
+dashboard_update.sh+2023-11-10-18:52:01.log  lme_update.sh+2023-11-10-18:50:01.log        lme_update.sh+2023-11-10-18:54:01.log
+dashboard_update.sh+2023-11-10-18:53:01.log  lme_update.sh+2023-11-10-18:51:01.log        lme_update.sh+2023-11-10-18:55:01.log
+```
+During testing we set the cron expression to run everyminute, so the above date stamps reflect that. You can choose whatever time period is best for you and your organization.
+
+### 3.2.5 Download Files for Windows Event Collector
 
 The deploy.sh script has created files on the Linux server that need to be copied across and used on the Windows Event Collector server. The files have been zipped for convenience, with the filename and location ``` /opt/lme/files_for_windows.zip ```.
 
@@ -193,7 +238,7 @@ Now you need to install Winlogbeat on the Windows Event Collector. Winlogbeat re
 
 ### 3.3.1 Files Required
 
-Whichever method you used in [step 3.2.4](#324-download-files-for-windows-event-collector), you should have downloaded the `files_for_windows.zip` archive containing the following files:
+Whichever method you used in [step 3.2.5](#325-download-files-for-windows-event-collector), you should have downloaded the `files_for_windows.zip` archive containing the following files:
   - root-ca.crt
   - wlbclient.key
   - wlbclient.crt
@@ -243,7 +288,7 @@ Figure 5: Winlogbeat Service Running
 ## Trusting the certs that secure LME's services
 
 Theres a few steps we need to follow to trust the self-signed cert: 
-1. Grab the self-signed certificate authority for LME (done in step [3.2.4](docs/markdown/chapter3/chapter3.md#324-download-files-for-windows-event-collector)).
+1. Grab the self-signed certificate authority for LME (done in step [3.2.5](docs/markdown/chapter3/chapter3.md#325-download-files-for-windows-event-collector)).
 2. Have our clients trust the certificate authority (see command below).
 
 This will trust the self signed cert and any other certificates it signs. If this certificate is stolen by an attacker, they can use it to trick your browser into trusting any website they setup. Make sure this cert is kept safe and secure. 
