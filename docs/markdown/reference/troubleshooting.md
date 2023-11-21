@@ -89,53 +89,7 @@ By default the `ForwardedEvents` maximum log size is around 20MB so events will 
 ### Events not forwarding from Domain Controllers
 Please be aware that Logging Made Easy does not currently support logging Domain Controllers, and the log volumes may be significant from servers with this role.  If you wish to proceed forwarding logs from your Domain Controllers please be aware you do this at your own risk!  Monitoring such servers has not been tested and may have unintended side effects.
 
-
-
-
-### Space issues during install: 
-If there are size contstraints on your system and your system doesn't meet our expected requirements, you could run into issues like this [ISSUE](https://github.com/cisagov/LME/issues/19).
-
-You can try this:  [DISK-SPACE-20.04](https://askubuntu.com/questions/1269493/ubuntu-server-20-04-1-lts-not-all-disk-space-was-allocated-during-installation)
-```
-root@util:# vgdisplay
-root@util:# lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
-root@util:~# resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
-```
-
-### Containers restarting/not running: 
-Usually if you have issues with containers restarting there is probably something wrong with your host or the container itself. Lik in the above sample, a wrong password could be prevent the Elastic Stack from operating properly. You can check the container logs like so: 
-```
-#TO list the name of the container
-sudo docker ps --format "{{.Names}}"
-
-#Using the above name you found, check its logs here. 
-sudo docker logs -f [CONTAINER_NAME]
-```
-Hopefully that is enough to determine the issue, but below we have some common issues you could encounter: 
-
-#### Directory Permission issues
-If you encounter errors like [this](https://github.com/cisagov/LME/issues/15) in the container logs, probably your host ownership or permissions for mounted files, don't match what the container expects them to be. In this case the `/usr/share/elasticsearch/backups` which is mapped from `/opt/lme/backups` on the host. 
-You can see this in the [docker-compose-stack.yml](https://github.com/cisagov/LME/blob/main/Chapter%203%20Files/docker-compose-stack.yml) file: 
-```
-╰─$ cat Chapter\ 3\ Files/docker-compose-stack.yml | grep -i volume -A 5
-    volumes:
-      - type: volume
-        source: esdata
-        target: /usr/share/elasticsearch/data
-      - type: bind
-        source: /opt/lme/backups
-        target: /usr/share/elasticsearch/backups
-```
-
-To fix this you can change the permissions to what the conatiner expects: 
-```
-sudo chown -R 1000:1000 /opt/lme/backups
-```
-The user id in the container is 1000, so by setting the proper owner we fix the directory permission issue.   
-We know this by investigating the backing docker container image for elasticsearch [LINK](https://github.com/elastic/elasticsearch/blob/61d59b31a27448e3d7d28907717b1b8c23f52f3e/distribution/docker/src/docker/Dockerfile#L185) [GITHUB](https://github.com/elastic/elasticsearch/blob/main/distribution/docker/src/docker/Dockerfile)
-
-
-####  deploy.sh stalls on: wating for elasticsearch to connect
+###  deploy.sh stalls on: wating for elasticsearch to connect
 This was a bug that was fixed in the current iteration of deploy.sh. This occurs if the `elastic` user password was already set in a previous deployment of LME. The easiest fix for this is to delete your old LME volumes as that will clear out any old settings that would be preventing install.
 ```
 #DONT RUN THIS IF YOU HAVE DATA YOU WANT TO PRESERVE!!
@@ -158,23 +112,6 @@ elasticsearch-reset-password -v -u elastic -i --url https://localhost:9200
 ```
 If the elasticsearch-reset-password is not available in your version of elasticsearch, you may be able to try recreating the container with a newer version of LME and running the same above steps. We have not tested this last suggestion, so attempting this last step won't be supported, but is worth a try if none of the above works.
 
-### Elasticsearch fails to boot on Linux server
-Sometimes environmental differences can make the installation process get screwed up [ISSUE](https://github.com/cisagov/LME/issues/21). If you have the luxury, you could perform a full reinstall: 
-
-If you are unable to access https://<LINUX_SERVER_IP/HOSTNAME>, this is most likely because the elasticsearch service fails to run on the Linux server. To perform a full reinstall: 
-```
-cd /opt/lme/Chapter\ 3\ Files/
-sudo ./deploy.sh uninstall
-#delete everything:
-rm -r /opt/lme
-#Reclone the LME repository into /opt/lme/: 
-git clone git@github.com:cisagov/LME.git /opt/lme/
-#Navigate back to Chapter 3 Files: 
-cd /opt/lme/Chapter\ 3\ Files/
-sudo ./deploy.sh install
-#Save credentials, then continue with Chapter 3 installation
-```
-Optionally you could uninstall docker entirely and reinstall it from the deploy.sh script. If you do end up removing Docker this link could be helpful: https://askubuntu.com/a/1021506.
 
 ## Chapter 4 and Beyond
 
