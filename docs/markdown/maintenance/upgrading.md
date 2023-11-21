@@ -7,35 +7,7 @@ Below you can find the upgrade paths that are currently supported and what steps
 
 Applying these changes is automated for any new installations. But, if you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
 
-### 1.1 Upgrade from v1.0.0
-This upgrade assumes your `/opt/lme` directory is on the `main` branch, which it will be by default. To confirm this run the command below. You may need to run as `sudo` depending if  you installed lme as root (which is the default instructions).
-
-```
-cd /opt/lme/
-git status 
-```
-
-You should see the output like below:
-```
-On branch main
-Your branch is up to date with 'origin/main'.
-```
-
-This upgrade does the following: 
-1. pulls the new updates to the `main` branch using git (if this step fails, git pull manually, and rerun)
-2. removes the lme stack so it can be reset with the new updates
-3. upgrades the compose live file
-4. upgrades the lme_update and dashboard_update files
-5. docker pull's elastic `8.11.1`
-6. redeploy's LME
-7. Update's LME's dashboards
-8. Sets the version in lme.conf: `1.1.0`
-
-#### Optional step: 
-You may want to delete and reimport the dashboards on upgrade from 1.0.0 to 1.1.0. [Updating dashboards](/Chapter%204%20Files/dashboards/Readme.md). This way you are not left with old dashboards when you export.  
-
-
-### 1.2 Upgrade from v0.5
+### 1.1 Upgrade from v0.5
 
 Since LME's transition from the NCSC to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository. Because vital configuration files are stored within the same folder as the git repo, it's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
 
@@ -113,7 +85,7 @@ LME v1.0 make a minor change to the file structure used in the SYSVOL folder, so
 3. Update the path to update.bat used in the LME-Sysmon-Task GPO (refer to [2.2.3 - Scheduled task GPO Policy](/docs/markdown/chapter2.md#223---scheduled-task-gpo-policy)).
 
 #### 1.1.4 Checklist
-1. Have the ELK stack components been upgraded on the Linux server? While on the Linux server, run `sudo docker ps | grep lme`. Version 8.11.1 of Logstash, Kibana, and Elasticsearch should be running.
+1. Have the ELK stack components been upgraded on the Linux server? While on the Linux server, run `sudo docker ps | grep lme`. Version 8.7.1 of Logstash, Kibana, and Elasticsearch should be running.
 2. Has Winlogbeat been updated to version 8.5.0? From Event Collector, using PowerShell, navigate to the location of the Winlogbeat executable ("C:\Program Files\lme\winlogbeat-x.x.x-windows-x86_64") and run `.\winlogbeat version`.
 3. Is the LME folder inside SYSVOL properly structured? Refer to the checklist listed at the end of chapter 2.
 4. Are the events from all clients visible inside elastic? Refer to [4.1.2 Check you are receiving logs](/docs/markdown/chapter4.md#412-check-you-are-receiving-logs).

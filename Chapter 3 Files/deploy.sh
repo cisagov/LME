@@ -3,37 +3,35 @@
 # LME Deploy Script        #
 ############################
 # This script configures a host for LME including generating certificates and populating configuration files.
-DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
 #prompt for y/n
 prompt() {
-  if [ -z "$1" ];
-  then
-    str="Are you sure?"
-  else
-    str=$1
-  fi
+	if [ -z "$1" ];
+	then
+		str="Are you sure?"
+	else
+		str=$1
+	fi
 
-  while true
-  do
-   read -r -p "$str? [Y/n] " input
-   
-   case $input in
-       [yY][eE][sS]|[yY])
-       return 0 #true
-   break
-   ;;
-       [nN][oO]|[nN])
-       return 1 #false
-   break
-          ;;
-       *)
-   echo "Invalid input..."
-   ;;
-   esac
-  done
+	while true
+	do
+	 read -r -p "$str? [Y/n] " input
+	 
+	 case $input in
+			 [yY][eE][sS]|[yY])
+			 return 0 #true
+	 break
+	 ;;
+			 [nN][oO]|[nN])
+			 return 1 #false
+	 break
+					;;
+			 *)
+	 echo "Invalid input..."
+	 ;;
+	 esac
+	done
 }
-
 
 function customlogstashconf() {
   #add option for custom logstash config
@@ -103,19 +101,10 @@ function setpasswords() {
     temp=$OLD_ELASTIC_PASS
   fi
 
-  echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
-  max_attempts=60
-  attempt=0
-  while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' --cacert certs/root-ca.crt --user elastic:${temp} https://127.0.0.1:9200)" != "200" ]]; do
-    printf '.'
+  echo -e "\e[32m[X]\e[0m Waiting for elasticsearch to be ready"
+  while [[ "$(curl --cacert certs/root-ca.crt --user elastic:${temp} -s -o /dev/null -w ''%{http_code}'' https://127.0.0.1:9200)" != "200" ]]; do
     sleep 1
-    ((attempt++))
-    if ((attempt > max_attempts)); then
-        echo "Elasticsearch is not responding after $max_attempts attempts - exiting."
-        exit 1
-    fi
   done
-  echo "Elasticsearch is up and running."
 
   echo -e "\e[32m[X]\e[0m Setting elastic user password"
   curl --cacert certs/root-ca.crt --user elastic:${temp} -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H 'Content-Type: application/json' -d' { "password" : "'"$elastic_user_pass"'"} '
@@ -171,7 +160,6 @@ function zipfiles() {
   zip -rmT /opt/lme/files_for_windows.zip /tmp/lme
   # Give global read permissions to new archive for later retrieval
   chmod 664 /opt/lme/files_for_windows.zip
-
 }
 
 function generateCA() {
@@ -421,6 +409,22 @@ get_distribution() {
   echo "$lsb_dist"
 }
 
+#DEPRECATED
+#function dashboard_update() {
+#  echo -e "\e[32m[X]\e[0m Creating dashboard update crontab"
+#  crontab -l | {
+#    cat
+#    echo "0 1 * * * /opt/lme/dashboard_update.sh"
+#  } | crontab -
+#}
+#DEPRECATED
+#function auto_lme_update() {
+#  echo -e "\e[32m[X]\e[0m Creating LME update crontab"
+#  crontab -l | {
+#    cat
+#    echo "30 1 * * * /opt/lme/lme_update.sh"
+#  } | crontab -
+#}
 
 function indexmappingupdate() {
   echo -e "\n\e[32m[X]\e[0m Uploading the LME index template"
@@ -480,43 +484,6 @@ function pipelineupdate() {
   ]
 }
 '
-}
-
-function compose_upgrade() {
-      #vars:
-      old_old_live="/opt/lme/Chapter 3 Files/docker-compose-stack-live.yml"
-      old_live="/opt/lme/Chapter 3 Files/docker-compose-stack-live.yml.old-$(echo -n $version | sed 's/\./-/g')-$DATE"
-      new_template="/opt/lme/Chapter 3 Files/docker-compose-stack.yml"
-      new_live="/opt/lme/Chapter 3 Files/docker-compose-stack-live.yml"
-
-      echo -e "\e[32m[X]\e[0m Upgrading $new_live, backing up $old_old_live to $old_live"
-
-      #Update Docker Config
-      #Move old docker config to .old
-      cp "$old_old_live" "$old_live"
-      #copy new git version
-      cp "$new_template" "$new_live"
-
-      # copy ramcount into var
-      Ram_from_conf="$(grep -P -o "(?<=Xms)\d+" "$old_live")"
-      # update Config file with ramcount
-      sed -i "s/ram-count/$Ram_from_conf/g" "$new_live" 
-      # copy elastic pass into var
-      Kibanapass_from_conf="$(grep -P -o "(?<=ELASTICSEARCH_PASSWORD: ).*" "$old_live")"
-      #update config with kibana password
-      sed -i "s/insertkibanapasswordhere/$Kibanapass_from_conf/g" "$new_live" 
-      #copy kibana encryption key
-      kibanakey="$(grep -P -o "(?<=XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ).*" "$old_live")"
-      #update config with kibana key
-      sed -i "s/kibanakey/$kibanakey/g" "$new_live" 
-      # copy publicbaseurl
-      baseurl_from_conf="$(grep -P -o "(?<=SERVER_PUBLICBASEURL: ).*" "$old_live")"
-      #update config with publicbaseurl
-      if [ -n "$baseurl_from_conf" ] && [ "$baseurl_from_conf" != "insertpublicurlhere" ]; then
-        sed -i "s,insertpublicurlhere,$baseurl_from_conf,g" "$new_live" 
-      elif [ -n "$hostname" ]; then
-        sed -i "s/insertpublicurlhere/https:\/\/$hostname/g" "$new_live" 
-      fi
 }
 
 function data_retention() {
@@ -645,27 +612,6 @@ function configelasticsearch() {
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_all/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
 }
 
-function set_version() {
-  new_version=$1
-  replace_string="s/([0-9]+)\.([0-9]+)(\.[0-9]+)?/$new_version/g"
-  sed -i -E $replace_string /opt/lme/lme.conf
-}
-
-function write_update_scripts() {
-  update_user_pass=$1
-  
-  echo $update_user_pass
-
-  cp dashboard_update.sh /opt/lme/
-  chmod 700 /opt/lme/dashboard_update.sh
-
-  echo -e "\e[32m[X]\e[0m Updating dashboard update configuration with dashboard update user credentials"
-  sed -i "s/dashboardupdatepassword/$update_user_pass/g" /opt/lme/dashboard_update.sh
-
-  cp lme_update.sh /opt/lme/
-  chmod 700 /opt/lme/lme_update.sh
-}
-
 function writeconfig() {
   echo -e "\n\e[32m[X]\e[0m Writing LME Config"
   #write LME version
@@ -706,37 +652,23 @@ function zipnewcerts() {
   zip -rmT /opt/lme/new_client_certificates.zip /tmp/lme
 }
 
-function update() {
-  read -e -p "Do you want to automatically upgrade LME ([y]es/[n]o): " -i "y" autoupdate_enabled
-  if [ "$autoupdate_enabled" == "y" ]; then
-    echo -e "**Before proceeding**: Use https://crontab.cronhub.io/ to create a crontab expression.\nPress Any key to continue when done. (Enter) "
-    read  
-
-    echo -e "\e[33m[X]\e[0m Enabling LME Automatic Update"
-    read -e -p "Specify the crontab entry in quotes: " -i "\"0 1 * * *\"" crb
-    crb="$(echo "$crb" | tr -d \")"
-    echo -e "\e[32m[X]\e[0m Creating lme_update with crontab: $crb"
-    echo -e "\e[32m[X]\e[0m Creating LME update crontab"
-    crontab -l | {
-      cat
-      echo -e "$crb\t/opt/lme/lme_update.sh log"
-    } | crontab -
-
-  fi
-
-  read -e -p "Do you want to automatically update Dashboards ([y]es/[n]o): " -i "y" dashboardupdate_enabled
-  if [ "$dashboardupdate_enabled" == "y" ]; then
-    echo -e "\e[32m[X]\e[0m Enabling Dashboard Automatic Update"
-    read -e -p "Specify the crontab entry in quotes: " -i "\"0 1 * * *\"" crb
-    crb="$(echo "$crb" | tr -d \")"
-    echo -e "\e[32m[X]\e[0m Creating dashboard update with crontab: $crb"
-    crontab -l | {
-      cat
-      echo -e "$crb\t/opt/lme/dashboard_update.sh log"
-    } | crontab -
-  fi
-}
-
+#Deprecated
+#function promptupdate() {
+#  read -e -p "Do you want to automatically update LME ([y]es/[n]o): " -i "y" autoupdate_enabled
+#  if [ "$autoupdate_enabled" == "y" ]; then
+#    echo -e "\e[32m[X]\e[0m Enabling LME Automatic Update"
+#    #cron lme update
+#    auto_lme_update
+#
+#    read -e -p "Do you want to automatically update Dashboards ([y]es/[n]o): " -i "y" dashboardupdate_enabled
+#    if [ "$dashboardupdate_enabled" == "y" ]; then
+#      echo -e "\e[32m[X]\e[0m Enabling Dashboard Automatic Update"
+#      #cron dash update
+#      dashboard_update
+#    fi
+#  fi
+#}
+#
 
 function bootstrapindex() {
   if [[ "$(curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -s -o /dev/null -w ''%{http_code}'' https://127.0.0.1:9200/winlogbeat-000001)" != "200" ]]; then
@@ -758,16 +690,6 @@ function bootstrapindex() {
 function fixreadability() {
  cd /opt/lme/
  chmod -077 -R .
-
- #some permissions to help with seeing files
- chown root:sudo /opt/lme/
- chmod 750 /opt/lme/
- chmod 644 files_for_windows.zip
-
- #fix backups
- chown -R 1000:1000 /opt/lme/backups
- chmod -R  go-rwx /opt/lme/backups
- 
 }
 
 function install() {
@@ -815,13 +737,13 @@ function install() {
 
 
   if [ "$old_elastic_user_pass" == "y" ]; then
-    res= false
-    while [ ! $res ];do
-      read -e -p "PASSWORD: " OLD_ELASTIC_PASS 
-      prompt "confirm password \"$OLD_ELASTIC_PASS\""
-      res=$?
-    done
-  fi
+		res= false
+		while [ ! $res ];do
+			read -e -p "PASSWORD: " OLD_ELASTIC_PASS 
+			prompt "confirm password \"$OLD_ELASTIC_PASS\""
+			res=$?
+		done
+	fi
 
   if [ "$selfsignedyn" == "y" ]; then
     #make certs
@@ -939,43 +861,36 @@ function uninstall() {
   read -e -p "Proceed ([y]es/[n]o):" -i "n" check
   if [ "$check" == "n" ]; then
     return
-  elif [ "$check" == "y" ];then
-    echo -e "\e[32m[X]\e[0m Removing Docker stack and configuration"
-    docker stack rm lme
-    docker secret rm ca.crt logstash.crt logstash.key elasticsearch.key elasticsearch.crt
-    docker secret rm kibana.crt kibana.key
-    docker config rm logstash.conf logstash_custom.conf
-    echo -e "\e[32m[X]\e[0m Attempting to remove legacy LME files (this will cause expected errors if these no longer exist)"
-    docker secret rm winlogbeat.crt winlogbeat.key nginx.crt nginx.key
-    docker config rm osmap.csv
-    echo -e "\e[32m[X]\e[0m Leaving Docker swarm"
-    docker swarm leave --force
-    echo -e "\e[32m[X]\e[0m Removing LME config files and configured auto-updates"
-    rm -r certs
-    crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
-    echo -e "\e[33m[!]\e[0m NOTICE!"
-    echo -e "\e[33m[!]\e[0m No data has been deleted:"
-    echo -e "\e[33m[!]\e[0m - Run 'sudo docker volume rm lme_esdata' to delete the elasticsearch database"
-    echo -e "\e[33m[!]\e[0m - Run 'sudo docker volume rm lme_logstashdata' to delete the logstash data directory"
-    return
-  else
-    echo -e "\e[33m[!]\e[0m ONLY PROVIDE y or n"
   fi
+
+  echo -e "\e[32m[X]\e[0m Removing Docker stack and configuration"
+  docker stack rm lme
+  docker secret rm ca.crt logstash.crt logstash.key elasticsearch.key elasticsearch.crt
+  docker secret rm kibana.crt kibana.key
+  docker config rm logstash.conf logstash_custom.conf
+  echo -e "\e[32m[X]\e[0m Attempting to remove legacy LME files (this will cause expected errors if these no longer exist)"
+  docker secret rm winlogbeat.crt winlogbeat.key nginx.crt nginx.key
+  docker config rm osmap.csv
+  echo -e "\e[32m[X]\e[0m Leaving Docker swarm"
+  docker swarm leave --force
+  echo -e "\e[32m[X]\e[0m Removing LME config files and configured auto-updates"
+  rm -r certs
+  crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
+  echo -e "\e[33m[!]\e[0m NOTICE!"
+  echo -e "\e[33m[!]\e[0m No data has been deleted:"
+  echo -e "\e[33m[!]\e[0m - Run 'sudo docker volume rm lme_esdata' to delete the elasticsearch database"
+  echo -e "\e[33m[!]\e[0m - Run 'sudo docker volume rm lme_logstashdata' to delete the logstash data directory"
 }
 
-function upgrade() {
-  #TODO: get current/latest from git 
-  latest="1.1.0"
-
+function update() {
+  #remove auto updates
+  crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
   #check if the config file we're now creating on new installs exists
   if [ -r /opt/lme/lme.conf ]; then
     #reference this file as a source
     . /opt/lme/lme.conf
     #check if the version number is equal to the one we want
     if [ "$version" == "0.5.1" ]; then
-      #remove auto updates
-      crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
-
       echo -e "\e[32m[X]\e[0m Updating from git repo"
       git -C /opt/lme/ pull
 
@@ -1038,45 +953,9 @@ function upgrade() {
       fi
       zipfiles
       fixreadability
-    elif [[ ("$version" == "1.0.0" || "$version" == "1.0") ]]; then
-      echo -e "\e[32m[X]\e[0m You're on $version Time to upgrade to $latest" 
-
-      echo -e "\e[32m[X]\e[0m Updating from git repo"
-      git -C /opt/lme/ pull
-
-      echo -e "\e[32m[X]\e[0m Removing existing Docker stack"
-      docker stack rm lme
-
-      echo -e "\e[32m[X]\e[0m Sleeping for one minute to allow Docker actions to complete..."
-      sleep 1m
-
-      #Update Docker Config
-      compose_upgrade
-
-      #Update update_scripts
-      upgradepass="$(grep -o -P '(?<=dashboard_update:)[0-9A-Za-z]+' /opt/lme/dashboard_update.sh)"
-      write_update_scripts $upgradepass
-
-      #deploy:
-      echo -e "\e[32m[X]\e[0m Pulling newest images"
-      docker pull elasticsearch:8.11.1
-      docker pull kibana:8.11.1
-      docker pull logstash:8.11.1
-
-      echo -e "\e[32m[X]\e[0m Deploying LME"
-      deploylme
-
-      #finaly dashbaord_update
-      /opt/lme/dashboard_update.sh
-
-      #now updated :) 
-      set_version "1.1.0"
-
-    elif [ "$version" == $latest ]; then
-       echo -e "\e[32m[X]\e[0m You're on $version the latest version!"
+    fi
     else
       echo -e "\e[31m[!]\e[0m Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
-    fi
   fi
 }
 
@@ -1131,13 +1010,6 @@ function renew() {
   deploylme
 }
 
-function usage(){
-  echo -e "\e[31m[!]\e[0m Invalid operation specified"
-  echo "Usage:    ./deploy.sh (install/uninstall/renew/upgrade/update)"
-  echo "Example:  ./deploy.sh install"
-  exit 1
-}
-
 ############
 #START HERE#
 ############
@@ -1161,17 +1033,21 @@ cd "$DIR" || exit
 
 #What action is the user wanting to perform
 if [ "$1" == "" ]; then
-  usage
+  echo -e "\e[31m[!]\e[0m No operation specified"
+  echo "Usage:    ./deploy.sh (install/uninstall/renew)"
+  echo "Example:  ./deploy.sh install"
+  exit 1
 elif [ "$1" == "install" ]; then
   install
 elif [ "$1" == "uninstall" ]; then
   uninstall
-elif [ "$1" == "upgrade" ]; then
-  upgrade
-elif [ "$1" == "renew" ]; then
-  renew
 elif [ "$1" == "update" ]; then
   update
+elif [ "$1" == "renew" ]; then
+  renew
 else
-  usage
+  echo -e "\e[31m[!]\e[0m Invalid operation specified"
+  echo "Usage:    ./deploy.sh (install/uninstall/renew)"
+  echo "Example:  ./deploy.sh install"
+  exit 1
 fi
