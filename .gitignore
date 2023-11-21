@@ -4,3 +4,14 @@
 /.vscode/
 /Chapter 4 Files/*.dumped.ndjson
 /Chapter 4 Files/exported/
+
+#created files should be ignored:
+Chapter 3 Files/certs/
+Chapter 3 Files/docker-compose-stack-live.yml
+Chapter 3 Files/logstash.edited.conf
+Chapter 3 Files/logstash_custom.conf
+LME/
+dashboard_update.sh
+files_for_windows.zip
+lme.conf
+lme_update.sh
