@@ -66,8 +66,8 @@ To begin your Logging Made Easy installation, you will need access to (or creati
 ### Minimum Hardware Requirements:
    -  CPU: 2 processor cores,
    -  MEMORY: 16GB RAM,  (32GB+ recommended by [Elastic](https://www.elastic.co/guide/en/cloud-enterprise/current/ece-hardware-prereq.html)),
-   - STORAGE: dedicated 128GB storage for ELK (not including storage for OS and other files)
-     - This is estimated to only support ~17 clients of log streaming data/day, and Elasticsearch will automatically purge old logs to make space for new ones. We **highly** suggest more storage than 128GB for any other sized enterprise network.
+   - STORAGE: dedicated 90GB storage for ELK (not including storage for OS and other files)
+     - This is estimated to only support ~17 clients of log streaming data/day, and Elasticsearch will automatically purge old logs to make space for new ones. We **highly** suggest more storage than 90GB for any other sized enterprise network.
 
 ### Notes:
    * **DO NOT install Docker from the "Featured Snaps" section of the Ubuntu Server install procedure, we install the Docker community edition later.**
