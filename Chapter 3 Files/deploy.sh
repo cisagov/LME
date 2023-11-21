@@ -7,31 +7,31 @@ DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
 #prompt for y/n
 prompt() {
-	if [ -z "$1" ];
-	then
-		str="Are you sure?"
-	else
-		str=$1
-	fi
+  if [ -z "$1" ];
+  then
+    str="Are you sure?"
+  else
+    str=$1
+  fi
 
-	while true
-	do
-	 read -r -p "$str? [Y/n] " input
-	 
-	 case $input in
-			 [yY][eE][sS]|[yY])
-			 return 0 #true
-	 break
-	 ;;
-			 [nN][oO]|[nN])
-			 return 1 #false
-	 break
-					;;
-			 *)
-	 echo "Invalid input..."
-	 ;;
-	 esac
-	done
+  while true
+  do
+   read -r -p "$str? [Y/n] " input
+   
+   case $input in
+       [yY][eE][sS]|[yY])
+       return 0 #true
+   break
+   ;;
+       [nN][oO]|[nN])
+       return 1 #false
+   break
+          ;;
+       *)
+   echo "Invalid input..."
+   ;;
+   esac
+  done
 }
 
 
@@ -653,6 +653,8 @@ function set_version() {
 
 function write_update_scripts() {
   update_user_pass=$1
+  
+  echo $update_user_pass
 
   cp dashboard_update.sh /opt/lme/
   chmod 700 /opt/lme/dashboard_update.sh
@@ -813,13 +815,13 @@ function install() {
 
 
   if [ "$old_elastic_user_pass" == "y" ]; then
-		res= false
-		while [ ! $res ];do
-			read -e -p "PASSWORD: " OLD_ELASTIC_PASS 
-			prompt "confirm password \"$OLD_ELASTIC_PASS\""
-			res=$?
-		done
-	fi
+    res= false
+    while [ ! $res ];do
+      read -e -p "PASSWORD: " OLD_ELASTIC_PASS 
+      prompt "confirm password \"$OLD_ELASTIC_PASS\""
+      res=$?
+    done
+  fi
 
   if [ "$selfsignedyn" == "y" ]; then
     #make certs
@@ -1037,13 +1039,13 @@ function upgrade() {
       zipfiles
       fixreadability
     elif [[ ("$version" == "1.0.0" || "$version" == "1.0") ]]; then
-       echo -e "\e[32m[X]\e[0m You're on $version Time to upgrade to $latest" 
+      echo -e "\e[32m[X]\e[0m You're on $version Time to upgrade to $latest" 
 
-       echo -e "\e[32m[X]\e[0m Updating from git repo"
-       git -C /opt/lme/ pull
+      echo -e "\e[32m[X]\e[0m Updating from git repo"
+      git -C /opt/lme/ pull
 
-       echo -e "\e[32m[X]\e[0m Removing existing Docker stack"
-       docker stack rm lme
+      echo -e "\e[32m[X]\e[0m Removing existing Docker stack"
+      docker stack rm lme
 
       echo -e "\e[32m[X]\e[0m Sleeping for one minute to allow Docker actions to complete..."
       sleep 1m
@@ -1052,11 +1054,20 @@ function upgrade() {
       compose_upgrade
 
       #Update update_scripts
-      upgradepass="$(grep -o -E 'dashboard_update:[0-9A-Za-z]+' /opt/lme/dashboard_update.sh)"
+      upgradepass="$(grep -o -P '(?<=dashboard_update:)[0-9A-Za-z]+' /opt/lme/dashboard_update.sh)"
       write_update_scripts $upgradepass
 
       #deploy:
+      echo -e "\e[32m[X]\e[0m Pulling newest images"
+      docker pull elasticsearch:8.11.1
+      docker pull kibana:8.11.1
+      docker pull logstash:8.11.1
+
+      echo -e "\e[32m[X]\e[0m Deploying LME"
       deploylme
+
+      #finaly dashbaord_update
+      /opt/lme/dashboard_update.sh
 
       #now updated :) 
       set_version "1.1.0"
