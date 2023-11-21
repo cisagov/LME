@@ -8,6 +8,30 @@ Below you can find the upgrade paths that are currently supported and what steps
 Applying these changes is automated for any new installations. But, if you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
 
 ### 1.1 Upgrade from v1.0.0
+This upgrade assumes your `/opt/lme` directory is on the `main` branch, which it will be by default. To confirm this run the command below. You may need to run as `sudo` depending if  you installed lme as root (which is the default instructions).
+
+```
+cd /opt/lme/
+git status 
+```
+
+You should see the output like below:
+```
+On branch main
+Your branch is up to date with 'origin/main'.
+```
+
+This upgrade does the following: 
+1. pulls the new updates to the `main` branch using git (if this step fails, git pull manually, and rerun)
+2. removes the lme stack so it can be reset with the new updates
+3. upgrades the compose live file
+4. upgrades the lme_update and dashboard_update files
+5. docker pull's elastic `8.11.1`
+6. redeploy's LME
+7. Update's LME's dashboards
+8. Sets the version in lme.conf: `1.1.0`
+
+#### Optional step: 
 You may want to delete and reimport the dashboards on upgrade from 1.0.0 to 1.1.0. [Updating dashboards](/Chapter%204%20Files/dashboards/Readme.md). This way you are not left with old dashboards when you export.  
 
 
