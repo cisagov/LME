@@ -103,7 +103,7 @@ root@util:~# resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 ```
 
 ### Containers restarting/not running: 
-Usually if you have issues with containers restarting there is probably something wrong with your host or the container itself. Lik in the above sample, a wrong password could be prevent the Elastic Stack from operating properly. You can check the container logs like so: 
+Usually if you have issues with containers restarting there is probably something wrong with your host or the container itself. Like in the above sample, a wrong password could be prevent the Elastic Stack from operating properly. You can check the container logs like so: 
 ```
 #TO list the name of the container
 sudo docker ps --format "{{.Names}}"
