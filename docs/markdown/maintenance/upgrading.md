@@ -1,7 +1,7 @@
 # Upgrading
 
 ## 1 Upgrade Paths
-LME is currently on v1.x.x.
+Please see https://github.com/cisagov/LME/releases/ for our latest release.
 
 Below you can find the upgrade paths that are currently supported and what steps are required for these upgrades. Note that major version upgrades tend to include significant changes, and so will require manual intervention and will not be automatically applied, even if auto-updates are enabled.
 
