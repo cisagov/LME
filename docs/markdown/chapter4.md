@@ -103,7 +103,9 @@ If you have never used Kibana before, Elasticsearch has provided a number of vid
 Kibana comes with many useful features. In particular, make note of the following:
 
 ### 4.3.1 Dashboards
-Found under both "Analytics" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for some starting points offered by Elasticsearch.
+Found under "Analytics" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for some starting points offered by Elasticsearch.
+
+Note:  If you make changes to the dashboards that LME provides, be sure to save your changes to a dashboard with a different name.  Otherwise, your changes will be overwritten when you upgrade LME.
 
 ### 4.3.2 Discover
 Found under "Analytics" -> "Discover," Discover allows you view raw events and craft custom filters to find events of interest. For example, to inspect all DNS queries made on a computer named "Example-1," you could insert the following query where it says "Filter your data using KQL syntax":
