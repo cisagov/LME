@@ -20,8 +20,7 @@ As of version 0.4 of LME, the initial process of creating an index and importing
 If an error was encountered during the initial dashboard import then the upload can be reattempted by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
 
 ```
-cd /opt/lme
-sudo ./dashboard_update.sh
+sudo /opt/lme/dashboard_update.sh
 ```
 
 :hammer_and_wrench: If this does not resolve the issue or you wish to manually import the dashboards for whatever reason, see [Troubleshooting: Manual Dashboard Install](/docs/markdown/reference/troubleshooting.md#manual-dashboard-install) for the previous installation instructions.
