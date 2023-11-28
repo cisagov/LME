@@ -143,8 +143,8 @@ class Api:
 
     @staticmethod
     def write_to_file(filename, content):
-        with open(filename, 'w') as file:
-            file.write(content)
+        with open(filename, 'wb') as file:
+            file.write(content.encode('utf-8'))
 
 
 def main():
