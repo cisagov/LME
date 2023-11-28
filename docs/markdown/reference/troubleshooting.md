@@ -127,7 +127,7 @@ You can see this in the [docker-compose-stack.yml](https://github.com/cisagov/LM
         target: /usr/share/elasticsearch/backups
 ```
 
-To fix this you can change the permissions to what the conatiner expects: 
+To fix this you can change the permissions to what the container expects: 
 ```
 sudo chown -R 1000:1000 /opt/lme/backups
 ```
