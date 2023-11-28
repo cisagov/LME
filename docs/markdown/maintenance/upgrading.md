@@ -1,5 +1,7 @@
 # Upgrading
 
+Please see https://github.com/cisagov/LME/releases/ for our latest release.
+
 Below you can find the upgrade paths that are currently supported and what steps are required for these upgrades. Note that major version upgrades tend to include significant changes, and so will require manual intervention and will not be automatically applied, even if auto-updates are enabled.
 
 Applying these changes is automated for any new installations. But, if you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
@@ -36,7 +38,7 @@ sudo cp /opt/lme_old/files_for_windows.zip /opt/lme/
 sudo cp /opt/lme_old/lme.conf /opt/lme/
 sudo cp /opt/lme_old/lme_update.sh /opt/lme/
 ```
-Finally, you'll need to grab your old dashbouard_update password and add it into the new dashboard_update script: 
+Finally, you'll need to grab your old dashboard_update password and add it into the new dashboard_update script: 
 ```
 OLD_Password=[OLD_PASSWORD_HERE]
 sudo cp /opt/lme/Chapter\ 3\ Files/dashboard_update.sh /opt/lme/

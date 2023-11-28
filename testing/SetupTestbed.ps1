@@ -46,7 +46,7 @@ param (
 
   [Alias("s")]
   [Parameter(Mandatory=$true,
-    HelpMessage="XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc... Comma-Seperated list of CIDR prefixes or IP ranges"
+    HelpMessage="XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc... Comma-Separated list of CIDR prefixes or IP ranges"
   )]
   [string]$AllowedSources,
 
