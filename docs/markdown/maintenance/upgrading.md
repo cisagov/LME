@@ -1,7 +1,7 @@
 # Upgrading
 
 ## 1 Upgrade Paths
-LME is currently on v1.0.
+Please see https://github.com/cisagov/LME/releases/ for our latest release.
 
 Below you can find the upgrade paths that are currently supported and what steps are required for these upgrades. Note that major version upgrades tend to include significant changes, and so will require manual intervention and will not be automatically applied, even if auto-updates are enabled.
 
@@ -23,7 +23,7 @@ sudo cp /opt/lme_old/files_for_windows.zip /opt/lme/
 sudo cp /opt/lme_old/lme.conf /opt/lme/
 sudo cp /opt/lme_old/lme_update.sh /opt/lme/
 ```
-Finally, you'll need to grab your old dashbouard_update password and add it into the new dashboard_update script: 
+Finally, you'll need to grab your old dashboard_update password and add it into the new dashboard_update script: 
 ```
 OLD_Password=[OLD_PASSWORD_HERE]
 sudo cp /opt/lme/Chapter\ 3\ Files/dashboard_update.sh /opt/lme/
@@ -60,7 +60,6 @@ Most data from the old LME should display just fine in the new dashboards, but t
 cd /opt/lme/
 sudo ./dashboard_update.sh
 ```
-If there are issues its possible the version didn't update in `/opt/lme/lme.conf`. Change it to `1.0` if it did not.
 
 The rules built-in to the Elastic SIEM can then be updated to the latest version by following the instructions listed in [Chapter 4](/docs/markdown/chapter4.md#42-enable-the-detection-engine) and selecting the option to update the prebuilt rules when prompted, before making sure all of the rules are activated:
 

@@ -2,7 +2,7 @@
  
 There may come a time where a log is not particularly useful or an aspect of LME proves overly verbose (e.g.: [Dashboard spamming events](https://github.com/cisagov/LME/issues/22). We try our best to make everything useful by default but cannot predict every eventuality since all environments will be different. So to enable users to make the LME system more useful (and hopefully commit their own pull requests back with updates :) ), we are documenting here how you can filter out logs in the:
 
-1. Dashbaord
+1. Dashboard
 2. Host logging utility (e.g. winlogbeat)
 3. Serverside (e.g. logstash)
 

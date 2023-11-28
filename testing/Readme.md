@@ -19,7 +19,7 @@ This script does not install LME; it simply creates a fresh environment that's r
 | $NumClients            | -n | The number of Windows clients to create; maximum 16; defaults to 1                                    | No                                   |
 | $AutoShutdownTime      | | The auto-shutdown time in UTC (HHMM, e.g. 2230, 0000, 1900); auto-shutdown not configured if not provided                            | No |
 | $AutoShutdownEmail     | | An email to be notified if a VM is auto-shutdown.                                      | No                                    |
-| $AllowedSources       | -s | Comma-Seperated list of CIDR prefixes or IP ranges, e.g. XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc..., that are allowed to connect to the VMs via RDP and ssh.                                      | Yes                                    |
+| $AllowedSources       | -s | Comma-Separated list of CIDR prefixes or IP ranges, e.g. XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc..., that are allowed to connect to the VMs via RDP and ssh.                                      | Yes                                    |
 | $NoPrompt | -y | Switch, run the script with no prompt (useful for automated runs). By default, the script will prompt the user to review paramters and confirm before continuing. | No |
 
 Example:
