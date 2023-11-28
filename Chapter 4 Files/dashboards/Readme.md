@@ -2,9 +2,12 @@
 
 
 ## How to update dashboards
+To update the dashboards, run the following command from the Linux server:
 ```
-./dashboard_update.sh
+sudo /opt/lme/dashboard_update.sh
 ```
+
+Note that there is also a `dashboard_update.sh` script within the Chapter 3 Files folder. That is a generic version of the script that is used to contruct the `dashboard_update.sh` script inside the /opt/lme folder. The version inside the Chapter 3 Files folder does **not** have the information needed to update the dashboards. Only the version inside the /opt/lme folder, which is customized to your specific installation of LME, should be run.
 
 ### Updating to new dashboards and removing old ones (Starting with 1.1.0)
 Browse to `Kibana->Stack Management` then select `Saved Objects`.
