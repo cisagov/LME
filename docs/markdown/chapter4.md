@@ -20,8 +20,7 @@ As of version 0.4 of LME, the initial process of creating an index and importing
 If an error was encountered during the initial dashboard import then the upload can be reattempted by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
 
 ```
-cd /opt/lme
-sudo ./dashboard_update.sh
+sudo /opt/lme/dashboard_update.sh
 ```
 
 :hammer_and_wrench: If this does not resolve the issue or you wish to manually import the dashboards for whatever reason, see [Troubleshooting: Manual Dashboard Install](/docs/markdown/reference/troubleshooting.md#manual-dashboard-install) for the previous installation instructions.
@@ -29,7 +28,7 @@ sudo ./dashboard_update.sh
 
 ### 4.1.2 Check you are receiving logs
 
-While on the Elastic home page, click on the hamburger icon on the left, then under "Analytics," find and click "Dashboard." From there, find and select "NEW - User Security." This will show a dashboard similar to Figure 2.
+While on the Elastic home page, click on the hamburger icon on the left, then under "Analytics," find and click "Dashboard." From there, find and select "User Security." This will show a dashboard similar to Figure 2.
 
 <p align="center">
     <img src="/docs/imgs/usersec.png" width="66%" />
@@ -60,7 +59,7 @@ From here, ensure that the maximum number of rows is shown so that all of the re
 
 ![Enable siem](/docs/imgs/siem5.png)
 
-Lastly, select all of the displayed rules, expand "Bulk actions" and choose "Activate selected":
+Lastly, select all of the displayed rules, expand "Bulk actions" and choose "Enable":
 
 ![Enable siem](/docs/imgs/alert-enable-menu.png)
 
@@ -103,7 +102,9 @@ If you have never used Kibana before, Elasticsearch has provided a number of vid
 Kibana comes with many useful features. In particular, make note of the following:
 
 ### 4.3.1 Dashboards
-Found under both "Analytics" -> "Dashboard" and "Security" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with around many dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for some starting points offered by Elasticsearch.
+Found under "Analytics" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for some starting points offered by Elasticsearch.
+
+Note:  If you make changes to the dashboards that LME provides, be sure to save your changes to a dashboard with a different name.  Otherwise, your changes will be overwritten when you upgrade LME.
 
 ### 4.3.2 Discover
 Found under "Analytics" -> "Discover," Discover allows you view raw events and craft custom filters to find events of interest. For example, to inspect all DNS queries made on a computer named "Example-1," you could insert the following query where it says "Filter your data using KQL syntax":
