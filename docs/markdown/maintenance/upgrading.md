@@ -70,10 +70,8 @@ Most data from the old LME should display just fine in the new dashboards, but t
 
 
 ```
-cd /opt/lme/
-sudo ./dashboard_update.sh
+sudo /opt/lme/dashboard_update.sh
 ```
-If there are issues it's possible the version didn't update in `/opt/lme/lme.conf`. Change it to `1.0` if it did not.
 
 The rules built-in to the Elastic SIEM can then be updated to the latest version by following the instructions listed in [Chapter 4](/docs/markdown/chapter4.md#42-enable-the-detection-engine) and selecting the option to update the prebuilt rules when prompted, before making sure all of the rules are activated:
 
@@ -92,7 +90,7 @@ To update Winlogbeat:
 3. Re-install Winlogbeat, using the new copy of files_for_windows.zip, following the instructions listed under [3.3 Configuring Winlogbeat on Windows Event Collector Server](/docs/markdown/chapter3/chapter3.md#33-configuring-winlogbeat-on-windows-event-collector-server)
 
 ### 2.3. Network Share Updates
-LME v1.0 make a minor change to the file structure used in the SYSVOL folder, so a few manual changes are needed to accommodate this.
+LME v1.0 made a minor change to the file structure used in the SYSVOL folder, so a few manual changes are needed to accommodate this.
 1. Set up the SYSVOL folder as described in [2.2.1 - Folder Layout](/docs/markdown/chapter2.md#221---folder-layout).
 2. Replace the old version of update.bat with the [latest version](/Chapter%202%20Files/GPO%20Deployment/update.bat).
 3. Update the path to update.bat used in the LME-Sysmon-Task GPO (refer to [2.2.3 - Scheduled task GPO Policy](/docs/markdown/chapter2.md#223---scheduled-task-gpo-policy)).
