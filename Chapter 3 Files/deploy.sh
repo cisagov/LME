@@ -3,6 +3,10 @@
 # LME Deploy Script        #
 ############################
 # This script configures a host for LME including generating certificates and populating configuration files.
+
+# Put the latest version number here
+version='1.2.0'
+
 DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
 #prompt for y/n
@@ -610,7 +614,7 @@ function configelasticsearch() {
 function writeconfig() {
   echo -e "\n\e[32m[X]\e[0m Writing LME Config"
   #write LME version
-  echo "version=1.0" >/opt/lme/lme.conf
+  echo "version=$version" >/opt/lme/lme.conf
   if [ -z "$logstashcn" ]; then
     # $logstashcn is not set - so this function is not called from an initial install
     read -e -p "Enter the Fully Qualified Domain Name (FQDN) of this Linux server: " logstashcn
@@ -877,7 +881,7 @@ function upgrade() {
   crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
 
   #grab latest version
-  latest="1.2.0"
+  latest=$version
 
   #check if the config file we're now creating on new installs exists
   if [ -r /opt/lme/lme.conf ]; then
@@ -956,6 +960,8 @@ function upgrade() {
       sudo docker stack rm lme
       pulllme
       sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
+      sudo sed -i "s/version=1.0/version=$latest/g" /opt/lme/lme.conf
     elif [ "$version" == $latest ]; then
       echo -e "\e[32m[X]\e[0m You're on the latest version!"
     else
