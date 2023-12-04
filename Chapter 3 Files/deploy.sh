@@ -941,6 +941,7 @@ function upgrade() {
       echo -e "\e[32m[X]\e[0m Recreating Docker stack"
       docker config create logstash.conf /opt/lme/Chapter\ 3\ Files/logstash.edited.conf
       docker config create logstash_custom.conf /opt/lme/Chapter\ 3\ Files/logstash_custom.conf
+      pulllme
       deploylme
       if [ -z "$logstashcn" ]; then
         read -e -p "Enter the Fully Qualified Domain Name (FQDN) of this Linux server: " logstashcn
@@ -1004,6 +1005,7 @@ function renew() {
 
   populatecerts
   echo -e "\e[32m[X]\e[0m Recreating Docker stack"
+  pulllme
   deploylme
 }
 
