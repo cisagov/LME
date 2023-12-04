@@ -954,6 +954,7 @@ function upgrade() {
       sudo cp /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml /opt/lme/Chapter\ 3\ Files/backup_config/docker-compose-stack-live.yml
       sudo sed -i 's/8.7.1/8.11.1/g' /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
       sudo docker stack rm lme
+      pulllme
       sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
     elif [ "$version" == $latest ]; then
       echo -e "\e[32m[X]\e[0m You're on the latest version!"
