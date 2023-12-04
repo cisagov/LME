@@ -877,7 +877,7 @@ function upgrade() {
   crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
 
   #grab latest version
-  latest="1.0"
+  latest="1.2.0"
 
   #check if the config file we're now creating on new installs exists
   if [ -r /opt/lme/lme.conf ]; then
@@ -949,6 +949,12 @@ function upgrade() {
       zipfiles
       fixreadability
 
+    elif [ "$version" == "1.0" ]; then
+      sudo mkdir -p /opt/lme/Chapter\ 3\ Files/backup_config
+      sudo cp /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml /opt/lme/Chapter\ 3\ Files/backup_config/docker-compose-stack-live.yml
+      sudo sed -i 's/8.7.1/8.11.1/g' /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
+      sudo docker stack rm lme
+      sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
     elif [ "$version" == $latest ]; then
       echo -e "\e[32m[X]\e[0m You're on the latest version!"
     else
