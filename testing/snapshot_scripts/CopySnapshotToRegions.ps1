@@ -11,7 +11,6 @@
 #     -snapshotName "SnapshotName" `
 #     -version "SnapshotVersion" `
 #     -sourceResourceGroup "SourceGroup" `
-#     -targetResourceGroup "TargetGroup"
 # ```
 
 param(
@@ -20,9 +19,7 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$version,
     [Parameter(Mandatory=$true)]
-    [string]$sourceResourceGroup,
-    [Parameter(Mandatory=$true)]
-    [string]$targetResourceGroup
+    [string]$sourceResourceGroup
 )
 
 # Get the current Azure subscription ID
@@ -55,6 +52,16 @@ foreach ($region in $targetRegions) {
     # Skip if the region is the same as the source snapshot's region
     if ($region -eq $sourceRegion) {
         continue
+    }
+
+    # Define the target resource group based on region
+    $targetResourceGroup = "TestbedAssets-$region"
+
+    # Check if the target resource group exists, create if not
+    $groupExists = az group exists --name $targetResourceGroup --output tsv
+    if (-not [System.Convert]::ToBoolean($groupExists)) {
+        az group create --name $targetResourceGroup --location $region
+        Write-Host "Created resource group $targetResourceGroup in $region."
     }
 
     # Generate a random string
