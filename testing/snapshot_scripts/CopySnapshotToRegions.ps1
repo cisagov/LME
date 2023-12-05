@@ -58,7 +58,8 @@ foreach ($region in $targetRegions) {
     }
 
     # Generate a random string
-    $randomString = -join ((65..90) + (97..122) | Get-Random -Count 4 | ForEach-Object {[char]$_})
+    $randomString = -join ((48..57) + (97..122) | Get-Random -Count 10 | ForEach-Object {[char]$_})
+
 
     # Generate a unique storage account name
     $storageAccountName = "st" + $region.ToLower().Replace(" ", "") + $randomString + "acc"
