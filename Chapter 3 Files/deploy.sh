@@ -5,7 +5,6 @@
 # This script configures a host for LME including generating certificates and populating configuration files.
 
 # Put the latest version number here
-version='1.2.0'
 
 DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
@@ -36,6 +35,13 @@ prompt() {
   done
 }
 
+function get_latest_version() {
+  #TODO: eventually have this pull from github
+
+  #return:
+  echo -n '1.2.0'
+  return 0
+}
 function customlogstashconf() {
   #add option for custom logstash config
   CUSTOM_LOGSTASH_CONF=/opt/lme/Chapter\ 3\ Files/logstash_custom.conf
@@ -614,7 +620,7 @@ function configelasticsearch() {
 function writeconfig() {
   echo -e "\n\e[32m[X]\e[0m Writing LME Config"
   #write LME version
-  echo "version=$version" >/opt/lme/lme.conf
+  echo "version=$(get_latest_version)" >/opt/lme/lme.conf
   if [ -z "$logstashcn" ]; then
     # $logstashcn is not set - so this function is not called from an initial install
     read -e -p "Enter the Fully Qualified Domain Name (FQDN) of this Linux server: " logstashcn
@@ -724,7 +730,7 @@ function install() {
 
   read -e -p "This script will use self signed certificates for communication and encryption. Do you want to continue with self signed certificates? ([y]es/[n]o): " -i "y" selfsignedyn
   read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall
-  read -e -p "Do you have an old elastic user password? ([y]es/[n]o): " -i "n" old_elastic_user_pass
+  read -e -p "Do you have an old elastic user password from a previous LME install? ([y]es/[n]o): " -i "n" old_elastic_user_pass
 
   if [ "$old_elastic_user_pass" == "y" ]; then
     res= false
@@ -881,7 +887,7 @@ function upgrade() {
   crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
 
   #grab latest version
-  latest=$version
+  latest=$(get_latest_version)
 
   #check if the config file we're now creating on new installs exists
   if [ -r /opt/lme/lme.conf ]; then
@@ -954,14 +960,26 @@ function upgrade() {
       fixreadability
 
     elif [ "$version" == "1.0" ]; then
+      echo -e "\e[32m[X]\e[0m Backing up config file to: /opt/lme/Chapter\ 3\ Files/backup_config "
       sudo mkdir -p /opt/lme/Chapter\ 3\ Files/backup_config
       sudo cp /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml /opt/lme/Chapter\ 3\ Files/backup_config/docker-compose-stack-live.yml
+
+      echo -e "\e[32m[X]\e[0m Updating elastic to 8.11.1 "
       sudo sed -i 's/8.7.1/8.11.1/g' /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
       sudo docker stack rm lme
+
+      echo -e "\e[32m[X]\e[0m Sleeping for one minute to allow Docker actions to complete..."
+      sleep 1m
+
       pulllme
-      sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
+
+      echo -e "\e[32m[X]\e[0m Deploy LME"
+      deploylme
+
+      echo -e "\e[32m[X]\e[0m Copying lme.conf -> lme.conf.bku"
       sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
       sudo sed -i "s/version=1.0/version=$latest/g" /opt/lme/lme.conf
+      echo -e "\e[32m[X]\e[0m You're on the latest version: $latest!"
     elif [ "$version" == $latest ]; then
       echo -e "\e[32m[X]\e[0m You're on the latest version!"
     else
