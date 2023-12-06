@@ -202,9 +202,10 @@ function CreateVMFromSnapshot {
         [Parameter(Mandatory = $true)]
         [string]$Subnet,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string]$IP
     )
+    $CapOsType = $OsType.Substring(0,1).ToUpper() + $OsType.Substring(1).ToLower()
 
     $NewDiskName = "${NewVmName}_OsDisk_1_${RandomString}"
     Write-Output "`nRestoring $NewVmName..."
@@ -212,22 +213,34 @@ function CreateVMFromSnapshot {
     $snapshotId = (az snapshot show --name "DC1-$Version" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
     Write-Host "Using snapshot id: $snapshotId"
     Write-Host "Creating $NewDiskName in $ResourceGroup"
-
     az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId
+    # --os-type $CapOsType
 
     Write-Host "Creating vm $NewVmName in $ResourceGroup using ip $IP"
-    az vm create `
-        --resource-group $ResourceGroup `
-        --name $NewVmName `
-        --nsg $Nsg `
-        --attach-os-disk $NewDiskName `
-        --os-type $OsType `
-        --size $VmSize `
-        --location $Location `
-        --vnet-name $VNetName `
-        --subnet $Subnet `
-        --public-ip-sku Standard `
-        --private-ip-address $IP
+    ##"--os-type $OsType " +
+    # Start constructing the command
+    $vmCreateCommand = "az vm create " +
+            "--resource-group $ResourceGroup " +
+            "--name $NewVmName " +
+            "--nsg $Nsg " +
+            "--attach-os-disk $NewDiskName " +
+            "--size $VmSize " +
+            "--location $Location " +
+            "--vnet-name $VNetName " +
+            "--subnet $Subnet " +
+            "--public-ip-sku Standard"
+
+    # Add the private IP address argument only if $IP is not null
+    if ($null -ne $IP) {
+        $vmCreateCommand += " --private-ip-address $IP"
+        Write-Host "Using IP: $IP"
+    }
+    else {
+        Write-Host "No private IP address specified"
+    }
+
+    # Execute the command
+    Invoke-Expression $vmCreateCommand
 }
 
 
@@ -386,7 +399,6 @@ for ($i = 1; $i -le $NumClients; $i++) {
             -Nsg $Nsg `
             -VNetName $VNetName `
             -Subnet $Subnet `
-            -IP $LsIP
 
     }
     else {
