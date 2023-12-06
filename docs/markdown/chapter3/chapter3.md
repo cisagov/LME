@@ -222,6 +222,8 @@ Then, move the 'winlogbeat.yml' file located at ```C:\Program Files\lme\winlogbe
 
 Now, open PowerShell as an administrator and run the following command from the winlogbeat directory, allowing the script to run if prompted to do so: ```./install-service-winlogbeat.ps1```
 
+If you receive a permissions error you can run ```Set-ExecutionPolicy Unrestricted -Scope Process``` to be able to run the installer.
+
 ![Winlogbeat Install Script](/docs/imgs/winlogbeat-install.png)
 <p align="center">
 Figure 4: Winlogbeat Install Script
