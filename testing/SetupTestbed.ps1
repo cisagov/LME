@@ -213,17 +213,16 @@ function CreateVMFromSnapshot {
     $snapshotId = (az snapshot show --name "DC1-$Version" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
     Write-Host "Using snapshot id: $snapshotId"
     Write-Host "Creating $NewDiskName in $ResourceGroup"
-    az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId
-    # --os-type $CapOsType
+    az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId --os-type $CapOsType
 
     Write-Host "Creating vm $NewVmName in $ResourceGroup using ip $IP"
-    ##"--os-type $OsType " +
     # Start constructing the command
     $vmCreateCommand = "az vm create " +
             "--resource-group $ResourceGroup " +
             "--name $NewVmName " +
             "--nsg $Nsg " +
             "--attach-os-disk $NewDiskName " +
+            "--os-type $OsType " +
             "--size $VmSize " +
             "--location $Location " +
             "--vnet-name $VNetName " +
