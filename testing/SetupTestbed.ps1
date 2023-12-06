@@ -210,7 +210,7 @@ function CreateVMFromSnapshot {
     $NewDiskName = "${NewVmName}_OsDisk_1_${RandomString}"
     Write-Output "`nRestoring $NewVmName..."
 
-    $snapshotId = (az snapshot show --name "DC1-$Version" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
+    $snapshotId = (az snapshot show --name "${NewVmName}-${Version}" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
     Write-Host "Using snapshot id: $snapshotId"
     Write-Host "Creating $NewDiskName in $ResourceGroup"
     az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId --os-type $CapOsType
