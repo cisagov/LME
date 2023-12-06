@@ -100,7 +100,6 @@ foreach ($region in $targetRegions) {
     Write-Host  # New line after dots
 
     # Step 7: Create snapshot in target region
-    #$targetSnapshotName = $snapshotName + "_copy"
     $targetSnapshotName = $fullSnapshotName
     Write-Host "Creating the snapshot from the copy in $region..."
     az snapshot create --name $targetSnapshotName --resource-group $targetResourceGroup --location $region --source "https://${storageAccountName}.blob.core.windows.net/${containerName}/${destinationBlob}" --source-storage-account-id "/subscriptions/$subscriptionID/resourceGroups/$targetResourceGroup/providers/Microsoft.Storage/storageAccounts/$storageAccountName"
@@ -121,14 +120,37 @@ foreach ($region in $targetRegions) {
     Write-Host "Deleting the storage account in $region..."
     az storage account delete --resource-group $targetResourceGroup --name $storageAccountName --yes
 }
-
-# Print the entire hashtable
+# Iterate through the hashtable and output PowerShell commands to populate it
 $snapshots.GetEnumerator() | ForEach-Object {
     $region = $_.Key
     $_.Value.GetEnumerator() | ForEach-Object {
         $version = $_.Key
         $_.Value.GetEnumerator() | ForEach-Object {
-            Write-Host "Region: $region, Version: $version, Name: $($_.Key), ID: $($_.Value)"
+            # Generate the command string
+            $command = "`$snapshots['$region']['$version']['$($_.Key)'] = '$($_.Value)'"
+            # Output the command
+            Write-Host $command
         }
     }
 }
+
+# Instantiate this hashtable in SetupTestbed.ps1 before inserting the output from the commands above.
+# # Define the list of versions
+# $versions = @("1.1.0", "1.2.0") # Add more versions as needed
+#
+# # Initialize the hashtable with regions and versions
+# $snapshots = @{
+#     "centralus" = @{}
+#     "eastus" = @{}
+#     "eastus2" = @{}
+#     "southcentralus" = @{}
+#     "westus2" = @{}
+#     "westus3" = @{}
+# }
+#
+# # Populate each region with the versions
+# foreach ($region in $snapshots.Keys) {
+#     foreach ($version in $versions) {
+#         $snapshots[$region][$version] = @{}
+#     }
+# }
