@@ -230,7 +230,7 @@ function CreateVMFromSnapshot {
             "--public-ip-sku Standard"
 
     # Add the private IP address argument only if $IP is not null
-    if ($null -ne $IP) {
+    if ([string]::IsNullOrWhiteSpace($IP) -eq $false) {
         $vmCreateCommand += " --private-ip-address $IP"
         Write-Host "Using IP: $IP"
     }
@@ -322,7 +322,7 @@ $VMPassword = Get-RandomPassword 12
 Write-Output "`nWriting $VMAdmin password to password.txt"
 echo $VMPassword > password.txt
 
-if ($null -ne $Version) {
+if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
     CreateVMFromSnapshot `
         -NewVmName "DC1" `
         -RandomString $RandomString `
@@ -353,7 +353,7 @@ else {
 
 }
 
-if ($null -ne $Version) {
+if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
     CreateVMFromSnapshot `
         -NewVmName "LS1" `
         -RandomString $RandomString `
@@ -386,7 +386,7 @@ else {
 }
 
 for ($i = 1; $i -le $NumClients; $i++) {
-    if ($null -ne $Version) {
+    if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
         CreateVMFromSnapshot `
             -NewVmName "C$i" `
             -RandomString $RandomString `
@@ -428,7 +428,7 @@ if ($null -ne $AutoShutdownTime) {
 }
 
 # If the version was passed in, we're done.
-if ($null -ne $Version) {
+if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
     Write-Output "Done."
     exit 0
 }
