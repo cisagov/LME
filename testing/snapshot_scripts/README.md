@@ -31,7 +31,10 @@ Usage:
 
 Usage:
 ```powershell
-.\CreateVmFromSnapshot.ps1 -snapshotName "MySnapshot" -resourceGroup "MyResourceGroup"
+.\CreateVmFromSnapshot.ps1 `
+    -SnapshotName "MySnapshot" `
+    -ResourceGroup "MyResourceGroup" `
+    -OsType "windows" # or "linux"
 ```
 
 ### CopySnapshotToRegions.ps1
@@ -48,7 +51,6 @@ Usage:
 ```powershell
 .\CopySnapshotToRegions.ps1 `
     -snapshotName "SnapshotName" `
-    -sourceResourceGroup "SourceGroup" `
-    -targetResourceGroup "TargetGroup"  `
-    -subscriptionID "YourSubscriptionID"
+    -version "1.1.0" `
+    -sourceResourceGroup "TestbedAssets-centralus" 
 ```

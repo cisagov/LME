@@ -1,4 +1,3 @@
-
 <#
     Creates a "blank slate" for testing/configuring LME.
 
@@ -11,40 +10,42 @@
     and optionally Auto-shutdown configuration each time you run it. 
     Be sure to copy the username/password it outputs at the end.
     After completion, login to the VMs using ssh to configure/test LME.
+
+    Example: ./TestbedOnlyLinux.ps1 -Location centralus -ResourceGroup YourResourceGroup -AutoShutdownTime 0000 -AllowedSources "x.x.x.x/32" -y
 #>
 
 param (
-  [Parameter(
-    HelpMessage="Auto-Shutdown time in UTC (HHMM, e.g. 2230, 0000, 1900). Convert timezone as necesary: (e.g. 05:30 pm ET -> 9:30 pm UTC -> 21:30 -> 2130)"
-  )]
-  $AutoShutdownTime=$null,
+    [Parameter(
+            HelpMessage = "Auto-Shutdown time in UTC (HHMM, e.g. 2230, 0000, 1900). Convert timezone as necesary: (e.g. 05:30 pm ET -> 9:30 pm UTC -> 21:30 -> 2130)"
+    )]
+    $AutoShutdownTime = $null,
 
-  [Parameter(
-    HelpMessage="Auto-shutdown notification email"
-  )]
-  $AutoShutdownEmail=$null,
+    [Parameter(
+            HelpMessage = "Auto-shutdown notification email"
+    )]
+    $AutoShutdownEmail = $null,
 
-  [Alias("l")]
-  [Parameter(
-    HelpMessage="Location where the cluster will be built. Default westus"
-  )]
-  [string]$Location="westus",
+    [Alias("l")]
+    [Parameter(
+            HelpMessage = "Location where the cluster will be built. Default westus"
+    )]
+    [string]$Location = "westus",
 
-  [Alias("g")]
-  [Parameter(Mandatory=$true)]
-  [string]$ResourceGroup,
+    [Alias("g")]
+    [Parameter(Mandatory = $true)]
+    [string]$ResourceGroup,
 
-  [Alias("s")]
-  [Parameter(Mandatory=$true,
-    HelpMessage="XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc... Comma-Separated list of CIDR prefixes or IP ranges to whitelist"
-  )]
-  [string]$AllowedSources,
+    [Alias("s")]
+    [Parameter(Mandatory = $true,
+            HelpMessage = "XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc... Comma-Separated list of CIDR prefixes or IP ranges to whitelist"
+    )]
+    [string]$AllowedSources,
 
-  [Alias("y")]
-  [Parameter(
-    HelpMessage="Run the script with no prompt (useful for automated runs)"
-  )]
-  [switch]$NoPrompt
+    [Alias("y")]
+    [Parameter(
+            HelpMessage = "Run the script with no prompt (useful for automated runs)"
+    )]
+    [switch]$NoPrompt
 )
 
 #DEFAULTS:
@@ -55,12 +56,11 @@ $LsIP = "10.1.0.5"
 
 #Domain information:
 $VMAdmin = "admin.ackbar"
-$DomainName = "lme.local"
 
 #Port options: https://learn.microsoft.com/en-us/cli/azure/network/nsg/rule?view=azure-cli-latest#az-network-nsg-rule-create
-$Ports = 22,3389
-$Priorities = 1001,1002
-$Protocols = "Tcp","Tcp"
+$Ports = 22, 3389
+$Priorities = 1001, 1002
+$Protocols = "Tcp", "Tcp"
 
 
 function Get-RandomPassword {
@@ -91,14 +91,14 @@ function Set-AutoShutdown {
 
     Write-Output "`nCreating Auto-Shutdown Rule for $VMName at time $AutoShutdownTime..."
     if ($null -ne $AutoShutdownEmail) {
-      az vm auto-shutdown `
+        az vm auto-shutdown `
           -g $ResourceGroup `
           -n $VMName `
           --time $AutoShutdownTime `
           --email $AutoShutdownEmail
     }
     else {
-      az vm auto-shutdown `
+        az vm auto-shutdown `
         -g $ResourceGroup `
         -n $VMName `
         --time $AutoShutdownTime
@@ -106,27 +106,27 @@ function Set-AutoShutdown {
 }
 
 function Set-NetworkRules {
-  param (
-      [Parameter(Mandatory)]
-      $AllowedSourcesList
-  )
+    param (
+        [Parameter(Mandatory)]
+        $AllowedSourcesList
+    )
 
-  if ($Ports.length -ne $Priorities.length){
-    Write-Output "Priorities and Ports length should be equal!"
-    exit -1
-  }
-  if ($Ports.length -ne $Protocols.length){
-    Write-Output "Protocols and Ports length should be equal!"
-    exit -1
-  }
+    if ($Ports.length -ne $Priorities.length) {
+        Write-Output "Priorities and Ports length should be equal!"
+        exit -1
+    }
+    if ($Ports.length -ne $Protocols.length) {
+        Write-Output "Protocols and Ports length should be equal!"
+        exit -1
+    }
 
-  for ($i = 0; $i -le $Ports.length - 1 ; $i++) {
-    $port=$Ports[$i]
-    $priority=$Priorities[$i]
-    $protocol=$Protocols[$i]
-    Write-Output "`nCreating Network Port $port rule..."
+    for ($i = 0; $i -le $Ports.length - 1; $i++) {
+        $port = $Ports[$i]
+        $priority = $Priorities[$i]
+        $protocol = $Protocols[$i]
+        Write-Output "`nCreating Network Port $port rule..."
 
-    az network nsg rule create --name Network_Port_Rule_$port `
+        az network nsg rule create --name Network_Port_Rule_$port `
         --resource-group $ResourceGroup `
         --nsg-name NSG1 `
         --priority $priority `
@@ -137,7 +137,7 @@ function Set-NetworkRules {
         --destination-address-prefixes '*' `
         --destination-port-ranges $port `
         --description "Allow inbound from $sources on $port via $protocol connections."
-  }
+    }
 }
 
 
@@ -145,17 +145,17 @@ function Set-NetworkRules {
 # Validation of Globals #
 ########################
 $AllowedSourcesList = $AllowedSources -Split ","
-if ($AllowedSourcesList.length -lt 1){
-  Write-Output "**ERROR**: Variable AllowedSources must be set (set with -AllowedSources or -s)"
-  exit -1
+if ($AllowedSourcesList.length -lt 1) {
+    Write-Output "**ERROR**: Variable AllowedSources must be set (set with -AllowedSources or -s)"
+    exit -1
 }
 
 if ($null -ne $AutoShutdownTime) {
-  if ( -not ( $AutoShutdownTime -match '^([01][0-9]|2[0-3])[0-5][0-9]$' ) ){
+    if (-not( $AutoShutdownTime -match '^([01][0-9]|2[0-3])[0-5][0-9]$')) {
         Write-Output "**ERROR** Invalid time"
         Write-Output "Enter the Auto-Shutdown time in UTC (HHMM, e.g. 2230, 0000, 1900), `n`tConvert timezone as necesary: (e.g. 05:30 pm ET -> 9:30 pm UTC -> 21:30 -> 2130)"
         exit -1
-  }
+    }
 }
 
 ################
@@ -169,15 +169,15 @@ Write-Output "Allowed sources (IP's): $AllowedSourcesList"
 Write-Output "Auto-shutdown time: $AutoShutdownTime"
 Write-Output "Auto-shutdown e-mail: $AutoShutdownEmail"
 
-if (-Not $NoPrompt) {
-  do {
-    $Proceed = Read-Host "`nProceed? (Y/n)"
-  } until ($Proceed -eq "y" -or $Proceed -eq "Y" -or $Proceed -eq "n" -or $Proceed -eq "N")
+if (-Not$NoPrompt) {
+    do {
+        $Proceed = Read-Host "`nProceed? (Y/n)"
+    } until ($Proceed -eq "y" -or $Proceed -eq "Y" -or $Proceed -eq "n" -or $Proceed -eq "N")
 
-  if ($Proceed -eq "n" -or $Proceed -eq "N") {
-    Write-Output "Setup canceled"
-    exit
-  }
+    if ($Proceed -eq "n" -or $Proceed -eq "N") {
+        Write-Output "Setup canceled"
+        exit
+    }
 }
 
 ########################
@@ -238,9 +238,9 @@ if ($null -ne $AutoShutdownTime) {
 }
 
 Write-Output "`nVM login info:"
-Write-Output "Username: $($VMAdmin)"
-Write-Output "Password: $($VMPassword)"
+Write-Output "Username: $( $VMAdmin )"
+Write-Output "Password: $( $VMPassword )"
 Write-Output "SAVE THE ABOVE INFO`n"
 
-Write-Output "The time is $(Get-Date)."
+Write-Output "The time is $( Get-Date )."
 Write-Output "Done."

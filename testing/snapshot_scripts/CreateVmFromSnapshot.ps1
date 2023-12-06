@@ -4,49 +4,49 @@
 
 # Example:
 # .\CreateVmFromSnapshot.ps1 `
-#    -snapshotName "DC1-1.1.0" `
-#    -snapshotResourceGroup "TestbedAssets" `
-#    -resourceGroup "LME-cbaxley-t4" `
-#    -newDiskName "DC1" `
-#    -newVMName "DC1" `
-#    -vmSize "Standard_DS1_v2" `
-#    -location "centralus" `
-#    -osType "windows" `
-#    -nsg "NSG1" `
+#    -SnapshotName "DC1-1.1.0" `
+#    -SnapshotResourceGroup "TestbedAssets" `
+#    -ResourceGroup "LME-cbaxley-t4" `
+#    -NewDiskName "DC1" `
+#    -NewVMName "DC1" `
+#    -VmSize "Standard_DS1_v2" `
+#    -Location "centralus" `
+#    -OsType "windows" `
+#    -Nsg "NSG1" `
 #    -DcIP "10.1.0.10" `
-#    -vNetName "VNet1"
+#    -VNetName "VNet1"
 
 param(
-    [string]$snapshotName = "DC1-1.1.0",
-    [string]$snapshotResourceGroup = "LME-cbaxley-t4",
-    [string]$resourceGroup = "LME-cbaxley-t4",
-    [string]$newDiskName = "DC1",
-    [string]$newVMName = "DC1",
-    [string]$vmSize = "Standard_DS1_v2",
-    [string]$location = "centralus",
-    [string]$osType = "windows",
-    [string]$nsg = "NSG1",
+    [string]$SnapshotName = "DC1-1.1.0",
+    [string]$SnapshotResourceGroup = "LME-cbaxley-t4",
+    [string]$ResourceGroup = "LME-cbaxley-t4",
+    [string]$NewDiskName = "DC1",
+    [string]$NewVMName = "DC1",
+    [string]$VmSize = "Standard_DS1_v2",
+    [string]$Location = "centralus",
+    [string]$OsType = "windows",
+    [string]$Nsg = "NSG1",
     [string]$DcIP = "10.1.0.10", 
     [string]$vNetName = "VNet1"
 )
 
 # Create a new managed disk from the snapshot
-$snapshotId = (az snapshot show --name $snapshotName --resource-group $snapshotResourceGroup --query "id" -o tsv)
+$snapshotId = (az snapshot show --name $SnapshotName --resource-group $SnapshotResourceGroup --query "id" -o tsv)
 Write-Host "Using snapshot id: $snapshotId"
-Write-Host "Creating $newDiskName in $resourceGroup"
+Write-Host "Creating $NewDiskName in $ResourceGroup"
 
-az disk create --resource-group $resourceGroup --name $newDiskName --source $snapshotId
+az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId
 
-Write-Host "Creating vm $newVMName in $resourceGroup using ip $DcIP"
+Write-Host "Creating vm $NewVMName in $ResourceGroup using ip $DcIP"
 # Create a new VM using the new disk
 az vm create `
-        --resource-group $resourceGroup `
-        --name $newVMName `
-        --nsg $nsg `
-        --attach-os-disk $newDiskName `
-        --os-type $osType `
-        --size $vmSize `
-        --location $location `
+        --resource-group $ResourceGroup `
+        --name $NewVMName `
+        --nsg $Nsg `
+        --attach-os-disk $NewDiskName `
+        --os-type $OsType `
+        --size $VmSize `
+        --location $Location `
         --vnet-name $vNetName `
         --subnet SNet1 `
         --public-ip-sku Standard `
