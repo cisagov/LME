@@ -63,7 +63,7 @@ param (
     [Parameter(
             HelpMessage = "Version of the snapshot to use. Use this if you want to restore from snapshots"
     )]
-    [string]$Version
+    [string]$Version = $null
 
 )
 
@@ -203,9 +203,9 @@ function CreateVMFromSnapshot {
         [string]$Subnet,
 
         [Parameter(Mandatory = $false)]
-        [string]$IP
+        [string]$IP = $null
     )
-    $CapOsType = $OsType.Substring(0,1).ToUpper() + $OsType.Substring(1).ToLower()
+    $CapOsType = $OsType.Substring(0, 1).ToUpper() + $OsType.Substring(1).ToLower()
 
     $NewDiskName = "${NewVmName}_OsDisk_1_${RandomString}"
     Write-Output "`nRestoring $NewVmName..."
@@ -397,8 +397,7 @@ for ($i = 1; $i -le $NumClients; $i++) {
             -Location $Location `
             -Nsg $Nsg `
             -VNetName $VNetName `
-            -Subnet $Subnet `
-
+            -Subnet $Subnet
     }
     else {
         Write-Output "`nCreating C$i..."
