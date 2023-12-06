@@ -16,7 +16,7 @@ param(
 
     [Parameter(Mandatory=$true)]
     [Alias("t")]
-    [string]$targetResourceGroup =  "TestbedAssets"
+    [string]$targetResourceGroup
 )
 
 $vmNames = @("DC1", "C1", "C2", "LS1")
