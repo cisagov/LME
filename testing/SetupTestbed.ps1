@@ -206,7 +206,7 @@ function CreateVMFromSnapshot {
         [string]$IP
     )
 
-    $NewDiskName = "$NewVmName_OsDisk_1_$RandomString"
+    $NewDiskName = "${NewVmName}_OsDisk_1_${RandomString}"
     Write-Output "`nRestoring $NewVmName..."
 
     $snapshotId = (az snapshot show --name "DC1-$Version" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
