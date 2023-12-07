@@ -11,9 +11,17 @@ We recommend that you first search through existing issues (both open and closed
 
 If it has then you might want to add a comment to the existing issue.  
 
-If it hasn't then feel free to create a new one. 
+If it hasn't then please create a new one. 
 
 Please follow the provided template and fill out all sections. We have a `BUG` and `FEATURE REQUEST` Template
+
+## Branch naming conventions
+
+If you are planning to submit a pull request, please name your branch using the following naming convention:  
+`<githubusername>-<issue #>-<short description>`  
+
+Example:  
+`mreeve-22-filter-events`
 
 ## Pull Requests (PR)
 
@@ -26,9 +34,9 @@ Below are some loose requirements we'd like all PR's to follow. Our release proc
 All PRs will be tested, vetted, and reviewed by our team before being merged with the main code base. All should be pull requested into whatever the upcoming release branch is. Find that by searching for the highest SEMVER `release-X.Y.Z` branch or following our release documentation.
 
 ### Steps to submit a PR
-	- All PRs should request merges back into LME's *CLOSEST* Major or Minor upcoming release branch `release-X.Y.Z`. This will be viewable in the branch list on Github. You can also refer to our release documentation for guidance.
+	- All PRs should request merges back into LME's *CLOSEST* Major or Minor upcoming release branch `release-X.Y.Z`. This will be viewable in the branch list on Github. You can also refer to our release documentation for guidance. 
   - If the PR corresponds to an issue we are already tracking on LME's public Github [project](https://github.com/orgs/cisagov/projects/68), please comment the PR in the issue, and we will update the issue. 
-  - If the PR does not have an issue, please add a comment at the top of the pull request describing the PR and how it fits into LME's project/code. If the PR follows our other requirements listed here, we'll add it into our public project linked previously.
+  - If the PR does not have an issue, please create a new issue and name your branch according to the conventions [here](#branch-naming-conventions). Add a comment at the top of the pull request describing the PR and how it fits into LME's project/code. If the PR follows our other requirements listed here, we'll add it into our public project linked previously.
   - We'll work with you to mold it to our development goals/process, so your work can be merged into LME and your Github profile gets credit for the contributions. 
   - Before merging we request that all commits be squashed into one commit. This way your changes to the repository are tracked, but our `git log` history does not rapidly expand. 
   - Thanks for wanting to submit and develop improvements for LME!!
