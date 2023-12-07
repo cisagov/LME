@@ -203,7 +203,10 @@ function CreateVMFromSnapshot {
         [string]$Subnet,
 
         [Parameter(Mandatory = $false)]
-        [string]$IP = $null
+        [string]$IP = $null,
+
+        [Parameter(Mandatory = $false)]
+        [string]$DiskType = "Standard_LRS"
     )
     $CapOsType = $OsType.Substring(0, 1).ToUpper() + $OsType.Substring(1).ToLower()
 
@@ -213,7 +216,8 @@ function CreateVMFromSnapshot {
     $snapshotId = (az snapshot show --name "${NewVmName}-${Version}" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
     Write-Host "Using snapshot id: $snapshotId"
     Write-Host "Creating $NewDiskName in $ResourceGroup"
-    az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId --os-type $CapOsType
+    az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId --os-type $CapOsType --sku $DiskType
+
 
     Write-Host "Creating vm $NewVmName in $ResourceGroup using ip $IP"
     # Start constructing the command
