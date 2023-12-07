@@ -358,7 +358,7 @@ if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
         -NewVmName "LS1" `
         -RandomString $RandomString `
         -OsType "linux" `
-        -VmSize "Standard_DS1_v2" `
+        -VmSize "Standard_E2d_v4" `
         -Version $Version `
         -ResourceGroup $ResourceGroup `
         -Location $Location `
