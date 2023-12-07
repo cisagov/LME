@@ -207,6 +207,7 @@ function CreateVMFromSnapshot {
 
         [Parameter(Mandatory = $false)]
         [string]$DiskType = "Standard_LRS"
+        # Premium_LRS Standard_LRS StandardSSD_LRS
     )
     $CapOsType = $OsType.Substring(0, 1).ToUpper() + $OsType.Substring(1).ToLower()
 
