@@ -979,6 +979,11 @@ function upgrade() {
       echo -e "\e[32m[X]\e[0m Copying lme.conf -> lme.conf.bku"
       sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
       sudo sed -i "s/version=1.0/version=$latest/g" /opt/lme/lme.conf
+
+      echo -e "\e[32m[X]\e[0m Copying dashboard_update.sh -> dashboard_update.sh.bku"
+      sudo cp -rapf /opt/lme/dashboard_update.sh /opt/lme/dashboard_update.sh.bku
+      sudo sed -i "s/\"\$version\" == \"1.0\"/\"\$version\" == \"$latest\"/g" /opt/lme/dashboard_update.sh
+
       echo -e "\e[32m[X]\e[0m You're on the latest version: $latest!"
     elif [ "$version" == $latest ]; then
       echo -e "\e[32m[X]\e[0m You're on the latest version!"
