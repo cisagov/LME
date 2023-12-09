@@ -838,6 +838,11 @@ function install() {
 
   #fix readability:
   fixreadability
+  
+  #if old es password is empty, then user is not overriding existing credentials
+  if [ -z "$OLD_ELASTIC_PASS" ]; then
+    displaycredentials
+  fi
 }
 
 function displaycredentials() {
