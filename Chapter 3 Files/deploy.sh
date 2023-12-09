@@ -104,9 +104,11 @@ function setroles() {
 
 function setpasswords() {
   temp="temp"
-  #override temp password if overwriting an old docker container
+  # override temp and elastic user password if user has an existing LME install 
+  # elastic user password is used to create kibana, logstash/writer, dashboard update user credentials and to set roles correctly
   if [ -v OLD_ELASTIC_PASS ]; then
     temp=$OLD_ELASTIC_PASS
+    $elastic_user_pass=$OLD_ELASTIC_PASS
   fi
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
