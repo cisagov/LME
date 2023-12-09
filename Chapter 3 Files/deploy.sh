@@ -739,6 +739,8 @@ function install() {
       prompt "confirm password \"$OLD_ELASTIC_PASS\""
       res=$?
     done
+  else
+    generatepasswords
   fi
 
   if [ "$selfsignedyn" == "y" ]; then
@@ -802,7 +804,6 @@ function install() {
 
   initdockerswarm
   populatecerts
-  generatepasswords
   populatelogstashconfig
   configuredocker
   pulllme
@@ -835,7 +836,9 @@ function install() {
 
   #fix readability:
   fixreadability
+}
 
+function displaycredentials() {
   echo ""
   echo "##################################################################################"
   echo "## Kibana/Elasticsearch Credentials are (these will not be accessible again!)"
