@@ -33,7 +33,7 @@ function Get-ValidStorageAccountName {
     function Sanitize-ForStorageAccount {
         param([string]$namePart)
         # Remove invalid characters, convert to lower case, and trim to max length
-        return ($namePart -replace '[^a-z0-9]', '').ToLower().Substring(0, [Math]::Min($namePart.Length, 24))
+        return ($namePart -replace '[^a-z0-9]', '').ToLower()
     }
 
     # Sanitize base name and version
@@ -44,8 +44,8 @@ function Get-ValidStorageAccountName {
     $storageAccountName = $cleanBaseName + $cleanVersion
 
     # If the name is shorter than the minimum length, append random characters
-    if ($storageAccountName.Length -lt 3) {
-        $randomCharsNeeded = 3 - $storageAccountName.Length
+    if ($storageAccountName.Length -lt 24) {
+        $randomCharsNeeded = 24 - $storageAccountName.Length
         $randomString = -join ((48..57) + (97..122) | Get-Random -Count $randomCharsNeeded | ForEach-Object { [char]$_ })
         $storageAccountName += $randomString
     }
