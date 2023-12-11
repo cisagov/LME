@@ -35,7 +35,13 @@ if ($remainingChars -gt 0) {
 Write-Output "Getting details for ${vmName} to determine location and storage account"
 $vmLocation = (az vm show --name $vmName --resource-group $resourceGroupName --query "location" -o tsv).Trim()
 
-$storageAccountName = "${vmName}-${version}-sa"
+# Removing illegal characters and converting to lower case
+$cleanVmName = $vmName -replace '[^a-zA-Z0-9]', '' | ToLower
+$cleanVersion = $version -replace '[^a-zA-Z0-9]', '' | ToLower
+
+# Concatenating and ensuring the length is within 3-24 characters
+$storageAccountName = ($cleanVmName + $cleanVersion + "sa")[0..23] -join ''
+
 az storage account create `
     --name $storageAccountName `
     --resource-group $resourceGroupName `
