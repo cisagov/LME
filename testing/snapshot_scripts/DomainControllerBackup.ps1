@@ -129,19 +129,23 @@ az backup protection enable-for-vm `
 
 # Trigger the initial backup
 Write-Output "Backing up ${vmName}: ${resourceGroupName} ${vaultName} ${vmName}"
-$backupJob = az backup protection backup-now `
+$backupJobJson = az backup protection backup-now `
     --resource-group $resourceGroupName `
     --vault-name $vaultName `
     --container-name $vmName `
     --item-name $vmName `
     --retain-until (Get-Date).AddDays(30).ToString("dd-MM-yyyy") `
-    --backup-management-type AzureIaasVM
+    --backup-management-type AzureIaasVM `
+    --output json
 
+# Convert JSON string to PowerShell object
+$backupJob = $backupJobJson | ConvertFrom-Json
 
 $recoveryPointName = $backupJob.properties.entityFriendlyName
 
 # Polling for the completion of the backup job
 $backupJobId = $backupJob.Id
+Write-Output "Waiting for backup job to complete. ${backupJobId}"
 do {
     Start-Sleep -Seconds 30
     $backupJobStatus = az backup job show --id $backupJobId --query "properties.status" -o tsv
@@ -152,7 +156,7 @@ do {
 $diskName = "$vmName-$version-disk"
 
 # Restore VM to create a new managed disk
-Write-Output "Restoring disks for ${vmName}"
+Write-Output "Restoring disks for ${vmName}: ${resourceGroupName} ${vaultName} ${vmName} ${recoveryPointName} ${storageAccountName} ${diskName}"
 $restoreJob = az backup restore restore-disks `
     --resource-group $resourceGroupName `
     --vault-name $vaultName `
