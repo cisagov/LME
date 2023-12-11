@@ -1,3 +1,4 @@
+
 param(
     [Parameter(Mandatory = $true)]
     [Alias("n")]
@@ -11,6 +12,9 @@ param(
     [Alias("g")]
     [string]$resourceGroupName
 )
+
+# Stop the script if something goes wrong.
+$ErrorActionPreference = 'Stop'
 
 # Get the current Azure subscription ID
 $subscriptionId = az account show --query "id" -o tsv
@@ -89,44 +93,43 @@ $vaultId = az backup vault show `
     -o tsv
 
 # Set backup policy
-#Write-Output "Getting default backup policy"
-#$policyId = az backup policy list `
-#                --resource-group $resourceGroupName `
-#                --vault-name $vaultName `
-#                --query "[?properties.datasourceType=='AzureIaasVM'].id" `
-#                --output tsv
-#
-## Get the list of policies in JSON format
-#$jsonPolicies = az backup policy list `
-#                    --resource-group $resourceGroupName `
-#                    --vault-name $vaultName `
-#                    --output json | ConvertFrom-Json
-#
-## Filter for the DefaultPolicy using PowerShell
-#$defaultPolicy = $jsonPolicies | Where-Object { $_.name -eq "DefaultPolicy" }
-#
-## Output the details
-#Write-Output "DefaultPolicy Details: id: $($defaultPolicy.id)"
+Write-Output "Getting default backup policy"
+$policyId = az backup policy list `
+                --resource-group $resourceGroupName `
+                --vault-name $vaultName `
+                --query "[?properties.datasourceType=='AzureIaasVM'].id" `
+                --output tsv
 
-Write-Output "Setting default backup policy"
+# Get the list of policies in JSON format
+$jsonPolicies = az backup policy list `
+                    --resource-group $resourceGroupName `
+                    --vault-name $vaultName `
+                    --output json | ConvertFrom-Json
+
+# Filter for the DefaultPolicy using PowerShell
+$defaultPolicy = $jsonPolicies | Where-Object { $_.name -eq "DefaultPolicy" }
+
+# Output the details
+Write-Output "DefaultPolicy Details: id: $($defaultPolicy.id)"
+
+Write-Output "Setting default backup policy ${policyName} ${vaultName} ${resourceGroupName}"
 $policyName = "DefaultPolicy"
 az backup policy set `
     --name $policyName `
     --vault-name $vaultName `
-    --resource-group $resourceGroupName
-#    --policy $defaultPolicy.id
+    --resource-group $resourceGroupName `
+    --policy $defaultPolicy.id
 
 # Enable backup for the VM
-Write-Output "Setting backup protection for ${vmName}"
+Write-Output "Setting backup protection for ${vmName}: ${vaultName} ${resourceGroupName} ${vmName} ${policyName}"
 az backup protection enable-for-vm `
     --vault-name $vaultName `
     --resource-group $resourceGroupName `
     --vm $vmName `
-    --vm-resource-group $resourceGroupName `
     --policy-name $policyName
 
 # Trigger the initial backup
-Write-Output "Backing up ${vmName}"
+Write-Output "Backing up ${vmName}: ${resourceGroupName} ${vaultName} ${vmName}"
 $backupJob = az backup protection backup-now `
     --resource-group $resourceGroupName `
     --vault-name $vaultName `
