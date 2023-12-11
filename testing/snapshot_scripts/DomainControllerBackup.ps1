@@ -33,15 +33,15 @@ if ($remainingChars -gt 0) {
 
 # Get the location and storage account of the VM
 Write-Output "Getting details for ${vmName} to determine location and storage account"
-$vmDetails = az vm show `
-    --name $vmName `
-    --resource-group $resourceGroupName `
-    --query "{location: location, storageAccount: storageProfile.osDisk.managedDisk.storageAccountType}" `
-    -o tsv
+$vmLocation = (az vm show --name $vmName --resource-group $resourceGroupName --query "location" -o tsv).Trim()
 
-$splitDetails = $vmDetails -split "`t"
-$vmLocation = $splitDetails[0].Trim()
-$storageAccountName = $splitDetails[1].Trim()
+$storageAccountName = "${vmName}-${version}-sa"
+az storage account create `
+    --name $storageAccountName `
+    --resource-group $resourceGroupName `
+    --location $vmLocation `
+    --sku Standard_LRS `
+    --kind StorageV2
 
 Write-Output "Using location ${vmLocation} and storage account ${storageAccountName}"
 
