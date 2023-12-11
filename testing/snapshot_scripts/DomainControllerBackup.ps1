@@ -89,19 +89,32 @@ $vaultId = az backup vault show `
     -o tsv
 
 # Set backup policy
-Write-Output "Setting default backup policy"
-$policyId = az backup policy list `
-                --resource-group $resourceGroupName `
-                --vault-name $vaultName `
-                --query "[?properties.datasourceType=='AzureIaasVM'].id" `
-                --output tsv
+#Write-Output "Getting default backup policy"
+#$policyId = az backup policy list `
+#                --resource-group $resourceGroupName `
+#                --vault-name $vaultName `
+#                --query "[?properties.datasourceType=='AzureIaasVM'].id" `
+#                --output tsv
+#
+## Get the list of policies in JSON format
+#$jsonPolicies = az backup policy list `
+#                    --resource-group $resourceGroupName `
+#                    --vault-name $vaultName `
+#                    --output json | ConvertFrom-Json
+#
+## Filter for the DefaultPolicy using PowerShell
+#$defaultPolicy = $jsonPolicies | Where-Object { $_.name -eq "DefaultPolicy" }
+#
+## Output the details
+#Write-Output "DefaultPolicy Details: id: $($defaultPolicy.id)"
 
+Write-Output "Setting default backup policy"
 $policyName = "DefaultPolicy"
 az backup policy set `
     --name $policyName `
     --vault-name $vaultName `
-    --resource-group $resourceGroupName `
-    --policy $policyId
+    --resource-group $resourceGroupName
+#    --policy $defaultPolicy.id
 
 # Enable backup for the VM
 Write-Output "Setting backup protection for ${vmName}"
