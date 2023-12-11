@@ -8,7 +8,7 @@ if [ -r /opt/lme/lme.conf ]; then
   #reference this file as a source
   . /opt/lme/lme.conf
   #check if the version number is equal to the one we want
-  if [ "$version" == "1.0" ]; then
+  if [ "$version" == "1.2.0" ]; then
     echo -e "\e[32m[X]\e[0m Updating from git repo"
     git -C /opt/lme/ pull
     #make sure the hostname variable is present
