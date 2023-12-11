@@ -135,7 +135,7 @@ $backupJob = az backup protection backup-now `
     --vault-name $vaultName `
     --container-name $vmName `
     --item-name $vmName `
-    --retain-until (Get-Date).AddDays(30).ToString("yyyy-MM-dd") `
+    --retain-until (Get-Date).AddDays(30).ToString("dd-MM-yyyy") `
     --backup-management-type AzureIaasVM
 
 
