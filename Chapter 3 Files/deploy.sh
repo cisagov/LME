@@ -108,7 +108,7 @@ function setpasswords() {
   # elastic user password is used to create kibana, logstash/writer, dashboard update user credentials and to set roles correctly
   if [ -v OLD_ELASTIC_PASS ]; then
     temp=$OLD_ELASTIC_PASS
-    $elastic_user_pass=$OLD_ELASTIC_PASS
+    elastic_user_pass=$OLD_ELASTIC_PASS
   fi
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
@@ -741,8 +741,6 @@ function install() {
       prompt "confirm password \"$OLD_ELASTIC_PASS\""
       res=$?
     done
-  else
-    generatepasswords
   fi
 
   if [ "$selfsignedyn" == "y" ]; then
@@ -806,6 +804,7 @@ function install() {
 
   initdockerswarm
   populatecerts
+  generatepasswords
   populatelogstashconfig
   configuredocker
   pulllme
@@ -839,10 +838,7 @@ function install() {
   #fix readability:
   fixreadability
   
-  #if old es password is empty, then user is not overriding existing credentials
-  if [ -z "$OLD_ELASTIC_PASS" ]; then
-    displaycredentials
-  fi
+  displaycredentials
 }
 
 function displaycredentials() {
