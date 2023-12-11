@@ -90,12 +90,18 @@ $vaultId = az backup vault show `
 
 # Set backup policy
 Write-Output "Setting default backup policy"
+$policyId = az backup policy list `
+                --resource-group $resourceGroupName `
+                --vault-name $vaultName `
+                --query "[?properties.datasourceType=='AzureIaasVM'].id" `
+                --output tsv
+
 $policyName = "DefaultPolicy"
 az backup policy set `
     --name $policyName `
     --vault-name $vaultName `
     --resource-group $resourceGroupName `
-    --policy (az backup policy list ` --resource-group $resourceGroupName ` --vault-name $vaultName ` --query "[?properties.datasourceType=='AzureIaasVM'].name" --output json)
+    --policy $policyId
 
 # Enable backup for the VM
 Write-Output "Setting backup protection for ${vmName}"
