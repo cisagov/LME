@@ -110,13 +110,6 @@ az backup policy set `
     --policy "@policy.json"
 
 
-az backup policy set `
-    --name "NewDefaultPolicy" `
-    --vault-name "dc1110ewhczxfg2k7aly943n" `
-    --resource-group "LME-cbaxley-t4" `
-    --policy "@policy.json"
-
-
 
 # Enable backup for the VM
 Write-Output "Setting backup protection for ${vmName}: ${vaultName} ${resourceGroupName} ${vmName} ${policyName}"
