@@ -85,7 +85,7 @@ LME v1.0 make a minor change to the file structure used in the SYSVOL folder, so
 3. Update the path to update.bat used in the LME-Sysmon-Task GPO (refer to [2.2.3 - Scheduled task GPO Policy](/docs/markdown/chapter2.md#223---scheduled-task-gpo-policy)).
 
 #### 1.1.4 Checklist
-1. Have the ELK stack components been upgraded on the Linux server? While on the Linux server, run `sudo docker ps | grep lme`. Version 8.7.1 of Logstash, Kibana, and Elasticsearch should be running.
+1. Have the ELK stack components been upgraded on the Linux server? While on the Linux server, run `sudo docker ps | grep lme`. Version 8.11.1 of Logstash, Kibana, and Elasticsearch should be running.
 2. Has Winlogbeat been updated to version 8.5.0? From Event Collector, using PowerShell, navigate to the location of the Winlogbeat executable ("C:\Program Files\lme\winlogbeat-x.x.x-windows-x86_64") and run `.\winlogbeat version`.
 3. Is the LME folder inside SYSVOL properly structured? Refer to the checklist listed at the end of chapter 2.
 4. Are the events from all clients visible inside elastic? Refer to [4.1.2 Check you are receiving logs](/docs/markdown/chapter4.md#412-check-you-are-receiving-logs).

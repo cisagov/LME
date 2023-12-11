@@ -28,14 +28,14 @@ Example:
 ```
 
 ## Running Using Azure Shell
-| **#** | **Step**                                                                                                                                                                 | **Screenshot**                                                                                 |
-|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
-| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                        | ![image](https://github.com/cisagov/lme/assets/106177711/5bd164fc-5e28-4bca-b95d-757c03fde12e) |
-| 2     | Select PowerShell.                                                                                                                                                       | ![image](https://github.com/cisagov/lme/assets/106177711/d7efc95c-1780-4ac7-ae0a-6113bb4e65d1) |
-| 3     | Upload `SetupTestbed.ps1` by clicking the "Upload/Download files" icon                                                                                                   | ![image](https://github.com/cisagov/lme/assets/106177711/015510af-d932-4dba-ad03-924c666f8424) |
-| 4     | Run the script, providing values for the parameters when promoted (see [Usage](#usage)). The script will take ~20 minutes to run to completion.                           | ![image](https://github.com/cisagov/lme/assets/106177711/2a7b6fc8-c9ff-4e18-9442-b9a26b5fda99) |
-| 5     | Save the login credentials printed to the terminal at the end. At this point you can login to each VM using RDP (for the Windows servers) or SSH (for the Linux server). | ![image](https://github.com/cisagov/lme/assets/106177711/71ab3487-541d-4a34-9fc9-e0fb9076dda5) |
-| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                            | ![image](https://github.com/cisagov/lme/assets/106177711/6d0af5a0-1f75-4dd9-addf-8c68dc76251c) |
+| **#** | **Step**                                                                                                                                                                 | **Screenshot**                                        |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
+| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                        | ![image](/docs/imgs/testing-screenshots/shell.png)    |
+| 2     | Select PowerShell.                                                                                                                                                       | ![image](/docs/imgs/testing-secreenshots/shell2.png)  |
+| 3     | Upload `SetupTestbed.ps1` by clicking the "Upload/Download files" icon                                                                                                   | ![image](/docs/imgs/testing-screenshots/shell3.png)   |
+| 4     | Run the script, providing values for the parameters when promoted (see [Usage](#usage)). The script will take ~20 minutes to run to completion.                          | ![image](/docs/imgs/testing-screenshots/shell4.png)  |
+| 5     | Save the login credentials printed to the terminal at the end. At this point you can login to each VM using RDP (for the Windows servers) or SSH (for the Linux server). | ![image](/docs/imgs/testing-screenshots/shell5.png)                                           |
+| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                            | ![image](/docs/imgs/testing-screenshots/delete.png)                                           |
 
 # Extra Functionality:
  
