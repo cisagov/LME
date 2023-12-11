@@ -39,8 +39,11 @@ $vmDetails = az vm show `
     --query "{location: location, storageAccount: storageProfile.osDisk.managedDisk.storageAccountType}" `
     -o tsv
 
-$vmLocation = $vmDetails[0]
-$storageAccountName = $vmDetails[1]
+$splitDetails = $vmDetails -split "`t"
+$vmLocation = $splitDetails[0].Trim()
+$storageAccountName = $splitDetails[1].Trim()
+
+Write-Output "Using location ${vmLocation} and storage account ${storageAccountName}"
 
 # Construct the snapshot resource group name
 $snapshotResourceGroupName = "TestbedAssets-${vmLocation}"
