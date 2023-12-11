@@ -63,7 +63,12 @@ param (
     [Parameter(
             HelpMessage = "Version of the snapshot to use. Use this if you want to restore from snapshots"
     )]
-    [string]$Version = $null
+    [string]$Version = $null,
+
+    [Parameter(
+            HelpMessage = "Version of the snapshot to use. Use this if you want to restore from snapshots"
+    )]
+    [string]$VaultRegion = $null
 
 )
 
@@ -170,13 +175,11 @@ function Set-NetworkRules {
     }
 }
 
-function CreateVMFromSnapshot {
+
+function CreateNewVM {
     param (
         [Parameter(Mandatory = $true)]
         [string]$NewVmName,
-
-        [Parameter(Mandatory = $true)]
-        [string]$RandomString,
 
         [Parameter(Mandatory = $true)]
         [string]$OsType,
@@ -185,13 +188,13 @@ function CreateVMFromSnapshot {
         [string]$VmSize,
 
         [Parameter(Mandatory = $true)]
-        [string]$Version,
-
-        [Parameter(Mandatory = $true)]
         [string]$ResourceGroup,
 
         [Parameter(Mandatory = $true)]
         [string]$Location,
+
+        [Parameter(Mandatory = $true)]
+        [string]$NewDiskName,
 
         [Parameter(Mandatory = $true)]
         [string]$Nsg,
@@ -202,26 +205,9 @@ function CreateVMFromSnapshot {
         [Parameter(Mandatory = $true)]
         [string]$Subnet,
 
-        [Parameter(Mandatory = $false)]
-        [string]$IP = $null,
-
-        [Parameter(Mandatory = $false)]
-        [string]$DiskType = "Standard_LRS"
-        # Premium_LRS Standard_LRS StandardSSD_LRS
+        [string]$IP = $null
     )
-    $CapOsType = $OsType.Substring(0, 1).ToUpper() + $OsType.Substring(1).ToLower()
-
-    $NewDiskName = "${NewVmName}_OsDisk_1_${RandomString}"
-    Write-Output "`nRestoring $NewVmName..."
-
-    $snapshotId = (az snapshot show --name "${NewVmName}-${Version}" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
-    Write-Host "Using snapshot id: $snapshotId"
-    Write-Host "Creating $NewDiskName in $ResourceGroup"
-    az disk create --resource-group $ResourceGroup --name $NewDiskName --source $snapshotId --os-type $CapOsType --sku $DiskType
-
-
     Write-Host "Creating vm $NewVmName in $ResourceGroup using ip $IP"
-    # Start constructing the command
     $vmCreateCommand = "az vm create " +
             "--resource-group $ResourceGroup " +
             "--name $NewVmName " +
@@ -234,7 +220,6 @@ function CreateVMFromSnapshot {
             "--subnet $Subnet " +
             "--public-ip-sku Standard"
 
-    # Add the private IP address argument only if $IP is not null
     if ([string]::IsNullOrWhiteSpace($IP) -eq $false) {
         $vmCreateCommand += " --private-ip-address $IP"
         Write-Host "Using IP: $IP"
@@ -243,10 +228,47 @@ function CreateVMFromSnapshot {
         Write-Host "No private IP address specified"
     }
 
-    # Execute the command
     Invoke-Expression $vmCreateCommand
 }
 
+function CreateDiskFromSnapshot {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$NewVmName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OsType,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Version,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ResourceGroup,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Location,
+
+        [Parameter(Mandatory = $true)]
+        [string]$NewDiskName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$DiskType = "Standard_LRS"
+    )
+
+    $CapOsType = $OsType.Substring(0, 1).ToUpper() + $OsType.Substring(1).ToLower()
+
+    Write-Output "`nRestoring $NewVmName..."
+
+    $snapshotId = (az snapshot show --name "${NewVmName}-${Version}" --resource-group "TestbedAssets-$Location" --query "id" -o tsv)
+    Write-Host "Using snapshot id: $snapshotId"
+    Write-Host "Creating $NewDiskName in $ResourceGroup"
+    az disk create `
+        --resource-group $ResourceGroup `
+        --name $NewDiskName `
+        --source $snapshotId `
+        --os-type $CapOsType `
+        --sku $DiskType
+}
 
 
 ########################
@@ -328,19 +350,24 @@ Write-Output "`nWriting $VMAdmin password to password.txt"
 echo $VMPassword > password.txt
 
 if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
-    CreateVMFromSnapshot `
+    CreateDiskFromSnapshot `
         -NewVmName "DC1" `
-        -RandomString $RandomString `
         -OsType "windows" `
-        -VmSize "Standard_DS1_v2" `
         -Version $Version `
         -ResourceGroup $ResourceGroup `
+        -NewDiskName "DC1_OsDisk_${RandomString}" `
+
+    CreateNewVM `
+        -NewVmName "DC1" `
+        -OsType "windows" `
+        -VmSize "Standard_DS1_v2" `
+        -ResourceGroup $ResourceGroup `
         -Location $Location `
+        -NewDiskName "DC1_OsDisk_1_${RandomString}" `
         -Nsg $Nsg `
         -VNetName $VNetName `
         -Subnet $Subnet `
-        -IP $DcIP
-
+        -IP $IP
 }
 else {
     Write-Output "`nCreating DC1..."
@@ -359,18 +386,25 @@ else {
 }
 
 if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
-    CreateVMFromSnapshot `
+    CreateDiskFromSnapshot `
         -NewVmName "LS1" `
-        -RandomString $RandomString `
         -OsType "linux" `
-        -VmSize "Standard_E2d_v4" `
         -Version $Version `
         -ResourceGroup $ResourceGroup `
         -Location $Location `
+        -NewDiskName "LS1_OsDisk_${RandomString}" `
+
+    CreateNewVM `
+        -NewVmName "LS1" `
+        -OsType "linux" `
+        -VmSize "Standard_E2d_v4" `
+        -ResourceGroup $ResourceGroup `
+        -Location $Location `
+        -NewDiskName "LS1_OsDisk_${RandomString}" `
         -Nsg $Nsg `
         -VNetName $VNetName `
         -Subnet $Subnet `
-        -IP $LsIP
+        -IP $IP
 
 }
 else {
@@ -391,33 +425,17 @@ else {
 }
 
 for ($i = 1; $i -le $NumClients; $i++) {
-    if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
-        CreateVMFromSnapshot `
-            -NewVmName "C$i" `
-            -RandomString $RandomString `
-            -OsType "windows" `
-            -VmSize "Standard_DS1_v2" `
-            -Version $Version `
-            -ResourceGroup $ResourceGroup `
-            -Location $Location `
-            -Nsg $Nsg `
-            -VNetName $VNetName `
-            -Subnet $Subnet
-    }
-    else {
-        Write-Output "`nCreating C$i..."
-        az vm create `
-            --name C$i `
-            --resource-group $ResourceGroup `
-            --nsg $Nsg `
-            --image Win2019Datacenter `
-            --admin-username $VMAdmin `
-            --admin-password $VMPassword `
-            --vnet-name $VNetName `
-            --subnet $Subnet `
-            --public-ip-sku Standard
-
-    }
+    Write-Output "`nCreating C$i..."
+    az vm create `
+        --name C$i `
+        --resource-group $ResourceGroup `
+        --nsg $Nsg `
+        --image Win2019Datacenter `
+        --admin-username $VMAdmin `
+        --admin-password $VMPassword `
+        --vnet-name $VNetName `
+        --subnet $Subnet `
+        --public-ip-sku Standard
 }
 
 ###########################
@@ -432,39 +450,36 @@ if ($null -ne $AutoShutdownTime) {
     }
 }
 
-# If the version was passed in, we're done.
-if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
-    Write-Output "Done."
-    exit 0
-}
+# If the version was passed in we are using backup domain controller so don't need to do this
+if ([string]::IsNullOrWhiteSpace($Version) -ne $false) {
+    ####################
+    # Setup the domain #
+    ####################
+    Write-Output "`nInstalling AD Domain services on DC1..."
+    az vm run-command invoke `
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroup `
+        --name DC1 `
+        --scripts "Add-WindowsFeature AD-Domain-Services -IncludeManagementTools"
 
-####################
-# Setup the domain #
-####################
-Write-Output "`nInstalling AD Domain services on DC1..."
-az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroup `
-    --name DC1 `
-    --scripts "Add-WindowsFeature AD-Domain-Services -IncludeManagementTools"
+    Write-Output "`nRestarting DC1..."
+    az vm restart `
+        --resource-group $ResourceGroup `
+        --name DC1 `
 
-Write-Output "`nRestarting DC1..."
-az vm restart `
-    --resource-group $ResourceGroup `
-    --name DC1 `
+    Write-Output "`nCreating the ADDS forest..."
+    az vm run-command invoke `
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroup `
+        --name DC1 `
+        --scripts "`$Password = ConvertTo-SecureString `"$VMPassword`" -AsPlainText -Force; `
+    Install-ADDSForest -DomainName $DomainName -Force -SafeModeAdministratorPassword `$Password"
 
-Write-Output "`nCreating the ADDS forest..."
-az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroup `
-    --name DC1 `
-    --scripts "`$Password = ConvertTo-SecureString `"$VMPassword`" -AsPlainText -Force; `
-Install-ADDSForest -DomainName $DomainName -Force -SafeModeAdministratorPassword `$Password"
-
-Write-Output "`nRestarting DC1..."
-az vm restart `
-    --resource-group $ResourceGroup `
-    --name DC1 `
+    Write-Output "`nRestarting DC1..."
+    az vm restart `
+        --resource-group $ResourceGroup `
+        --name DC1 `
+ }
 
 for ($i = 1; $i -le $NumClients; $i++) {
     Write-Output "`nAdding DC IP address to C$i host file..."

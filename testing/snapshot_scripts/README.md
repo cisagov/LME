@@ -9,6 +9,21 @@ This folder contains scripts for managing Azure VM snapshots.
 
 ## Scripts
 
+### BackupDomainController.ps1
+Description: 
+
+This script backs up a domain controller VM, then triggers the initial backup.
+Domain controllers require a special backup process to ensure that they can be restored properly.
+
+Usage:
+```powershell
+.\BackupDomainController.ps1 -n "Your-VM-Name" -v "Your-Version-Number" -g "Your-VM-Resource-Group-Name"
+```
+or
+```powershell
+.\BackupDomainController.ps1 -vmName "Your-VM-Name" -version "Your-Version-Number" -vmResourceGroupName "Your-VM-Resource-Group-Name"
+```
+
 ### CreateSnapshots.ps1
 Description: 
 
