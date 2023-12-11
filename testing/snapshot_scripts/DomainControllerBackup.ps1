@@ -42,6 +42,9 @@ $cleanVersion = ($version -replace '[^a-zA-Z0-9]', '').ToLower()
 # Concatenating and ensuring the length is within 3-24 characters
 $storageAccountName = ($cleanVmName + $cleanVersion + "sa")[0..23] -join ''
 
+Write-Output "Using location ${vmLocation} and storage account ${storageAccountName}"
+
+Write-Output "Creating the storage account for the disks"
 az storage account create `
     --name $storageAccountName `
     --resource-group $resourceGroupName `
@@ -49,7 +52,6 @@ az storage account create `
     --sku Standard_LRS `
     --kind StorageV2
 
-Write-Output "Using location ${vmLocation} and storage account ${storageAccountName}"
 
 # Construct the snapshot resource group name
 $snapshotResourceGroupName = "TestbedAssets-${vmLocation}"
