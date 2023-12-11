@@ -1,4 +1,3 @@
-
 param(
     [Parameter(Mandatory = $true)]
     [Alias("n")]
@@ -101,13 +100,11 @@ Write-Output "Getting default backup policy"
 #                --output tsv
 
 # Get the list of policies in JSON format
-$jsonPolicy = az backup policy list `
-                    --resource-group $resourceGroupName `
-                    --vault-name $vaultName `
-                    --query "[?name=='EnhancedPolicy']" `
-                    --output json
-
-
+$jsonPolicy = az backup policy show `
+                --name "EnhancedPolicy" `
+                --resource-group $resourceGroupName `
+                --vault-name $vaultName `
+                --output json
 
 $policyName = "DefaultPolicy"
 Write-Output "Setting default backup policy ${policyName} ${vaultName} ${resourceGroupName}"
