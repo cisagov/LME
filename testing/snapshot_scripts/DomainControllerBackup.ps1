@@ -93,26 +93,30 @@ $vaultId = az backup vault show `
 
 # Set backup policy
 Write-Output "Getting default backup policy"
-#$policyId = az backup policy list `
-#                --resource-group $resourceGroupName `
-#                --vault-name $vaultName `
-#                --query "[?properties.datasourceType=='AzureIaasVM'].id" `
-#                --output tsv
 
 # Get the list of policies in JSON format
+$policyName = "NewDefaultPolicy"
 $jsonPolicy = az backup policy show `
                 --name "EnhancedPolicy" `
                 --resource-group $resourceGroupName `
                 --vault-name $vaultName `
-                --output json
+                --output json > policy.json
 
-$policyName = "DefaultPolicy"
 Write-Output "Setting default backup policy ${policyName} ${vaultName} ${resourceGroupName}"
 az backup policy set `
     --name $policyName `
     --vault-name $vaultName `
     --resource-group $resourceGroupName `
-    --policy $jsonPolicy
+    --policy "@policy.json"
+
+
+az backup policy set `
+    --name "NewDefaultPolicy" `
+    --vault-name "dc1110ewhczxfg2k7aly943n" `
+    --resource-group "LME-cbaxley-t4" `
+    --policy "@policy.json"
+
+
 
 # Enable backup for the VM
 Write-Output "Setting backup protection for ${vmName}: ${vaultName} ${resourceGroupName} ${vmName} ${policyName}"
@@ -121,6 +125,7 @@ az backup protection enable-for-vm `
     --resource-group $resourceGroupName `
     --vm $vmName `
     --policy-name $policyName
+
 
 # Trigger the initial backup
 Write-Output "Backing up ${vmName}: ${resourceGroupName} ${vaultName} ${vmName}"
