@@ -20,12 +20,45 @@ $subscriptionId = az account show --query "id" -o tsv
 Write-Output "Getting details for ${vmName} to determine location and storage account"
 $vmLocation = (az vm show --name $vmName --resource-group $resourceGroupName --query "location" -o tsv).Trim()
 
-# Removing illegal characters and converting to lower case
-$cleanVmName = ($vmName -replace '[^a-zA-Z0-9]', '').ToLower()
-$cleanVersion = ($version -replace '[^a-zA-Z0-9]', '').ToLower()
+# Construct the final snapshot resource group name
+$snapshotResourceGroupName = "TestbedAssets-${vmLocation}"
 
-# Concatenating and ensuring the length is within 3-24 characters
-$storageAccountName = ($cleanVmName + $cleanVersion + "sa")[0..23] -join ''
+function Get-ValidStorageAccountName {
+    param(
+        [string]$baseName,
+        [string]$version
+    )
+
+    # Function to sanitize and format the storage account name
+    function Sanitize-ForStorageAccount {
+        param([string]$namePart)
+        # Remove invalid characters, convert to lower case, and trim to max length
+        return ($namePart -replace '[^a-z0-9]', '').ToLower().Substring(0, [Math]::Min($namePart.Length, 24))
+    }
+
+    # Sanitize base name and version
+    $cleanBaseName = Sanitize-ForStorageAccount -namePart $baseName
+    $cleanVersion = Sanitize-ForStorageAccount -namePart $version
+
+    # Start constructing the storage account name
+    $storageAccountName = $cleanBaseName + $cleanVersion
+
+    # If the name is shorter than the minimum length, append random characters
+    if ($storageAccountName.Length -lt 3) {
+        $randomCharsNeeded = 3 - $storageAccountName.Length
+        $randomString = -join ((48..57) + (97..122) | Get-Random -Count $randomCharsNeeded | ForEach-Object { [char]$_ })
+        $storageAccountName += $randomString
+    }
+
+    # Ensure the storage account name is not longer than the maximum length
+    if ($storageAccountName.Length -gt 24) {
+        $storageAccountName = $storageAccountName.Substring(0, 24)
+    }
+
+    return $storageAccountName
+}
+
+$storageAccountName = Get-ValidStorageAccountName -baseName $vmName -version $version
 
 Write-Output "Using location ${vmLocation} and storage account ${storageAccountName}"
 
@@ -38,34 +71,9 @@ az storage account create `
     --kind StorageV2
 
 
-# Construct the snapshot resource group name
-$snapshotResourceGroupName = "TestbedAssets-${vmLocation}"
-
-# Construct the vault name based on the VM name and version
-$vaultName = "${cleanVmName}${cleanVersion}"
-
-# Calculate the remaining characters needed to reach the maximum length
-$remainingChars = 24 - $vaultName.Length
-
-# If the vault name is less than the maximum length, append random characters
-Write-Output "Generating random characters to create a new vault name"
-if ($remainingChars -gt 0) {
-    # Generate a random string of the remaining length
-    $randomString = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count $remainingChars | ForEach-Object { [char]$_ })
-
-    # Append the random string to the vault name
-    $vaultName += $randomString
-}
-
-# Ensure the vault name does not end with a hyphen
-$vaultName = $vaultName.TrimEnd('-')
-
-# Ensure the vault name is within the required length
-if ($vaultName.Length -gt 24) {
-    $vaultName = $vaultName.Substring(0, 24)
-}
 
 # Create a Recovery Services vault in its resource group
+$vaultName = Get-ValidStorageAccountName -baseName $vmName -version $version
 Write-Output "Creating a backup vault"
 az backup vault create `
     --name $vaultName `
