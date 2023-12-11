@@ -15,21 +15,6 @@ param(
 # Get the current Azure subscription ID
 $subscriptionId = az account show --query "id" -o tsv
 
-# Construct the vault name based on the VM name and version
-$vaultName = "$vmName-$version-"
-
-# Calculate the remaining characters needed to reach the maximum length
-$remainingChars = 24 - $vaultName.Length
-
-# If the vault name is less than the maximum length, append random characters
-Write-Output "Generating random characters to create a new vault name"
-if ($remainingChars -gt 0) {
-    # Generate a random string of the remaining length
-    $randomString = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count $remainingChars | ForEach-Object { [char]$_ })
-
-    # Append the random string to the vault name
-    $vaultName += $randomString
-}
 
 # Get the location and storage account of the VM
 Write-Output "Getting details for ${vmName} to determine location and storage account"
@@ -55,6 +40,30 @@ az storage account create `
 
 # Construct the snapshot resource group name
 $snapshotResourceGroupName = "TestbedAssets-${vmLocation}"
+
+# Construct the vault name based on the VM name and version
+$vaultName = "${cleanVmName}${cleanVersion}"
+
+# Calculate the remaining characters needed to reach the maximum length
+$remainingChars = 24 - $vaultName.Length
+
+# If the vault name is less than the maximum length, append random characters
+Write-Output "Generating random characters to create a new vault name"
+if ($remainingChars -gt 0) {
+    # Generate a random string of the remaining length
+    $randomString = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count $remainingChars | ForEach-Object { [char]$_ })
+
+    # Append the random string to the vault name
+    $vaultName += $randomString
+}
+
+# Ensure the vault name does not end with a hyphen
+$vaultName = $vaultName.TrimEnd('-')
+
+# Ensure the vault name is within the required length
+if ($vaultName.Length -gt 24) {
+    $vaultName = $vaultName.Substring(0, 24)
+}
 
 # Create a Recovery Services vault in its resource group
 Write-Output "Creating a backup vault"
