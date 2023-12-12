@@ -133,8 +133,8 @@ $backupJobJson = az backup protection backup-now `
 
 # Convert JSON string to PowerShell object
 $backupJob = $backupJobJson | ConvertFrom-Json
+Write-Output "Backup job details: $backupJob"
 
-$recoveryPointName = $backupJob.properties.entityFriendlyName
 
 # Polling for the completion of the backup job
 $backupJobId = $backupJob.Id
@@ -143,21 +143,31 @@ do {
     Start-Sleep -Seconds 30
     $backupJobStatus = az backup job show --id $backupJobId --query "properties.status" -o tsv
     Write-Output "Waiting for backup job to complete. Current status: $backupJobStatus"
-} while ($backupJobStatus -eq "InProgress" -or $backupJobStatus -eq "InProgress")
+} while ($backupJobStatus -eq "InProgress")
 
 
-$diskName = "$vmName-$version-disk"
+# Original disk name
+$originalDiskName = "$vmName-$version-disk"
+
+# Clean the disk name by removing invalid characters
+$cleanedDiskName = $originalDiskName -replace '[^A-Za-z0-9-]', ''
+
+# Generate 16 random lowercase letters
+$randomSuffix = -join ((97..122) | Get-Random -Count 16 | % {[char]$_})
+
+# Combine cleaned disk name with the random suffix
+$diskName = $cleanedDiskName + $randomSuffix
 
 # Restore VM to create a new managed disk
 Write-Output "Restoring disks for ${vmName}: ${resourceGroupName} ${vaultName} ${vmName} ${recoveryPointName} ${storageAccountName} ${diskName}"
 $restoreJob = az backup restore restore-disks `
     --resource-group $resourceGroupName `
-    --vault-name $vaultName `
-    --container-name $vmName `
-    --item-name $vmName `
-    --storage-account $storageAccountName `
-    --rp-name $recoveryPointName `
     --target-resource-group $resourceGroupName `
+    --vault-name $vaultName `
+    --storage-account $storageAccountName `
+    --container-name $backupJob.properties.containerName `
+    --item-name $backupJob.properties.friendlyName `
+    --rp-name  $backupJob.properties.entityFriendlyName`
     --disk-name $diskName
 
 # Polling for the completion of the restore job
