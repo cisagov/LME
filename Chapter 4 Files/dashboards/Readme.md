@@ -2,11 +2,27 @@
 
 
 ## How to update dashboards
+To update the dashboards, run the following command from the Linux server:
 ```
-./dashboard_update.sh
+sudo /opt/lme/dashboard_update.sh
 ```
 
-## Exporting dashboards:
+Note that there is also a `dashboard_update.sh` script within the Chapter 3 Files folder. That is a generic version of the script that is used to contruct the `dashboard_update.sh` script inside the /opt/lme folder. The version inside the Chapter 3 Files folder does **not** have the information needed to update the dashboards. Only the version inside the /opt/lme folder, which is customized to your specific installation of LME, should be run.
+
+### Updating to new dashboards and removing old ones (Starting with 1.1.0)
+Browse to `Kibana->Stack Management` then select `Saved Objects`.
+On the Saved Objects page, you can filter by dashboards.
+
+Select the filter `Type` and select `dashboard`. 
+
+* It is suggested that you export the dashboards first (readme below) so you have a backup. 
+You can delete all of the dashboards before importing the new ones. 
+
+After having backed up the dashboards and deleting them, you can then run 
+`dashboard_update.sh` in the `/opt/lme` directory. 
+
+
+### Exporting dashboards:
 It is recommended that you export your dashboards before updating them, especially if you have customized them or created new ones. 
 To export the dashboards use the `export_dashboards.py` file in the Chapter 4 directory. 
 It is easiest to export them from the ubuntu machine where you have installed the ELK stack because the 

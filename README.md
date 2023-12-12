@@ -12,7 +12,7 @@ Logging Made Easy can:
 
 ## Disclaimer
 
-**LME is currently still early in development. The current release is version 1.0**
+**LME is currently still early in development.**
 
 ***If you have an existing install of the LME Alpha (v0.5 or older) some manual intervention will be required in order to upgrade to the latest version, please see [Upgrading](/docs/markdown/maintenance/upgrading.md) for further information.***
 
