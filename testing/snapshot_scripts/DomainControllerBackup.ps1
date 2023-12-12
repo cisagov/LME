@@ -175,8 +175,8 @@ $restoreJobJson = az backup restore restore-disks `
     --vault-name $vaultName `
     --storage-account $storageAccountName `
     --container-name $backupJob.properties.containerName `
-    --item-name $backupJob.properties.friendlyName `
-    --rp-name  $backupJob.properties.entityFriendlyName`
+    --item-name $backupJob.properties.entityFriendlyName `
+    --rp-name  $backupJob.properties.entityFriendlyName `
     --disk-name $diskName `
     --output json
 
