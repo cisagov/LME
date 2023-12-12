@@ -19,6 +19,7 @@ This script does not install LME; it simply creates a fresh environment that's r
 | $NumClients            | -n | The number of Windows clients to create; maximum 16; defaults to 1                                    | No                                   |
 | $AutoShutdownTime      | | The auto-shutdown time in UTC (HHMM, e.g. 2230, 0000, 1900); auto-shutdown not configured if not provided                            | No |
 | $AutoShutdownEmail     | | An email to be notified if a VM is auto-shutdown.                                      | No                                    |
+| $Location     | -l | Location where the cluster will be built. Default westus.                                      | No                                    |
 | $AllowedSources       | -s | Comma-Separated list of CIDR prefixes or IP ranges, e.g. XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc..., that are allowed to connect to the VMs via RDP and ssh.                                      | Yes                                    |
 | $NoPrompt | -y | Switch, run the script with no prompt (useful for automated runs). By default, the script will prompt the user to review paramters and confirm before continuing. | No |
 
@@ -31,7 +32,7 @@ Example:
 | **#** | **Step**                                                                                                                                                                 | **Screenshot**                                        |
 |-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
 | 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                        | ![image](/docs/imgs/testing-screenshots/shell.png)    |
-| 2     | Select PowerShell.                                                                                                                                                       | ![image](/docs/imgs/testing-secreenshots/shell2.png)  |
+| 2     | Select PowerShell.                                                                                                                                                       | ![image](/docs/imgs/testing-screenshots/shell2.png)  |
 | 3     | Upload `SetupTestbed.ps1` by clicking the "Upload/Download files" icon                                                                                                   | ![image](/docs/imgs/testing-screenshots/shell3.png)   |
 | 4     | Run the script, providing values for the parameters when promoted (see [Usage](#usage)). The script will take ~20 minutes to run to completion.                          | ![image](/docs/imgs/testing-screenshots/shell4.png)  |
 | 5     | Save the login credentials printed to the terminal at the end. At this point you can login to each VM using RDP (for the Windows servers) or SSH (for the Linux server). | ![image](/docs/imgs/testing-screenshots/shell5.png)                                           |
