@@ -58,7 +58,7 @@ You can update the ELK stack portion of LME to v1.0 (including dashboards and EL
 
 ```
 cd /opt/lme/Chapter\ 3\ Files/
-sudo ./deploy.sh update
+sudo ./deploy.sh upgrade
 ```
 **The last step of this script makes all files only readable by their owner in /opt/lme, so that all root owned files with passwords in them are only readable by root. This prevents a local unprivileged user from gaining access to the elastic stack.**
 
