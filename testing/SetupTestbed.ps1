@@ -64,9 +64,6 @@ $SubnetPrefix = "10.1.0.0/24"
 $DcIP = "10.1.0.4"
 $LsIP = "10.1.0.5"
 
-#Default Azure Region:
-# $Location = "westus"
-
 #Domain information:
 $VMAdmin = "admin.ackbar"
 $DomainName = "lme.local"
@@ -230,7 +227,7 @@ Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
 ##################
 $VMPassword = Get-RandomPassword 12
 Write-Output "`nWriting $VMAdmin password to password.txt"
-echo $VMPassword > password.txt
+Write-Output $VMPassword > password.txt
 
 Write-Output "`nCreating DC1..."
 az vm create `
@@ -296,11 +293,6 @@ az vm run-command invoke `
     --name DC1 `
     --scripts "Add-WindowsFeature AD-Domain-Services -IncludeManagementTools"
 
-Write-Output "`nRestarting DC1..."
-az vm restart `
-    --resource-group $ResourceGroup `
-    --name DC1 `
-
 Write-Output "`nCreating the ADDS forest..."
 az vm run-command invoke `
     --command-id RunPowerShellScript `
@@ -308,11 +300,6 @@ az vm run-command invoke `
     --name DC1 `
     --scripts "`$Password = ConvertTo-SecureString `"$VMPassword`" -AsPlainText -Force; `
 Install-ADDSForest -DomainName $DomainName -Force -SafeModeAdministratorPassword `$Password"
-
-Write-Output "`nRestarting DC1..."
-az vm restart `
-    --resource-group $ResourceGroup `
-    --name DC1 `
 
 for ($i = 1; $i -le $NumClients; $i++) {
     Write-Output "`nAdding DC IP address to C$i host file..."
