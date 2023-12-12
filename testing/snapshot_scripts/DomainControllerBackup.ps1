@@ -169,7 +169,7 @@ Write-Output " --item-name ${backupJob.properties.friendlyName}"
 Write-Output "--rp-name  ${backupJob.properties.entityFriendlyName}"
 Write-Output "--disk-name $diskName"
 
-$restoreJob = az backup restore restore-disks `
+$restoreJobJson = az backup restore restore-disks `
     --resource-group $resourceGroupName `
     --target-resource-group $resourceGroupName `
     --vault-name $vaultName `
@@ -177,7 +177,11 @@ $restoreJob = az backup restore restore-disks `
     --container-name $backupJob.properties.containerName `
     --item-name $backupJob.properties.friendlyName `
     --rp-name  $backupJob.properties.entityFriendlyName`
-    --disk-name $diskName
+    --disk-name $diskName `
+    --output json
+
+# Convert JSON string to PowerShell object
+$restoreJob = $restoreJobJson | ConvertFrom-Json
 
 Write-Output "Restore job details: $restoreJob"
 
