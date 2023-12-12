@@ -133,7 +133,7 @@ $backupJobJson = az backup protection backup-now `
 
 # Convert JSON string to PowerShell object
 $backupJob = $backupJobJson | ConvertFrom-Json
-Write-Output "Backup job details: $backupJob"
+Write-Output "Backup job details: $backupJobJson"
 
 
 # Polling for the completion of the backup job
@@ -160,6 +160,7 @@ $diskName = $cleanedDiskName + $randomSuffix
 
 # Restore VM to create a new managed disk
 Write-Output "Restoring disks for ${vmName}: ${resourceGroupName} ${vaultName} ${vmName} ${recoveryPointName} ${storageAccountName} ${diskName}"
+Write-Output "${resourceGroupName} ${vaultName} ${storageAccountName} ${recoveryPointName} ${storageAccountName} ${diskName}"
 $restoreJob = az backup restore restore-disks `
     --resource-group $resourceGroupName `
     --target-resource-group $resourceGroupName `
