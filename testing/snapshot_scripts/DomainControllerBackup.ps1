@@ -159,8 +159,16 @@ $randomSuffix = -join ((97..122) | Get-Random -Count 16 | % {[char]$_})
 $diskName = $cleanedDiskName + $randomSuffix
 
 # Restore VM to create a new managed disk
-Write-Output "Restoring disks for ${vmName}: ${resourceGroupName} ${vaultName} ${vmName} ${recoveryPointName} ${storageAccountName} ${diskName}"
-Write-Output "${resourceGroupName} ${vaultName} ${storageAccountName} ${recoveryPointName} ${storageAccountName} ${diskName}"
+Write-Output "Restoring disks for ${vmName}:"
+Write-Output " --resource-group ${resourceGroupName}"
+Write-Output " --target-resource-group ${resourceGroupName}"
+Write-Output " --vault-name ${vaultName}"
+Write-Output " --storage-account ${storageAccountName}"
+Write-Output " --container-name ${backupJob.properties.containerName}"
+Write-Output " --item-name ${backupJob.properties.friendlyName}"
+Write-Output "--rp-name  ${backupJob.properties.entityFriendlyName}"
+Write-Output "--disk-name $diskName"
+
 $restoreJob = az backup restore restore-disks `
     --resource-group $resourceGroupName `
     --target-resource-group $resourceGroupName `
@@ -170,6 +178,8 @@ $restoreJob = az backup restore restore-disks `
     --item-name $backupJob.properties.friendlyName `
     --rp-name  $backupJob.properties.entityFriendlyName`
     --disk-name $diskName
+
+Write-Output "Restore job details: $restoreJob"
 
 # Polling for the completion of the restore job
 $restoreJobId = $restoreJob.Id
