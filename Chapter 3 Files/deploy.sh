@@ -3,38 +3,45 @@
 # LME Deploy Script        #
 ############################
 # This script configures a host for LME including generating certificates and populating configuration files.
+
+# Put the latest version number here
+
 DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
 #prompt for y/n
 prompt() {
-  if [ -z "$1" ];
-  then
+  if [ -z "$1" ]; then
     str="Are you sure?"
   else
     str=$1
   fi
 
-  while true
-  do
-   read -r -p "$str? [Y/n] " input
-   
-   case $input in
-       [yY][eE][sS]|[yY])
-       return 0 #true
-   break
-   ;;
-       [nN][oO]|[nN])
-       return 1 #false
-   break
-          ;;
-       *)
-   echo "Invalid input..."
-   ;;
-   esac
+  while true; do
+    read -r -p "$str? [Y/n] " input
+
+    case $input in
+    [yY][eE][sS] | [yY])
+      return 0 #true
+      break
+      ;;
+    [nN][oO] | [nN])
+      return 1 #false
+      break
+      ;;
+    *)
+      echo "Invalid input..."
+      ;;
+    esac
   done
 }
 
+function get_latest_version() {
+  #TODO: eventually have this pull from github
 
+  #return:
+  echo -n '1.2.0'
+  return 0
+}
 function customlogstashconf() {
   #add option for custom logstash config
   CUSTOM_LOGSTASH_CONF=/opt/lme/Chapter\ 3\ Files/logstash_custom.conf
@@ -48,12 +55,12 @@ function customlogstashconf() {
 
 function generatepasswords() {
 
-  elastic_user_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1)
-  kibana_system_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1)
-  logstash_system_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1)
-  logstash_writer=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1)
-  update_user_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 32 | head -n 1)
-  kibanakey=$(LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 42 | head -n 1)
+  elastic_user_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  kibana_system_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  logstash_system_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  logstash_writer=$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  update_user_pass=$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 32 | head -n 1)
+  kibanakey=$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 42 | head -n 1)
 
   echo -e "\e[32m[X]\e[0m Updating logstash configuration with logstash writer"
   cp /opt/lme/Chapter\ 3\ Files/logstash.conf /opt/lme/Chapter\ 3\ Files/logstash.edited.conf
@@ -98,21 +105,20 @@ function setroles() {
 function setpasswords() {
   temp="temp"
   #override temp password if overwriting an old docker container
-  if [ -v OLD_ELASTIC_PASS ];
-  then
+  if [ -v OLD_ELASTIC_PASS ]; then
     temp=$OLD_ELASTIC_PASS
   fi
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
-  max_attempts=180
+  max_attempts=25
   attempt=0
   while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' --cacert certs/root-ca.crt --user elastic:${temp} https://127.0.0.1:9200)" != "200" ]]; do
     printf '.'
-    sleep 1
+    sleep 10
     ((attempt++))
     if ((attempt > max_attempts)); then
-        echo "Elasticsearch is not responding after $max_attempts attempts - exiting."
-        exit 1
+      echo "Elasticsearch is not responding after $max_attempts attempts - exiting."
+      exit 1
     fi
   done
   echo "Elasticsearch is up and running."
@@ -176,7 +182,6 @@ function zipfiles() {
 
 function generateCA() {
   echo -e "\e[33m[!]\e[0m Note: Depending on your OpenSSL configuration you may see an error opening a .rnd file into RNG, this will not block the installation"
-
 
   #configure certificate authority
   mkdir -p certs
@@ -406,6 +411,11 @@ function initdockerswarm() {
   fi
 }
 
+function pulllme() {
+  echo -e "\e[32m[X]\e[0m Pulling ELK images"
+  docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull
+}
+
 function deploylme() {
   docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
 }
@@ -420,7 +430,6 @@ get_distribution() {
   # case statements don't act unless you provide an actual value
   echo "$lsb_dist"
 }
-
 
 function indexmappingupdate() {
   echo -e "\n\e[32m[X]\e[0m Uploading the LME index template"
@@ -481,7 +490,6 @@ function pipelineupdate() {
 }
 '
 }
-
 
 function data_retention() {
   #show ext4 disk
@@ -609,12 +617,10 @@ function configelasticsearch() {
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_all/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
 }
 
-
-
 function writeconfig() {
   echo -e "\n\e[32m[X]\e[0m Writing LME Config"
   #write LME version
-  echo "version=1.0" >/opt/lme/lme.conf
+  echo "version=$(get_latest_version)" >/opt/lme/lme.conf
   if [ -z "$logstashcn" ]; then
     # $logstashcn is not set - so this function is not called from an initial install
     read -e -p "Enter the Fully Qualified Domain Name (FQDN) of this Linux server: " logstashcn
@@ -651,7 +657,6 @@ function zipnewcerts() {
   zip -rmT /opt/lme/new_client_certificates.zip /tmp/lme
 }
 
-
 function bootstrapindex() {
   if [[ "$(curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -s -o /dev/null -w ''%{http_code}'' https://127.0.0.1:9200/winlogbeat-000001)" != "200" ]]; then
     echo -e "\n\e[32m[X]\e[0m Bootstrapping index alias"
@@ -670,18 +675,18 @@ function bootstrapindex() {
 }
 
 function fixreadability() {
- cd /opt/lme/
- chmod -077 -R .
+  cd /opt/lme/
+  chmod -077 -R .
 
- #some permissions to help with seeing files
- chown root:sudo /opt/lme/
- chmod 750 /opt/lme/
- chmod 644 files_for_windows.zip
+  #some permissions to help with seeing files
+  chown root:sudo /opt/lme/
+  chmod 750 /opt/lme/
+  chmod 644 files_for_windows.zip
 
- #fix backups
- chown -R 1000:1000 /opt/lme/backups
- chmod -R  go-rwx /opt/lme/backups
- 
+  #fix backups
+  chown -R 1000:1000 /opt/lme/backups
+  chmod -R go-rwx /opt/lme/backups
+
 }
 
 function install() {
@@ -725,13 +730,12 @@ function install() {
 
   read -e -p "This script will use self signed certificates for communication and encryption. Do you want to continue with self signed certificates? ([y]es/[n]o): " -i "y" selfsignedyn
   read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall
-  read -e -p "Do you have an old elastic user password? ([y]es/[n]o): " -i "n" old_elastic_user_pass
-
+  read -e -p "Do you have an old elastic user password from a previous LME install? ([y]es/[n]o): " -i "n" old_elastic_user_pass
 
   if [ "$old_elastic_user_pass" == "y" ]; then
     res= false
-    while [ ! $res ];do
-      read -e -p "PASSWORD: " OLD_ELASTIC_PASS 
+    while [ ! $res ]; do
+      read -e -p "PASSWORD: " OLD_ELASTIC_PASS
       prompt "confirm password \"$OLD_ELASTIC_PASS\""
       res=$?
     done
@@ -792,7 +796,6 @@ function install() {
     echo "Not a valid option"
   fi
 
-   
   if [ "$skipdinstall" == "n" ]; then
     installdocker
   fi
@@ -802,6 +805,7 @@ function install() {
   generatepasswords
   populatelogstashconfig
   configuredocker
+  pulllme
   deploylme
   setpasswords
   configelasticsearch
@@ -828,8 +832,8 @@ function install() {
   #prompt user to enable auto update
   #Deprecated
   #promptupdate
-  
-  #fix readability: 
+
+  #fix readability:
   fixreadability
 
   echo ""
@@ -853,7 +857,7 @@ function uninstall() {
   read -e -p "Proceed ([y]es/[n]o):" -i "n" check
   if [ "$check" == "n" ]; then
     return
-  elif [ "$check" == "y" ];then
+  elif [ "$check" == "y" ]; then
     echo -e "\e[32m[X]\e[0m Removing Docker stack and configuration"
     docker stack rm lme
     docker secret rm ca.crt logstash.crt logstash.key elasticsearch.key elasticsearch.crt
@@ -883,7 +887,7 @@ function upgrade() {
   crontab -l | sed -E '/lme_update.sh|dashboard_update.sh/d' | crontab -
 
   #grab latest version
-  latest="1.0"
+  latest=$(get_latest_version)
 
   #check if the config file we're now creating on new installs exists
   if [ -r /opt/lme/lme.conf ]; then
@@ -947,6 +951,7 @@ function upgrade() {
       echo -e "\e[32m[X]\e[0m Recreating Docker stack"
       docker config create logstash.conf /opt/lme/Chapter\ 3\ Files/logstash.edited.conf
       docker config create logstash_custom.conf /opt/lme/Chapter\ 3\ Files/logstash_custom.conf
+      pulllme
       deploylme
       if [ -z "$logstashcn" ]; then
         read -e -p "Enter the Fully Qualified Domain Name (FQDN) of this Linux server: " logstashcn
@@ -954,8 +959,34 @@ function upgrade() {
       zipfiles
       fixreadability
 
+    elif [ "$version" == "1.0" ]; then
+      echo -e "\e[32m[X]\e[0m Backing up config file to: /opt/lme/Chapter\ 3\ Files/backup_config "
+      sudo mkdir -p /opt/lme/Chapter\ 3\ Files/backup_config
+      sudo cp /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml /opt/lme/Chapter\ 3\ Files/backup_config/docker-compose-stack-live.yml
+
+      echo -e "\e[32m[X]\e[0m Updating elastic to 8.11.1 "
+      sudo sed -i 's/8.7.1/8.11.1/g' /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
+      sudo docker stack rm lme
+
+      echo -e "\e[32m[X]\e[0m Sleeping for one minute to allow Docker actions to complete..."
+      sleep 1m
+
+      pulllme
+
+      echo -e "\e[32m[X]\e[0m Deploy LME"
+      deploylme
+
+      echo -e "\e[32m[X]\e[0m Copying lme.conf -> lme.conf.bku"
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
+      sudo sed -i "s/version=1.0/version=$latest/g" /opt/lme/lme.conf
+
+      echo -e "\e[32m[X]\e[0m Copying dashboard_update.sh -> dashboard_update.sh.bku"
+      sudo cp -rapf /opt/lme/dashboard_update.sh /opt/lme/dashboard_update.sh.bku
+      sudo sed -i "s/\"\$version\" == \"1.0\"/\"\$version\" == \"$latest\"/g" /opt/lme/dashboard_update.sh
+
+      echo -e "\e[32m[X]\e[0m You're on the latest version: $latest!"
     elif [ "$version" == $latest ]; then
-       echo -e "\e[32m[X]\e[0m You're on the latest version!"
+      echo -e "\e[32m[X]\e[0m You're on the latest version!"
     else
       echo -e "\e[31m[!]\e[0m Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
     fi
@@ -1010,10 +1041,11 @@ function renew() {
 
   populatecerts
   echo -e "\e[32m[X]\e[0m Recreating Docker stack"
+  pulllme
   deploylme
 }
 
-function usage(){
+function usage() {
   echo -e "\e[31m[!]\e[0m Invalid operation specified"
   echo "Usage:    ./deploy.sh (install/uninstall/renew/upgrade/update)"
   echo "Example:  ./deploy.sh install"
