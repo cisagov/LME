@@ -138,8 +138,9 @@ do {
     Write-Output "Waiting for backup job to complete. Current status: $backupJobStatus"
 } while ($backupJobStatus -eq "InProgress")
 
-$containerName = $backupJob.properties.containerName
+$containerName = "IaasVMContainer;$($backupJob.properties.containerName)"
 
+# List the recovery points to find the latest one
 $recoveryPointsJson = az backup recoverypoint list `
     --container-name $containerName `
     --item-name $vmName `
@@ -162,9 +163,9 @@ Write-Output " --resource-group ${resourceGroupName}"
 Write-Output " --target-resource-group ${resourceGroupName}"
 Write-Output " --vault-name ${vaultName}"
 Write-Output " --storage-account ${storageAccountName}"
-Write-Output " --container-name $( $backupJob.properties.containerName )"
-Write-Output " --item-name $( $backupJob.properties.entityFriendlyName )"
-Write-Output "--rp-name  $( $backupJob.properties.entityFriendlyName )"
+Write-Output " --container-name ${containerName}"
+Write-Output " --item-name ${vmName}"
+Write-Output "--rp-name ${latestRecoveryPointName}"
 
 $restoreJobJson = az backup restore restore-disks `
     --resource-group $resourceGroupName `
