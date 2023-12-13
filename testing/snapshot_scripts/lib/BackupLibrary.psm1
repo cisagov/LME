@@ -9,8 +9,7 @@ function Get-VMInfo {
         [string]$resourceGroupName
     )
 
-    # Get the location and storage account of the VM
-    Write-Output "Getting details for ${vmName} to determine location and storage account"
+    # Get the location of the vm
     return (az vm show --name $vmName --resource-group $resourceGroupName --query "location" -o tsv).Trim()
 }
 

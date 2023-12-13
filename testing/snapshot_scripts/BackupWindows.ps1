@@ -28,6 +28,7 @@ Import-Module $backupLibraryPath
 $subscriptionId = Get-SubscriptionId
 
 # Get the location of the VM
+Write-Output "Getting details for ${vmName} to determine location and storage account"
 $vmLocation = Get-VMInfo -vmName $vmName -resourceGroupName $resourceGroupName
 
 # Construct the final snapshot resource group name
