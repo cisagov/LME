@@ -19,7 +19,7 @@ param(
     [string]$targetResourceGroup
 )
 
-$vmNames = @("DC1", "C1", "C2", "LS1")
+$vmNames = @("LS1")
 
 foreach ($vmName in $vmNames) {
     $snapshotName = "$vmName-$versionSuffix"
