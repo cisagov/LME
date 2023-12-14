@@ -358,6 +358,7 @@ if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
         -OsType "windows" `
         -Version $Version `
         -ResourceGroup $ResourceGroup `
+        -Location $Location `
         -NewDiskName "DC1_OsDisk_${RandomString}" `
 
     CreateNewVM `
