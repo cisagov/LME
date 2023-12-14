@@ -366,6 +366,8 @@ if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
         -ResourceGroup $ResourceGroup `
         -NewDiskName "DC1_OsDisk_${RandomString}" `
 
+    Start-Sleep -Seconds 10
+
     CreateNewVM `
         -NewVmName "DC1" `
         -OsType "windows" `
@@ -376,7 +378,7 @@ if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
         -Nsg $Nsg `
         -VNetName $VNetName `
         -Subnet $Subnet `
-        -IP $IP
+        -IP $DcIP
 }
 else {
     Write-Output "`nCreating DC1..."
@@ -413,7 +415,7 @@ if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
         -Nsg $Nsg `
         -VNetName $VNetName `
         -Subnet $Subnet `
-        -IP $IP
+        -IP $LsIP
 
 }
 else {
@@ -483,7 +485,7 @@ if ($null -ne $AutoShutdownTime) {
 }
 
 # If the version was passed in we are using backup domain controller so don't need to do this
-if ([string]::IsNullOrWhiteSpace($Version) -ne $false) {
+if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
     Write-Output "Use the passwords for the machines in the snapshot"
     Write-Output "Done."
     exit
