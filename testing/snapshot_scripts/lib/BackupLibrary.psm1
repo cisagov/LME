@@ -89,7 +89,7 @@ function Get-VaultId {
         -o tsv
 }
 
-function Write-Policy-To-File {
+function Write-PolicyToFile {
     param(
         [string]$policyName,
         [string]$resourceGroupName,

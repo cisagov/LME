@@ -54,7 +54,7 @@ Write-Output "Getting default backup policy"
 
 # Get the list of policies in JSON format
 $policyName = "NewDefaultPolicy"
-Write-Policy-To-File -policyName "EnhancedPolicy" -resourceGroupName $resourceGroupName -vaultName $vaultName
+Write-PolicyToFile -policyName "EnhancedPolicy" -resourceGroupName $resourceGroupName -vaultName $vaultName
 
 
 Write-Output "Setting default backup policy ${policyName} ${vaultName} ${resourceGroupName}"
