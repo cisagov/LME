@@ -231,6 +231,7 @@ function CreateNewVM {
     Invoke-Expression $vmCreateCommand
 }
 
+
 function CreateDiskFromSnapshot {
     param (
         [Parameter(Mandatory = $true)]
@@ -268,6 +269,12 @@ function CreateDiskFromSnapshot {
         --source $snapshotId `
         --os-type $CapOsType `
         --sku $DiskType
+
+    do {
+        Start-Sleep -Seconds 10
+        $diskStatus = az disk show --name $NewDiskName --resource-group $ResourceGroup --query "provisioningState" -o tsv
+        Write-Output "Waiting for disk to be created. Current status: $diskStatus"
+    } while ($diskStatus -ne "Succeeded")
 }
 
 
@@ -346,8 +353,10 @@ Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
 ##################
 $VMPassword = Get-RandomPassword 12
 
-Write-Output "`nWriting $VMAdmin password to password.txt"
-echo $VMPassword > password.txt
+if ([string]::IsNullOrWhiteSpace($Version) -eq $true) {
+    Write-Output "`nWriting $VMAdmin password to password.txt"
+    echo $VMPassword > password.txt
+}
 
 if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
     CreateDiskFromSnapshot `
@@ -475,11 +484,9 @@ if ($null -ne $AutoShutdownTime) {
 
 # If the version was passed in we are using backup domain controller so don't need to do this
 if ([string]::IsNullOrWhiteSpace($Version) -ne $false) {
-    Write-Output "`nVM login info:"
-    Write-Output "Username: $( $VMAdmin )"
-    Write-Output "Password: $( $VMPassword )"
-    Write-Output "SAVE THE ABOVE INFO`n"
+    Write-Output "Use the passwords for the machines in the snapshot"
     Write-Output "Done."
+    exit
 }
 
 
