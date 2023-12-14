@@ -360,15 +360,13 @@ if ([string]::IsNullOrWhiteSpace($Version) -eq $false) {
         -ResourceGroup $ResourceGroup `
         -NewDiskName "DC1_OsDisk_${RandomString}" `
 
-    Start-Sleep -Seconds 10
-
     CreateNewVM `
         -NewVmName "DC1" `
         -OsType "windows" `
         -VmSize "Standard_DS1_v2" `
         -ResourceGroup $ResourceGroup `
         -Location $Location `
-        -NewDiskName "DC1_OsDisk_1_${RandomString}" `
+        -NewDiskName "DC1_OsDisk_${RandomString}" `
         -Nsg $Nsg `
         -VNetName $VNetName `
         -Subnet $Subnet `
@@ -449,6 +447,7 @@ for ($i = 1; $i -le $NumClients; $i++) {
             -Nsg $Nsg `
             -VNetName $VNetName `
             -Subnet $Subnet `
+
     }
     else {
         Write-Output "`nCreating C$i..."
@@ -517,40 +516,40 @@ az vm restart `
 for ($i = 1; $i -le $NumClients; $i++) {
     Write-Output "`nAdding DC IP address to C$i host file..."
     az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroup `
-    --name C$i `
-    --scripts "Add-Content -Path `$env:windir\System32\drivers\etc\hosts -Value `"`n$DcIP`t$DomainName`" -Force"
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroup `
+        --name C$i `
+        --scripts "Add-Content -Path `$env:windir\System32\drivers\etc\hosts -Value `"`n$DcIP`t$DomainName`" -Force"
 
     Write-Output "`nSetting C$i DNS server to DC1..."
     az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroup `
-    --name C$i `
-    --scripts "Get-Netadapter | Set-DnsClientServerAddress -ServerAddresses $DcIP"
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroup `
+        --name C$i `
+        --scripts "Get-Netadapter | Set-DnsClientServerAddress -ServerAddresses $DcIP"
 
     Write-Output "`nRestarting C$i..."
     az vm restart `
-    --resource-group $ResourceGroup `
-    --name C$i `
+        --resource-group $ResourceGroup `
+        --name C$i `
 
-Write-Output "`nAdding C$i to the domain..."
+    Write-Output "`nAdding C$i to the domain..."
     az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroup `
-    --name C$i `
-    --scripts "`$Password = ConvertTo-SecureString `"$VMPassword`" -AsPlainText -Force; `
-`$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $DomainName\$VMAdmin, `$Password; `
-Add-Computer -DomainName $DomainName -Credential `$Credential -Restart"
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroup `
+        --name C$i `
+        --scripts "`$Password = ConvertTo-SecureString `"$VMPassword`" -AsPlainText -Force; `
+    `$Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $DomainName\$VMAdmin, `$Password; `
+    Add-Computer -DomainName $DomainName -Credential `$Credential -Restart"
 
     # The following command fixes this issue:
     # https://serverfault.com/questions/754012/windows-10-unable-to-access-sysvol-and-netlogon
     Write-Output "`nModifying C$i register to allow access to sysvol..."
     az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroup `
-    --name C$i `
-    --scripts "cmd.exe /c `"%COMSPEC% /C reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths /v \\*\SYSVOL /d RequireMutualAuthentication=0 /t REG_SZ`""
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroup `
+        --name C$i `
+        --scripts "cmd.exe /c `"%COMSPEC% /C reg add HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths /v \\*\SYSVOL /d RequireMutualAuthentication=0 /t REG_SZ`""
 }
 
 Write-Output "`nVM login info:"
