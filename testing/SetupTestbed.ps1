@@ -63,13 +63,7 @@ param (
     [Parameter(
             HelpMessage = "Version of the snapshot to use. Use this if you want to restore from snapshots"
     )]
-    [string]$Version = $null,
-
-    [Parameter(
-            HelpMessage = "Version of the snapshot to use. Use this if you want to restore from snapshots"
-    )]
-    [string]$VaultRegion = $null
-
+    [string]$Version = $null
 )
 
 #DEFAULTS:
