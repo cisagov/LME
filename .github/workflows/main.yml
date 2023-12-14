@@ -3,7 +3,6 @@ on:
     push:
       branches:
         - main
-        - update-workflows-1
       tags:
         - 'v[0-9]+.[0-9]+.[0-9]+*'  # match basic semver tags
     pull_request:
