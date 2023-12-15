@@ -325,3 +325,5 @@ curl -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H "Conte
 ```
 
 Replace 'currentpassword' with your current password and 'newpassword' with the password you would like to change it to. 
+
+Utilize environment variables in place of currentpassword and newpassword to avoid saving your password to console history. If not we recommend you clear your history after changing the password with ```history -c```
