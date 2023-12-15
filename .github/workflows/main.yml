@@ -1,32 +1,71 @@
----
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'  # match basic semver tags
-  pull_request:
-    branches:
-      - main
-
+    workflow_dispatch:
+    push:
+      branches:
+        - main
+      tags:
+        - 'v[0-9]+.[0-9]+.[0-9]+*'  # match basic semver tags
+    pull_request:
+      branches:
+         - main
+         - 'release-*'
+  
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Linters
-        run: true  # place-holder
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  test:
+      - name: Lint Shell Scripts
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install shellcheck
+          shellcheck **/*.sh
+  
+      - name: Lint PowerShell Scripts
+        continue-on-error: true
+        run: |
+          pwsh -Command "Invoke-ScriptAnalyzer -EnableExit -Recurse -Path ."
+  
+      - name: Lint Lua
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y luarocks
+          sudo luarocks install luacheck
+          luacheck **/*.lua
+  
+      - name: Lint TeX Files
+        continue-on-error: true
+        run: |
+          sudo apt-get install chktex
+          chktex **/*.tex
+
+      - name: Lint YAML Files
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install yamllint
+          yamllint -f parsable **/*.yml
+          
+  semgrep-scan:
     runs-on: ubuntu-latest
+    container: 
+      image: returntocorp/semgrep:latest
     steps:
-      - name: Tests
-        run: true  # place-holder
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Semgrep Scan
+        continue-on-error: true
+        run: |
+          semgrep --config "p/r2c" .
 
   release:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [lint, test]
+    needs: [lint, semgrep-scan]
     steps:
       - name: Checkout
         uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
