@@ -4,7 +4,7 @@
 ############################
 # This script configures a host for LME including generating certificates and populating configuration files.
 
-# Put the latest version number here
+REQUIRED_BINARIES=(curl zip net-tools jq)
 
 DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
@@ -697,7 +697,7 @@ function install() {
   apt update && apt upgrade -y
 
   echo -e "\e[32m[X]\e[0m Installing prerequisites"
-  apt install curl zip net-tools -y -q
+  apt install ${REQUIRED_BINARIES[*]} -y -q
 
   if [ -f /var/run/reboot-required ]; then
     echo -e "\e[31m[!]\e[0m A reboot is required in order to proceed with the install."
@@ -1062,6 +1062,8 @@ if [[ "$DIR" != "/opt/lme/Chapter 3 Files" ]]; then
   echo -e "\e[31m[!]\e[0m The deploy script is not currently within the correct path, please ensure that LME is located in /opt/lme for installation"
   exit 1
 fi
+
+#check all required binaries are installed
 
 #Change current working directory so relative filepaths work
 cd "$DIR" || exit
