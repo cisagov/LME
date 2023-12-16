@@ -825,7 +825,7 @@ function install() {
   displaycredentials
 
   echo -e "If you prefer to set your own elastic user password, then refer to our troubleshooting documentation:"
-  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#containers-restartingnot-running\n\n" 
+  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n" 
 }
 
 function displaycredentials() {
