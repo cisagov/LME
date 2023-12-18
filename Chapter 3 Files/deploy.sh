@@ -103,11 +103,7 @@ function setroles() {
 }
 
 function setpasswords() {
-  temp="temp"
-  #override temp password if overwriting an old docker container
-  if [ -v OLD_ELASTIC_PASS ]; then
-    temp=$OLD_ELASTIC_PASS
-  fi
+  temp="temp" 
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
   max_attempts=25
@@ -121,7 +117,7 @@ function setpasswords() {
       exit 1
     fi
   done
-  echo "Elasticsearch is up and running."
+  echo -e "\n\e[32m[X]\e[0m Elasticsearch is up and running."
 
   echo -e "\e[32m[X]\e[0m Setting elastic user password"
   curl --cacert certs/root-ca.crt --user elastic:${temp} -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H 'Content-Type: application/json' -d' { "password" : "'"$elastic_user_pass"'"} '
@@ -729,17 +725,7 @@ function install() {
   echo -e "\e[32m[X]\e[0m Configuring winlogbeat config and certificates to use $logstaship as the IP and $logstashcn as the DNS"
 
   read -e -p "This script will use self signed certificates for communication and encryption. Do you want to continue with self signed certificates? ([y]es/[n]o): " -i "y" selfsignedyn
-  read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall
-  read -e -p "Do you have an old elastic user password from a previous LME install? ([y]es/[n]o): " -i "n" old_elastic_user_pass
-
-  if [ "$old_elastic_user_pass" == "y" ]; then
-    res= false
-    while [ ! $res ]; do
-      read -e -p "PASSWORD: " OLD_ELASTIC_PASS
-      prompt "confirm password \"$OLD_ELASTIC_PASS\""
-      res=$?
-    done
-  fi
+  read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall 
 
   if [ "$selfsignedyn" == "y" ]; then
     #make certs
@@ -836,6 +822,13 @@ function install() {
   #fix readability:
   fixreadability
 
+  displaycredentials
+
+  echo -e "If you prefer to set your own elastic user password, then refer to our troubleshooting documentation:"
+  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n" 
+}
+
+function displaycredentials() {
   echo ""
   echo "##################################################################################"
   echo "## Kibana/Elasticsearch Credentials are (these will not be accessible again!)"

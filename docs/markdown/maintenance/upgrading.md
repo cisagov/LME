@@ -6,7 +6,7 @@ Below you can find the upgrade paths that are currently supported and what steps
 
 Applying these changes is automated for any new installations. But, if you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
 
-To Upgrade to the latest version from Release 1.1.0 to Release 1.2.0 [go here](#5-upgrade-from-110-to-120).
+To upgrade to the latest version from Release 1.2.0 to Release 1.3.0 [go here](#6-upgrade-from-120-to-130).
 
 ## 1. Finding your LME version (and the components versions)
 When reporting an issue or suggesting improvements, it is important to include the versions of all the components, where possible. This ensures that the issue has not already been fixed! 
@@ -131,6 +131,21 @@ See [Directory permission issues](/docs/markdown/reference/troubleshooting.md#di
 
 ## 5. Upgrade from 1.1.0 to 1.2.0
 To fetch the latest changes, on the Linux server, run the following commands as root:
+```
+cd /opt/lme/Chapter\ 3\ Files/
+sudo ./deploy.sh uninstall
+cd /opt/lme
+git pull
+cd Chapter\ 3\ Files/
+sudo ./deploy.sh install
+```
+
+The deploy.sh script should have now created new files on the Linux server at location /opt/lme/files_for_windows.zip . This file needs to be copied across and used on the Windows Event Collector server like it was explained in Chapter 3 sections [3.2.4 & 3.3 ](/docs/markdown/chapter3/chapter3.md#324-download-files-for-windows-event-collector). 
+
+Then reboot your Client computers & Windows Event Collector. On Windows Event Collector open services.msc as an administrator and make sure the winlogbeat service is set to start automatically, and is running.
+
+## 6. Upgrade from 1.2.0 to 1.3.0
+To fetch the latest changes, run the following commands as root on the Linux server:
 ```
 cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh uninstall

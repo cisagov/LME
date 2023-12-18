@@ -309,3 +309,21 @@ To Start LME:
 ```
 sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
 ```
+## Using API
+
+### Changing elastic Username Password
+
+After doing an install if you wish to change the password to the elastic username you can use the following command: 
+
+NOTE: You will need to run this command with an account that can access /opt/lme. If you can't sudo the user account will at least need to be able to access the certs located in the command. 
+
+```
+sudo curl -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H "Content-Type: application/json" -d'
+{
+  "password" : "newpassword"
+}' --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:currentpassword
+```
+
+Replace 'currentpassword' with your current password and 'newpassword' with the password you would like to change it to. 
+
+Utilize environment variables in place of currentpassword and newpassword to avoid saving your password to console history. If not we recommend you clear your history after changing the password with ```history -c```
