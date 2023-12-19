@@ -70,6 +70,6 @@ $SasUrl = az storage blob generate-sas `
     --output tsv
 
 # Set the full url var for returing to the user for use in the next script
-$ContainerUrl = "https://$StorageAccountName.blob.core.windows.net/$ContainerName/$BlobName?$SasUrl"
+$FullUrl = "https://${StorageAccountName}.blob.core.windows.net/${ContainerName}/${BlobName}?${SasUrl}"
 
-$ContainerUrl
+$FullUrl
