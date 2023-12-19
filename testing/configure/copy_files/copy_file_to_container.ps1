@@ -52,7 +52,8 @@ az storage blob upload `
     --file $LocalFilePath `
     --name (Split-Path $LocalFilePath -Leaf) `
     --account-name $StorageAccountName `
-    --account-key $StorageAccountKey
+    --account-key $StorageAccountKey `
+    --overwrite `
 
 
 $BlobName = (Split-Path $LocalFilePath -Leaf)
