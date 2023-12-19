@@ -23,7 +23,7 @@ The key for the Azure Storage account.
 Shared Access Signature (SAS) URL of the uploaded file.
 
 .EXAMPLE
-.\YourScriptName.ps1 -LocalFilePath "C:\path\to\file.txt" -ContainerName "examplecontainer" -StorageAccountName "examplestorageaccount" -StorageAccountKey "examplekey"
+.\copy_file_to_container.ps1 -LocalFilePath "C:\path\to\file.txt" -ContainerName "examplecontainer" -StorageAccountName "examplestorageaccount" -StorageAccountKey "examplekey"
 
 This example uploads 'file.txt' from the local path to 'examplecontainer' in the Azure Storage account named 'examplestorageaccount' and outputs the SAS URL for the uploaded file.
 
@@ -33,16 +33,16 @@ This example uploads 'file.txt' from the local path to 'examplecontainer' in the
 #>
 
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$LocalFilePath,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$ContainerName,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$StorageAccountName,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$StorageAccountKey
 )
 
@@ -56,7 +56,7 @@ az storage blob upload `
 
 
 $BlobName = (Split-Path $LocalFilePath -Leaf)
-$ExpiryTime = "$(Get-Date).AddDays(1).ToString('yyyy-MM-ddTHH:mm:ssZ')"
+$ExpiryTime = (Get-Date).AddDays(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
 
 # Generate SAS URL for the blob
 $SasUrl = az storage blob generate-sas `
