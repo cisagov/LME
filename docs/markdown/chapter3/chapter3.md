@@ -222,6 +222,8 @@ Then, move the 'winlogbeat.yml' file located at ```C:\Program Files\lme\winlogbe
 
 Now, open PowerShell as an administrator and run the following command from the winlogbeat directory, allowing the script to run if prompted to do so: ```./install-service-winlogbeat.ps1```
 
+If you receive a permissions error you can run ```Set-ExecutionPolicy Unrestricted -Scope Process``` to be able to run the installer.
+
 ![Winlogbeat Install Script](/docs/imgs/winlogbeat-install.png)
 <p align="center">
 Figure 4: Winlogbeat Install Script
@@ -242,7 +244,7 @@ Figure 5: Winlogbeat Service Running
 ## Trusting the certs that secure LME's services
 
 Theres a few steps we need to follow to trust the self-signed cert: 
-1. Grab the self-signed certificate authority for LME (done in step [3.2.4](docs/markdown/chapter3/chapter3.md#324-download-files-for-windows-event-collector)).
+1. Grab the self-signed certificate authority for LME (done in step [3.2.4](#324-download-files-for-windows-event-collector)).
 2. Have our clients trust the certificate authority (see command below).
 
 This will trust the self signed cert and any other certificates it signs. If this certificate is stolen by an attacker, they can use it to trick your browser into trusting any website they setup. Make sure this cert is kept safe and secure. 

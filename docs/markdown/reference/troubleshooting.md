@@ -93,7 +93,7 @@ Please be aware that Logging Made Easy does not currently support logging Domain
 
 
 ### Space issues during install: 
-If there are size contstraints on your system and your system doesn't meet our expected requirements, you could run into issues like this [ISSUE](https://github.com/cisagov/LME/issues/19).
+If there are size constraints on your system and your system doesn't meet our expected requirements, you could run into issues like this [ISSUE](https://github.com/cisagov/LME/issues/19).
 
 You can try this:  [DISK-SPACE-20.04](https://askubuntu.com/questions/1269493/ubuntu-server-20-04-1-lts-not-all-disk-space-was-allocated-during-installation)
 ```
@@ -135,7 +135,7 @@ The user id in the container is 1000, so by setting the proper owner we fix the 
 We know this by investigating the backing docker container image for elasticsearch [LINK](https://github.com/elastic/elasticsearch/blob/61d59b31a27448e3d7d28907717b1b8c23f52f3e/distribution/docker/src/docker/Dockerfile#L185) [GITHUB](https://github.com/elastic/elasticsearch/blob/main/distribution/docker/src/docker/Dockerfile)
 
 
-####  deploy.sh stalls on: wating for elasticsearch to connect
+####  deploy.sh stalls on: waiting for elasticsearch to connect
 This was a bug that was fixed in the current iteration of deploy.sh. This occurs if the `elastic` user password was already set in a previous deployment of LME. The easiest fix for this is to delete your old LME volumes as that will clear out any old settings that would be preventing install.
 ```
 #DONT RUN THIS IF YOU HAVE DATA YOU WANT TO PRESERVE!!
@@ -309,3 +309,21 @@ To Start LME:
 ```
 sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
 ```
+## Using API
+
+### Changing elastic Username Password
+
+After doing an install if you wish to change the password to the elastic username you can use the following command: 
+
+NOTE: You will need to run this command with an account that can access /opt/lme. If you can't sudo the user account will at least need to be able to access the certs located in the command. 
+
+```
+sudo curl -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H "Content-Type: application/json" -d'
+{
+  "password" : "newpassword"
+}' --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:currentpassword
+```
+
+Replace 'currentpassword' with your current password and 'newpassword' with the password you would like to change it to. 
+
+Utilize environment variables in place of currentpassword and newpassword to avoid saving your password to console history. If not we recommend you clear your history after changing the password with ```history -c```

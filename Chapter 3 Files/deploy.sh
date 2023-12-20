@@ -4,9 +4,48 @@
 ############################
 # This script configures a host for LME including generating certificates and populating configuration files.
 
-# Put the latest version number here
+REQUIRED_PACKS=(curl zip net-tools jq)
 
 DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
+
+#TODO: convert all logging messages to the following formats: 
+ED=`tput setaf 1`
+GREEN=`tput setaf 2`
+YELLOW=`tput setaf 3`
+MAGENTA=`tput setaf 5`
+CYAN=`tput setaf 6`
+BOLD=`tput bold`
+RST=`tput sgr0`
+function msg { echo -e "${CYAN} $@ ${RST}"; }
+function info { echo -e "\e[32m[X]\e[0m $@"; }
+function success { echo -e "${GREEN}[+] $@ ${RST}"; }
+function warn {  echo -e "${YELLOW}[!] $@ ${RST}"; }
+function error { echo -e "${RED}[-] $@ ${RST}"; }
+
+#ready?
+ready() {
+  if [ -z "$1" ]; then
+    str="Are you sure?"
+  else
+    str=$1
+  fi
+  echo $str
+
+  check=""
+  while ! ([ "${check}" = "n" ] || [ "${check}" = "y" ] );
+  do
+  read -e -p " OK [y/n]?" -i "y" check 
+  if [ "${check}" == "n" ]; then
+    echo -e "\e[33m[!]\e[0m Selected **NO** EXITING"
+    exit 1
+  elif [ "${check}" == "y" ]; then
+    #ready check passed by user
+    return
+  else
+    echo -e "\e[33m[!]\e[0m ONLY PROVIDE y or n"
+  fi
+  done
+}
 
 #prompt for y/n
 prompt() {
@@ -17,7 +56,8 @@ prompt() {
   fi
 
   while true; do
-    read -r -p "$str? [Y/n] " input
+    echo -n "$str"
+    read -r -p " [Y/n] " -i "y" input
 
     case $input in
     [yY][eE][sS] | [yY])
@@ -35,13 +75,19 @@ prompt() {
   done
 }
 
+#pull latest version from github or 
+#SET: FORCE_LATEST_VERSION in environment to force a specific version in testing
 function get_latest_version() {
-  #TODO: eventually have this pull from github
-
-  #return:
-  echo -n '1.2.0'
+  if (: "${FORCE_LATEST_VERSION?}") 2>/dev/null;
+  then
+    echo -n "$FORCE_LATEST_VERSION"
+  else
+    curl -sL https://api.github.com/repos/cisagov/lme/releases/latest | jq -r ".tag_name" | sed 's/v//g' | tr -d "\n"
+  fi
   return 0
 }
+
+
 function customlogstashconf() {
   #add option for custom logstash config
   CUSTOM_LOGSTASH_CONF=/opt/lme/Chapter\ 3\ Files/logstash_custom.conf
@@ -103,11 +149,7 @@ function setroles() {
 }
 
 function setpasswords() {
-  temp="temp"
-  #override temp password if overwriting an old docker container
-  if [ -v OLD_ELASTIC_PASS ]; then
-    temp=$OLD_ELASTIC_PASS
-  fi
+  temp="temp" 
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
   max_attempts=25
@@ -121,7 +163,7 @@ function setpasswords() {
       exit 1
     fi
   done
-  echo "Elasticsearch is up and running."
+  echo -e "\n\e[32m[X]\e[0m Elasticsearch is up and running."
 
   echo -e "\e[32m[X]\e[0m Setting elastic user password"
   curl --cacert certs/root-ca.crt --user elastic:${temp} -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H 'Content-Type: application/json' -d' { "password" : "'"$elastic_user_pass"'"} '
@@ -412,7 +454,7 @@ function initdockerswarm() {
 }
 
 function pulllme() {
-  echo -e "\e[32m[X]\e[0m Pulling ELK images"
+  info " Pulling ELK images"
   docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull
 }
 
@@ -687,13 +729,21 @@ function fixreadability() {
   chown -R 1000:1000 /opt/lme/backups
   chmod -R go-rwx /opt/lme/backups
 
+  #fix chapter 3 files: group and owner should have rx permissions
+  chown 1000:1000 /opt/lme/Chapter\ 3\ Files/
+  chmod ug+rx /opt/lme/Chapter\ 3\ Files
 }
 
-function install() {
-  echo -e "Will execute the following intrusive actions:\n\t- apt update/upgrade\n\t- install docker (please uninstall before proceeding, or indicate skipping the install)\n\t- initialize docker swarm (execute \`sudo docker swarm leave --force\`  before proceeding if you are part of a swarm\n\t- automatic os updates via unattened-upgrades)"
-  read -e -p "Proceed ([y]es/[n]o):" -i "y" check
 
-  if [ "$check" == "n" ]; then
+function install() {
+  echo -e "Will execute the following intrusive actions:\n\t- apt update & upgrade\n\t- install docker (please uninstall before proceeding, or indicate skipping the install)\n\t- initialize docker swarm (execute \`sudo docker swarm leave --force\`  before proceeding if you are part of a swarm\n\t- automatic os updates via unattened-upgrades\n\t- checkout lme directory to latest version, and throw away local changes)"
+
+  prompt "Proceed?"
+  status=$?
+  #user entered no
+  if ! (exit $status);
+  then
+    error "Exiting" 
     return 1
   fi
 
@@ -701,13 +751,14 @@ function install() {
   apt update && apt upgrade -y
 
   echo -e "\e[32m[X]\e[0m Installing prerequisites"
-  apt install curl zip net-tools -y -q
+  apt install ${REQUIRED_PACKS[*]} -y -q
 
   if [ -f /var/run/reboot-required ]; then
     echo -e "\e[31m[!]\e[0m A reboot is required in order to proceed with the install."
     echo -e "\e[31m[!]\e[0m Please reboot and re-run this script to finish the install."
     exit 1
   fi
+
 
   #enable auto updates if ubuntu
   auto_os_updates
@@ -729,17 +780,7 @@ function install() {
   echo -e "\e[32m[X]\e[0m Configuring winlogbeat config and certificates to use $logstaship as the IP and $logstashcn as the DNS"
 
   read -e -p "This script will use self signed certificates for communication and encryption. Do you want to continue with self signed certificates? ([y]es/[n]o): " -i "y" selfsignedyn
-  read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall
-  read -e -p "Do you have an old elastic user password from a previous LME install? ([y]es/[n]o): " -i "n" old_elastic_user_pass
-
-  if [ "$old_elastic_user_pass" == "y" ]; then
-    res= false
-    while [ ! $res ]; do
-      read -e -p "PASSWORD: " OLD_ELASTIC_PASS
-      prompt "confirm password \"$OLD_ELASTIC_PASS\""
-      res=$?
-    done
-  fi
+  read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall 
 
   if [ "$selfsignedyn" == "y" ]; then
     #make certs
@@ -836,6 +877,13 @@ function install() {
   #fix readability:
   fixreadability
 
+  displaycredentials
+
+  echo -e "If you prefer to set your own elastic user password, then refer to our troubleshooting documentation:"
+  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n" 
+}
+
+function displaycredentials() {
   echo ""
   echo "##################################################################################"
   echo "## Kibana/Elasticsearch Credentials are (these will not be accessible again!)"
@@ -894,6 +942,7 @@ function upgrade() {
     #reference this file as a source
     . /opt/lme/lme.conf
     #check if the version number is equal to the one we want
+    #NCSC -> CISA
     if [ "$version" == "0.5.1" ]; then
       echo -e "\e[32m[X]\e[0m Updating from git repo"
       git -C /opt/lme/ pull
@@ -958,7 +1007,7 @@ function upgrade() {
       fi
       zipfiles
       fixreadability
-
+    #1.0 -> 1.2.0 or 1.1.0 -> 1.2.0
     elif [ "$version" == "1.0" ]; then
       echo -e "\e[32m[X]\e[0m Backing up config file to: /opt/lme/Chapter\ 3\ Files/backup_config "
       sudo mkdir -p /opt/lme/Chapter\ 3\ Files/backup_config
@@ -984,11 +1033,45 @@ function upgrade() {
       sudo cp -rapf /opt/lme/dashboard_update.sh /opt/lme/dashboard_update.sh.bku
       sudo sed -i "s/\"\$version\" == \"1.0\"/\"\$version\" == \"$latest\"/g" /opt/lme/dashboard_update.sh
 
-      echo -e "\e[32m[X]\e[0m You're on the latest version: $latest!"
+    #1.2.0 -> 1.3.0
+    elif [ "$version" == "1.2.0" ]; then
+
+      #update lme??
+      sudo docker stack rm lme
+
+      msg "Sleeping for one minute to allow Docker actions to complete..."
+      sleep 1m
+
+      pulllme
+
+      info "Deploy LME"
+      deploylme
+
+      info "Copying lme.conf -> lme.conf.bku"
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
+      sudo sed -i "s/version=1.0/version=$latest/g" /opt/lme/lme.conf
+
+      info "Copying dashboard_update.sh -> dashboard_update.sh.bku"
+      sudo cp -rapf /opt/lme/dashboard_update.sh /opt/lme/dashboard_update.sh.bku
+
+      info "Setting up new dashboard_update.sh"
+      sudo cp -rapf /opt/lme/Chapter\ 3\ Files/dashboard_update.sh /opt/lme/dashboard_update.sh
+      old_password=$(grep -P -o "(?<=dashboard_update:)[0-9a-zA-Z]+ " /opt/lme/dashboard_update.sh.bku)
+      sudo sed -i "s/dashboardupdatepassword/$old_password/g" /opt/lme/dashboard_update.sh
+
+      #update VERSION NUMBER
+      info "Updating Version to $latest"
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
+      sudo sed -i -E "s/version=[0-9]+\.[0-9]+\.[0-9]+/version=$latest/g" /opt/lme/lme.conf
+      chmod u+rwx /opt/lme/dashboard_update.sh
+
+      info "Updating dashbaords"
+      sudo /opt/lme/dashboard_update.sh
+
     elif [ "$version" == $latest ]; then
-      echo -e "\e[32m[X]\e[0m You're on the latest version!"
+      info "You're on the latest version!"
     else
-      echo -e "\e[31m[!]\e[0m Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
+      error "Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
     fi
   fi
 }
@@ -1070,8 +1153,30 @@ if [[ "$DIR" != "/opt/lme/Chapter 3 Files" ]]; then
   exit 1
 fi
 
+#check all required binaries are installed
+missing_pkgs=()
+for pkg in ${REQUIRED_PACKS[*]};
+do
+  #https://stackoverflow.com/a/10439058
+  PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $pkg 2>/dev/null | grep "install ok installed")
+  if [ "" = "$PKG_OK" ]; then
+    missing_pkgs+=($pkg)
+  fi
+done
+#download missing packages
+if [ ${#missing_pkgs[@]} -gt 0 ];
+then
+  ready "Will install the following packages: ${missing_pkgs[*]}. These are required for LME." 
+  sudo apt-get update
+  #confirm install
+  sudo apt-get --yes install ${missing_pkgs[*]}
+fi
+
 #Change current working directory so relative filepaths work
 cd "$DIR" || exit
+
+#TESTING Example BELOW:
+#export FORCE_LATEST_VERSION=1.3.0
 
 #What action is the user wanting to perform
 if [ "$1" == "" ]; then
