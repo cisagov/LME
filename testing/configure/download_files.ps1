@@ -1,10 +1,19 @@
-# Downloads latest release and unzips it in $USER\Downloads\LME
+param(
+    [string]$username = $env:USERPROFILE
+)
+
+# Base directory path - use provided username or default to USERPROFILE
+$baseDirectoryPath = if ($username -and ($username -ne $env:USERPROFILE)) {
+    "C:\Users\$username"
+} else {
+    $env:USERPROFILE
+}
 
 $apiUrl = "https://api.github.com/repos/cisagov/LME/releases/latest"
 $latestRelease = Invoke-RestMethod -Uri $apiUrl
 $zipFileUrl = $latestRelease.assets | Where-Object { $_.content_type -eq 'application/zip' } | Select-Object -ExpandProperty browser_download_url
-$downloadPath = "$env:USERPROFILE\Downloads\" + $latestRelease.name + ".zip"
-$extractPath = "$env:USERPROFILE\Downloads\LME"
+$downloadPath = "$baseDirectoryPath\Downloads\" + $latestRelease.name + ".zip"
+$extractPath = "$baseDirectoryPath\Downloads\LME"
 
 Invoke-WebRequest -Uri $zipFileUrl -OutFile $downloadPath
 if (-not (Test-Path -Path $extractPath)) {
