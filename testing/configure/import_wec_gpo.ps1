@@ -1,4 +1,15 @@
-$GPOBackupPath = "$env:USERPROFILE\Downloads\LME\Chapter 1 Files\Group Policy Objects"
+param(
+    [string]$username = $env:USERPROFILE
+)
+
+# Determine the base directory path based on the provided username
+$baseDirectoryPath = if ($username -and ($username -ne $env:USERPROFILE)) {
+    "C:\Users\$username"
+} else {
+    $env:USERPROFILE
+}
+
+$GPOBackupPath = "$baseDirectoryPath\Downloads\LME\Chapter 1 Files\Group Policy Objects"
 
 $gpoNames = @("LME-WEC-Client", "LME-WEC-Server")
 
@@ -20,3 +31,4 @@ foreach ($gpoName in $gpoNames) {
 }
 
 Write-Host "LME GPOs have been created and imported successfully."
+
