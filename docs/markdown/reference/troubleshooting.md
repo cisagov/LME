@@ -371,7 +371,7 @@ If you are having issues with your hard disk filling up too fast you can use the
 10. **Document the Changes**
     - Record the modifications for future reference.
 
-You can also manually delete an index using the following command: 
+You can also manually delete an index from the GUI under Management > Index Managment or by using the following command: 
 
 ```
 curl -X DELETE "https://127.0.0.1:9200/your_index_name" -H "Content-Type: application/json" --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:yourpassword
