@@ -336,7 +336,7 @@ If you are having issues with your hard disk filling up too fast you can use the
    - Access the Elastic platform and log in with your credentials.
 
 2. **Navigate to Management Section**
-   - In the main menu, click on "Management."
+   - In the main menu, scroll down to "Management."
 
 3. **Access Stack Management**
    - Within the Management section, select "Stack Management."
@@ -366,7 +366,7 @@ If you are having issues with your hard disk filling up too fast you can use the
    - Save the adjustments you've made.
 
 9. **Verify the Changes**
-   - Review and ensure that the changes are functioning as intended.
+   - Review and ensure that the changes are functioning as intended. Indices may not delete immediately - allow time for job to run.
 
 10. **Document the Changes**
     - Record the modifications for future reference.
