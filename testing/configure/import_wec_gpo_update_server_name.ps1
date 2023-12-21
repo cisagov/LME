@@ -18,5 +18,5 @@ if (-not [string]::IsNullOrWhiteSpace($HKEY_USERSKeyPath)) {
     $newValue = reg query "$HKEY_USERSKeyPath" /v "1"
     Write-Host "New Value: $newValue"
 } else {
-    Write-Host "Registry key path not found."
+    Write-Error "Registry key path not found."
 }
