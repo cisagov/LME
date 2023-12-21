@@ -370,3 +370,9 @@ If you are having issues with your hard disk filling up too fast you can use the
 
 10. **Document the Changes**
     - Record the modifications for future reference.
+
+You can also manually delete an index using the following command: 
+
+```sudo curl -X DELETE "https://127.0.0.1:9200/your_index_name" -H "Content-Type: application/json" --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:yourpassword
+```
+    > **Note:** Ensure this is not your current winlogbeat index in use. You should only delete indices that have already rolled over. i.e. if you have index winlogbeat-00001 and winlogbeat-00002 do NOT delete winlogbeat-00002.
