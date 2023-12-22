@@ -19,7 +19,8 @@
 <!-- see how your change affects other areas of the code, etc. -->
 
 ## ✅ Pre-approval checklist ##
-- [ ] There is a [gitIssue](https://github.com/cisagov/LME/issues) that this PR resolves 
+- [ ] There is a [gitIssue](https://github.com/cisagov/LME/issues) that this PR resolves
+- [ ] The PR's base branch has been modified to be the proper branch. 
 - [ ] Changes are limited to a single goal **AND** 
       the title reflects this in a clear human readable format for the release notes
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
