@@ -1,0 +1,13 @@
+# .github/release.yml
+
+changelog: 
+  categories:
+    - title: What's Added
+      labels:
+        - feat
+    - title: What's Changed
+      labels:
+        - update
+    - title: What's Fixed 
+      labels: 
+        - fix
