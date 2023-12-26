@@ -47,14 +47,16 @@ param(
 )
 
 # Upload file to the blob container
-az storage blob upload `
+$UploadResponse = az storage blob upload `
     --container-name $ContainerName `
     --file $LocalFilePath `
     --name (Split-Path $LocalFilePath -Leaf) `
     --account-name $StorageAccountName `
     --account-key $StorageAccountKey `
-    --overwrite `
+    --overwrite
 
+# Write the upload response to the standard output stream
+Write-Host $UploadResponse
 
 $BlobName = (Split-Path $LocalFilePath -Leaf)
 $ExpiryTime = (Get-Date).AddDays(1).ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -69,7 +71,11 @@ $SasUrl = az storage blob generate-sas `
     --expiry $ExpiryTime `
     --output tsv
 
-# Set the full url var for returing to the user for use in the next script
+# Write the SAS URL generation response to the standard output stream
+Write-Host "SAS URL generated successfully."
+
+# Set the full url var for returning to the user for use in the next script
 $FullUrl = "https://${StorageAccountName}.blob.core.windows.net/${ContainerName}/${BlobName}?${SasUrl}"
 
-$FullUrl
+# Output the FullUrl to the success output stream
+Write-Output $FullUrl
