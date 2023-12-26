@@ -7,7 +7,8 @@ Import-Module ActiveDirectory
 
 # Split the domain into parts and construct the ParentContainerDN
 $domainParts = $Domain -split "\."
-$ParentContainerDN = $domainParts | ForEach-Object { "DC=$_" } -join ","
+$ParentContainerDN = ($domainParts | ForEach-Object { "DC=$_" }) -join ","
+
 
 # Define the distinguished name (DN) for the new OU
 $NewOUDN = "OU=$ClientOUCustomName,$ParentContainerDN"
