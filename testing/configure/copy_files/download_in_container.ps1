@@ -20,16 +20,12 @@ The URL of the file to be downloaded.
 .PARAMETER DestinationFilePath
 The local file path where the file will be saved. Only the filename is used.
 
-.PARAMETER VMUsername
-The username on the VM to whose Downloads directory the file will be saved.
-
 .EXAMPLE
 .\download_in_container.ps1 `
     -VMName "DC1" `
     -ResourceGroupName "YourResourceGroupName" `
     -FileDownloadUrl "http://example.com/file.ext" `
-    -DestinationFilePath "filename.ext" `
-    -VMUsername "username"
+    -DestinationFilePath "filename.ext"
 
 This example downloads a file from "http://example.com/file.ext" to the "Downloads" directory of the user "username" on the VM "DC1" in the resource group "YourResourceGroupName".
 
@@ -48,10 +44,7 @@ param(
     [string]$FileDownloadUrl,
 
     [Parameter(Mandatory=$true)]
-    [string]$DestinationFilePath,  # This will be stripped to only the filename
-
-    [Parameter(Mandatory=$true)]
-    [string]$VMUsername  # Username on the VM
+    [string]$DestinationFilePath  # This will be stripped to only the filename
 )
 Write-Host $FileDownloadUrl
 
@@ -59,7 +52,7 @@ Write-Host $FileDownloadUrl
 $DestinationFileName = Split-Path -Leaf $DestinationFilePath
 
 # Set the destination path in the VM's user Downloads directory
-$DestinationPath = "C:\Users\$VMUsername\Downloads\$DestinationFileName"
+$DestinationPath = "C:\lme\$DestinationFileName"
 
 $DownloadScript = @"
 Invoke-WebRequest -Uri '$FileDownloadUrl' -OutFile '$DestinationPath'
