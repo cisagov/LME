@@ -4,7 +4,7 @@ param(
 
 # Determine the base directory path based on the provided username
 $baseDirectoryPath = if ($directory -and ($directory -ne $env:USERPROFILE)) {
-    "C:$directory"
+    "C:\$directory"
 } else {
     "$env:USERPROFILE\Downloads"
 }
