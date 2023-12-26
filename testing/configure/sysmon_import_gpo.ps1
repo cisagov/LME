@@ -1,15 +1,15 @@
 param(
-    [string]$username = $env:USERPROFILE
+    [string]$directory = $env:USERPROFILE
 )
 
 # Determine the base directory path based on the provided username
-$baseDirectoryPath = if ($username -and ($username -ne $env:USERPROFILE)) {
-    "C:\Users\$username"
+$baseDirectoryPath = if ($directory -and ($directory -ne $env:USERPROFILE)) {
+    "C:\$directory"
 } else {
-    $env:USERPROFILE
+    "$env:USERPROFILE\Downloads"
 }
 
-$GPOBackupPath = "$baseDirectoryPath\Downloads\LME\Chapter 2 Files\GPO Deployment\Group Policy Objects"
+$GPOBackupPath = "$baseDirectoryPath\LME\Chapter 2 Files\GPO Deployment\Group Policy Objects"
 
 $gpoNames = @("LME-Sysmon-Task")
 

@@ -1,7 +1,7 @@
 # PowerShell script to configure Windows Event Collector
 
 param(
-    [string]$xmlFilePath = "C:\Users\admin.ackbar\Downloads\LME\Chapter 1 Files\lme_wec_config.xml"
+    [string]$xmlFilePath = "C:\lme\LME\Chapter 1 Files\lme_wec_config.xml"
 )
 
 # Check if Windows Event Collector Service is running and start it if not

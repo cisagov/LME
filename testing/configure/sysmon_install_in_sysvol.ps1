@@ -1,6 +1,5 @@
 ﻿param(
-    [string]$DomainName = "lme.local",  # Default domain name
-    [string]$VMUsername = "admin.ackbar"  # Default VM username
+    [string]$DomainName = "lme.local"  # Default domain name
 )
 
 # Define the SYSVOL path
@@ -12,7 +11,7 @@ New-Item -ItemType Directory -Path $destinationPath -Force
 New-Item -ItemType Directory -Path $tempPath -Force
 
 # Copy update.bat from the user's download directory
-$updateBatSource = "C:\Users\$VMUsername\Downloads\LME\Chapter 2 Files\GPO Deployment\update.bat"
+$updateBatSource = "C:\lme\LME\Chapter 2 Files\GPO Deployment\update.bat"
 Copy-Item -Path $updateBatSource -Destination $destinationPath
 
 # Download URL for Sysmon
