@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 # Change directory to the configure directory
 Set-Location -Path $configurePath
 
-# Run the sysmon install scripts
+# Run the scripts and check for failure
 .\sysmon_install_in_sysvol.ps1
 .\sysmon_import_gpo.ps1 -directory lme
 .\sysmon_gpo_update_vars.ps1

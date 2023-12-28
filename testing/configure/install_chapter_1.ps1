@@ -12,10 +12,9 @@ $ErrorActionPreference = 'Stop'
 Set-Location -Path $configurePath
 
 # Run the scripts and check for failure
-.\create_lme_directory.ps1
+.\copy_files\create_lme_directory.ps1
 .\download_files.ps1 -directory lme
 .\wec_import_gpo.ps1 -directory lme
-Start-Sleep 10
 .\wec_gpo_update_server_name.ps1
 .\create_ou.ps1
 .\wec_link_gpo.ps1
@@ -23,8 +22,11 @@ Start-Sleep 10
 
 # Run the wevtutil and wecutil commands
 wevtutil set-log ForwardedEvents /q:true /e:true
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 wecutil rs lme
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 wecutil gr lme
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 # Run the move_computers_to_ou script
 .\move_computers_to_ou.ps1
