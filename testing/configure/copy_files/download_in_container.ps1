@@ -46,9 +46,17 @@ $DownloadScript = if ($os -eq "linux") {
     "Invoke-WebRequest -Uri '$FileDownloadUrl' -OutFile '$DestinationPath'"
 }
 
-# Execute the download script
-az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroupName `
-    --name $VMName `
-    --scripts $DownloadScript
+# Execute the download script with the appropriate command based on OS
+if ($os -eq "linux") {
+    az vm run-command invoke `
+        --command-id RunShellScript `
+        --resource-group $ResourceGroupName `
+        --name $VMName `
+        --scripts $DownloadScript
+} else {
+    az vm run-command invoke `
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroupName `
+        --name $VMName `
+        --scripts $DownloadScript
+}

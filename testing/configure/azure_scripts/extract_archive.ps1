@@ -17,7 +17,7 @@ The name of the Azure Resource Group that contains the VM.
 The name (and optional path) of the zip file to be unzipped.
 
 .EXAMPLE
-.\extract_archive.ps1 -VMName "DC1" -ResourceGroupName "YourResourceGroupName" -Filename "C:\path\to\filename.zip"
+.\extract_archive.ps1 -VMName "DC1" -ResourceGroupName "YourResourceGroupName" -Filename "filename.zip"
 
 This example unzips 'filename.zip' from the 'Downloads' directory of the user 'username' on the VM "DC1" in the resource group "YourResourceGroupName", and extracts it to a subdirectory named 'filename'.
 
@@ -34,25 +34,52 @@ param(
     [string]$ResourceGroupName,
 
     [Parameter(Mandatory=$true)]
-    [string]$Filename
+    [string]$Filename,
+
+    [Parameter()]
+    [string]$username = "admin.ackbar",
+
+    [Parameter()]
+    [ValidateSet("Windows","Linux","linux")]
+    [string]$os = "Windows"
 )
+
+# Convert the OS parameter to lowercase for consistent comparison
+$os = $os.ToLower()
 
 # Extract just the filename (ignoring any provided path)
 $JustFilename = Split-Path -Leaf $Filename
 
-# Construct the full path for the zip file
-$ZipFilePath = "C:\lme\$JustFilename"
+# Set paths depending on the OS
+if ($os -eq "linux") {
+    $ZipFilePath = "/home/$username/lme/$JustFilename"
+    $FileBaseName = [System.IO.Path]::GetFileNameWithoutExtension($JustFilename)
+    $ExtractToPath = "/home/$username/lme/$FileBaseName"  # Extract to a subdirectory
 
-# Extract the filename without extension for the extraction directory
-$FileBaseName = [System.IO.Path]::GetFileNameWithoutExtension($JustFilename)
-$ExtractToPath = "C:\lme\$FileBaseName"  # Extract to a subdirectory named after the file
-
-$UnzipScript = @"
-Expand-Archive -Path '$ZipFilePath' -DestinationPath '$ExtractToPath'
+    $UnzipScript = @"
+    unzip '$ZipFilePath' -d '$ExtractToPath'
 "@
+} else {
+    $ZipFilePath = "C:\lme\$JustFilename"
+    $FileBaseName = [System.IO.Path]::GetFileNameWithoutExtension($JustFilename)
+    $ExtractToPath = "C:\lme\$FileBaseName"  # Extract to a subdirectory
 
-az vm run-command invoke `
-    --command-id RunPowerShellScript `
-    --resource-group $ResourceGroupName `
-    --name $VMName `
-    --scripts $UnzipScript
+    $UnzipScript = @"
+    Expand-Archive -Path '$ZipFilePath' -DestinationPath '$ExtractToPath'
+"@
+}
+
+# Execute the unzip script with the appropriate command based on OS
+if ($os -eq "linux") {
+    az vm run-command invoke `
+        --command-id RunShellScript `
+        --resource-group $ResourceGroupName `
+        --name $VMName `
+        --scripts $UnzipScript
+} else {
+    az vm run-command invoke `
+        --command-id RunPowerShellScript `
+        --resource-group $ResourceGroupName `
+        --name $VMName `
+        --scripts $UnzipScript
+}
