@@ -7,7 +7,7 @@ The User Human Resources Dashboard provides a comprehensive overview of network 
 
 ## Computer Software Overview
 
-This dashboard displays application usage on host computers. It also logs events for application failures, hangs, and external connection attempts. Monitoring application usage is crucial for assessing network health, as frequent crashes may indicate larger issues, and applications making frequent external requests could signal malicious activity. 
+The Computer Software Overview Dashboard displays application usage on host computers. It also logs events for application failures, hangs, and external connection attempts. Monitoring application usage is crucial for assessing network health, as frequent crashes may indicate larger issues, and applications making frequent external requests could signal malicious activity. 
 
 ## Security Log
 
