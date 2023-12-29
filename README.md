@@ -66,7 +66,8 @@ Figure 1: The 3 primary groups of computers in the LME architecture, their descr
 
 ### Reference:
  - [FAQ](/docs/markdown/reference/faq.md)  
- - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)  
+ - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
+ - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
  - [Guide to Organizational Units](/docs/markdown/chapter1/guide_to_ous.md)
 
 ### Maintenance:
