@@ -28,7 +28,6 @@ send "ls1.lme.local\r"
 
 sleep 1
 # Use braces for regular expressions and ensure correct escaping
-# continue with self signed certificates? ([y]es/[n]o): y
 expect -re {continue with self signed certificates.*: y}
 sleep 1
 send "\r"
