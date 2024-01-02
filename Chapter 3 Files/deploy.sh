@@ -534,35 +534,35 @@ function pipelineupdate() {
 }
 
 function data_retention() {
-  #show ext4 disk
+  # Show ext4 disk
   DF_OUTPUT="$(df -h -l -t ext4 --output=source,size /var/lib/docker)"
 
-  #pull dev name
+  # Pull device name
   DISK_DEV="$(echo "$DF_OUTPUT" | grep -Po '[0-9]+G')"
 
-  #pull dev size
-  DISK_SIZE_ROUND="${DISK_DEV/G/}"
-
-  #lets do math to get 75% (%80 is low watermark for ES but as curator uses this we want to delete data *before* the disk gets full)
-  DISK_80=$((DISK_SIZE_ROUND * 80 / 100))
+  # Pull device size
+  DISK_SIZE="${DISK_DEV/G/}"
 
   echo -e "\e[32m[X]\e[0m We think your main disk is $DISK_DEV"
 
-  if [ "$DISK_80" -lt 30 ]; then
-    echo -e "\e[31m[!]\e[0m LME Requires 128GB of space usable for log retention - exiting"
-    exit 1
-  elif [ "$DISK_80" -ge 90 ] && [ "$DISK_80" -le 179 ]; then
+  if [ "$DISK_SIZE" -lt 128 ]; then
+    echo -e "\e[33m[!]\e[0m Warning: Disk size less than 128GB, recommend a larger disk for production environments"
+    sleep 3
     RETENTION="30"
-  elif [ "$DISK_80" -ge 180 ] && [ "$DISK_80" -le 359 ]; then
+  elif [ "$DISK_SIZE" -ge 128 ] && [ "$DISK_SIZE" -le 179 ]; then
+    RETENTION="45"
+  elif [ "$DISK_SIZE" -ge 180 ] && [ "$DISK_SIZE" -le 359 ]; then
     RETENTION="90"
-  elif [ "$DISK_80" -ge 360 ] && [ "$DISK_80" -le 539 ]; then
+  elif [ "$DISK_SIZE" -ge 360 ] && [ "$DISK_SIZE" -le 539 ]; then
     RETENTION="180"
-  elif [ "$DISK_80" -ge 540 ] && [ "$DISK_80" -le 719 ]; then
+  elif [ "$DISK_SIZE" -ge 540 ] && [ "$DISK_SIZE" -le 719 ]; then
     RETENTION="270"
-  elif [ "$DISK_80" -ge 720 ]; then
+  elif [ "$DISK_SIZE" -ge 720 ]; then
     RETENTION="365"
   else
-    echo -e "\e[31m[!]\e[0m Unable to determine retention policy - exiting"
+    echo -e "\e[31m[!]\e[0m Unable to determine retention policy - exiting."
+    echo -e "Please check the disk size. The disk size detected was: $DISK_DEV."
+    echo -e "Ensure that the script detected the disk size correctly"
     exit 1
   fi
 
