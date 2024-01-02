@@ -546,7 +546,7 @@ function data_retention() {
   echo -e "\e[32m[X]\e[0m We think your main disk is $DISK_DEV"
 
   if [ "$DISK_SIZE" -lt 128 ]; then
-    echo -e "\e[33m[!]\e[0m Warning: Disk size less than 128GB, recommend a larger disk for production environments"
+    echo -e "\e[33m[!]\e[0m Warning: Disk size less than 128GB, recommend a larger disk for production environments. Install continuing..."
     sleep 3
     RETENTION="30"
   elif [ "$DISK_SIZE" -ge 128 ] && [ "$DISK_SIZE" -le 179 ]; then
