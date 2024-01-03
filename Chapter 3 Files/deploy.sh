@@ -543,6 +543,12 @@ function data_retention() {
   # Pull device size
   DISK_SIZE="${DISK_DEV/G/}"
 
+  # Check if DISK_SIZE is empty or not a number
+  if ! [[ "$DISK_SIZE" =~ ^[0-9]+$ ]]; then
+    echo -e "\e[31m[!]\e[0m DISK_SIZE not an integer or is empty - exiting."
+    exit 1
+  fi
+
   echo -e "\e[32m[X]\e[0m We think your main disk is $DISK_DEV"
 
   if [ "$DISK_SIZE" -lt 128 ]; then
@@ -560,9 +566,7 @@ function data_retention() {
   elif [ "$DISK_SIZE" -ge 720 ]; then
     RETENTION="365"
   else
-    echo -e "\e[31m[!]\e[0m Unable to determine retention policy - exiting."
-    echo -e "Please check the disk size. The disk size detected was: $DISK_DEV."
-    echo -e "Ensure that the script detected the disk size correctly"
+    echo -e "\e[31m[!]\e[0m Unable to determine disk size - exiting."
     exit 1
   fi
 
