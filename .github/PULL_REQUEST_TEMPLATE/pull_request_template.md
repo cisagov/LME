@@ -19,13 +19,17 @@
 <!-- see how your change affects other areas of the code, etc. -->
 
 ## ✅ Pre-approval checklist ##
-
+- [ ] There is a [gitIssue](https://github.com/cisagov/LME/issues) that this PR resolves
+- [ ] The PR's base branch has been modified to be the proper branch. 
 - [ ] Changes are limited to a single goal **AND** 
-      the title reflects this in a clear human readable format
+      the title reflects this in a clear human readable format for the release notes
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
 - [ ] The PR adheres to LME's requirements in [RELEASES.md](https://github.com/cisagov/LME/RELEASES.md#steps-to-submit-a-PR)
 - [ ] These code changes follow [cisagov code standards](https://github.com/cisagov/development-guide).
 - [ ] All relevant repo and/or project documentation has been updated to reflect the changes in this PR.
+- [ ] The PR is labeled with `feat` for an added new feature, `update` for an update, **OR** `fix` for a fix.
+- [ ] The PR contains `Resolves #<issue #>` so that merging it closes out the corresponding issue.  For example `Resolves #132`.
+
 
 ## ✅ Pre-merge Checklist
 
