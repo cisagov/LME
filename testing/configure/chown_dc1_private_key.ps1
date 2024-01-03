@@ -7,7 +7,7 @@ $systemAccount = New-Object System.Security.Principal.NTAccount("NT AUTHORITY", 
 # Get the current ACL of the file
 $acl = Get-Acl -Path $privateKeyPath
 
-# Clear any existing Access Rules (optional - do this if you want to restrict access to SYSTEM only)
+# Clear any existing Access Rules
 $acl.SetAccessRuleProtection($true, $false)
 $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) | Out-Null }
 
