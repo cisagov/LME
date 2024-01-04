@@ -4,38 +4,43 @@ function Format-AzVmRunCommandOutput {
         [string]$JsonResponse
     )
 
-    # Convert JSON string to PowerShell object
-    $responseObj = $JsonResponse | ConvertFrom-Json
-
-    # Initialize an array to hold the results
+    # Initialize an empty array to hold the results
     $results = @()
 
-    # Check if there is any response
-    if ($responseObj -and $responseObj.value) {
-        foreach ($item in $responseObj.value) {
-            # Process the stdout and stderr content
-            if ($item.message) {
-                # Extracting and cleaning up the messages
-                $stdout = $item.message -split '\n\[stdout\]\n' | Select-Object -Last 1
-                $stdout = $stdout -split '\n\[stderr\]\n' | Select-Object -First 1
-                $stderr = $item.message -split '\n\[stderr\]\n' | Select-Object -Last 1
+    try {
+        $responseObj = $JsonResponse | ConvertFrom-Json
 
-                # Create a custom object with stdout and stderr
-                $output = New-Object PSObject -Property @{
-                    StdOut = $stdout
-                    StdErr = $stderr
+        if ($responseObj -and $responseObj.value) {
+            foreach ($item in $responseObj.value) {
+                if ($item.message) {
+                    $stdout = $item.message -split '\n\[stdout\]\n' | Select-Object -Last 1
+                    $stdout = $stdout -split '\n\[stderr\]\n' | Select-Object -First 1
+                    $stderr = $item.message -split '\n\[stderr\]\n' | Select-Object -Last 1
+
+                    $results += New-Object PSObject -Property @{
+                        StdOut = $stdout
+                        StdErr = $stderr
+                    }
                 }
-
-                # Add the custom object to the results array
-                $results += $output
             }
         }
-    } else {
-        # Return a message if no valid response is found
-        $results += "No response or invalid response received."
+    }
+    catch {
+        # Return a custom object indicating an error
+        $results += New-Object PSObject -Property @{
+            StdOut = "Error: Invalid JSON response"
+            StdErr = ""
+        }
     }
 
-    # Return the results array
+    # Ensure that something is always returned
+    if (-not $results) {
+        $results += New-Object PSObject -Property @{
+            StdOut = "No data or invalid data received."
+            StdErr = ""
+        }
+    }
+
     return $results
 }
 
