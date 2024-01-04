@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 Set-Location -Path $configurePath
 
 # Run the scripts and check for failure
-.\copy_files\create_lme_directory.ps1
+.\create_lme_directory.ps1
 .\download_files.ps1 -directory lme
 .\wec_import_gpo.ps1 -directory lme
 Start-Sleep 10
