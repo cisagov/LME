@@ -1,3 +1,10 @@
+param (
+    [string]$sshHost = "ls1"
+)
+
+$sshDirectory = "C:\Windows\System32\config\systemprofile\.ssh"
+$knownHostsFile = Join-Path -Path $sshDirectory -ChildPath "known_hosts"
+
 # Ensure the .ssh directory exists
 if (-not (Test-Path -Path $sshDirectory)) {
     New-Item -ItemType Directory -Path $sshDirectory

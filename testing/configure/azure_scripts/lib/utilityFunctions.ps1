@@ -1,66 +1,47 @@
 function Format-AzVmRunCommandOutput {
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory=$true)]
         [string]$JsonResponse
     )
 
+    # Convert JSON string to PowerShell object
+    $responseObj = $JsonResponse | ConvertFrom-Json
+
+    # Initialize an array to hold the results
     $results = @()
 
-    try {
-        $responseObj = $JsonResponse | ConvertFrom-Json
-#        Write-Host "Converted JSON object: $responseObj"
+    # Check if there is any response
+    if ($responseObj -and $responseObj.value) {
+        foreach ($item in $responseObj.value) {
+            # Process the stdout and stderr content
+            if ($item.message) {
+                # Extracting and cleaning up the messages
+                $stdout = $item.message -split '\n\[stdout\]\n' | Select-Object -Last 1
+                $stdout = $stdout -split '\n\[stderr\]\n' | Select-Object -First 1
+                $stderr = $item.message -split '\n\[stderr\]\n' | Select-Object -Last 1
 
-        if ($responseObj -and $responseObj.value) {
-            $stdout = ""
-            $stderr = ""
-
-            foreach ($item in $responseObj.value) {
-#                Write-Host "Processing item: $($item.code)"
-
-                # Check for StdOut and StdErr
-                if ($item.code -like "ComponentStatus/StdOut/*") {
-                    $stdout += $item.message + "`n"
-                } elseif ($item.code -like "ComponentStatus/StdErr/*") {
-                    $stderr += $item.message + "`n"
-                }
-
-                # Additional case to handle other types of 'code'
-                # This ensures that all messages are captured
-                else {
-                    $stdout += $item.message + "`n"
-                }
-            }
-
-            if ($stdout -or $stderr) {
-                $results += New-Object PSObject -Property @{
+                # Create a custom object with stdout and stderr
+                $output = New-Object PSObject -Property @{
                     StdOut = $stdout
                     StdErr = $stderr
                 }
+
+                # Add the custom object to the results array
+                $results += $output
             }
         }
-    } catch {
-        $errorMessage = $_.Exception.Message
-        Write-Host "Error: $errorMessage"
-        $results += New-Object PSObject -Property @{
-            StdOut = "Error: $errorMessage"
-            StdErr = ""
-        }
+    } else {
+        # Return a message if no valid response is found
+        $results += "No response or invalid response received."
     }
 
-    if (-not $results) {
-        $results += New-Object PSObject -Property @{
-            StdOut = "No data or invalid data received."
-            StdErr = ""
-        }
-    }
-
+    # Return the results array
     return $results
 }
 
-
 function Show-FormattedOutput {
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory=$true)]
         [Object[]]$FormattedOutput
     )
 
@@ -81,7 +62,7 @@ function Show-FormattedOutput {
 
 function ExtractPrivateKeyFromJson {
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory=$true)]
         [string]$jsonResponse
     )
 
@@ -110,31 +91,8 @@ function ExtractPrivateKeyFromJson {
 
         # Return the private key
         return $privateKey
-    }
-    catch {
+    } catch {
         Write-Error "An error occurred while extracting the private key: $_"
         return $null
-    }
-}
-
-function Invoke-GPUpdateOnVMs {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ResourceGroupName,
-        [int]$numberOfClients = 2
-    )
-
-    for ($i = 1; $i -le $numberOfClients; $i++) {
-        $vmName = "C$i" # Dynamically create VM name
-
-        # Invoke the command on the VM
-        $gpupdateResponse = az vm run-command invoke `
-          --command-id RunPowerShellScript `
-          --name $vmName `
-          --resource-group $ResourceGroupName `
-          --scripts "gpupdate /force"
-
-        # Call the existing Show-FormattedOutput function
-        Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$gpupdateResponse")
     }
 }
