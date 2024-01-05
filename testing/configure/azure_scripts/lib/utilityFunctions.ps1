@@ -1,6 +1,6 @@
 function Format-AzVmRunCommandOutput {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$JsonResponse
     )
 
@@ -46,7 +46,7 @@ function Format-AzVmRunCommandOutput {
 
 function Show-FormattedOutput {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [Object[]]$FormattedOutput
     )
 
@@ -67,7 +67,7 @@ function Show-FormattedOutput {
 
 function ExtractPrivateKeyFromJson {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$jsonResponse
     )
 
@@ -96,8 +96,31 @@ function ExtractPrivateKeyFromJson {
 
         # Return the private key
         return $privateKey
-    } catch {
+    }
+    catch {
         Write-Error "An error occurred while extracting the private key: $_"
         return $null
+    }
+}
+
+function Invoke-GPUpdateOnVMs {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResourceGroupName,
+        [int]$numberOfClients = 2
+    )
+
+    for ($i = 1; $i -le $numberOfClients; $i++) {
+        $vmName = "C$i" # Dynamically create VM name
+
+        # Invoke the command on the VM
+        $gpupdateResponse = az vm run-command invoke `
+          --command-id RunPowerShellScript `
+          --name $vmName `
+          --resource-group $ResourceGroupName `
+          --scripts "gpupdate /force"
+
+        # Call the existing Show-FormattedOutput function
+        Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$gpupdateResponse")
     }
 }
