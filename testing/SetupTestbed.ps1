@@ -57,6 +57,19 @@ param (
   [switch]$NoPrompt
 )
 
+# Define our library path
+$libraryPath = Join-Path -Path $PSScriptRoot -ChildPath "configure\azure_scripts\lib\utilityFunctions.ps1"
+
+# Check if the library file exists
+if (Test-Path -Path $libraryPath) {
+    # Dot-source the library script
+    . $libraryPath
+}
+else {
+    Write-Error "Library script not found at path: $libraryPath"
+}
+
+
 #DEFAULTS:
 #Desired Netowrk Mapping:
 $VNetPrefix = "10.1.0.0/16"
@@ -366,13 +379,73 @@ it is likely that the DNS entry was still successfully added. To
 verify, log on to DC1 and run 'Resolve-DnsName ls1' in PowerShell.
 If it returns NXDOMAIN, you'll need to add it manually."
 Write-Output "The time is $(Get-Date)."
-az vm run-command create `
+#az vm run-command create `
+#    --resource-group $ResourceGroup `
+#    --location $Location `
+#    --run-as-user $DomainName\$VMAdmin `
+#    --run-as-password $VMPassword `
+#    --run-command-name "addDNSRecord" `
+#    --vm-name DC1 `
+#     --script "Add-DnsServerResourceRecordA -Name `"LS1`" -ZoneName $DomainName -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00"
+
+
+# Define the PowerShell script with the DomainName variable interpolated
+$scriptContent = @"
+`$scriptBlock = {
+    Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00
+}
+`$job = Start-Job -ScriptBlock `$scriptBlock
+`$timeout = 30
+if (Wait-Job -Job `$job -Timeout `$timeout) {
+    Receive-Job -Job `$job
+    Write-Host 'The script completed within the timeout period.'
+} else {
+    Stop-Job -Job `$job
+    Remove-Job -Job `$job
+    Write-Host 'The script timed out after `$timeout seconds.'
+}
+"@
+
+# Convert the script to a Base64-encoded string
+$bytes = [System.Text.Encoding]::Unicode.GetBytes($scriptContent)
+$encodedScript = [Convert]::ToBase64String($bytes)
+
+
+# Run the encoded script on the Azure VM
+Write-Output "`nAdding script to add DNS entry for Linux server. No output expected..."
+$createDnsScriptResponse = az vm run-command invoke `
+    --command-id RunPowerShellScript `
+    --name DC1 `
     --resource-group $ResourceGroup `
-    --location $Location `
-    --run-as-user $DomainName\$VMAdmin `
-    --run-as-password $VMPassword `
-    --run-command-name "addDNSRecord" `
-    --vm-name DC1 `
-    --script "Add-DnsServerResourceRecordA -Name `"LS1`" -ZoneName $DomainName -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00"
+    --scripts "Set-Content -Path 'C:\AddDnsRecord.ps1' -Value ([System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$encodedScript')))"
+
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createDnsScriptResponse")
+
+
+Write-Output "`nRunning script to add DNS entry for Linux server. It could time out or not. Check output of the next command..."
+$addDnsRecordResponse = az vm run-command invoke `
+    --command-id RunPowerShellScript `
+    --name DC1 `
+    --resource-group $ResourceGroup `
+    --scripts "C:\AddDnsRecord.ps1"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
+
+Write-Host "Checking if ls1 resolves..."
+$resolveLs1Response = az vm run-command invoke `
+    --command-id RunPowerShellScript `
+    --resource-group $ResourceGroup `
+    --name DC1 `
+    --scripts "Resolve-DnsName ls1"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$resolveLs1Response")
+
+Write-Host "Removing the Dns script. No output expected..."
+$removeDnsRecordScriptResponse = az vm run-command invoke `
+    --command-id RunPowerShellScript `
+    --name DC1 `
+    --resource-group $ResourceGroup `
+    --scripts "Remove-Item -Path 'C:\AddDnsRecord.ps1' -Force"
+
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$removeDnsRecordScriptResponse")
+
 
 Write-Output "Done."
