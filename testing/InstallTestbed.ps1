@@ -196,7 +196,7 @@ $getElasticsearchPasswordsResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVMName `
   --resource-group $ResourceGroupName `
-  --scripts 'tail -n10 "/opt/lme/Chapter 3 Files/output.log" | head -n4'
+  --scripts 'tail -n14 "/opt/lme/Chapter 3 Files/output.log" | head -n9'
 
 # Todo: Extract the output and write this to a file for later use
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")

@@ -4,36 +4,40 @@ function Format-AzVmRunCommandOutput {
         [string]$JsonResponse
     )
 
-    # Initialize an empty array to hold the results
     $results = @()
 
     try {
         $responseObj = $JsonResponse | ConvertFrom-Json
 
         if ($responseObj -and $responseObj.value) {
-            foreach ($item in $responseObj.value) {
-                if ($item.message) {
-                    $stdout = $item.message -split '\n\[stdout\]\n' | Select-Object -Last 1
-                    $stdout = $stdout -split '\n\[stderr\]\n' | Select-Object -First 1
-                    $stderr = $item.message -split '\n\[stderr\]\n' | Select-Object -Last 1
+            $stdout = ""
+            $stderr = ""
 
-                    $results += New-Object PSObject -Property @{
-                        StdOut = $stdout
-                        StdErr = $stderr
-                    }
+            foreach ($item in $responseObj.value) {
+                if ($item.code -like "ComponentStatus/StdOut/*") {
+                    $stdout += $item.message
+                }
+                elseif ($item.code -like "ComponentStatus/StdErr/*") {
+                    $stderr += $item.message
+                }
+            }
+
+            # Add a result only if there is actual content
+            if ($stdout -or $stderr) {
+                $results += New-Object PSObject -Property @{
+                    StdOut = $stdout.Trim()
+                    StdErr = $stderr.Trim()
                 }
             }
         }
     }
     catch {
-        # Return a custom object indicating an error
         $results += New-Object PSObject -Property @{
             StdOut = "Error: Invalid JSON response"
             StdErr = ""
         }
     }
 
-    # Ensure that something is always returned
     if (-not $results) {
         $results += New-Object PSObject -Property @{
             StdOut = "No data or invalid data received."
