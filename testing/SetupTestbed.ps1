@@ -242,8 +242,8 @@ Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
 # Create the VMs #
 ##################
 $VMPassword = Get-RandomPassword 12
-Write-Output "`nWriting $VMAdmin password to ${ResourceGroup}.password.txt"
-echo $VMPassword > "${ResourceGroup}.password.txt"
+Write-Output "`nWriting $VMAdmin password to password.txt"
+echo $VMPassword > password.txt
 
 Write-Output "`nCreating DC1..."
 az vm create `
@@ -379,6 +379,15 @@ it is likely that the DNS entry was still successfully added. To
 verify, log on to DC1 and run 'Resolve-DnsName ls1' in PowerShell.
 If it returns NXDOMAIN, you'll need to add it manually."
 Write-Output "The time is $(Get-Date)."
+#az vm run-command create `
+#    --resource-group $ResourceGroup `
+#    --location $Location `
+#    --run-as-user $DomainName\$VMAdmin `
+#    --run-as-password $VMPassword `
+#    --run-command-name "addDNSRecord" `
+#    --vm-name DC1 `
+#     --script "Add-DnsServerResourceRecordA -Name `"LS1`" -ZoneName $DomainName -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00"
+
 
 # Define the PowerShell script with the DomainName variable interpolated
 $scriptContent = @"
@@ -435,6 +444,7 @@ $removeDnsRecordScriptResponse = az vm run-command invoke `
     --name DC1 `
     --resource-group $ResourceGroup `
     --scripts "Remove-Item -Path 'C:\AddDnsRecord.ps1' -Force"
+
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$removeDnsRecordScriptResponse")
 
 
