@@ -9,6 +9,7 @@ $baseDirectoryPath = if ($directory -and ($directory -ne $env:USERPROFILE)) {
     "$env:USERPROFILE\Downloads\"
 }
 
+# Todo: Allow for downloading a version by adding a parameter for the version number
 $apiUrl = "https://api.github.com/repos/cisagov/LME/releases/latest"
 $latestRelease = Invoke-RestMethod -Uri $apiUrl
 $zipFileUrl = $latestRelease.assets | Where-Object { $_.content_type -eq 'application/zip' } | Select-Object -ExpandProperty browser_download_url

@@ -1,11 +1,27 @@
-﻿# Import the Active Directory module
+﻿param(
+    [string]$Domain = "lme.local",
+    [string]$ClientOUCustomName = "LMEClients",
+    [string]$CurrentCN = "Computers"
+)
+
+# Import the Active Directory module
 Import-Module ActiveDirectory
 
-# Define the DN of the Computers container
-$computersContainerDN = "CN=Computers,DC=lme,DC=local"
+# Split the domain into its parts
+$domainParts = $Domain -split '\.'
+
+# Construct the domain DN, starting with 'DC='
+$domainDN = 'DC=' + ($domainParts -join ',DC=')
+
+# Define the DN of the existing Computers container
+$computersContainerDN = "CN=$CurrentCN,$domainDN"
 
 # Define the DN of the target OU
-$targetOUDN = "OU=LMETestClients,DC=lme,DC=local"
+$targetOUDN = "OU=$ClientOUCustomName,$domainDN"
+
+# Output the DNs for verification
+Write-Host "Current Computers Container DN: $computersContainerDN"
+Write-Host "Target OU DN: $targetOUDN"
 
 # Get the computer accounts in the Computers container
 $computers = Get-ADComputer -Filter * -SearchBase $computersContainerDN

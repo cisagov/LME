@@ -1,6 +1,6 @@
 param(
     [string]$Domain = "lme.local",
-    [string]$ClientOUCustomName = "LMETestClients"
+    [string]$ClientOUCustomName = "LMEClients"
 )
 
 Import-Module ActiveDirectory

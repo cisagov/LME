@@ -1,22 +1,25 @@
 param (
-    [Parameter(Mandatory=$true)]
-    [string]$ResourceGroupName
+    [Parameter(Mandatory = $true)]
+    [string]$ResourceGroupName,
+
+    [string]$VMUsername = "admin.ackbar",
+    [string]$VMName = "DC1",
+    [string]$LinuxVMName = "LS1",
+    [int]$numberOfClients = 2
 )
 
-$VMUsername = "admin.ackbar"
-#$ResourceGroupName = "LME-cbaxley-t2"
-$VMName = "DC1"
-$LinuxVMName = "LS1"
+# If you were to need the password from the SetupTestbed.ps1 script, you could use this:
+# $Password = Get-Content "password.txt"
 
-$Password = Get-Content "password.txt"
-
+# Define our library path
 $libraryPath = Join-Path -Path $PSScriptRoot -ChildPath "configure\azure_scripts\lib\utilityFunctions.ps1"
 
 # Check if the library file exists
 if (Test-Path -Path $libraryPath) {
     # Dot-source the library script
     . $libraryPath
-} else {
+}
+else {
     Write-Error "Library script not found at path: $libraryPath"
 }
 
@@ -58,18 +61,21 @@ Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse
 
 # Download the zip file to the VM
 Write-Host "Downloading the zip file to the VM..."
-.\download_in_container.ps1 `
+$downloadZipFileResponse = .\download_in_container.ps1 `
     -VMName $VmName `
     -ResourceGroupName $ResourceGroupName `
     -FileDownloadUrl "$FileDownloadUrl" `
     -DestinationFilePath "configure.zip"
 
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$downloadZipFileResponse")
+
 # Extract the zip file
 Write-Host "Extracting the zip file..."
-.\extract_archive.ps1 `
+$extractArchiveResponse = .\extract_archive.ps1 `
     -VMName $VMName `
     -ResourceGroupName $ResourceGroupName `
     -FileName "configure.zip"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$extractArchiveResponse")
 
 # Run the install script for chapter 1
 Write-Host "Running the install script for chapter 1..."
@@ -82,19 +88,7 @@ Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse
 # Todo: Loop these for number of vms
 # Update the group policy on the remote machines
 Write-Host "Updating the group policy on the remote machines..."
-$gpupdateResponse = az vm run-command invoke `
-  --command-id RunPowerShellScript `
-  --name "C1" `
-  --resource-group $ResourceGroupName `
-  --scripts "gpupdate /force"
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$gpupdateResponse")
-
-$gpupdateResponse = az vm run-command invoke `
-  --command-id RunPowerShellScript `
-  --name "C2" `
-  --resource-group $ResourceGroupName `
-  --scripts "gpupdate /force"
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$gpupdateResponse")
+Invoke-GPUpdateOnVMs -ResourceGroupName $ResourceGroupName -numberOfClients $numberOfClients
 
 # Wait for the services to start
 Write-Host "Waiting for the services to start..."
@@ -118,24 +112,11 @@ Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse
 
 # Update the group policy on the remote machines
 Write-Host "Updating the group policy on the remote machines..."
-$gpupdateResponse = az vm run-command invoke `
-  --command-id RunPowerShellScript `
-  --name "C1" `
-  --resource-group $ResourceGroupName `
-  --scripts "gpupdate /force"
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$gpupdateResponse")
-
-$gpupdateResponse = az vm run-command invoke `
-  --command-id RunPowerShellScript `
-  --name "C2" `
-  --resource-group $ResourceGroupName `
-  --scripts "gpupdate /force"
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$gpupdateResponse")
+Invoke-GPUpdateOnVMs -ResourceGroupName $ResourceGroupName -numberOfClients $numberOfClients
 
 # Wait for the services to start
 Write-Host "Waiting for the services to start..."
 Start-Sleep 20
-
 
 # See if you can see sysmon running on the machine
 Write-Host "Seeing if you can see sysmon running on a machine..."
@@ -146,15 +127,15 @@ $showSysmonResponse = az vm run-command invoke `
   --scripts 'Get-Service | Where-Object { $_.DisplayName -like "*Sysmon*" }'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$showSysmonResponse")
 
-
 # Download the installers on LS1
 Write-Host "Downloading the installers on LS1..."
-.\download_in_container.ps1 `
+$downloadLinuxZipFileResponse = .\download_in_container.ps1 `
     -VMName $LinuxVMName `
     -ResourceGroupName $ResourceGroupName `
     -FileDownloadUrl "$FileDownloadUrl" `
     -DestinationFilePath "configure.zip" `
     -os "linux"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$downloadLinuxZipFileResponse")
 
 # Install unzip on LS1
 Write-Host "Installing unzip on LS1..."
@@ -167,11 +148,12 @@ Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse
 
 # Unzip the file on LS1
 Write-Host "Unzipping the file on LS1..."
-.\extract_archive.ps1 `
+$extractLinuxArchiveResponse = .\extract_archive.ps1 `
     -VMName $LinuxVMName `
     -ResourceGroupName $ResourceGroupName `
     -FileName "configure.zip" `
     -os "linux"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$extractLinuxArchiveResponse")
 
 # Make the installer files executable and update the system packages on LS1
 Write-Host "Making the installer files executable and updating the system packages on LS1..."
@@ -210,22 +192,23 @@ Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse
 
 # Capture the output of the install script
 Write-Host "Capturing the output of the install script for ES passwords..."
-$jsonResponse = az vm run-command invoke `
+$getElasticsearchPasswordsResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVMName `
   --resource-group $ResourceGroupName `
   --scripts 'tail -n10 "/opt/lme/Chapter 3 Files/output.log" | head -n4'
 
 # Todo: Extract the output and write this to a file for later use
-Format-AzVmRunCommandOutput -JsonResponse "$jsonResponse"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")
 
 # Generate key using expect on linux
 Write-Host "Generating key using expect on linux..."
-az vm run-command invoke `
+$generateKeyResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVMName `
   --resource-group $ResourceGroupName `
   --scripts '/home/admin.ackbar/lme/configure/linux_make_private_key.exp'
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$generateKeyResponse")
 
 # Add the public key to the authorized_keys file on LS1
 Write-Host "Adding the public key to the authorized_keys file on LS1..."
@@ -261,11 +244,12 @@ $KeyDownloadUrl = ./copy_file_to_container.ps1 `
 
 # Download the private key to DC1
 Write-Host "Downloading the private key to DC1..."
-.\download_in_container.ps1 `
+$downloadPrivateKeyResponse = .\download_in_container.ps1 `
     -VMName $VmName `
     -ResourceGroupName $ResourceGroupName `
     -FileDownloadUrl "$KeyDownloadUrl" `
     -DestinationFilePath "id_rsa"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$downloadPrivateKeyResponse")
 
 # Change the ownership of the private key file on DC1
 Write-Host "Changing the ownership of the private key file on DC1..."
@@ -276,12 +260,11 @@ $chownPrivateKeyResponse = .\run_script_in_container.ps1 `
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$chownPrivateKeyResponse")
 
 # Trust the key from ls1 so we can scp interactively
-# Todo: We may not need this
+# Todo: It seems we don't need this but leaving it here for now
 #.\run_script_in_container.ps1 `
 #    -ResourceGroupName $ResourceGroupName `
 #    -VMName $VMName `
 #    -ScriptPathOnVM "C:\lme\configure\trust_ls1_ssh_key.ps1"
-#
 
 # Use the azure shell to run scp on DC1 to copy the files from LS1 to DC1
 Write-Host "Using the azure shell to run scp on DC1 to copy the files from LS1 to DC1..."
@@ -294,10 +277,11 @@ Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse
 
 # Extract the files on DC1
 Write-Host "Extracting the files on DC1..."
-.\extract_archive.ps1 `
+$extractFilesForWindowsResponse = .\extract_archive.ps1 `
     -VMName $VMName `
     -ResourceGroupName $ResourceGroupName `
     -FileName "files_for_windows.zip"
+Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$extractFilesForWindowsResponse")
 
 # Install winlogbeat on DC1
 Write-Host "Installing winlogbeat on DC1..."
@@ -308,4 +292,6 @@ $installWinlogbeatResponse = .\run_script_in_container.ps1 `
 
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installWinlogbeatResponse")
 
-Write-Host "Insttall completed."
+Write-Host "Install completed."
+
+(Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")[0].StdOut

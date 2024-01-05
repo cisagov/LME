@@ -12,7 +12,7 @@ creates a blob container, and saves the configuration to a 'config.ps1' file in 
 The name of the Azure Resource Group for the storage account and blob container.
 
 .EXAMPLE
-.\CreateAzureStorage.ps1 -ResourceGroupName "YourResourceGroupName"
+.\create_blob_container.ps1 -ResourceGroupName "YourResourceGroupName"
 
 Replace "YourResourceGroupName" with the name of your Azure Resource Group.
 

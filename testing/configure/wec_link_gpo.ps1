@@ -1,16 +1,16 @@
 param(
     [string]$Domain = "lme.local",
-    [string]$ClientOUCustomName = "LMETestClients"
+    [string]$ClientOUCustomName = "LMEClients"
 )
 
 Import-Module ActiveDirectory
 
-$domainDN = $Domain -replace '\.', ',DC=' -replace '^', 'DC='
-$ClientOUDistinguishedName = "OU=$ClientOUCustomName,$domainDN"
+$DomainDN = $Domain -replace '\.', ',DC=' -replace '^', 'DC='
+$ClientOUDistinguishedName = "OU=$ClientOUCustomName,$DomainDN"
 
 $GPONameClient = "LME-WEC-Client"
 $GPONameServer = "LME-WEC-Server"
-$ServerOUDistinguishedName = "OU=Domain Controllers,$domainDN"
+$ServerOUDistinguishedName = "OU=Domain Controllers,$DomainDN"
 
 try {
     New-GPLink -Name $GPONameClient -Target $ClientOUDistinguishedName
