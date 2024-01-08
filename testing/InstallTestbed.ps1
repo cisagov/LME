@@ -57,6 +57,7 @@ $createDirResponse = az vm run-command invoke `
   --resource-group $ResourceGroupName `
   --scripts "if (-not (Test-Path -Path 'C:\lme')) { New-Item -Path 'C:\lme' -ItemType Directory }"
 
+
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createDirResponse")
 
 # Download the zip file to the VM
@@ -66,7 +67,6 @@ $downloadZipFileResponse = .\download_in_container.ps1 `
     -ResourceGroupName $ResourceGroupName `
     -FileDownloadUrl "$FileDownloadUrl" `
     -DestinationFilePath "configure.zip"
-
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$downloadZipFileResponse")
 
 # Extract the zip file
@@ -95,7 +95,7 @@ Write-Host "Waiting for the services to start..."
 Start-Sleep 20
 
 # See if we can see the forwarding computers in the DC
-write-host "Seeing if we can see the forwarding computers in the DC..."
+write-host "Checking if we can see the forwarding computers in the DC..."
 $listForwardingComputersResponse = .\run_script_in_container.ps1 `
     -ResourceGroupName $ResourceGroupName `
     -VMName $VMName `
@@ -183,7 +183,7 @@ az vm restart `
 
 # Run the lme installer on LS1
 Write-Host "Running the lme installer on LS1..."
-az vm run-command invoke `
+$installLmeResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVMName `
   --resource-group $ResourceGroupName `
@@ -226,7 +226,6 @@ $jsonResponse = az vm run-command invoke `
   --name $LinuxVMName `
   --resource-group $ResourceGroupName `
   --scripts 'cat /home/admin.ackbar/.ssh/id_rsa'
-
 $privateKey = ExtractPrivateKeyFromJson -jsonResponse "$jsonResponse"
 
 # Save the private key to a file

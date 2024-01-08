@@ -31,7 +31,7 @@ param(
 )
 
 # Construct the Subscription Manager URL using the provided parameters
-$subscriptionManagerUrl = "Server=$protocol://$domain:$port/wsman/SubscriptionManager/WEC,Refresh=60"
+$subscriptionManagerUrl = "Server=${protocol}://${domain}:${port}/wsman/SubscriptionManager/WEC,Refresh=60"
 Set-GPRegistryValue -Name "LME-WEC-Client" -Key "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\EventForwarding\SubscriptionManager" -Value $subscriptionManagerUrl -Type String
 
 # To get the GP registry value to confirm it's set
