@@ -8,32 +8,41 @@ function Format-AzVmRunCommandOutput {
 
     try {
         $responseObj = $JsonResponse | ConvertFrom-Json
+#        Write-Host "Converted JSON object: $responseObj"
 
         if ($responseObj -and $responseObj.value) {
             $stdout = ""
             $stderr = ""
 
             foreach ($item in $responseObj.value) {
+#                Write-Host "Processing item: $($item.code)"
+
+                # Check for StdOut and StdErr
                 if ($item.code -like "ComponentStatus/StdOut/*") {
-                    $stdout += $item.message
+                    $stdout += $item.message + "`n"
+                } elseif ($item.code -like "ComponentStatus/StdErr/*") {
+                    $stderr += $item.message + "`n"
                 }
-                elseif ($item.code -like "ComponentStatus/StdErr/*") {
-                    $stderr += $item.message
+
+                # Additional case to handle other types of 'code'
+                # This ensures that all messages are captured
+                else {
+                    $stdout += $item.message + "`n"
                 }
             }
 
-            # Add a result only if there is actual content
             if ($stdout -or $stderr) {
                 $results += New-Object PSObject -Property @{
-                    StdOut = $stdout.Trim()
-                    StdErr = $stderr.Trim()
+                    StdOut = $stdout
+                    StdErr = $stderr
                 }
             }
         }
-    }
-    catch {
+    } catch {
+        $errorMessage = $_.Exception.Message
+        Write-Host "Error: $errorMessage"
         $results += New-Object PSObject -Property @{
-            StdOut = "Error: Invalid JSON response"
+            StdOut = "Error: $errorMessage"
             StdErr = ""
         }
     }
@@ -47,6 +56,7 @@ function Format-AzVmRunCommandOutput {
 
     return $results
 }
+
 
 function Show-FormattedOutput {
     param (
