@@ -2,6 +2,8 @@
 
 # Change to the LME directory containing files for the Linux server
 cd /opt/lme/Chapter\ 3\ Files/
+pwd
+
 
 # Adjust the timeout if necessary
 set timeout 60
@@ -10,12 +12,20 @@ set expect_out(buffer_size) 100000
 log_file -a output.log
 
 spawn ./deploy.sh install
+sleep 1
+expect {
+  -re {OK.*} {
+      send "\r"
+  }
+  -re {Proceed.*} {
+      send "y\r"
+  }
+}
 
-expect "Proceed? \\\[Y/n\\\] "
-send "y\r"
+
 
 expect {
-    -re "Enter the IP of this Linux server.*10.1.0.5" {
+    -re "Enter the IP of this Linux server.*" {
         sleep 1
         send "\r"
     }
