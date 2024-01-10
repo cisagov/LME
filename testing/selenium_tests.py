@@ -1,7 +1,7 @@
 """Runs automated test cases against the kibana dashboards.
 
 For full usage, run:
-    python3 test_kibana.py -h
+    python3 selenium_tests.py -h
 
 NOTE:
 - before running the Elastic interface password must be
@@ -10,7 +10,7 @@ saved as an environment variable, ELASTIC_PASSWORD.
 ssl errors.
 
 Basic usage:
-    python3 test_kibana.py --timeout TIMEOUT
+    python3 selenium_tests.py --timeout TIMEOUT
 where TIMEOUT is in seconds. Defaults to 30.
 
 Additionally, you can pass in arguments to the unittest
