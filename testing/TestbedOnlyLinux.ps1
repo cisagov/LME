@@ -208,9 +208,8 @@ Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
 # Create the VMs #
 ##################
 $VMPassword = Get-RandomPassword 12
-Write-Output "`nWriting $VMAdmin password to password.txt"
-$VMPassword | Out-File -FilePath password.txt -Encoding UTF8
-
+Write-Output "`nWriting $VMAdmin password to ${ResourceGroup}.password.txt"
+$VMPassword | Out-File -FilePath "${ResourceGroup}.password.txt" -Encoding UTF8
 
 
 Write-Output "`nCreating LS1..."
@@ -238,6 +237,7 @@ if ($null -ne $AutoShutdownTime) {
 }
 
 Write-Output "`nVM login info:"
+Write-Output "ResourceGroup: $($ResourceGroup)"
 Write-Output "Username: $( $VMAdmin )"
 Write-Output "Password: $( $VMPassword )"
 Write-Output "SAVE THE ABOVE INFO`n"

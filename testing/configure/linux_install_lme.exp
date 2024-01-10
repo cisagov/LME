@@ -2,8 +2,6 @@
 
 # Change to the LME directory containing files for the Linux server
 cd /opt/lme/Chapter\ 3\ Files/
-pwd
-
 
 # Adjust the timeout if necessary
 set timeout 60
@@ -14,17 +12,20 @@ log_file -a output.log
 spawn ./deploy.sh install
 sleep 1
 expect {
-  -re {OK.*} {
+  -re {.*OK.*} {
       send "\r"
   }
-  -re {Proceed.*} {
+  -re {.*Proceed.*} {
       send "y\r"
   }
 }
 
 
-
 expect {
+    -re {.*Please reboot and re-run this script to finish the install.*} {
+        send_user "Reboot required. Exiting...\n"
+        exit
+    }
     -re "Enter the IP of this Linux server.*" {
         sleep 1
         send "\r"
@@ -37,7 +38,7 @@ sleep 1
 send "ls1.lme.local\r"
 
 sleep 1
-# Use braces for regular expressions and ensure correct escaping
+
 expect -re {continue with self signed certificates.*: y}
 sleep 1
 send "\r"

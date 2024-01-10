@@ -32,6 +32,13 @@ Write-Host "Creating a container to keep files for the VM..."
 Write-Host "Sourcing the variables from the file..."
 . ./configure/azure_scripts/config.ps1
 
+# Remove old code if it exists
+if (Test-Path ./configure.zip) {
+    Remove-Item ./configure.zip -Force -Confirm:$false -ErrorAction SilentlyContinue
+} else {
+    Write-Host "File not found."
+}
+
 # Zip up the installer scripts for the VM
 Write-Host "Zipping up the installer scripts for the VM..."
 ./configure/azure_scripts/zip_my_parents_parent.ps1

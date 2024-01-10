@@ -367,6 +367,7 @@ for ($i = 1; $i -le $NumClients; $i++) {
 }
 
 Write-Output "`nVM login info:"
+Write-Output "ResourceGroup: $($ResourceGroup)"
 Write-Output "Username: $($VMAdmin)"
 Write-Output "Password: $($VMPassword)"
 Write-Output "SAVE THE ABOVE INFO`n"

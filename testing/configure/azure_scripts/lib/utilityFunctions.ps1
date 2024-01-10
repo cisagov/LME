@@ -57,7 +57,6 @@ function Format-AzVmRunCommandOutput {
     return $results
 }
 
-
 function Show-FormattedOutput {
     param (
         [Parameter(Mandatory = $true)]
@@ -71,10 +70,14 @@ function Show-FormattedOutput {
         }
         elseif ($item -is [PSCustomObject]) {
             # Handle custom objects with StdOut and StdErr
-            Write-Host "Output (stdout):"
-            Write-Host $item.StdOut
-            Write-Host "Error (stderr):"
-            Write-Host $item.StdErr
+            if (![string]::IsNullOrWhiteSpace($item.StdOut)) {
+                Write-Host "Output (stdout):"
+                Write-Host $item.StdOut
+            }
+            if (![string]::IsNullOrWhiteSpace($item.StdErr)) {
+                Write-Host "Error (stderr):"
+                Write-Host $item.StdErr
+            }
         }
     }
 }

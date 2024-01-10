@@ -748,10 +748,10 @@ function install() {
   fi
 
   echo -e "\e[32m[X]\e[0m Updating OS software"
-  apt update && apt upgrade -y
+  apt-get update && apt-get upgrade -y
 
   echo -e "\e[32m[X]\e[0m Installing prerequisites"
-  apt install ${REQUIRED_PACKS[*]} -y -q
+  DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install ${REQUIRED_PACKS[*]} -y -q
 
   if [ -f /var/run/reboot-required ]; then
     echo -e "\e[31m[!]\e[0m A reboot is required in order to proceed with the install."
@@ -1169,7 +1169,7 @@ then
   ready "Will install the following packages: ${missing_pkgs[*]}. These are required for LME." 
   sudo apt-get update
   #confirm install
-  sudo apt-get --yes install ${missing_pkgs[*]}
+  sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get --yes install ${missing_pkgs[*]}
 fi
 
 #Change current working directory so relative filepaths work
