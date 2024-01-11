@@ -161,5 +161,5 @@ Then reboot your Client computers & Windows Event Collector. On Windows Event Co
 
 ## 7. Upgrade from 1.3.0 to 1.3.1
 
-This is a hotfix to the install script and some additional troubleshooting steps added to documentation on space management. Unless you are having issues with your installation you do not need to upgrade to 1.3.1 as there is no other functionality changes.
+This is a hotfix to the install script and some additional troubleshooting steps added to documentation on space management. Unless you're encountering problems with your current installation, or if your logs are running out of space, there's no need to upgrade to version 1.3.1, as it doesn't offer any additional functionality changes.
 
