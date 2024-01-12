@@ -17,7 +17,7 @@ The name of the Azure Resource Group that contains the VM.
 The name (and optional path) of the zip file to be unzipped.
 
 .EXAMPLE
-.\extract_archive.ps1 -VMName "DC1" -ResourceGroupName "YourResourceGroupName" -Filename "filename.zip"
+.\extract_archive.ps1 -VMName "DC1" -ResourceGroup "YourResourceGroupName" -Filename "filename.zip"
 
 This example unzips 'filename.zip' from the 'Downloads' directory of the user 'username' on the VM "DC1" in the resource group "YourResourceGroupName", and extracts it to a subdirectory named 'filename'.
 
@@ -31,7 +31,7 @@ param(
     [string]$VMName,
 
     [Parameter(Mandatory=$true)]
-    [string]$ResourceGroupName,
+    [string]$ResourceGroup,
 
     [Parameter(Mandatory=$true)]
     [string]$Filename,
@@ -73,13 +73,13 @@ if ($os -eq "linux") {
 if ($os -eq "linux") {
     az vm run-command invoke `
         --command-id RunShellScript `
-        --resource-group $ResourceGroupName `
+        --resource-group $ResourceGroup `
         --name $VMName `
         --scripts $UnzipScript
 } else {
     az vm run-command invoke `
         --command-id RunPowerShellScript `
-        --resource-group $ResourceGroupName `
+        --resource-group $ResourceGroup `
         --name $VMName `
         --scripts $UnzipScript
 }

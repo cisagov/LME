@@ -12,7 +12,7 @@ creates a blob container, and saves the configuration to a 'config.ps1' file in 
 The name of the Azure Resource Group for the storage account and blob container.
 
 .EXAMPLE
-.\create_blob_container.ps1 -ResourceGroupName "YourResourceGroupName"
+.\create_blob_container.ps1 -ResourceGroup "YourResourceGroupName"
 
 Replace "YourResourceGroupName" with the name of your Azure Resource Group.
 
@@ -26,7 +26,7 @@ Replace "YourResourceGroupName" with the name of your Azure Resource Group.
 
 param(
     [Parameter(Mandatory=$true)]
-    [string]$ResourceGroupName
+    [string]$ResourceGroup
 )
 
 function New-AzureName {
@@ -45,7 +45,7 @@ function New-AzureName {
 }
 
 # Get the location of the resource group
-$Location = (az group show --name $ResourceGroupName --query location --output tsv)
+$Location = (az group show --name $ResourceGroup --query location --output tsv)
 
 # Generate a unique storage account name
 $StorageAccountName = New-AzureName -Prefix "st"
@@ -56,7 +56,7 @@ $ContainerName = New-AzureName -Prefix "container"
 # Create a new storage account
 az storage account create `
     --name $StorageAccountName `
-    --resource-group $ResourceGroupName `
+    --resource-group $ResourceGroup `
     --location $Location `
     --sku Standard_LRS
 
@@ -65,7 +65,7 @@ Start-Sleep -Seconds 10
 
 # Get the storage account key
 $StorageAccountKey = (az storage account keys list `
-    --resource-group $ResourceGroupName `
+    --resource-group $ResourceGroup `
     --account-name $StorageAccountName `
     --query '[0].value' `
     --output tsv)

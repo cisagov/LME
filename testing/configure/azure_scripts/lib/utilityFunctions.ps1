@@ -123,7 +123,7 @@ function ExtractPrivateKeyFromJson {
 function Invoke-GPUpdateOnVMs {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$ResourceGroupName,
+        [string]$ResourceGroup,
         [int]$numberOfClients = 2
     )
 
@@ -134,7 +134,7 @@ function Invoke-GPUpdateOnVMs {
         $gpupdateResponse = az vm run-command invoke `
           --command-id RunPowerShellScript `
           --name $vmName `
-          --resource-group $ResourceGroupName `
+          --resource-group $ResourceGroup `
           --scripts "gpupdate /force"
 
         # Call the existing Show-FormattedOutput function

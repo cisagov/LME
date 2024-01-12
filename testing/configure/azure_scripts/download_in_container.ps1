@@ -26,7 +26,7 @@ The operating system type of the VM. Accepts 'Windows', 'Linux', or 'linux'. Def
 .EXAMPLE
 .\download_in_container.ps1 `
     -VMName "MyVM" `
-    -ResourceGroupName "MyResourceGroup" `
+    -ResourceGroup "MyResourceGroup" `
     -FileDownloadUrl "http://example.com/file.zip" `
     -DestinationFilePath "C:\path\to\file.zip"
 
@@ -45,7 +45,7 @@ param(
     [string]$VMName,
 
     [Parameter(Mandatory=$true)]
-    [string]$ResourceGroupName,
+    [string]$ResourceGroup,
 
     [Parameter(Mandatory=$true)]
     [string]$FileDownloadUrl,
@@ -75,7 +75,7 @@ if ($os -eq "linux") {
     # We don't want to output this until we fix it so we can put all of the output from thw whole script into one json object
     $CreateDirectoryResponse = az vm run-command invoke `
         --command-id RunShellScript `
-        --resource-group $ResourceGroupName `
+        --resource-group $ResourceGroup `
         --name $VMName `
         --scripts $DirectoryCreationScript
 } else {
@@ -93,13 +93,13 @@ $DownloadScript = if ($os -eq "linux") {
 if ($os -eq "linux") {
     az vm run-command invoke `
         --command-id RunShellScript `
-        --resource-group $ResourceGroupName `
+        --resource-group $ResourceGroup `
         --name $VMName `
         --scripts $DownloadScript
 } else {
     az vm run-command invoke `
         --command-id RunPowerShellScript `
-        --resource-group $ResourceGroupName `
+        --resource-group $ResourceGroup `
         --name $VMName `
         --scripts $DownloadScript
 }
