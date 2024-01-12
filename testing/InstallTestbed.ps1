@@ -237,8 +237,8 @@ $privateKey = ExtractPrivateKeyFromJson -jsonResponse "$jsonResponse"
 
 # Save the private key to a file
 Write-Host "Saving the private key to a file..."
-$filePath = ".\id_rsa"
-Set-Content -Path $filePath -Value $privateKey
+$privateKeyPath = ".\id_rsa"
+Set-Content -Path $privateKeyPath -Value $privateKey
 
 # Upload the private key to the container and get a key to download it
 Write-Host "Uploading the private key to the container and getting a key to download it..."
@@ -265,12 +265,8 @@ $chownPrivateKeyResponse = .\run_script_in_container.ps1 `
     -ScriptPathOnVM "C:\lme\configure\chown_dc1_private_key.ps1"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$chownPrivateKeyResponse")
 
-# Trust the key from ls1 so we can scp interactively
-# Todo: It seems we don't need this but leaving it here for now
-#.\run_script_in_container.ps1 `
-#    -ResourceGroup $ResourceGroup `
-#    -VMName $VMName `
-#    -ScriptPathOnVM "C:\lme\configure\trust_ls1_ssh_key.ps1"
+# Remove the private key from the local machine
+Remove-Item -Path $privateKeyPath
 
 # Use the azure shell to run scp on DC1 to copy the files from LS1 to DC1
 Write-Host "Using the azure shell to run scp on DC1 to copy the files from LS1 to DC1..."
