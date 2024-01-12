@@ -159,7 +159,7 @@ The deploy.sh script should have now created new files on the Linux server at lo
 
 Then reboot your Client computers & Windows Event Collector. On Windows Event Collector open services.msc as an administrator and make sure the winlogbeat service is set to start automatically, and is running.
 
+## 7. Upgrade from 1.3.0 to 1.3.1
 
-
-
+This is a hotfix to the install script and some additional troubleshooting steps added to documentation on space management. Unless you're encountering problems with your current installation, or if your logs are running out of space, there's no need to upgrade to version 1.3.1, as it doesn't offer any additional functionality changes.
 
