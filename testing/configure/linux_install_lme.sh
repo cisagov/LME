@@ -19,6 +19,9 @@ done
 
 # Download a copy of the LME files
 sudo git clone https://github.com/cisagov/lme.git /opt/lme/
+
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
 # Execute script with root privileges
 sudo "$script_dir/linux_install_lme.exp"
 
