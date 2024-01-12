@@ -22,6 +22,11 @@ sudo git clone https://github.com/cisagov/lme.git /opt/lme/
 
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
+
+# Set the noninteractive modes for root
+echo 'export DEBIAN_FRONTEND=noninteractive' | sudo tee -a /root/.bashrc
+echo 'export NEEDRESTART_MODE=a' | sudo tee -a /root/.bashrc
+
 # Execute script with root privileges
 sudo "$script_dir/linux_install_lme.exp"
 
