@@ -20,8 +20,9 @@ done
 # Download a copy of the LME files
 sudo git clone https://github.com/cisagov/lme.git /opt/lme/
 
-export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a
+echo 'export DEBIAN_FRONTEND=noninteractive' >> ~/.bashrc
+echo 'export NEEDRESTART_MODE=a' >> ~/.bashrc
+. ~/.bashrc
 
 # Set the noninteractive modes for root
 echo 'export DEBIAN_FRONTEND=noninteractive' | sudo tee -a /root/.bashrc
