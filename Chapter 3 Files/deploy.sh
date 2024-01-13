@@ -748,7 +748,8 @@ function install() {
   fi
 
   echo -e "\e[32m[X]\e[0m Updating OS software"
-  apt-get update && apt-get DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a upgrade -yq
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get  upgrade -yq
 
   echo -e "\e[32m[X]\e[0m Installing prerequisites"
   DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install ${REQUIRED_PACKS[*]} -yq
