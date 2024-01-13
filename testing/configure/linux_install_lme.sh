@@ -26,14 +26,13 @@ sudo git clone -b cbaxley-122-testbed_from_scripts https://github.com/cisagov/lm
 echo 'export DEBIAN_FRONTEND=noninteractive' >> ~/.bashrc
 echo 'export NEEDRESTART_MODE=a' >> ~/.bashrc
 . ~/.bashrc
-export PS1=""
 
 # Set the noninteractive modes for root
 echo 'export DEBIAN_FRONTEND=noninteractive' | sudo tee -a /root/.bashrc
 echo 'export NEEDRESTART_MODE=a' | sudo tee -a /root/.bashrc
 
 # Execute script with root privileges
-sudo "PS1="" $script_dir/linux_install_lme.exp"
+sudo -E bash -c  "$script_dir/linux_install_lme.exp"
 
 if [ -f "/opt/lme/files_for_windows.zip" ]; then
     sudo cp /opt/lme/files_for_windows.zip /home/"$username"/
