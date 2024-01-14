@@ -57,15 +57,16 @@ Flags:
   - NSG: sets NSG to a custom NSG if desired [NSG1 default]
 
 ## Install LME on the cluster:
-| **#** | **Step**                                                                                                                                        | **Screenshot**                                       |
-|-------|-------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                               | ![image](/docs/imgs/testing-screenshots/shell.png)   |
-| 2     | Select PowerShell.                                                                                                                              | ![image](/docs/imgs/testing-secreenshots/shell2.png) |
-| 3     | If you have already cloned the LME repo then `cd LME` and run git pull before changing to the testing directory                                 |                                                      |
-| 3     | If you haven't cloned it, clone the github repo in the home directory. `git clone https://github.com/cisagov/LME.git` and then `cd LME\testing` |                                                      |
-| 4     | Now you can run `.\InstallTestbed.ps1 --ResourceGroup YourResourceGroup`                                                                    |                                                      |
-| 5     | Save the login credentials printed to the terminal at the end. *See notes*                                                                      |                                                      |
-| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                   |                                                      |
+| **#** | **Step**                                                                                                                                                        | **Screenshot**                                        |
+|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
+| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                               | ![image](/docs/imgs/testing-screenshots/shell.png)    |
+| 2     | Select PowerShell.                                                                                                                                              | ![image](/docs/imgs/testing-secreenshots/shell2.png)  |
+| 3     | If you have already cloned the LME repo then `cd LME` and run git pull before changing to the testing directory                                                 |                                                       |
+| 3     | If you haven't cloned it, clone the github repo in the home directory. `git clone https://github.com/cisagov/LME.git` and then `cd LME\testing`                 |                                                       |
+| 4     | Now you can run `./InstallTestbed.ps1 --ResourceGroup YourResourceGroup`                                                                                        |                                                       |
+| 4.a   | You can also run the command this way if you want to log to a file. `./InstallTestbed.ps1 -ResourceGroup LME-cbaxley-T2 \| Tee-Object -FilePath "./output.log"` |                                                       |
+| 5     | Save the login credentials printed to the terminal at the end. *See notes*                                                                                      |                                                       |
+| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                   |                                                       |
 
 Note: When the script finishes you will be in the azure_scripts directory, and you should see the elasticsearch credentials printed to the terminal. 
 You will need to `cd ../../` to get back to the LME directory. All the passwords should be in the `<$ResourceGroup>.password.txt` file.

@@ -22,6 +22,7 @@ Start-Sleep 10
 .\wec_service_provisioner.ps1
 
 # Run the wevtutil and wecutil commands
+Write-Host "Running wevtutil and wecutil commands to start the wec service manually..."
 wevtutil set-log ForwardedEvents /q:true /e:true
 wecutil rs lme
 wecutil gr lme

@@ -122,8 +122,8 @@ Write-Host "Updating the group policy on the remote machines..."
 Invoke-GPUpdateOnVMs -ResourceGroup $ResourceGroup -numberOfClients $NumberOfClients
 
 # Wait for the services to start
-Write-Host "Waiting for the services to start..."
-Start-Sleep 20
+Write-Host "Waiting for the services to start. Generally they don't show..."
+Start-Sleep 10
 
 # See if you can see sysmon running on the machine
 Write-Host "Seeing if you can see sysmon running on a machine..."
@@ -182,20 +182,24 @@ $installLmeResponse = az vm run-command invoke `
   --scripts '/home/admin.ackbar/lme/configure/linux_install_lme.sh'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installLmeResponse")
 
-# Have to check for the reboot thing here
-Write-Host "Rebooting ${LinuxVMName}..."
-az vm restart `
-    --resource-group $ResourceGroup `
-    --name $LinuxVMName
+# Check if the response contains the need to reboot
+$rebootCheckstring = $installLmeResponse | Out-String
+if ($rebootCheckstring -match "A reboot is required in order to proceed with the install") {
+    # Have to check for the reboot thing here
+    Write-Host "Rebooting ${LinuxVMName}..."
+    az vm restart `
+        --resource-group $ResourceGroup `
+        --name $LinuxVMName
 
-# Run the lme installer on LS1
-Write-Host "Running the lme installer on LS1..."
-$installLmeResponse = az vm run-command invoke `
-  --command-id RunShellScript `
-  --name $LinuxVMName `
-  --resource-group $ResourceGroup `
-  --scripts '/home/admin.ackbar/lme/configure/linux_install_lme.sh'
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installLmeResponse")
+    # Run the lme installer on LS1
+    Write-Host "Running the lme installer on LS1..."
+    $installLmeResponse = az vm run-command invoke `
+        --command-id RunShellScript `
+        --name $LinuxVMName `
+        --resource-group $ResourceGroup `
+        --scripts '/home/admin.ackbar/lme/configure/linux_install_lme.sh'
+    Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installLmeResponse")
+}
 
 # Capture the output of the install script
 Write-Host "Capturing the output of the install script for ES passwords..."
