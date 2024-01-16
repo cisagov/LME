@@ -23,5 +23,5 @@ foreach ($line in $lines) {
 }
 
 # Display the active computer names
-Write-Host "Active Computers Forwarding Events:"
-$activeComputers | ForEach-Object { Write-Host $_ }
+Write-Output "Active Computers Forwarding Events:"
+$activeComputers | ForEach-Object { Write-Output $_ }

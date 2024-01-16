@@ -14,14 +14,14 @@ $ServerOUDistinguishedName = "OU=Domain Controllers,$DomainDN"
 
 try {
     New-GPLink -Name $GPONameClient -Target $ClientOUDistinguishedName
-    Write-Host "GPO '$GPONameClient' linked to OU '$ClientOUCustomName'."
+    Write-Output "GPO '$GPONameClient' linked to OU '$ClientOUCustomName'."
 } catch {
-    Write-Host "Error linking GPO '$GPONameClient' to OU '$ClientOUCustomName': $_"
+    Write-Output "Error linking GPO '$GPONameClient' to OU '$ClientOUCustomName': $_"
 }
 
 try {
     New-GPLink -Name $GPONameServer -Target $ServerOUDistinguishedName
-    Write-Host "GPO '$GPONameServer' linked to OU 'Domain Controllers'."
+    Write-Output "GPO '$GPONameServer' linked to OU 'Domain Controllers'."
 } catch {
-    Write-Host "Error linking GPO '$GPONameServer' to OU 'Domain Controllers': $_"
+    Write-Output "Error linking GPO '$GPONameServer' to OU 'Domain Controllers': $_"
 }

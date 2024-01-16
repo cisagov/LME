@@ -1,16 +1,18 @@
 # Define the directory path
-$directoryPath = "C:\lme"
+param(
+    [string]$DirectoryPath = "C:\lme"
+)
 
 # Create the directory if it doesn't already exist
-if (-not (Test-Path -Path $directoryPath)) {
-    New-Item -Path $directoryPath -ItemType Directory
+if (-not (Test-Path -Path $DirectoryPath)) {
+    New-Item -Path $DirectoryPath -ItemType Directory
 }
 
 # Define the security principal for 'All Users'
 $allUsers = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
 
 # Get the current ACL of the directory
-$acl = Get-Acl -Path $directoryPath
+$acl = Get-Acl -Path $DirectoryPath
 
 # Define the rights (read and execute)
 $rights = [System.Security.AccessControl.FileSystemRights]::ReadAndExecute
@@ -22,4 +24,4 @@ $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($all
 $acl.AddAccessRule($accessRule)
 
 # Set the ACL back to the directory
-Set-Acl -Path $directoryPath -AclObject $acl
+Set-Acl -Path $DirectoryPath -AclObject $acl

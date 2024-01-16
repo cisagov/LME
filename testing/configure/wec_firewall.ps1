@@ -1,16 +1,18 @@
 # Asks user to provide subnet - then creates a inbound allow firewall rule for 5985. Run on WEC server.
+param (
+    [string]$InboundRuleName = "WinRM TCP In 5985",
+    [string]$ClientSubnet = "10.1.0.0/24",
+    [string]$LocalPort = "5985"
+)
 
-$inboundRuleName = "WinRM TCP In 5985"
-$clientSubnet = Read-Host "Enter your subnet (e.g., 10.1.0.0/24)"
-
-if (-not (Get-NetFirewallRule -Name $inboundRuleName -ErrorAction SilentlyContinue)) {
-    New-NetFirewallRule -DisplayName $inboundRuleName `
+if (-not (Get-NetFirewallRule -Name $InboundRuleName -ErrorAction SilentlyContinue)) {
+    New-NetFirewallRule -DisplayName $InboundRuleName `
                         -Direction Inbound -Protocol TCP `
-                        -LocalPort 5985 -Action Allow `
-                        -RemoteAddress $clientSubnet `
-                        -Description "Allow inbound TCP 5985 for WinRM from clients subnet"
+                        -LocalPort $LocalPort -Action Allow `
+                        -RemoteAddress $ClientSubnet `
+                        -Description "Allow inbound TCP ${LocalPort} for WinRM from clients subnet"
 } else {
-    Write-Host "Inbound rule '$inboundRuleName' already exists."
+    Write-Output "Inbound rule '$InboundRuleName' already exists."
 }
 
-Write-Host "Inbound WinRM rule has been configured."
+Write-Output "Inbound WinRM rule has been configured."

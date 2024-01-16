@@ -20,8 +20,8 @@ $computersContainerDN = "CN=$CurrentCN,$domainDN"
 $targetOUDN = "OU=$ClientOUCustomName,$domainDN"
 
 # Output the DNs for verification
-Write-Host "Current Computers Container DN: $computersContainerDN"
-Write-Host "Target OU DN: $targetOUDN"
+Write-Output "Current Computers Container DN: $computersContainerDN"
+Write-Output "Target OU DN: $targetOUDN"
 
 # Get the computer accounts in the Computers container
 $computers = Get-ADComputer -Filter * -SearchBase $computersContainerDN
@@ -31,8 +31,8 @@ foreach ($computer in $computers) {
     try {
         # Move the computer to the target OU
         Move-ADObject -Identity $computer.DistinguishedName -TargetPath $targetOUDN
-        Write-Host "Moved $($computer.Name) to $targetOUDN"
+        Write-Output "Moved $($computer.Name) to $targetOUDN"
     } catch {
-        Write-Host "Failed to move $($computer.Name): $_"
+        Write-Output "Failed to move $($computer.Name): $_"
     }
 }

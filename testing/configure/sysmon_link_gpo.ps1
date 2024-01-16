@@ -12,7 +12,7 @@ $GPOName = "LME-Sysmon-Task"
 
 try {
     New-GPLink -Name $GPOName -Target $OUDistinguishedName
-    Write-Host "GPO '$GPOName' linked to OU '$ClientOUCustomName'."
+    Write-Output "GPO '$GPOName' linked to OU '$ClientOUCustomName'."
 } catch {
-    Write-Host "Error linking GPO '$GPOName' to OU '$ClientOUCustomName': $_"
+    Write-Output "Error linking GPO '$GPOName' to OU '$ClientOUCustomName': $_"
 }

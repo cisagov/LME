@@ -77,9 +77,9 @@ az storage container create `
     --account-key $StorageAccountKey
 
 # Output the created resources' details
-Write-Host "Created Storage Account: $StorageAccountName"
-Write-Host "StorageAccountKey: $StorageAccountKey"
-Write-Host "Created Container: $ContainerName"
+Write-Output "Created Storage Account: $StorageAccountName"
+Write-Output "StorageAccountKey: $StorageAccountKey"
+Write-Output "Created Container: $ContainerName"
 
 # Define the file path in the same directory as the running script
 $filePath = Join-Path -Path $PSScriptRoot -ChildPath "config.ps1"

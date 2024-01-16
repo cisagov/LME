@@ -19,24 +19,24 @@ The protocol for the Subscription Manager URL. Default is 'http'.
 Executes the script with default parameters.
 
 .EXAMPLE
-.\wec_gpo_update_server_name.ps1 -domain "customdomain.local" -port 1234 -protocol "https"
+.\wec_gpo_update_server_name.ps1 -Domain "customdomain.local" -Port 1234 -Protocol "https"
 Executes the script with custom domain, port, and protocol.
 
 #>
 
 param(
-    [string]$domain = "dc1.lme.local",
-    [int]$port = 5985,
-    [string]$protocol = "http"
+    [string]$Domain = "dc1.lme.local",
+    [int]$Port = 5985,
+    [string]$Protocol = "http"
 )
 
 # Construct the Subscription Manager URL using the provided parameters
-$subscriptionManagerUrl = "Server=${protocol}://${domain}:${port}/wsman/SubscriptionManager/WEC,Refresh=60"
+$subscriptionManagerUrl = "Server=${Protocol}://${Domain}:${Port}/wsman/SubscriptionManager/WEC,Refresh=60"
 Set-GPRegistryValue -Name "LME-WEC-Client" -Key "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\EventForwarding\SubscriptionManager" -Value $subscriptionManagerUrl -Type String
 
 # To get the GP registry value to confirm it's set
 $registryValue = Get-GPRegistryValue -Name "LME-WEC-Client" -Key "HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\EventForwarding\SubscriptionManager"
 
 # Output the retrieved registry value
-Write-Host "Set the subscription manager url value to: "
+Write-Output "Set the subscription manager url value to: "
 $registryValue

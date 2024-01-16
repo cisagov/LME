@@ -1,13 +1,13 @@
 param (
-    [string]$sshHost = "ls1"
+    [string]$SshHost = "ls1"
 )
 
-$sshDirectory = "C:\Windows\System32\config\systemprofile\.ssh"
-$knownHostsFile = Join-Path -Path $sshDirectory -ChildPath "known_hosts"
+$SshDirectory = "C:\Windows\System32\config\systemprofile\.ssh"
+$KnownHostsFile = Join-Path -Path $SshDirectory -ChildPath "known_hosts"
 
 # Ensure the .ssh directory exists
-if (-not (Test-Path -Path $sshDirectory)) {
-    New-Item -ItemType Directory -Path $sshDirectory
+if (-not (Test-Path -Path $SshDirectory)) {
+    New-Item -ItemType Directory -Path $SshDirectory
 }
 
 # Function to set ACL for the directory, granting FullControl to SYSTEM and applying inheritance
@@ -49,18 +49,18 @@ function Set-SystemOnlyAclForFile {
 }
 
 # Set ACL for the .ssh directory with inheritance
-Set-SystemOnlyAclForDirectory -path $sshDirectory
+Set-SystemOnlyAclForDirectory -path $SshDirectory
 
 # Ensure the known_hosts file exists
-if (-not (Test-Path -Path $knownHostsFile)) {
-    New-Item -ItemType File -Path $knownHostsFile
+if (-not (Test-Path -Path $KnownHostsFile)) {
+    New-Item -ItemType File -Path $KnownHostsFile
 }
 
 # Set ACL for the known_hosts file without inheritance
-Set-SystemOnlyAclForFile -path $knownHostsFile
+Set-SystemOnlyAclForFile -path $KnownHostsFile
 
 # Run ssh-keyscan and append output to known_hosts
-ssh-keyscan $sshHost | Out-File -FilePath $knownHostsFile -Append -Encoding UTF8
+ssh-keyscan $SshHost | Out-File -FilePath $KnownHostsFile -Append -Encoding UTF8
 
 # Output the contents of the known_hosts file
-Get-Content -Path $knownHostsFile
+Get-Content -Path $KnownHostsFile

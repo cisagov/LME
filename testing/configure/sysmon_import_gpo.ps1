@@ -1,10 +1,10 @@
 param(
-    [string]$directory = $env:USERPROFILE
+    [string]$Directory = $env:USERPROFILE
 )
 
 # Determine the base directory path based on the provided username
-$baseDirectoryPath = if ($directory -and ($directory -ne $env:USERPROFILE)) {
-    "C:\$directory"
+$baseDirectoryPath = if ($Directory -and ($Directory -ne $env:USERPROFILE)) {
+    "C:\$Directory"
 } else {
     "$env:USERPROFILE\Downloads"
 }
@@ -17,18 +17,18 @@ foreach ($gpoName in $gpoNames) {
     $gpo = Get-GPO -Name $gpoName -ErrorAction SilentlyContinue
     if (-not $gpo) {
         New-GPO -Name $gpoName | Out-Null
-        Write-Host "Created GPO: $gpoName"
+        Write-Output "Created GPO: $gpoName"
     } else {
-        Write-Host "GPO $gpoName already exists."
+        Write-Output "GPO $gpoName already exists."
     }
 
     try {
         Import-GPO -BackupGpoName $gpoName -TargetName $gpoName -Path $GPOBackupPath -CreateIfNeeded -ErrorAction Stop
-        Write-Host "Imported settings into GPO: $gpoName"
+        Write-Output "Imported settings into GPO: $gpoName"
     } catch {
         Throw "Failed to import GPO: $gpoName. The GPODisplayName in bkupinfo.xml may not match or other import error occurred."
     }
 }
 
-Write-Host "LME Sysmon GPOs have been created and imported successfully."
+Write-Output "LME Sysmon GPOs have been created and imported successfully."
 

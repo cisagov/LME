@@ -8,14 +8,14 @@ function Format-AzVmRunCommandOutput {
 
     try {
         $responseObj = $JsonResponse | ConvertFrom-Json
-#        Write-Host "Converted JSON object: $responseObj"
+#        Write-Output "Converted JSON object: $responseObj"
 
         if ($responseObj -and $responseObj.value) {
             $stdout = ""
             $stderr = ""
 
             foreach ($item in $responseObj.value) {
-#                Write-Host "Processing item: $($item.code)"
+#                Write-Output "Processing item: $($item.code)"
 
                 # Check for StdOut and StdErr
                 if ($item.code -like "ComponentStatus/StdOut/*") {
@@ -40,7 +40,7 @@ function Format-AzVmRunCommandOutput {
         }
     } catch {
         $errorMessage = $_.Exception.Message
-        Write-Host "Error: $errorMessage"
+        Write-Output "Error: $errorMessage"
         $results += New-Object PSObject -Property @{
             StdOut = "Error: $errorMessage"
             StdErr = ""
@@ -66,17 +66,17 @@ function Show-FormattedOutput {
     foreach ($item in $FormattedOutput) {
         if ($item -is [string]) {
             # Handle string messages (like error or informational messages)
-            Write-Host $item
+            Write-Output $item
         }
         elseif ($item -is [PSCustomObject]) {
             # Handle custom objects with StdOut and StdErr
             if (![string]::IsNullOrWhiteSpace($item.StdOut)) {
-                Write-Host "Output (stdout):"
-                Write-Host $item.StdOut
+                Write-Output "Output (stdout):"
+                Write-Output $item.StdOut
             }
             if (![string]::IsNullOrWhiteSpace($item.StdErr)) {
-                Write-Host "Error (stderr):"
-                Write-Host $item.StdErr
+                Write-Output "Error (stderr):"
+                Write-Output $item.StdErr
             }
         }
     }

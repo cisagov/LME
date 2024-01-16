@@ -21,9 +21,14 @@ The full path of the PowerShell script on the Azure VM that needs to be executed
 A string of arguments that will be passed to the script.
 
 .EXAMPLE
-.\run_script_in_container.ps1 -ResourceGroup "YourResourceGroupName" -VMName "VMName" -ScriptPathOnVM "C:\path\to\your\script.ps1" -ScriptArguments "-Arg1 value1 -Arg2 value2"
+.\run_script_in_container.ps1 `
+    -ResourceGroup "YourResourceGroupName" `
+    -VMName "VMName" `
+    -ScriptPathOnVM "C:\path\to\your\script.ps1" `
+    -ScriptArguments "-Arg1 value1 -Arg2 value2"
 
-This example executes a script located at 'C:\path\to\your\script.ps1' on the VM named "VMName" in the resource group "YourResourceGroupName", passing it the arguments "-Arg1 value1 -Arg2 value2".
+This example executes a script located at 'C:\path\to\your\script.ps1' on the VM named "VMName"
+ in the resource group "YourResourceGroup", passing it the arguments "-Arg1 value1 -Arg2 value2".
 
 .NOTES
 - Ensure that the Azure CLI is installed and configured with the necessary permissions to access and run commands on the specified Azure VM.

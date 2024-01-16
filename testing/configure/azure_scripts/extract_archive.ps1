@@ -17,7 +17,12 @@ The name of the Azure Resource Group that contains the VM.
 The name (and optional path) of the zip file to be unzipped.
 
 .EXAMPLE
-.\extract_archive.ps1 -VMName "DC1" -ResourceGroup "YourResourceGroupName" -Filename "filename.zip"
+.\extract_archive.ps1 `
+    -VMName "DC1" `
+    -ResourceGroup "YourResourceGroupName" `
+    -Filename "filename.zip" `
+    -UserName "admin.ackbar" `
+    -Os "Windows"
 
 This example unzips 'filename.zip' from the 'Downloads' directory of the user 'username' on the VM "DC1" in the resource group "YourResourceGroupName", and extracts it to a subdirectory named 'filename'.
 
@@ -37,24 +42,24 @@ param(
     [string]$Filename,
 
     [Parameter()]
-    [string]$username = "admin.ackbar",
+    [string]$UserName = "admin.ackbar",
 
     [Parameter()]
     [ValidateSet("Windows","Linux","linux")]
-    [string]$os = "Windows"
+    [string]$Os = "Windows"
 )
 
 # Convert the OS parameter to lowercase for consistent comparison
-$os = $os.ToLower()
+$Os = $Os.ToLower()
 
 # Extract just the filename (ignoring any provided path)
 $JustFilename = Split-Path -Leaf $Filename
 
 # Set paths depending on the OS
-if ($os -eq "linux") {
-    $ZipFilePath = "/home/$username/lme/$JustFilename"
+if ($Os -eq "linux") {
+    $ZipFilePath = "/home/$UserName/lme/$JustFilename"
     $FileBaseName = [System.IO.Path]::GetFileNameWithoutExtension($JustFilename)
-    $ExtractToPath = "/home/$username/lme/$FileBaseName"  # Extract to a subdirectory
+    $ExtractToPath = "/home/$UserName/lme/$FileBaseName"  # Extract to a subdirectory
 
     $UnzipScript = @"
     unzip '$ZipFilePath' -d '$ExtractToPath'
@@ -70,7 +75,7 @@ if ($os -eq "linux") {
 }
 
 # Execute the unzip script with the appropriate command based on OS
-if ($os -eq "linux") {
+if ($Os -eq "linux") {
     az vm run-command invoke `
         --command-id RunShellScript `
         --resource-group $ResourceGroup `

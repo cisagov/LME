@@ -17,10 +17,10 @@ The URL of the file to be downloaded.
 .PARAMETER DestinationFilePath
 The complete path where the file should be downloaded on the VM. This path is processed to extract just the filename.
 
-.PARAMETER username
+.PARAMETER UserName
 The username for the VM, used in constructing the file path for Linux systems. Default is 'admin.ackbar'.
 
-.PARAMETER os
+.PARAMETER Os
 The operating system type of the VM. Accepts 'Windows', 'Linux', or 'linux'. Default is 'Windows'.
 
 .EXAMPLE
@@ -28,7 +28,9 @@ The operating system type of the VM. Accepts 'Windows', 'Linux', or 'linux'. Def
     -VMName "MyVM" `
     -ResourceGroup "MyResourceGroup" `
     -FileDownloadUrl "http://example.com/file.zip" `
-    -DestinationFilePath "C:\path\to\file.zip"
+    -DestinationFilePath "C:\path\to\file.zip" `
+    -UserName "admin.ackbar" `
+    -Os "Windows" `
 
 This example downloads a file from 'http://example.com/file.zip' to 'C:\path\to\file.zip'
  on the VM named 'MyVM' in the 'MyResourceGroup'.
@@ -36,8 +38,6 @@ This example downloads a file from 'http://example.com/file.zip' to 'C:\path\to\
 .NOTES
 - Ensure that the Azure CLI is installed and configured with the necessary permissions to access and run commands on the specified Azure VM.
 - The specified script must exist on the VM and the VM should have the necessary permissions to execute it.
-
- #>
 #>
 
 param(
@@ -54,25 +54,26 @@ param(
     [string]$DestinationFilePath,  # This will be stripped to only the filename
 
     [Parameter()]
-    [string]$username = "admin.ackbar",
+    [string]$UserName = "admin.ackbar",
 
     [Parameter()]
     [ValidateSet("Windows","Linux","linux")]
-    [string]$os = "Windows"
+    [string]$Os = "Windows"
 )
 
 # Convert the OS parameter to lowercase for consistent comparison
-$os = $os.ToLower()
+$Os = $Os.ToLower()
 
 # Extract just the filename from the destination file path
 $DestinationFileName = Split-Path -Leaf $DestinationFilePath
 
 # Set the destination path depending on the OS
-if ($os -eq "linux") {
-    $DestinationPath = "/home/$username/lme/$DestinationFileName"
+if ($Os -eq "linux") {
+    $DestinationPath = "/home/$UserName/lme/$DestinationFileName"
     # Create the lme directory if it doesn't exist
-    $DirectoryCreationScript = "mkdir -p '/home/$username/lme'"
-    # We don't want to output this until we fix it so we can put all of the output from thw whole script into one json object
+    $DirectoryCreationScript = "mkdir -p '/home/$UserName/lme'"
+    # TODO: We don't want to output this until we fix it so we can put all of the output from thw whole script into one json object
+    # We are just ignoring the output for now
     $CreateDirectoryResponse = az vm run-command invoke `
         --command-id RunShellScript `
         --resource-group $ResourceGroup `
@@ -83,14 +84,14 @@ if ($os -eq "linux") {
 }
 
 # The download script
-$DownloadScript = if ($os -eq "linux") {
+$DownloadScript = if ($Os -eq "linux") {
     "curl -o '$DestinationPath' '$FileDownloadUrl'"
 } else {
     "Invoke-WebRequest -Uri '$FileDownloadUrl' -OutFile '$DestinationPath'"
 }
 
 # Execute the download script with the appropriate command based on OS
-if ($os -eq "linux") {
+if ($Os -eq "linux") {
     az vm run-command invoke `
         --command-id RunShellScript `
         --resource-group $ResourceGroup `

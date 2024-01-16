@@ -1,17 +1,17 @@
 param(
-    [string]$gpoName = "LME-Sysmon-Task",
-    [string]$domainName = "lme.local"
+    [string]$GpoName = "LME-Sysmon-Task",
+    [string]$DomainName = "lme.local"
 )
 
 # Get the FQDN of the current server
 $fqdn = [System.Net.Dns]::GetHostByName($env:COMPUTERNAME).HostName
 
 # Get the GPO object
-$gpo = Get-GPO -Name $gpoName
+$gpo = Get-GPO -Name $GpoName
 
 # Check if GPO is found
 if ($null -eq $gpo) {
-    Write-Host "GPO not found"
+    Write-Output "GPO not found"
     exit
 }
 
@@ -19,7 +19,7 @@ if ($null -eq $gpo) {
 $gpoGuid = $gpo.Id
 
 # Define the path to the XML file
-$xmlFilePath = "C:\Windows\SYSVOL\sysvol\$domainName\Policies\{$gpoGuid}\Machine\Preferences\ScheduledTasks\ScheduledTasks.xml"
+$xmlFilePath = "C:\Windows\SYSVOL\sysvol\$DomainName\Policies\{$gpoGuid}\Machine\Preferences\ScheduledTasks\ScheduledTasks.xml"
 
 # Get current time and add 5 minutes
 $newStartTime = (Get-Date).AddMinutes(5).ToString("yyyy-MM-ddTHH:mm:ss")
@@ -34,10 +34,10 @@ $task = $xml.ScheduledTasks.TaskV2 | Where-Object { $_.Properties.name -eq "LME-
 $task.Properties.Task.Triggers.CalendarTrigger.StartBoundary = $newStartTime
 
 # Update the command path
-$task.Properties.Task.Actions.Exec.Command = "\\$fqdn\sysvol\$domainName\LME\Sysmon\update.bat"
+$task.Properties.Task.Actions.Exec.Command = "\\$fqdn\sysvol\$DomainName\LME\Sysmon\update.bat"
 
 # Save the modified XML back to the file
 $xml.Save($xmlFilePath)
 
 # Output the new start time for verification
-Write-Host "New start time set to: $newStartTime"
+Write-Output "New start time set to: $newStartTime"
