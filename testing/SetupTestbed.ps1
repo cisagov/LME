@@ -384,10 +384,10 @@ Write-Output "The time is $(Get-Date)."
 # Define the PowerShell script with the DomainName variable interpolated
 $scriptContent = @"
 `$scriptBlock = {
-    Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00
+    Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00 -AsJob
 }
 `$job = Start-Job -ScriptBlock `$scriptBlock
-`$timeout = 30
+`$timeout = 60
 if (Wait-Job -Job `$job -Timeout `$timeout) {
     Receive-Job -Job `$job
     Write-Host 'The script completed within the timeout period.'
@@ -422,7 +422,7 @@ $addDnsRecordResponse = az vm run-command invoke `
     --scripts "C:\AddDnsRecord.ps1"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
 
-Write-Host "Checking if ls1 resolves..."
+Write-Host "Checking if ls1 resolves. This should resolve to ls1.lme.local, not another domain..."
 $resolveLs1Response = az vm run-command invoke `
     --command-id RunPowerShellScript `
     --resource-group $ResourceGroup `

@@ -208,11 +208,10 @@ if ($rebootCheckstring -match "A reboot is required in order to proceed with the
     az vm restart `
         --resource-group $ResourceGroup `
         --name $LinuxVMName
+    Write-Output $ProcessSeparator
 
     # Run the lme installer on LS1
     Write-Output "`nRunning the lme installer on LS1..."
-    Write-Output $ProcessSeparator
-
     $installLmeResponse = az vm run-command invoke `
         --command-id RunShellScript `
         --name $LinuxVMName `
@@ -305,7 +304,7 @@ $scpResponse = az vm run-command invoke `
     --command-id RunPowerShellScript `
     --name $VMName `
     --resource-group $ResourceGroup `
-    --scripts 'scp -o StrictHostKeyChecking=no -i "C:\lme\id_rsa" admin.ackbar@ls1.lme.local:/home/admin.ackbar/files_for_windows.zip "C:\lme\"'
+    --scripts 'scp -o StrictHostKeyChecking=no -i "C:\lme\id_rsa" admin.ackbar@ls1:/home/admin.ackbar/files_for_windows.zip "C:\lme\"'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$scpResponse")
 Write-Output $ProcessSeparator
 
