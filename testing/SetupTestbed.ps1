@@ -127,18 +127,18 @@ function Set-AutoShutdown {
     Write-Output "`nCreating Auto-Shutdown Rule for $VMName at time $AutoShutdownTime..."
     if ($null -ne $AutoShutdownEmail) {
         $autoShutdownResponse = az vm auto-shutdown `
-          -g $ResourceGroup `
-          -n $VMName `
-          --time $AutoShutdownTime `
-          --email $AutoShutdownEmail
-        Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$autoShutdownResponse")
+            -g $ResourceGroup `
+            -n $VMName `
+            --time $AutoShutdownTime `
+            --email $AutoShutdownEmail
+        Write-Output $autoShutdownResponse
     }
     else {
         $autoShutdownResponse = az vm auto-shutdown `
-        -g $ResourceGroup `
-        -n $VMName `
-        --time $AutoShutdownTime
-        Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$autoShutdownResponse")
+            -g $ResourceGroup `
+            -n $VMName `
+            --time $AutoShutdownTime
+        Write-Output $autoShutdownResponse
     }
 }
 
@@ -164,17 +164,17 @@ function Set-NetworkRules {
         Write-Output "`nCreating Network Port $port rule..."
 
         $networkRuleResponse = az network nsg rule create --name Network_Port_Rule_$port `
-        --resource-group $ResourceGroup `
-        --nsg-name NSG1 `
-        --priority $priority `
-        --direction Inbound `
-        --access Allow `
-        --protocol $protocol `
-        --source-address-prefixes $AllowedSourcesList `
-        --destination-address-prefixes '*' `
-        --destination-port-ranges $port `
-        --description "Allow inbound from $sources on $port via $protocol connections."
-        Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$networkRuleResponse")
+            --resource-group $ResourceGroup `
+            --nsg-name NSG1 `
+            --priority $priority `
+            --direction Inbound `
+            --access Allow `
+            --protocol $protocol `
+            --source-address-prefixes $AllowedSourcesList `
+            --destination-address-prefixes '*' `
+            --destination-port-ranges $port `
+            --description "Allow inbound from $sources on $port via $protocol connections."
+        Write-Output $networkRuleResponse
     }
 }
 
@@ -214,7 +214,7 @@ Write-Output "Allowed sources (IP's): $AllowedSourcesList"
 Write-Output "Auto-shutdown time: $AutoShutdownTime"
 Write-Output "Auto-shutdown e-mail: $AutoShutdownEmail"
 if ($LinuxOnly) {
-    Write-Output "Running a minimal install on linux"
+    Write-Output "Creating a linux server only"
 }
 
 if (-Not $NoPrompt) {
@@ -233,7 +233,7 @@ if (-Not $NoPrompt) {
 ########################
 Write-Output "`nCreating resource group..."
 $createResourceGroupResponse = az group create --name $ResourceGroup --location $Location
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createResourceGroupResponse")
+Write-Output $createResourceGroupResponse
 
 #################
 # Setup network #
@@ -245,13 +245,13 @@ $createVirtualNetworkResponse = az network vnet create --resource-group $Resourc
     --address-prefix $VNetPrefix `
     --subnet-name SNet1 `
     --subnet-prefix $SubnetPrefix
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createVirtualNetworkResponse")
+Write-Output $createVirtualNetworkResponse
 
 Write-Output "`nCreating nsg..."
 $createNsgResponse = az network nsg create --name NSG1 `
     --resource-group $ResourceGroup `
     --location $Location
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createNsgResponse")
+Write-Output $createNsgResponse
 
 Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
 
@@ -277,7 +277,7 @@ $createLs1Response = az vm create `
     --size Standard_E2d_v4 `
     --os-disk-size-gb 128 `
     --private-ip-address $LsIP
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createLs1Response")
+Write-Output $createLs1Response
 
 if (-Not $LinuxOnly){
     Write-Output "`nCreating DC1..."
@@ -292,20 +292,20 @@ if (-Not $LinuxOnly){
         --subnet SNet1 `
         --public-ip-sku Standard `
         --private-ip-address $DcIP
-    Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createDc1Response")
+    Write-Output $createDc1Response
     for ($i = 1; $i -le $NumClients; $i++) {
         Write-Output "`nCreating C$i..."
         $createClientResponse = az vm create `
-        --name C$i `
-        --resource-group $ResourceGroup `
-        --nsg NSG1 `
-        --image Win2019Datacenter `
-        --admin-username $VMAdmin `
-        --admin-password $VMPassword `
-        --vnet-name VNet1 `
-        --subnet SNet1 `
-        --public-ip-sku Standard
-        Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createClientResponse")
+            --name C$i `
+            --resource-group $ResourceGroup `
+            --nsg NSG1 `
+            --image Win2019Datacenter `
+            --admin-username $VMAdmin `
+            --admin-password $VMPassword `
+            --vnet-name VNet1 `
+            --subnet SNet1 `
+            --public-ip-sku Standard
+        Write-Output $createClientResponse
     }
 }
 
@@ -440,7 +440,6 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --name DC1 `
         --resource-group $ResourceGroup `
         --scripts "Set-Content -Path 'C:\AddDnsRecord.ps1' -Value ([System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$encodedScript')))"
-
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createDnsScriptResponse")
 
 
