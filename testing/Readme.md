@@ -62,7 +62,7 @@ Flags:
 | **Parameter**     | **Alias** | **Description**                                                                        | **Required** |
 |-------------------|-----------|----------------------------------------------------------------------------------------|--------------|
 | $ResourceGroup    | -g        | The name of the resource group that will be created for storing all testbed resources. | Yes          |
-| $NumClients       | -n        | The number of Windows clients to create; maximum 16; defaults to 1                     | No           |
+| $NumClients       | -n        | The number of Windows clients you have created; defaults to 2                          | No           |
 | $DomainController | -w        | The name of the domain controller in the cluster; defaults to "DC1"                    | No           |
 | $LinuxVm          | -l        | The name of the linux server in the cluster; defaults to "LS1"                         | No           |
 
