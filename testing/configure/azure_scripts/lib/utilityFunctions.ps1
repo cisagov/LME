@@ -82,7 +82,7 @@ function Show-FormattedOutput {
     }
 }
 
-function ExtractPrivateKeyFromJson {
+function Get-PrivateKeyFromJson {
     param (
         [Parameter(Mandatory = $true)]
         [string]$jsonResponse

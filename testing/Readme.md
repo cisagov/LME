@@ -29,14 +29,14 @@ Example:
 ```
 
 ## Running Using Azure Shell
-| **#** | **Step**                                                                                                                                                                                                                                                              | **Screenshot**                                          |
-|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
-| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                                                                                                                     | ![image](/docs/imgs/testing-screenshots/shell.png)      |
-| 2     | Select PowerShell.                                                                                                                                                                                                                                                    | ![image](/docs/imgs/testing-secreenshots/shell2.png)    |
-| 3     | Upload `SetupTestbed.ps1` by clicking the "Upload/Download files" icon  *Note: if you want to use the InstallTestbed script, you should probably clone the repo as described in that section, and run SetupTestbed.ps1 from the cloned repo in the testing directory* | ![image](/docs/imgs/testing-screenshots/shell3.png)     |
-| 4     | Run the script, providing values for the parameters when promoted (see [Usage](#usage)). The script will take ~20 minutes to run to completion.                                                                                                                       | ![image](/docs/imgs/testing-screenshots/shell4.png)     |
-| 5     | Save the login credentials printed to the terminal at the end (They will also be in a file called `<$ResourceGroup>.password.txt`). At this point you can login to each VM using RDP (for the Windows servers) or SSH (for the Linux server).                         | ![image](/docs/imgs/testing-screenshots/shell5.png)     |
-| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                                                                                                                         | ![image](/docs/imgs/testing-screenshots/delete.png)     |
+| **#** | **Step**                                                                                                                                                                                                                                      | **Screenshot**                                          |
+|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
+| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                                                                                             | ![image](/docs/imgs/testing-screenshots/shell.png)      |
+| 2     | Select PowerShell.                                                                                                                                                                                                                            | ![image](/docs/imgs/testing-secreenshots/shell2.png)    |
+| 3     | Clone the repo `git clone https://github.com/cisagov/LME.git` and then `cd LME\testing`                                                                                                                                                       | ![image](/docs/imgs/testing-screenshots/shell3.png)     |
+| 4     | Run the script, providing values for the parameters when promoted (see [Usage](#usage)). The script will take ~20 minutes to run to completion.                                                                                               | ![image](/docs/imgs/testing-screenshots/shell4.png)     |
+| 5     | Save the login credentials printed to the terminal at the end (They will also be in a file called `<$ResourceGroup>.password.txt`). At this point you can login to each VM using RDP (for the Windows servers) or SSH (for the Linux server). | ![image](/docs/imgs/testing-screenshots/shell5.png)     |
+| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                                                                                                 | ![image](/docs/imgs/testing-screenshots/delete.png)     |
 
 # Extra Functionality:
  
@@ -57,18 +57,32 @@ Flags:
   - NSG: sets NSG to a custom NSG if desired [NSG1 default]
 
 ## Install LME on the cluster:
-| **#** | **Step**                                                                                                                                                           | **Screenshot**                                        |
-|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
-| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                                  | ![image](/docs/imgs/testing-screenshots/shell.png)    |
-| 2     | Select PowerShell.                                                                                                                                                 | ![image](/docs/imgs/testing-secreenshots/shell2.png)  |
-| 3     | If you have already cloned the LME repo then `cd LME` and run git pull before changing to the testing directory                                                    |                                                       |
-| 3     | If you haven't cloned it, clone the github repo in the home directory. `git clone https://github.com/cisagov/LME.git` and then `cd LME\testing`                    |                                                       |
-| 4     | Now you can run `./InstallTestbed.ps1 --ResourceGroup YourResourceGroup`                                                                                           |                                                       |
-| 4.a   | You can also run the command this way if you want to log to a file. `./InstallTestbed.ps1 -ResourceGroup YourResourceGroup \| Tee-Object -FilePath "./output.log"` |                                                       |
-| 5     | Save the login credentials printed to the terminal at the end. *See notes*                                                                                         |                                                       |
-| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                                      |                                                       |
+### InstallTestbed.ps1
+## Usage
+| **Parameter**     | **Alias** | **Description**                                                                        | **Required** |
+|-------------------|-----------|----------------------------------------------------------------------------------------|--------------|
+| $ResourceGroup    | -g        | The name of the resource group that will be created for storing all testbed resources. | Yes          |
+| $NumClients       | -n        | The number of Windows clients to create; maximum 16; defaults to 1                     | No           |
+| $DomainController | -w        | The name of the domain controller in the cluster; defaults to "DC1"                    | No           |
+| $LinuxVm          | -l        | The name of the linux server in the cluster; defaults to "LS1"                         | No           |
+
+Example:
+```
+./InstallTestbed.ps1 --ResourceGroup YourResourceGroup 
+# Or if you want to save the output to a file
+./InstallTestbed.ps1 -ResourceGroup YourResourceGroup  | Tee-Object -FilePath "./YourResourceGroup.output.log"
+```
+| **#** | **Step**                                                                                                                                                  | **Screenshot**                                        |
+|-------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
+| 1     | Open a cloud shell by navigating to portal.azure.com and clicking the shell icon.                                                                         | ![image](/docs/imgs/testing-screenshots/shell.png)    |
+| 2     | Select PowerShell.                                                                                                                                        | ![image](/docs/imgs/testing-secreenshots/shell2.png)  |
+| 3.a   | If you have already cloned the LME repo then make sure you are in the  `LME\testing` directory and run git pull before changing to the testing directory. |                                                       |
+| 3.b   | If you haven't cloned it, clone the github repo in the home directory. `git clone https://github.com/cisagov/LME.git` and then `cd LME\testing`.          |                                                       |
+| 4     | Now you can run one of the commands from the Examples above.                                                                                              |                                                       |
+| 5     | Save the login credentials printed to the terminal at the end. *See note*                                                                                 |                                                       |
+| 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                             |                                                       |
 
 Note: When the script finishes you will be in the azure_scripts directory, and you should see the elasticsearch credentials printed to the terminal. 
-You will need to `cd ../../` to get back to the LME directory. All the passwords should be in the `<$ResourceGroup>.password.txt` file.
+You will need to `cd ../../` to get back to the LME directory. All the passwords should also be in the `<$ResourceGroup>.password.txt` file.
 
 

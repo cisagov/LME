@@ -20,7 +20,8 @@ done
 # Download a copy of the LME files
 #sudo git clone https://github.com/cisagov/lme.git /opt/lme/
 sudo git clone -b cbaxley-122-testbed_from_scripts https://github.com/cisagov/lme.git /opt/lme/
-# curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d /opt/lme/ "$(basename {})"'
+# curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {}' && unzip -d /opt/lme/ "$(basename {})"'
+# https://github.com/cisagov/LME/archive/refs/tags/v1.3.1.zip
 
 
 echo 'export DEBIAN_FRONTEND=noninteractive' >> ~/.bashrc

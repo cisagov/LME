@@ -1,10 +1,16 @@
 param (
+    [Alias("g")]
     [Parameter(Mandatory = $true)]
     [string]$ResourceGroup,
 
-    [string]$VMName = "DC1",
-    [string]$LinuxVMName = "LS1",
-    [int]$NumberOfClients = 2
+    [Alias("w")]
+    [string]$DomainController = "DC1",
+
+    [Alias("l")]
+    [string]$LinuxVM = "LS1",
+
+    [Alias("n")]
+    [int]$NumClients = 2
 )
 
 # If you were to need the password from the SetupTestbed.ps1 script, you could use this:
@@ -67,7 +73,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nMaking our directory on the VM..."
 $createDirResponse = az vm run-command invoke `
   --command-id RunPowerShellScript `
-  --name $VMName `
+  --name $DomainController `
   --resource-group $ResourceGroup `
   --scripts "if (-not (Test-Path -Path 'C:\lme')) { New-Item -Path 'C:\lme' -ItemType Directory }"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createDirResponse")
@@ -77,7 +83,7 @@ Write-Output $ProcessSeparator
 # Download the zip file to the VM
 Write-Output "`nDownloading the zip file to the VM..."
 $downloadZipFileResponse = .\download_in_container.ps1 `
-    -VMName $VmName `
+    -VMName $DomainController `
     -ResourceGroup $ResourceGroup `
     -FileDownloadUrl "$FileDownloadUrl" `
     -DestinationFilePath "configure.zip"
@@ -87,7 +93,7 @@ Write-Output $ProcessSeparator
 # Extract the zip file
 Write-Output "`nExtracting the zip file..."
 $extractArchiveResponse = .\extract_archive.ps1 `
-    -VMName $VMName `
+    -VMName $DomainController `
     -ResourceGroup $ResourceGroup `
     -FileName "configure.zip"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$extractArchiveResponse")
@@ -97,15 +103,14 @@ Write-Output $ProcessSeparator
 Write-Output "`nRunning the install script for chapter 1..."
 $installChapter1Response = .\run_script_in_container.ps1 `
     -ResourceGroup $ResourceGroup `
-    -VMName $VMName `
+    -VMName $DomainController `
     -ScriptPathOnVM "C:\lme\configure\install_chapter_1.ps1"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installChapter1Response")
 Write-Output $ProcessSeparator
 
-# Todo: Loop these for number of vms
 # Update the group policy on the remote machines
 Write-Output "`nUpdating the group policy on the remote machines..."
-Invoke-GPUpdateOnVMs -ResourceGroup $ResourceGroup -numberOfClients $NumberOfClients
+Invoke-GPUpdateOnVMs -ResourceGroup $ResourceGroup -numberOfClients $NumClients
 Write-Output $ProcessSeparator
 
 # Wait for the services to start
@@ -116,7 +121,7 @@ Start-Sleep 10
 write-host "`nChecking if we can see the forwarding computers in the DC..."
 $listForwardingComputersResponse = .\run_script_in_container.ps1 `
     -ResourceGroup $ResourceGroup `
-    -VMName $VMName `
+    -VMName $DomainController `
     -ScriptPathOnVM "C:\lme\configure\list_computers_forwarding_events.ps1"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$listForwardingComputersResponse")
 Write-Output $ProcessSeparator
@@ -125,14 +130,14 @@ Write-Output $ProcessSeparator
 Write-Output "`nInstalling the sysmon service on DC1 from chapter 2..."
 $installChapter2Response = .\run_script_in_container.ps1 `
     -ResourceGroup $ResourceGroup `
-    -VMName $VMName `
+    -VMName $DomainController `
     -ScriptPathOnVM "C:\lme\configure\install_chapter_2.ps1"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installChapter2Response")
 Write-Output $ProcessSeparator
 
 # Update the group policy on the remote machines
 Write-Output "`nUpdating the group policy on the remote machines..."
-Invoke-GPUpdateOnVMs -ResourceGroup $ResourceGroup -numberOfClients $NumberOfClients
+Invoke-GPUpdateOnVMs -ResourceGroup $ResourceGroup -numberOfClients $NumClients
 Write-Output $ProcessSeparator
 
 # Wait for the services to start
@@ -152,7 +157,7 @@ Write-Output $ProcessSeparator
 # Download the installers on LS1
 Write-Output "`nDownloading the installers on LS1..."
 $downloadLinuxZipFileResponse = .\download_in_container.ps1 `
-    -VMName $LinuxVMName `
+    -VMName $LinuxVM `
     -ResourceGroup $ResourceGroup `
     -FileDownloadUrl "$FileDownloadUrl" `
     -DestinationFilePath "configure.zip" `
@@ -164,7 +169,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nInstalling unzip on LS1..."
 $installUnzipResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name $LinuxVMName `
+  --name $LinuxVM `
   --resource-group $ResourceGroup `
   --scripts 'apt-get install unzip -y'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installUnzipResponse")
@@ -173,7 +178,7 @@ Write-Output $ProcessSeparator
 # Unzip the file on LS1
 Write-Output "`nUnzipping the file on LS1..."
 $extractLinuxArchiveResponse = .\extract_archive.ps1 `
-    -VMName $LinuxVMName `
+    -VMName $LinuxVM `
     -ResourceGroup $ResourceGroup `
     -FileName "configure.zip" `
     -Os "Linux"
@@ -184,7 +189,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nMaking the installer files executable and updating the system packages on LS1..."
 $updateLinuxResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name $LinuxVMName `
+  --name $LinuxVM `
   --resource-group $ResourceGroup `
   --scripts 'chmod +x /home/admin.ackbar/lme/configure/* && /home/admin.ackbar/lme/configure/linux_update_system.sh'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$updateLinuxResponse")
@@ -194,7 +199,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nRunning the lme installer on LS1..."
 $installLmeResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name $LinuxVMName `
+  --name $LinuxVM `
   --resource-group $ResourceGroup `
   --scripts '/home/admin.ackbar/lme/configure/linux_install_lme.sh'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installLmeResponse")
@@ -204,17 +209,17 @@ Write-Output $ProcessSeparator
 $rebootCheckstring = $installLmeResponse | Out-String
 if ($rebootCheckstring -match "A reboot is required in order to proceed with the install") {
     # Have to check for the reboot thing here
-    Write-Output "`nRebooting ${LinuxVMName}..."
+    Write-Output "`nRebooting ${LinuxVM}..."
     az vm restart `
         --resource-group $ResourceGroup `
-        --name $LinuxVMName
+        --name $LinuxVM
     Write-Output $ProcessSeparator
 
     # Run the lme installer on LS1
     Write-Output "`nRunning the lme installer on LS1..."
     $installLmeResponse = az vm run-command invoke `
         --command-id RunShellScript `
-        --name $LinuxVMName `
+        --name $LinuxVM `
         --resource-group $ResourceGroup `
         --scripts '/home/admin.ackbar/lme/configure/linux_install_lme.sh'
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installLmeResponse")
@@ -225,7 +230,7 @@ if ($rebootCheckstring -match "A reboot is required in order to proceed with the
 Write-Output "`nCapturing the output of the install script for ES passwords..."
 $getElasticsearchPasswordsResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name $LinuxVMName `
+  --name $LinuxVM `
   --resource-group $ResourceGroup `
   --scripts 'tail -n14 "/opt/lme/Chapter 3 Files/output.log" | head -n9'
 
@@ -237,7 +242,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nGenerating key using expect on linux..."
 $generateKeyResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name $LinuxVMName `
+  --name $LinuxVM `
   --resource-group $ResourceGroup `
   --scripts '/home/admin.ackbar/lme/configure/linux_make_private_key.exp'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$generateKeyResponse")
@@ -247,7 +252,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nAdding the public key to the authorized_keys file on LS1..."
 $authorizePrivateKeyResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name $LinuxVMName `
+  --name $LinuxVM `
   --resource-group $ResourceGroup `
   --scripts '/home/admin.ackbar/lme/configure/linux_authorize_private_key.sh'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$authorizePrivateKeyResponse")
@@ -257,10 +262,10 @@ Write-Output $ProcessSeparator
 Write-Output "`nCat the private key and capture that to the azure shell..."
 $jsonResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name $LinuxVMName `
+  --name $LinuxVM `
   --resource-group $ResourceGroup `
   --scripts 'cat /home/admin.ackbar/.ssh/id_rsa'
-$privateKey = ExtractPrivateKeyFromJson -jsonResponse "$jsonResponse"
+$privateKey = Get-PrivateKeyFromJson -jsonResponse "$jsonResponse"
 
 # Save the private key to a file
 Write-Output "`nSaving the private key to a file..."
@@ -279,7 +284,7 @@ $KeyDownloadUrl = ./copy_file_to_container.ps1 `
 # Download the private key to DC1
 Write-Output "`nDownloading the private key to DC1..."
 $downloadPrivateKeyResponse = .\download_in_container.ps1 `
-    -VMName $VmName `
+    -VMName $DomainController `
     -ResourceGroup $ResourceGroup `
     -FileDownloadUrl "$KeyDownloadUrl" `
     -DestinationFilePath "id_rsa"
@@ -290,7 +295,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nChanging the ownership of the private key file on DC1..."
 $chownPrivateKeyResponse = .\run_script_in_container.ps1 `
     -ResourceGroup $ResourceGroup `
-    -VMName $VMName `
+    -VMName $DomainController `
     -ScriptPathOnVM "C:\lme\configure\chown_dc1_private_key.ps1"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$chownPrivateKeyResponse")
 Write-Output $ProcessSeparator
@@ -302,7 +307,7 @@ Remove-Item -Path $privateKeyPath
 Write-Output "`nUsing the azure shell to run scp on DC1 to copy the files from LS1 to DC1..."
 $scpResponse = az vm run-command invoke `
     --command-id RunPowerShellScript `
-    --name $VMName `
+    --name $DomainController `
     --resource-group $ResourceGroup `
     --scripts 'scp -o StrictHostKeyChecking=no -i "C:\lme\id_rsa" admin.ackbar@ls1:/home/admin.ackbar/files_for_windows.zip "C:\lme\"'
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$scpResponse")
@@ -311,7 +316,7 @@ Write-Output $ProcessSeparator
 # Extract the files on DC1
 Write-Output "`nExtracting the files on DC1..."
 $extractFilesForWindowsResponse = .\extract_archive.ps1 `
-    -VMName $VMName `
+    -VMName $DomainController `
     -ResourceGroup $ResourceGroup `
     -FileName "files_for_windows.zip"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$extractFilesForWindowsResponse")
@@ -321,7 +326,7 @@ Write-Output $ProcessSeparator
 Write-Output "`nInstalling winlogbeat on DC1..."
 $installWinlogbeatResponse = .\run_script_in_container.ps1 `
     -ResourceGroup $ResourceGroup `
-    -VMName $VMName `
+    -VMName $DomainController `
     -ScriptPathOnVM "C:\lme\configure\winlogbeat_install.ps1"
 
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installWinlogbeatResponse")
