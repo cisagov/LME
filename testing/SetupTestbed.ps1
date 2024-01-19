@@ -93,9 +93,9 @@ $VMAdmin = "admin.ackbar"
 $DomainName = "lme.local"
 
 #Port options: https://learn.microsoft.com/en-us/cli/azure/network/nsg/rule?view=azure-cli-latest#az-network-nsg-rule-create
-$Ports = 22, 3389
-$Priorities = 1001, 1002
-$Protocols = "Tcp", "Tcp"
+$Ports = 22, 3389, 443, 9200, 5044
+$Priorities = 1001, 1002, 1003, 1004, 1005
+$Protocols = "Tcp", "Tcp", "Tcp", "Tcp", "Tcp"
 
 
 function Get-RandomPassword {
@@ -335,10 +335,10 @@ if (-Not $LinuxOnly){
         --scripts "Add-WindowsFeature AD-Domain-Services -IncludeManagementTools"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDomainServicesResponse")
 
-    Write-Output "`nRestarting DC1..."
-    az vm restart `
-        --resource-group $ResourceGroup `
-        --name DC1 `
+#    Write-Output "`nRestarting DC1..."
+#    az vm restart `
+#        --resource-group $ResourceGroup `
+#        --name DC1 `
 
     Write-Output "`nCreating the ADDS forest..."
     $installAddsForestResponse = az vm run-command invoke `
@@ -349,10 +349,10 @@ if (-Not $LinuxOnly){
     Install-ADDSForest -DomainName $DomainName -Force -SafeModeAdministratorPassword `$Password"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installAddsForestResponse")
 
-    Write-Output "`nRestarting DC1..."
-    az vm restart `
-        --resource-group $ResourceGroup `
-        --name DC1 `
+#    Write-Output "`nRestarting DC1..."
+#    az vm restart `
+#        --resource-group $ResourceGroup `
+#        --name DC1 `
 
     for ($i = 1; $i -le $NumClients; $i++) {
         Write-Output "`nAdding DC IP address to C$i host file..."

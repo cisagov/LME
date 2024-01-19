@@ -33,7 +33,7 @@ echo 'export DEBIAN_FRONTEND=noninteractive' | sudo tee -a /root/.bashrc
 echo 'export NEEDRESTART_MODE=a' | sudo tee -a /root/.bashrc
 
 # Execute script with root privileges
-sudo -E bash -c  "$script_dir/linux_install_lme.exp"
+sudo -E bash -c  ". /root.bashrc && $script_dir/linux_install_lme.exp"
 
 if [ -f "/opt/lme/files_for_windows.zip" ]; then
     sudo cp /opt/lme/files_for_windows.zip /home/"$username"/
