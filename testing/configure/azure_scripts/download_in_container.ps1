@@ -8,7 +8,7 @@ The script takes parameters for VM name, resource group, file URL, destination f
 .PARAMETER VMName
 The name of the Virtual Machine where the file will be downloaded.
 
-.PARAMETER ResourceGroupName
+.PARAMETER ResourceGroup
 The name of the Azure resource group where the VM is located.
 
 .PARAMETER FileDownloadUrl

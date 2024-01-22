@@ -8,7 +8,7 @@ passing specified arguments to it. It uses Azure's 'az vm run-command invoke' to
 located on the VM. The script requires the VM name, resource group name, the full path of the script on the VM,
 and a string of arguments to pass to the script.
 
-.PARAMETER ResourceGroupName
+.PARAMETER ResourceGroup
 The name of the Azure Resource Group that contains the VM.
 
 .PARAMETER VMName

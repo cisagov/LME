@@ -8,7 +8,7 @@ Requires the Azure Resource Group name as a mandatory argument.
 Generates unique names for the storage account and container, creates the storage account, retrieves the storage account key,
 creates a blob container, and saves the configuration to a 'config.ps1' file in the script's directory.
 
-.PARAMETER ResourceGroupName
+.PARAMETER ResourceGroup
 The name of the Azure Resource Group for the storage account and blob container.
 
 .EXAMPLE

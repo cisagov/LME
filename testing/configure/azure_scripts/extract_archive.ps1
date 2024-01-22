@@ -10,7 +10,7 @@ and unzips the file. The script requires the VM name, resource group name, usern
 .PARAMETER VMName
 The name of the Azure Virtual Machine where the file will be unzipped.
 
-.PARAMETER ResourceGroupName
+.PARAMETER ResourceGroup
 The name of the Azure Resource Group that contains the VM.
 
 .PARAMETER Filename
