@@ -740,6 +740,7 @@ function fixreadability() {
 
 
 function install() {
+  export FRESH_INSTALL="true"
   echo -e "Will execute the following intrusive actions:\n\t- apt update & upgrade\n\t- install docker (please uninstall before proceeding, or indicate skipping the install)\n\t- initialize docker swarm (execute \`sudo docker swarm leave --force\`  before proceeding if you are part of a swarm\n\t- automatic os updates via unattened-upgrades\n\t- checkout lme directory to latest version, and throw away local changes)"
 
   prompt "Proceed?"
