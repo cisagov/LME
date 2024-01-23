@@ -50,9 +50,8 @@ Write-Output "`nSourcing the variables from the file..."
 # Remove old code if it exists
 if (Test-Path ./configure.zip) {
     Remove-Item ./configure.zip -Force -Confirm:$false -ErrorAction SilentlyContinue
-} else {
-    Write-Output "File not found."
 }
+
 Write-Output $ProcessSeparator
 
 # Zip up the installer scripts for the VM
@@ -342,11 +341,6 @@ if (-Not $LinuxOnly){
     Write-Output $ProcessSeparator
 }
 
-Write-Output "`nInstall completed."
-
-$EsPasswords = (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")[0].StdOut
-# Output the passwords
-$EsPasswords
 
 Write-Output "`nRunning the tests for lme on LS1..."
 $runTestResponse = az vm run-command invoke `
@@ -366,6 +360,12 @@ if ($message -match '\[stderr\]\n(.+)$') {
 } else {
     Write-Host "Tests succeeded"
 }
+
+Write-Output "`nInstall completed."
+
+$EsPasswords = (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")[0].StdOut
+# Output the passwords
+$EsPasswords
 
 # Write the passwords to a file
 $PasswordPath = "..\..\${ResourceGroup}.password.txt"
