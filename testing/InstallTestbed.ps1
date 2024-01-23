@@ -348,6 +348,25 @@ $EsPasswords = (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPass
 # Output the passwords
 $EsPasswords
 
+Write-Output "`nRunning the tests for lme on LS1..."
+$runTestResponse = az vm run-command invoke `
+  --command-id RunShellScript `
+  --name LS1 `
+  --resource-group LME-cbaxley-L3 `
+  --scripts '/home/admin.ackbar/lme/configure/linux_test_install.sh' | ConvertFrom-Json
+
+$message = $runTestResponse.value[0].message
+Write-Host "$message`n"
+Write-Host "--------------------------------------------"
+
+# Check if there is stderr content in the message field
+if ($message -match '\[stderr\]\n(.+)$') {
+    Write-Host "Tests failed"
+    exit 1
+} else {
+    Write-Host "Tests succeeded"
+}
+
 # Write the passwords to a file
 $PasswordPath = "..\..\${ResourceGroup}.password.txt"
 $EsPasswords | Out-File -Append -FilePath $PasswordPath
