@@ -345,8 +345,8 @@ if (-Not $LinuxOnly){
 Write-Output "`nRunning the tests for lme on LS1..."
 $runTestResponse = az vm run-command invoke `
   --command-id RunShellScript `
-  --name LS1 `
-  --resource-group LME-cbaxley-L3 `
+  --name $LinuxVM `
+  --resource-group  $ResourceGroup `
   --scripts '/home/admin.ackbar/lme/configure/linux_test_install.sh' | ConvertFrom-Json
 
 $message = $runTestResponse.value[0].message
