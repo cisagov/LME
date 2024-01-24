@@ -109,35 +109,17 @@ LME v1.0 made a minor change to the file structure used in the SYSVOL folder, so
 3. Is the LME folder inside SYSVOL properly structured? Refer to the checklist listed at the end of chapter 2.
 4. Are the events from all clients visible inside elastic? Refer to [4.1.2 Check you are receiving logs](/docs/markdown/chapter4.md#412-check-you-are-receiving-logs).
 
-
-## 4. Upgrade from v1.0.0 to v1.1.0
-To fetch the latest changes, on the Linux server, run the following commands as root:
-```
-cd /opt/lme
-git pull
-git checkout main 
-```
-
-To manually update the dashboards, see [How to update dashboards](/Chapter%204%20Files/dashboards#how-to-update-dashboards).
-
-Additionally, to fix a potential file permission issue present in v1.0.0, run the following command on the Linux server:
-```
-sudo chown -R 1000:1000 /opt/lme/backups
-```
-
-See [Directory permission issues](/docs/markdown/reference/troubleshooting.md#directory-permission-issues) for more details.
-
-## 5. Upgrade to v1.3.1 
+## 4. Upgrade to v1.3.1 
 
 This is a hotfix to the install script and some additional troubleshooting steps added to documentation on space management. Unless you're encountering problems with your current installation, or if your logs are running out of space, there's no need to upgrade to v1.3.1, as it doesn't offer any additional functionality changes.
 
-## 6. Upgrade to v1.3.2 
+## 5. Upgrade to v1.3.2 
 
-This is a hotfix to address dashboards which failed to load on a fresh install of v1.3.1. Unless you've already installed v1.3.1, then there's no need to upgrade to v1.3.2, as it doesn't offer additional functionality changes. 
+This is a hotfix to address dashboards which failed to load on a fresh install of v1.3.1. If you are currently running v1.3.0, you do not need to upgrade at this time.  If you are running versions **before** 1.3.0 or are running v1.3.1, we recommend you upgrade to the latest version.
 
 Please refer to the [Upgrading to latest version](/docs/markdown/maintenance/upgrading.md#upgrading-to-latest-version) to apply the hotfix.
 
-## 7. Upgrade to latest version 
+## 6. Upgrade to latest version 
 To fetch the latest changes, on the Linux server, run the following commands as root:
 ```
 git pull
