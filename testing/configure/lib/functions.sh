@@ -1,10 +1,10 @@
-# Function to extract credentials from a log file
 extract_credentials() {
-    local file_path=$1
+    # Set default file path if not provided
+    local file_path=${1:-'/opt/lme/Chapter 3 Files/output.log'}
 
     # Check if the file exists
     if [ ! -f "$file_path" ]; then
-        echo "File not found!"
+        echo "File not found: $file_path"
         return 1
     fi
 
@@ -29,7 +29,3 @@ extract_credentials() {
         esac
     done < <(tail -n 18 "$file_path" | grep -E "(elastic|kibana|logstash_system|logstash_writer|dashboard_update):")
 }
-
-# Usage in another script
-# source /path/to/credential_extractor.sh
-# extract_credentials '/opt/lme/Chapter 3 Files/output.log'

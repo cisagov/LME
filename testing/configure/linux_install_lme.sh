@@ -35,6 +35,8 @@ echo 'export NEEDRESTART_MODE=a' | sudo tee -a /root/.bashrc
 # Execute script with root privileges
 sudo -E bash -c  ". /root/.bashrc && $script_dir/linux_install_lme.exp"
 
+chmod ugo+w "/opt/lme/Chapter\ 3\ Files/output.log"
+
 if [ -f "/opt/lme/files_for_windows.zip" ]; then
     sudo cp /opt/lme/files_for_windows.zip /home/"$username"/
     sudo chown "$username":"$username" /home/"$username"/files_for_windows.zip
