@@ -740,6 +740,7 @@ function fixreadability() {
 
 
 function install() {
+  export FRESH_INSTALL="true"
   echo -e "Will execute the following intrusive actions:\n\t- apt update & upgrade\n\t- install docker (please uninstall before proceeding, or indicate skipping the install)\n\t- initialize docker swarm (execute \`sudo docker swarm leave --force\`  before proceeding if you are part of a swarm\n\t- automatic os updates via unattened-upgrades\n\t- checkout lme directory to latest version, and throw away local changes)"
 
   prompt "Proceed?"
@@ -752,10 +753,11 @@ function install() {
   fi
 
   echo -e "\e[32m[X]\e[0m Updating OS software"
-  apt update && apt upgrade -y
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get  upgrade -yq
 
   echo -e "\e[32m[X]\e[0m Installing prerequisites"
-  apt install ${REQUIRED_PACKS[*]} -y -q
+  DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install ${REQUIRED_PACKS[*]} -yq
 
   if [ -f /var/run/reboot-required ]; then
     echo -e "\e[31m[!]\e[0m A reboot is required in order to proceed with the install."
@@ -1173,7 +1175,7 @@ then
   ready "Will install the following packages: ${missing_pkgs[*]}. These are required for LME." 
   sudo apt-get update
   #confirm install
-  sudo apt-get --yes install ${missing_pkgs[*]}
+  sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -yq install ${missing_pkgs[*]}
 fi
 
 #Change current working directory so relative filepaths work
