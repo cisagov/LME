@@ -21,14 +21,16 @@ while IFS= read -r line; do
     value=$(echo "$value" | sed 's/[^[:alnum:]_]//g')
 
     case $key in
-        "elastic") elastic=$value ;;
-        "kibana") kibana=$value ;;
-        "logstash_system") logstash_system=$value ;;
-        "logstash_writer") logstash_writer=$value ;;
-        "dashboard_update") dashboard_update=$value ;;
+        "elastic") export elastic=$value ;;
+        "kibana") export kibana=$value ;;
+        "logstash_system") export logstash_system=$value ;;
+        "logstash_writer") export logstash_writer=$value ;;
+        "dashboard_update") export dashboard_update=$value ;;
     esac
 done < <(tail -n 18 "$file_path" | grep -E "(elastic|kibana|logstash_system|logstash_writer|dashboard_update):")
 
+process.env.elastic
+export elastic=blah node bruno whatever
 
 check_variable() {
     local var_name="$1"

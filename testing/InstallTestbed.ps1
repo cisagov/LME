@@ -317,7 +317,7 @@ if (-Not $LinuxOnly){
         --command-id RunPowerShellScript `
         --name $DomainController `
         --resource-group $ResourceGroup `
-        --scripts 'scp -o StrictHostKeyChecking=no -i "C:\lme\id_rsa" admin.ackbar@ls1:/home/admin.ackbar/files_for_windows.zip "C:\lme\"'
+        --scripts 'scp -o StrictHostKeyChecking=no -i "C:\lme\id_rsa" admin.ackbar@ls1.lme.local:/home/admin.ackbar/files_for_windows.zip "C:\lme\"'
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$scpResponse")
     Write-Output $ProcessSeparator
 
