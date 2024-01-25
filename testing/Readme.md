@@ -22,6 +22,7 @@ This script does not install LME; it simply creates a fresh environment that's r
 | $AllowedSources    | -s        | Comma-Separated list of CIDR prefixes or IP ranges, e.g. XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc..., that are allowed to connect to the VMs via RDP and ssh.            | Yes          |
 | $Location          | -l        | The region you would like to build the assets in. Defaults to westus                                                                                              | No           |
 | $NoPrompt          | -y        | Switch, run the script with no prompt (useful for automated runs). By default, the script will prompt the user to review paramters and confirm before continuing. | No           |
+| $LinuxOnly         | -m        | Run a minimal install of only the linux server                                                                                                                    | No           |
 
 Example:
 ```
@@ -59,16 +60,17 @@ Flags:
 ## Install LME on the cluster:
 ### InstallTestbed.ps1
 ## Usage
-| **Parameter**     | **Alias** | **Description**                                                                        | **Required** |
-|-------------------|-----------|----------------------------------------------------------------------------------------|--------------|
-| $ResourceGroup    | -g        | The name of the resource group that will be created for storing all testbed resources. | Yes          |
-| $NumClients       | -n        | The number of Windows clients you have created; defaults to 2                          | No           |
-| $DomainController | -w        | The name of the domain controller in the cluster; defaults to "DC1"                    | No           |
-| $LinuxVm          | -l        | The name of the linux server in the cluster; defaults to "LS1"                         | No           |
+| **Parameter**       | **Alias** | **Description**                                                                        | **Required** |
+|---------------------|-----------|----------------------------------------------------------------------------------------|--------------|
+| $ResourceGroup      | -g        | The name of the resource group that will be created for storing all testbed resources. | Yes          |
+| $NumClients         | -n        | The number of Windows clients you have created; defaults to 2                          | No           |
+| $DomainController   | -w        | The name of the domain controller in the cluster; defaults to "DC1"                    | No           |
+| $LinuxVm            | -l        | The name of the linux server in the cluster; defaults to "LS1"                         | No           |
+| $LinuxOnly          | -m        | Run a minimal install of only the linux server                                         | No           |
 
 Example:
 ```
-./InstallTestbed.ps1 --ResourceGroup YourResourceGroup 
+./InstallTestbed.ps1 -ResourceGroup YourResourceGroup 
 # Or if you want to save the output to a file
 ./InstallTestbed.ps1 -ResourceGroup YourResourceGroup  | Tee-Object -FilePath "./YourResourceGroup.output.log"
 ```
