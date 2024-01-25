@@ -478,62 +478,20 @@ get_distribution() {
 
 function indexmappingupdate() {
   echo -e "\n\e[32m[X]\e[0m Uploading the LME index template"
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_index_template/lme_template" -H 'Content-Type: application/json' --data "@winlog-index-mapping.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_index_template/lme_template" -H 'Content-Type: application/json' --data "@winlogbeat-template.json"
 }
 
 function pipelineupdate() {
   echo -e "\n\e[32m[X]\e[0m Setting Elastic pipelines"
 
   #create beats pipeline
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat" -H 'Content-Type: application/json' -d'
-{
-  "description": "Add geoip info and ingest timestamp",
-  "processors": [
-    {
-      "geoip": {
-        "field": "client.ip",
-        "target_field": "client.geo",
-        "ignore_missing": true
-      }
-    },
-    {
-      "geoip": {
-        "field": "source.ip",
-        "target_field": "source.geo",
-        "ignore_missing": true
-      }
-    },
-    {
-      "geoip": {
-        "field": "destination.ip",
-        "target_field": "destination.geo",
-        "ignore_missing": true
-      }
-    },
-    {
-      "geoip": {
-        "field": "server.ip",
-        "target_field": "server.geo",
-        "ignore_missing": true
-      }
-    },
-    {
-      "geoip": {
-        "field": "host.ip",
-        "target_field": "host.geo",
-        "ignore_missing": true
-      }
-    },
-    { 
-      "set": { 
-        "field": "event.ingested", 
-        "value": "{{_ingest.timestamp}}",
-        "ignore_failure": true 
-      } 
-    }
-  ]
-}
-'
+  # winlogbeat.json is routing pipeline
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat" -H 'Content-Type: application/json' --data "@winlogbeat.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-powershell" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-powershell.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-powershell_operational" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-powershell_operational.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-security" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-security.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-sysmon" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-sysmon.json"
+
 }
 
 function data_retention() {
