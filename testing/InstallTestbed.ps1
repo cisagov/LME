@@ -39,7 +39,7 @@ else {
     Write-Error "Library script not found at path: $LibraryPath"
 }
 
-if ($Version -and -not ($Version -match '^[0-9]+\.[0-9]+\.[0-9]+$')) {
+if ($Version -ne $false -and -not ($Version -match '^[0-9]+\.[0-9]+\.[0-9]+$')) {
     Write-Host "Invalid version format: $Version. Expected format: X.Y.Z (e.g., 1.3.0)"
     exit 1
 }
@@ -210,7 +210,8 @@ $updateLinuxResponse = az vm run-command invoke `
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$updateLinuxResponse")
 Write-Output $ProcessSeparator
 
-if ($Version) {
+$versionArgument = ""
+if ($Version -ne $false) {
     $versionArgument = " -v $Version"
 }
 Write-Output "`nRunning the lme installer on LS1..."
