@@ -14,9 +14,12 @@ param (
 
     [Alias("m")]
     [Parameter(
-            HelpMessage = "(minimal) Only install the linux server. Useful for testing the linux server without the windows clients"
+        HelpMessage = "(minimal) Only install the linux server. Useful for testing the linux server without the windows clients"
     )]
-    [switch]$LinuxOnly
+    [switch]$LinuxOnly,
+
+    [Alias("v")]
+    [string]$Version = $false
 )
 
 # If you were to need the password from the SetupTestbed.ps1 script, you could use this:
@@ -34,6 +37,11 @@ if (Test-Path -Path $LibraryPath) {
 }
 else {
     Write-Error "Library script not found at path: $LibraryPath"
+}
+
+if ($Version -and -not ($Version -match '^[0-9]+\.[0-9]+\.[0-9]+$')) {
+    Write-Host "Invalid version format: $Version. Expected format: X.Y.Z (e.g., 1.3.0)"
+    exit 1
 }
 
 # Create a container to keep files for the VM
@@ -193,7 +201,6 @@ $extractLinuxArchiveResponse = .\extract_archive.ps1 `
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$extractLinuxArchiveResponse")
 Write-Output $ProcessSeparator
 
-# Make the installer files executable and update the system packages on LS1
 Write-Output "`nMaking the installer files executable and updating the system packages on LS1..."
 $updateLinuxResponse = az vm run-command invoke `
   --command-id RunShellScript `
@@ -203,13 +210,15 @@ $updateLinuxResponse = az vm run-command invoke `
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$updateLinuxResponse")
 Write-Output $ProcessSeparator
 
-# Run the lme installer on LS1
+if ($Version) {
+    $versionArgument = " -v $Version"
+}
 Write-Output "`nRunning the lme installer on LS1..."
 $installLmeResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVM `
   --resource-group $ResourceGroup `
-  --scripts '/home/admin.ackbar/lme/configure/linux_install_lme.sh'
+  --scripts "/home/admin.ackbar/lme/configure/linux_install_lme.sh $versionArgument"
 Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installLmeResponse")
 Write-Output $ProcessSeparator
 
@@ -223,13 +232,12 @@ if ($rebootCheckstring -match "A reboot is required in order to proceed with the
         --name $LinuxVM
     Write-Output $ProcessSeparator
 
-    # Run the lme installer on LS1
     Write-Output "`nRunning the lme installer on LS1..."
     $installLmeResponse = az vm run-command invoke `
         --command-id RunShellScript `
         --name $LinuxVM `
         --resource-group $ResourceGroup `
-        --scripts '/home/admin.ackbar/lme/configure/linux_install_lme.sh'
+        --scripts "/home/admin.ackbar/lme/configure/linux_install_lme.sh $versionArgument"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installLmeResponse")
     Write-Output $ProcessSeparator
 }

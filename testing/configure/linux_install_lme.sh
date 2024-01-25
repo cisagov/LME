@@ -9,19 +9,58 @@ script_dir=$(pwd)
 # Default username
 username="admin.ackbar"
 
-# Parse flag-based arguments
-while getopts "u:" opt; do
+# Process command line arguments
+while getopts "u:v:" opt; do
   case $opt in
     u) username=$OPTARG ;;
+    v) version=$OPTARG ;;
     \?) echo "Invalid option -$OPTARG" >&2; exit 1 ;;
   esac
 done
 
+# Check if version matches the pattern
+if [[ -n "$version" && ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Invalid version format. Version should match \d+.\d+.\d+"
+    exit 1
+fi
+
 # Download a copy of the LME files
 #sudo git clone https://github.com/cisagov/lme.git /opt/lme/
-sudo git clone -b cbaxley-122-testbed_from_scripts https://github.com/cisagov/lme.git /opt/lme/
+#sudo git clone -b cbaxley-122-testbed_from_scripts https://github.com/cisagov/lme.git /opt/lme/
 # curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {}' && unzip -d /opt/lme/ "$(basename {})"'
 # https://github.com/cisagov/LME/archive/refs/tags/v1.3.1.zip
+
+# Remove any existing LME directories
+sudo rm -rf /opt/cisagov-LME-* /opt/lme
+
+# Get the tarball URL for the specified version
+get_tarball_url() {
+    echo "https://api.github.com/repos/cisagov/LME/tarball/v$1"
+}
+
+# Check if a version is provided
+if [ -n "$version" ]; then
+    tarball_url=$(get_tarball_url "$version")
+else
+    tarball_url=$(curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.tarball_url')
+fi
+
+# Get the version from the tarball URL
+v_version=$(basename "$tarball_url")
+
+echo "Downloading $tarball_url to file: $v_version"
+curl -L "$tarball_url" -o "$v_version"
+
+# extracts it to a folder like cisagov-LME-3412897
+sudo tar -xzpf "$v_version" -C /opt
+rm -rf "$v_version"
+
+extracted_filename=$(sudo ls -ltd /opt/cisagov-LME-* | grep "^d" | head -n 1 | awk '{print $NF}')
+
+echo "Extracted to $extracted_filename"
+
+echo "Renaming directory to /opt/lme"
+sudo mv "$extracted_filename" /opt/lme
 
 
 echo 'export DEBIAN_FRONTEND=noninteractive' >> ~/.bashrc
