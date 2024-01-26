@@ -417,7 +417,7 @@ if (-Not $LinuxOnly){
     Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName. -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00 -AsJob
 }
 `$job = Start-Job -ScriptBlock `$scriptBlock
-`$timeout = 60
+`$timeout = 90
 if (Wait-Job -Job `$job -Timeout `$timeout) {
     Receive-Job -Job `$job
     Write-Host 'The script completed within the timeout period.'
