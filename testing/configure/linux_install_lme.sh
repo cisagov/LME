@@ -74,5 +74,5 @@ if [ -f "/opt/lme/files_for_windows.zip" ]; then
     sudo cp /opt/lme/files_for_windows.zip /home/"$username"/
     sudo chown "$username":"$username" /home/"$username"/files_for_windows.zip
 else
-    echo "files_for_windows.zip does not exist. Probably because the LME install requires a reboot."
+    echo "files_for_windows.zip does not exist. Probably because a reboot is required in order to proceed with the install"
 fi

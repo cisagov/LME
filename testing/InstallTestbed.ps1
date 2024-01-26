@@ -225,7 +225,7 @@ Write-Output $ProcessSeparator
 
 # Check if the response contains the need to reboot
 $rebootCheckstring = $installLmeResponse | Out-String
-if ($rebootCheckstring -match "A reboot is required in order to proceed with the install") {
+if ($rebootCheckstring -match "reboot is required in order to proceed with the install") {
     # Have to check for the reboot thing here
     Write-Output "`nRebooting ${LinuxVM}..."
     az vm restart `
