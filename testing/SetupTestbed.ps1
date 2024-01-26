@@ -349,10 +349,10 @@ if (-Not $LinuxOnly){
     Install-ADDSForest -DomainName $DomainName -Force -SafeModeAdministratorPassword `$Password"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$installAddsForestResponse")
 
-#    Write-Output "`nRestarting DC1..."
-#    az vm restart `
-#        --resource-group $ResourceGroup `
-#        --name DC1 `
+    Write-Output "`nRestarting DC1..."
+    az vm restart `
+        --resource-group $ResourceGroup `
+        --name DC1 `
 
     for ($i = 1; $i -le $NumClients; $i++) {
         Write-Output "`nAdding DC IP address to C$i host file..."
