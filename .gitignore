@@ -16,3 +16,4 @@ files_for_windows.zip
 lme.conf
 lme_update.sh
 /testing/tests/venv/
+/testing/tests/.env

@@ -1,18 +1,34 @@
+import json
+import warnings
+
+import pytest
+from jsonschema import validate
+from jsonschema.exceptions import ValidationError
 import requests
 from requests.auth import HTTPBasicAuth
 import urllib3
-import pytest
 import os
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+current_script_path = os.path.abspath(__file__)
+current_script_dir = os.path.dirname(current_script_path)
+
 
 def make_request(url, username, password):
     auth = HTTPBasicAuth(username, password)
     response = requests.get(url, auth=auth, verify=False)
     return response
 
-def test_url_status():
+def load_json_schema(file_path):
+    with open(file_path, 'r') as file:
+        return json.load(file)
+@pytest.fixture(autouse=True)
+def suppress_insecure_request_warning():
+    warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+
+def test_elastic_root():
     # Get the password from environment variable
     es_host = os.getenv('ES_HOST', 'localhost')
     es_port = os.getenv('ES_PORT', '9200')
@@ -21,3 +37,12 @@ def test_url_status():
     url = f"https://{es_host}:{es_port}"
     response = make_request(url, username, password)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    body = response.json()
+    assert body['name'] == 'es01', f"Expected 'es01', got {body['name']}"
+    schema = load_json_schema(f"{current_script_dir}/schemas/es_root.json")
+    try:
+        validate(instance=response.text, schema=schema)
+        print("JSON data is valid.")
+    except ValidationError as ve:
+        print("JSON data is invalid.")
+        print(ve)
