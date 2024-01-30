@@ -487,10 +487,10 @@ function pipelineupdate() {
   #create beats pipeline
   # winlogbeat.json is routing pipeline
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat" -H 'Content-Type: application/json' --data "@winlogbeat.json"
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-powershell" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-powershell.json"
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-powershell_operational" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-powershell_operational.json"
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-security" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-security.json"
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5-sysmon" -H 'Content-Type: application/json' --data "@winlogbeat-8.5-sysmon.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5.0-powershell" -H 'Content-Type: application/json' --data "@winlogbeat-8.5.0-powershell.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5.0-powershell_operational" -H 'Content-Type: application/json' --data "@winlogbeat-8.5.0-powershell_operational.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5.0-security" -H 'Content-Type: application/json' --data "@winlogbeat-8.5.0-security.json"
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ingest/pipeline/winlogbeat-8.5.0-sysmon" -H 'Content-Type: application/json' --data "@winlogbeat-8.5.0-sysmon.json"
 
 }
 

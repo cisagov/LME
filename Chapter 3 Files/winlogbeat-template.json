@@ -1,7 +1,7 @@
 {
   "data_stream": {},
   "index_patterns": [
-    "winlogbeat-8.5.0"
+    "winlogbeat-*"
   ],
   "priority": 150,
   "template": {
