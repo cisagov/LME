@@ -69,7 +69,7 @@ echo 'export NEEDRESTART_MODE=a' | sudo tee -a /root/.bashrc
 # Todo: We could put a switch here for different versions and just run different expect scripts
 sudo -E bash -c  ". /root/.bashrc && $script_dir/linux_install_lme.exp"
 
-chmod ugo+w "/opt/lme/Chapter\ 3\ Files/output.log"
+chmod ugo+w "/opt/lme/Chapter 3 Files/output.log"
 
 if [ -f "/opt/lme/files_for_windows.zip" ]; then
     sudo cp /opt/lme/files_for_windows.zip /home/"$username"/
