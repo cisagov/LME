@@ -1,7 +1,7 @@
 # Installation steps to run API tests
 
 Run through the following steps to get API tests up and running on your Azure test bed.
-Checkout the following LME Branch on your Azure LME folder: cbaxley-122-testbed_from_scripts
+Checkout the following main LME Branch on your Azure LME folder.
 After the Git Pull has been completed, go to LME/testing folder and run the following command:
 ```
 ./SetupTestbed.ps1 -NumClients 2 -AutoShutdownTime 0000 -AllowedSources "<YourIPAddress>" -l <Location> -ResourceGroup <ResourceGroupName> -m  -y
@@ -10,7 +10,7 @@ Note: The -m option is for minimum install, will only install the Linux Server. 
 
 After the above command has been completed, run the following command:
 ```
-./InstallTestbed.ps1 -ResourceGroup <ResourceGroupName> -m -v 1.3.2  | Tee-Object -FilePath "./L1.output.log"
+./InstallTestbed.ps1 -ResourceGroup <ResourceGroupName> -m -v 1.3.2  | Tee-Object -FilePath "./<ResourceGroupName>.output.log"
 ```
 Note: -v 1.3.2 in above command is also optional. If not specified, it will default to latest main branch.
 
