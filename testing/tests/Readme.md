@@ -1,7 +1,7 @@
 # Installation steps to run API tests
 
 Run through the following steps to get API tests up and running on your Azure test bed.
-Checkout the following main LME Branch on your Azure LME folder.
+Checkout main LME Branch on your Azure LME folder.
 After the Git Pull has been completed, go to LME/testing folder and run the following command:
 ```
 ./SetupTestbed.ps1 -NumClients 2 -AutoShutdownTime 0000 -AllowedSources "<YourIPAddress>" -l <Location> -ResourceGroup <ResourceGroupName> -m  -y
