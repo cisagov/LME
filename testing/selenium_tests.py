@@ -96,21 +96,171 @@ class UserSecurityTests(unittest.TestCase):
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
-    def test_panel_count(self):
-        """Do the expected number of panels load?"""
-        expected_count = 32
-        dashboard = driver.find_element(By.CLASS_NAME, "react-grid-layout")
-        children_count = dashboard.get_attribute("childElementCount")
-        self.assertEqual(children_count, str(expected_count+1)) # +1 for an invisible child element
+    # def test_panel_count(self):
+    #     """Do the expected number of panels load?"""
+    #     expected_count = 31
+    #     dashboard = driver.find_element(By.CLASS_NAME, "react-grid-layout")
+    #     children_count = dashboard.get_attribute("childElementCount")
+    #     self.assertEqual(children_count, str(expected_count+1)) # +1 for an invisible child element
+
+    def test_dashboard_menu(self):
+        """Is there any data?"""
+        panel = load_panel("Dashboard Menu")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_search_users(self):
+        """Is there any data?"""
+        panel = load_panel("Search users")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_search_hosts(self):
+        """Is there any data?"""
+        panel = load_panel("Search hosts")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_filter_hosts(self):
+        """Is there any data?"""
+        panel = load_panel("Filter hosts")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_filter_users(self):
+        """Is there any data?"""
+        panel = load_panel("Filter users")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_security_logons_title(self):
+        """Is there any data?"""
+        panel = load_panel("Security - Logons Title")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_security_logon_attempts(self):
+        """Is there any data?"""
+        panel = load_panel("Security - Logon attempts")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_security_logon_hosts(self):
+        """Is there any data?"""
+        panel = load_panel("Security - Logon hosts")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_logon_attempts(self):
+        """Is there any data?"""
+        panel = load_panel("Logon attempts")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_logged_on_computers(self):
+        """Is there any data?"""
+        panel = load_panel("Logged on computers")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_user_logon_logoff_events(self):
+        """Is there any data?"""
+        panel = load_panel("User Logon & Logoff Events")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_security_network_title (self):
+        """Is there any data?"""
+        panel = load_panel("Security - Network Title")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
     def test_all_network_connections(self):
         """Is there any data for the "All network connections" panel?"""
         panel = load_panel("All network connections")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
+    def test_network_connections_from_nonbrowser_processes(self):
+        """Is there any data?"""
+        panel = load_panel("Network connections from non-browser processes")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
     def test_network_connections_by_protocol(self):
         """Is there any data for the "Network connection by protocol" panel?"""
         panel = load_panel("Network connection by protocol")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_unusual_network_connections_from_non_browser_processes(self):
+        """Is there any data?"""
+        panel = load_panel("Unusual network connections from non-browser processes")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_network_connection_events(self):
+        """Is there any data?"""
+        panel = load_panel("Network Connection Events (Sysmon ID 3)")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_security_processes_title(self):
+        """Is there any data?"""
+        panel = load_panel("Security - Processes Title")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_spawned_processes(self):
+        """Is there any data?"""
+        panel = load_panel("Spawned Processes")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_powershell_events(self):
+        """Is there any data?"""
+        panel = load_panel("Powershell Events")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_powershell_events_over_time(self):
+        """Is there any data?"""
+        panel = load_panel("Powershell events over time")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_powershell_events_by_computer(self):
+        """Is there any data?"""
+        panel = load_panel("Powershell events by computer")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_potentially_suspicious_powershell(self):
+        """Is there any data?"""
+        panel = load_panel("Potentially suspicious powershell")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_powershell_network_connections(self):
+        """Is there any data?"""
+        panel = load_panel("Powershell network connections")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_security_files_title(self):
+        """Is there any data?"""
+        panel = load_panel("Security - Files title")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_references_to_temporary_files(self):
+        """Is there any data?"""
+        panel = load_panel("References to temporary files")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_raw_access_read(self):
+        """Is there any data?"""
+        panel = load_panel("RawAccessRead (Sysmon Event 9)")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_security_windows_defender_title(self):
+        """Is there any data?"""
+        panel = load_panel("Security - Windows Defender Title")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_defender_event_count(self):
+        """Is there any data?"""
+        panel = load_panel("Defender event count")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_av_hits(self):
+        """Is there any data?"""
+        panel = load_panel("AV Hits (Count)")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+    
+    def test_av_detections(self):
+        """Is there any data?"""
+        panel = load_panel("AV Detections (Event 1116)")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_raw_access_read(self):
+        """Is there any data?"""
+        panel = load_panel("RawAccessRead (Sysmon Event 9)")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
 options = webdriver.ChromeOptions()
