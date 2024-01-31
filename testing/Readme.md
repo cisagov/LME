@@ -60,13 +60,15 @@ Flags:
 ## Install LME on the cluster:
 ### InstallTestbed.ps1
 ## Usage
-| **Parameter**       | **Alias** | **Description**                                                                        | **Required** |
-|---------------------|-----------|----------------------------------------------------------------------------------------|--------------|
-| $ResourceGroup      | -g        | The name of the resource group that will be created for storing all testbed resources. | Yes          |
-| $NumClients         | -n        | The number of Windows clients you have created; defaults to 2                          | No           |
-| $DomainController   | -w        | The name of the domain controller in the cluster; defaults to "DC1"                    | No           |
-| $LinuxVm            | -l        | The name of the linux server in the cluster; defaults to "LS1"                         | No           |
-| $LinuxOnly          | -m        | Run a minimal install of only the linux server                                         | No           |
+| **Parameter**     | **Alias** | **Description**                                                                        | **Required** |
+|-------------------|-----------|----------------------------------------------------------------------------------------|--------------|
+| $ResourceGroup    | -g        | The name of the resource group that will be created for storing all testbed resources. | Yes          |
+| $NumClients       | -n        | The number of Windows clients you have created; defaults to 2                          | No           |
+| $DomainController | -w        | The name of the domain controller in the cluster; defaults to "DC1"                    | No           |
+| $LinuxVm          | -l        | The name of the linux server in the cluster; defaults to "LS1"                         | No           |
+| $LinuxOnly        | -m        | Run a minimal install of only the linux server                                         | No           |
+| $Version          | -v        | Optionally provide a version to install if you want a specific one. `-v 1.3.2`         | No           |
+| $Branch           | -b        | Optionally provide a branch to install if you want a specific one   `-b your_branch`   | No           |
 
 Example:
 ```

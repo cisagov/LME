@@ -10,10 +10,11 @@ script_dir=$(pwd)
 username="admin.ackbar"
 
 # Process command line arguments
-while getopts "u:v:" opt; do
+while getopts "u:v:b:" opt; do
   case $opt in
     u) username=$OPTARG ;;
     v) version=$OPTARG ;;
+    b) branch=$OPTARG ;;
     \?) echo "Invalid option -$OPTARG" >&2; exit 1 ;;
   esac
 done
@@ -32,30 +33,35 @@ get_tarball_url() {
     echo "https://api.github.com/repos/cisagov/LME/tarball/v$1"
 }
 
-# Check if a version is provided
-if [ -n "$version" ]; then
-    tarball_url=$(get_tarball_url "$version")
+if [ -n "$branch" ]; then
+    # Clone from the specified branch
+    git clone --branch "$branch" https://github.com/cisagov/LME.git /opt/lme
 else
-    tarball_url=$(curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.tarball_url')
+  echo "Getting the code from GitHub"
+  # Check if a version is provided
+  if [ -n "$version" ]; then
+      tarball_url=$(get_tarball_url "$version")
+  else
+      tarball_url=$(curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.tarball_url')
+  fi
+
+  # Get the version from the tarball URL
+  v_version=$(basename "$tarball_url")
+
+  echo "Downloading $tarball_url to file: $v_version"
+  curl -L "$tarball_url" -o "$v_version"
+
+  # extracts it to a folder like cisagov-LME-3412897
+  sudo tar -xzpf "$v_version" -C /opt
+  rm -rf "$v_version"
+
+  extracted_filename=$(sudo ls -ltd /opt/cisagov-LME-* | grep "^d" | head -n 1 | awk '{print $NF}')
+
+  echo "Extracted to $extracted_filename"
+
+  echo "Renaming directory to /opt/lme"
+  sudo mv "$extracted_filename" /opt/lme
 fi
-
-# Get the version from the tarball URL
-v_version=$(basename "$tarball_url")
-
-echo "Downloading $tarball_url to file: $v_version"
-curl -L "$tarball_url" -o "$v_version"
-
-# extracts it to a folder like cisagov-LME-3412897
-sudo tar -xzpf "$v_version" -C /opt
-rm -rf "$v_version"
-
-extracted_filename=$(sudo ls -ltd /opt/cisagov-LME-* | grep "^d" | head -n 1 | awk '{print $NF}')
-
-echo "Extracted to $extracted_filename"
-
-echo "Renaming directory to /opt/lme"
-sudo mv "$extracted_filename" /opt/lme
-
 
 echo 'export DEBIAN_FRONTEND=noninteractive' >> ~/.bashrc
 echo 'export NEEDRESTART_MODE=a' >> ~/.bashrc

@@ -19,7 +19,10 @@ param (
     [switch]$LinuxOnly,
 
     [Alias("v")]
-    [string]$Version = $false
+    [string]$Version = $false,
+
+    [Alias("b")]
+    [string]$Branch = $false
 )
 
 # If you were to need the password from the SetupTestbed.ps1 script, you could use this:
@@ -211,7 +214,9 @@ Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse
 Write-Output $ProcessSeparator
 
 $versionArgument = ""
-if ($Version -ne $false) {
+if ($Branch -ne $false) {
+    $versionArgument = " -b '$($Branch)'"
+} elseif ($Version -ne $false) {
     $versionArgument = " -v $Version"
 }
 Write-Output "`nRunning the lme installer on LS1..."
@@ -251,7 +256,7 @@ $getElasticsearchPasswordsResponse = az vm run-command invoke `
   --resource-group $ResourceGroup `
   --scripts 'tail -n14 "/opt/lme/Chapter 3 Files/output.log" | head -n9'
 
-Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")
+# Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")
 Write-Output $ProcessSeparator
 
 if (-Not $LinuxOnly){
