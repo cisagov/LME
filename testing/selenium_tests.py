@@ -96,13 +96,6 @@ class UserSecurityTests(unittest.TestCase):
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
-    # def test_panel_count(self):
-    #     """Do the expected number of panels load?"""
-    #     expected_count = 31
-    #     dashboard = driver.find_element(By.CLASS_NAME, "react-grid-layout")
-    #     children_count = dashboard.get_attribute("childElementCount")
-    #     self.assertEqual(children_count, str(expected_count+1)) # +1 for an invisible child element
-
     def test_dashboard_menu(self):
         """Is there any data?"""
         panel = load_panel("Dashboard Menu")
