@@ -19,6 +19,11 @@ library, such as the -v flag."""
 # Maybe use Write-EventLog to manually trigger events?
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/write-eventlog
 
+# ToDo: 
+# HealthCheck, Alerting, SoftwareOverview, ProcessExplorer, SecurityLog, Sysmon, UserHR
+# Done:
+# UserSecurity
+
 import unittest
 import argparse
 import sys
@@ -121,11 +126,6 @@ class UserSecurityTests(unittest.TestCase):
         panel = load_panel("Filter users")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
-    def test_security_logons_title(self):
-        """Is there any data?"""
-        panel = load_panel("Security - Logons Title")
-        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
-
     def test_security_logon_attempts(self):
         """Is there any data?"""
         panel = load_panel("Security - Logon attempts")
@@ -151,11 +151,6 @@ class UserSecurityTests(unittest.TestCase):
         panel = load_panel("User Logon & Logoff Events")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
-    def test_security_network_title (self):
-        """Is there any data?"""
-        panel = load_panel("Security - Network Title")
-        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
-
     def test_all_network_connections(self):
         """Is there any data for the "All network connections" panel?"""
         panel = load_panel("All network connections")
@@ -179,11 +174,6 @@ class UserSecurityTests(unittest.TestCase):
     def test_network_connection_events(self):
         """Is there any data?"""
         panel = load_panel("Network Connection Events (Sysmon ID 3)")
-        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
-
-    def test_security_processes_title(self):
-        """Is there any data?"""
-        panel = load_panel("Security - Processes Title")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
     def test_spawned_processes(self):
@@ -216,11 +206,6 @@ class UserSecurityTests(unittest.TestCase):
         panel = load_panel("Powershell network connections")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
-    def test_security_files_title(self):
-        """Is there any data?"""
-        panel = load_panel("Security - Files title")
-        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
-
     def test_references_to_temporary_files(self):
         """Is there any data?"""
         panel = load_panel("References to temporary files")
@@ -229,11 +214,6 @@ class UserSecurityTests(unittest.TestCase):
     def test_raw_access_read(self):
         """Is there any data?"""
         panel = load_panel("RawAccessRead (Sysmon Event 9)")
-        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
-
-    def test_security_windows_defender_title(self):
-        """Is there any data?"""
-        panel = load_panel("Security - Windows Defender Title")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
     def test_defender_event_count(self):
@@ -254,6 +234,46 @@ class UserSecurityTests(unittest.TestCase):
     def test_raw_access_read(self):
         """Is there any data?"""
         panel = load_panel("RawAccessRead (Sysmon Event 9)")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+class UserHRTests(unittest.TestCase):
+    """Test cases for the User HR Dashboard"""
+
+    def setUp(self):
+        # The dashboard ID is hard-coded in the ndjson file
+        dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
+        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        WebDriverWait(driver, args.timeout).until(expected_cond)
+
+    def test_dashboard_menu(self):
+        """Is there any data?"""
+        panel = load_panel("Dashboard Menu")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_domains_and_usernames(self):
+        """Is there any data?"""
+        panel = load_panel("Select domain(s) and username(s)")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_filter_users(self):
+        """Is there any data?"""
+        panel = load_panel("Filter Users")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_filter_computers(self):
+        """Is there any data?"""
+        panel = load_panel("Filter Computers")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_filter_users(self):
+        """Is there any data?"""
+        panel = load_panel("Filter Users")
+        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
+
+    def test_all_user_events(self):
+        """Is there any data?"""
+        panel = load_panel("All User Events by Day of Week, Hour of Day")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
 options = webdriver.ChromeOptions()
