@@ -4,7 +4,7 @@
 cd /opt/lme/Chapter\ 3\ Files/
 
 # Adjust the timeout if necessary
-set timeout 1600
+set timeout 60
 set expect_out(buffer_size) 1000000
 
 log_file -a output.log
@@ -47,7 +47,7 @@ sleep 1
 expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
 sleep 1
 send "\r"
-set timeout 600
+set timeout 2600
 
 expect eof
 
