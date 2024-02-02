@@ -4,7 +4,7 @@
 cd /opt/lme/Chapter\ 3\ Files/
 
 # Adjust the timeout if necessary
-set timeout 60
+set timeout 600
 set expect_out(buffer_size) 100000
 
 log_file -a output.log
