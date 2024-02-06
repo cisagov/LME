@@ -538,10 +538,10 @@ function data_retention() {
   DF_OUTPUT="$(df -BG -l -t ext4 --output=source,size /var/lib/docker)"
 
   # Pull device name
-  DISK_DEV="$(echo "$DF_OUTPUT" | sed -n '2p' | awk '{print $2}')"
+  DISK_DEV="$(echo "$DF_OUTPUT" | awk 'NR==2 {print $1}')"
 
   # Pull device size
-  DISK_SIZE="${DISK_DEV/G/}"
+  DISK_SIZE="$(echo "$DF_OUTPUT" | awk 'NR==2 {print $2}' | sed 's/G//')"
 
   # Check if DISK_SIZE is empty or not a number
   if ! [[ "$DISK_SIZE" =~ ^[0-9]+$ ]]; then
