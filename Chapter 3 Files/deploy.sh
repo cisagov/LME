@@ -535,18 +535,17 @@ function pipelineupdate() {
 
 function data_retention() {
   # Show ext4 disk
-  DF_OUTPUT="$(df -h -l -t ext4 --output=source,size /var/lib/docker)"
+  DF_OUTPUT="$(df -BG -l -t ext4 --output=source,size /var/lib/docker)"
 
-  # Pull device name and size
-  DISK_DEV="$(echo "$DF_OUTPUT" | grep -Po '[0-9]+[GT]')"
+  # Pull device name
+  DISK_DEV="$(echo "$DF_OUTPUT" | grep -Po '[0-9]+G')"
 
-  # Determine if the size is in Gigabytes or Terabytes
-  if echo "$DISK_DEV" | grep -q 'G'; then
-    DISK_SIZE="${DISK_DEV/G/}"
-  elif echo "$DISK_DEV" | grep -q 'T'; then
-    DISK_SIZE=$(echo "$DISK_DEV" | sed 's/T//' | awk '{print $1 * 1024}') # Convert to GB's for logic below
-  else
-    echo -e "\e[31m[!]\e[0m Error: Unable to determine disk size - exiting."
+  # Pull device size
+  DISK_SIZE="${DISK_DEV/G/}"
+
+  # Check if DISK_SIZE is empty or not a number
+  if ! [[ "$DISK_SIZE" =~ ^[0-9]+$ ]]; then
+    echo -e "\e[31m[!]\e[0m DISK_SIZE not an integer or is empty - exiting."
     exit 1
   fi
 
