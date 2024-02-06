@@ -18,3 +18,4 @@ lme_update.sh
 /testing/tests/.env
 /testing/tests/venv/
 **/.pytest_cache/
+**/__pycache__/
