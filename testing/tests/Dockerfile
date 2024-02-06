@@ -15,18 +15,6 @@ RUN apt-get update && apt-get install -y \
 # Set work directory
 WORKDIR /app
 
-# Creating a virtual environment in /app/venv
-RUN python3 -m venv /app/venv
-
-# Activate the virtual environment
-ENV PATH="/app/venv/bin:$PATH"
-
-# Copy requirements.txt to the container
-COPY requirements.txt .
-
-# Install Python dependencies from requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
 # Set timezone (optional)
 ENV TZ=America/New_York
 
