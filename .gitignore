@@ -17,5 +17,4 @@ lme.conf
 lme_update.sh
 /testing/tests/.env
 /testing/tests/venv/
-/testing/tests/.env
 **/.pytest_cache/
