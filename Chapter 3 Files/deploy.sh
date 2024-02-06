@@ -538,7 +538,7 @@ function data_retention() {
   DF_OUTPUT="$(df -BG -l -t ext4 --output=source,size /var/lib/docker)"
 
   # Pull device name
-  DISK_DEV="$(echo "$DF_OUTPUT" | grep -Po '[0-9]+G')"
+  DISK_DEV="$(echo "$DF_OUTPUT" | sed -n '2p' | awk '{print $2}')"
 
   # Pull device size
   DISK_SIZE="${DISK_DEV/G/}"
