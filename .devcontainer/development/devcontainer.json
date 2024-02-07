@@ -1,0 +1,15 @@
+{
+    "name": "Python Tests",
+    "dockerComposeFile": ["../../testing/development/docker-compose.yml"],
+    "service": "ubuntu",
+    "shutdownAction": "none",
+    "workspaceFolder": "/lme",
+    "customizations": {
+        "vscode": {
+          "extensions": [
+            "ms-python.python",
+            "littlefoxteam.vscode-python-test-adapter"
+          ]
+        }
+      }
+}

@@ -6,3 +6,4 @@ services:
     container_name: lme
     volumes:
       - .:/app  # Mounts the current directory to /app in the container
+    command: sleep infinity
