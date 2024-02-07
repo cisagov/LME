@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Run Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${workspaceFolder}/api_tests" // Path to your tests
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false // Set this to false to allow debugging into external libraries
+        }
+    ]
+}
