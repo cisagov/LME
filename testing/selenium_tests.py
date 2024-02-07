@@ -16,13 +16,6 @@ where TIMEOUT is in seconds. Defaults to 30.
 Additionally, you can pass in arguments to the unittest
 library, such as the -v flag."""
 
-# Maybe use Write-EventLog to manually trigger events?
-# https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/write-eventlog
-
-# ToDo: 
-# HealthCheck, Alerting, SoftwareOverview, ProcessExplorer, SecurityLog, Sysmon, UserHR
-# Done:
-# UserSecurity
 
 import unittest
 import argparse
