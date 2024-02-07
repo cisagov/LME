@@ -5,5 +5,5 @@ services:
     build: .
     container_name: lme_development
     volumes:
-      - ../../../LME/:/lme  # Mounts the parent directory to /app in the container
+      - ../../../LME/:/lme  # Mounts the parent directory to /app in the container checkout repo as LME
     command: sleep infinity
