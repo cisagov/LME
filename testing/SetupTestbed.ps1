@@ -232,7 +232,11 @@ if (-Not $NoPrompt) {
 # Setup resource group #
 ########################
 Write-Output "`nCreating resource group..."
-$createResourceGroupResponse = az group create --name $ResourceGroup --location $Location
+$CurrentUser = $(az account show | ConvertFrom-Json).user.name
+$Today = $(Get-Date).ToString("yyyy-MM-dd")
+$createResourceGroupResponse = az group create --name $ResourceGroup `
+    --location $Location `
+    --tags project="LME" created=$Today createdBy=$CurrentUser
 Write-Output $createResourceGroupResponse
 
 #################
