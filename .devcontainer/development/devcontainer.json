@@ -1,5 +1,5 @@
 {
-  "name": "Python Tests",
+  "name": "Python Development",
   "dockerComposeFile": [
     "../../testing/development/docker-compose.yml"
   ],
