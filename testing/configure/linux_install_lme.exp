@@ -1,0 +1,56 @@
+#!/usr/bin/expect
+
+# Change to the LME directory containing files for the Linux server
+cd /opt/lme/Chapter\ 3\ Files/
+
+# Adjust the timeout if necessary
+set timeout 60
+set expect_out(buffer_size) 1000000
+
+log_file -a output.log
+
+spawn ./deploy.sh install
+sleep 1
+expect {
+  -re {.*OK.*} {
+      send "\r"
+  }
+  -re {.*Proceed.*} {
+      send "y\r"
+  }
+}
+
+
+expect {
+    -re {.*Please reboot and re-run this script to finish the install.*} {
+        send_user "Reboot required. Exiting...\n"
+        exit
+    }
+    -re "Enter the IP of this Linux server.*" {
+        sleep 1
+        send "\r"
+    }
+}
+
+sleep 1
+expect -re {Windows Event Collector}
+sleep 1
+send "ls1.lme.local\r"
+
+sleep 1
+
+expect -re {continue with self signed certificates.*: y}
+sleep 1
+send "\r"
+sleep 1
+
+expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
+sleep 1
+send "\r"
+set timeout 2600
+
+expect eof
+
+log_file
+
+exec cat output.log
