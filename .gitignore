@@ -15,7 +15,7 @@ dashboard_update.sh
 files_for_windows.zip
 lme.conf
 lme_update.sh
+**/venv/
 /testing/tests/.env
-/testing/tests/venv/
 **/.pytest_cache/
 **/__pycache__/
