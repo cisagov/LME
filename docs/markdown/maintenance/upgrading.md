@@ -119,15 +119,28 @@ This is a hotfix to address dashboards which failed to load on a fresh install o
 
 Please refer to the [Upgrading to latest version](/docs/markdown/maintenance/upgrading.md#upgrading-to-latest-version) to apply the hotfix.
 
-## 6. Upgrade to latest version 
+## 6. v1.3.3 - Update on data retention failure during LME install 
+
+This is a hotfix to address an error with data retention failure in the deploy.sh script during a fresh LME install. We recommend you upgrade to the latest version if you require disk sizes of 1TB or greater. 
+
+If you've tried to install LME before, then run the following commands as root: 
+```
+git pull
+git checkout main
+cd /opt/lme/Chapter\ 3\ Files/
+sudo ./deploy.sh uninstall
+sudo docker volume rm lme-esdata
+sudo docker volume rm lme-logstashdata
+sudo ./deploy.sh install 
+```
+
+## 7. Upgrade to latest version 
 To fetch the latest changes, on the Linux server, run the following commands as root:
 ```
 git pull
 git checkout main
 cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh uninstall
-cd /opt/lme
-cd Chapter\ 3\ Files/
 sudo ./deploy.sh install
 ```
 
