@@ -15,15 +15,22 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 current_script_path = os.path.abspath(__file__)
 current_script_dir = os.path.dirname(current_script_path)
 
-
-def make_request(url, username, password):
+def make_request(url, username, password, body=None):
     auth = HTTPBasicAuth(username, password)
-    response = requests.get(url, auth=auth, verify=False)
+    headers = {'Content-Type': 'application/json'}
+
+    if body:
+        response = requests.post(url, auth=auth, verify=False, data=json.dumps(body), headers=headers)
+    else:
+        response = requests.get(url, auth=auth, verify=False)
+
     return response
+
 
 def load_json_schema(file_path):
     with open(file_path, 'r') as file:
         return json.load(file)
+
 @pytest.fixture(autouse=True)
 def suppress_insecure_request_warning():
     warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
