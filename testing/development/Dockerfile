@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
-WORKDIR /app
+WORKDIR /lme
 
 # Set timezone (optional)
 ENV TZ=America/New_York

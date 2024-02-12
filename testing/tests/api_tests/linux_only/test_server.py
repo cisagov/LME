@@ -1,12 +1,10 @@
-import warnings
-
-import pytest
 from jsonschema import validate
-from jsonschema.exceptions import ValidationError
 import urllib3
 import os
 
 from api_tests.helpers import make_request, load_json_schema
+
+# from api_tests.helpers import make_request, load_json_schema
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
