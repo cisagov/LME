@@ -53,12 +53,18 @@ $StorageAccountName = New-AzureName -Prefix "st"
 # Generate a container name
 $ContainerName = New-AzureName -Prefix "container"
 
+# Variables used for Azure tags
+$CurrentUser = $(az account show | ConvertFrom-Json).user.name
+$Today = $(Get-Date).ToString("yyyy-MM-dd")
+$Project = "LME"
+
 # Create a new storage account
 az storage account create `
     --name $StorageAccountName `
     --resource-group $ResourceGroup `
     --location $Location `
-    --sku Standard_LRS
+    --sku Standard_LRS `
+    --tags project=$Project created=$Today createdBy=$CurrentUser
 
 # Wait for a moment to ensure the storage account is available
 Start-Sleep -Seconds 10
