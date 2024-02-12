@@ -97,6 +97,10 @@ $Ports = 22, 3389, 443, 9200, 5044
 $Priorities = 1001, 1002, 1003, 1004, 1005
 $Protocols = "Tcp", "Tcp", "Tcp", "Tcp", "Tcp"
 
+# Variables used for Azure tags
+$CurrentUser = $(az account show | ConvertFrom-Json).user.name
+$Today = $(Get-Date).ToString("yyyy-MM-dd")
+$Project = "LME"
 
 function Get-RandomPassword {
     param (
@@ -173,7 +177,8 @@ function Set-NetworkRules {
             --source-address-prefixes $AllowedSourcesList `
             --destination-address-prefixes '*' `
             --destination-port-ranges $port `
-            --description "Allow inbound from $sources on $port via $protocol connections."
+            --description "Allow inbound from $sources on $port via $protocol connections." `
+            --tags project=$Project created=$Today createdBy=$CurrentUser
         Write-Output $networkRuleResponse
     }
 }
@@ -232,7 +237,9 @@ if (-Not $NoPrompt) {
 # Setup resource group #
 ########################
 Write-Output "`nCreating resource group..."
-$createResourceGroupResponse = az group create --name $ResourceGroup --location $Location
+$createResourceGroupResponse = az group create --name $ResourceGroup `
+    --location $Location `
+    --tags project=$Project created=$Today createdBy=$CurrentUser
 Write-Output $createResourceGroupResponse
 
 #################
@@ -244,13 +251,15 @@ $createVirtualNetworkResponse = az network vnet create --resource-group $Resourc
     --name VNet1 `
     --address-prefix $VNetPrefix `
     --subnet-name SNet1 `
-    --subnet-prefix $SubnetPrefix
+    --subnet-prefix $SubnetPrefix `
+    --tags project=$Project created=$Today createdBy=$CurrentUser
 Write-Output $createVirtualNetworkResponse
 
 Write-Output "`nCreating nsg..."
 $createNsgResponse = az network nsg create --name NSG1 `
     --resource-group $ResourceGroup `
-    --location $Location
+    --location $Location `
+    --tags project=$Project created=$Today createdBy=$CurrentUser
 Write-Output $createNsgResponse
 
 Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
@@ -276,7 +285,8 @@ $createLs1Response = az vm create `
     --public-ip-sku Standard `
     --size Standard_E2d_v4 `
     --os-disk-size-gb 128 `
-    --private-ip-address $LsIP
+    --private-ip-address $LsIP `
+    --tags project=$Project created=$Today createdBy=$CurrentUser
 Write-Output $createLs1Response
 
 if (-Not $LinuxOnly){
@@ -291,7 +301,8 @@ if (-Not $LinuxOnly){
         --vnet-name VNet1 `
         --subnet SNet1 `
         --public-ip-sku Standard `
-        --private-ip-address $DcIP
+        --private-ip-address $DcIP `
+        --tags project=$Project created=$Today createdBy=$CurrentUser
     Write-Output $createDc1Response
     for ($i = 1; $i -le $NumClients; $i++) {
         Write-Output "`nCreating C$i..."
@@ -304,7 +315,8 @@ if (-Not $LinuxOnly){
             --admin-password $VMPassword `
             --vnet-name VNet1 `
             --subnet SNet1 `
-            --public-ip-sku Standard
+            --public-ip-sku Standard `
+            --tags project=$Project created=$Today createdBy=$CurrentUser
         Write-Output $createClientResponse
     }
 }
