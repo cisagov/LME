@@ -6,12 +6,20 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install necessary APT packages including Python and pip
 RUN apt-get update && apt-get install -y \
+    lsb-release \
     python3 \
     python3-venv \
     python3-pip \
     zip \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    wget \
+    && wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
+    && dpkg -i packages-microsoft-prod.deb \
+    && apt-get update \
+    && apt-get install -y powershell \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash 
 
 # Set work directory
 WORKDIR /lme
