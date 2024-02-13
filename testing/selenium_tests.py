@@ -600,9 +600,7 @@ class HealthCheckTests(unittest.TestCase):
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
 options = webdriver.ChromeOptions()
-# options.add_argument("--headless=new")
-options.add_experimental_option("detach", True) # Make browser stay open, in reality we'd
-# probably prefer headless
+options.add_argument("--headless=new")
 
 s = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=s, options=options)
