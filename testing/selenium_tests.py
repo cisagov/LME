@@ -10,8 +10,9 @@ saved as an environment variable, ELASTIC_PASSWORD.
 ssl errors.
 
 Basic usage:
-    python3 selenium_tests.py --timeout TIMEOUT
-where TIMEOUT is in seconds. Defaults to 30.
+    python3 selenium_tests.py --mode MODE --timeout TIMEOUT
+where MODE is either headless, detached, or debug. Defaults to headless
+and where TIMEOUT is in seconds. Defaults to 30.
 
 Additionally, you can pass in arguments to the unittest
 library, such as the -v flag."""
@@ -36,6 +37,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--timeout', help='Timeout, in seconds. Defaults to 30.',
     default=30,
     type=int)
+parser.add_argument('--mode', help='Headless, no browser, detached, open browser, debug, open browser and leave it open. Default is no headless.', default='headless')
+
 args, unittestArgs = parser.parse_known_args()
 
 def login(password : str) -> None:
@@ -600,7 +603,12 @@ class HealthCheckTests(unittest.TestCase):
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
 options = webdriver.ChromeOptions()
-options.add_argument("--headless=new")
+if args.mode == "detached" or args.mode =="debug": #browser opens
+    print("# " + args.mode + " mode #")
+    options.add_experimental_option("detach", True) 
+else: #Browser does not open. Default mode is headless
+    print("# headless mode #")
+    options.add_argument("--headless=new")
 
 s = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=s, options=options)
@@ -614,6 +622,9 @@ except KeyError:
 unit_argv = [sys.argv[0]] + unittestArgs
 unittest.main(argv=unit_argv)
 
-# driver.stop_client() # uncommented so the browser window stays open for debugging
-# driver.close()
-# driver.quit()
+if args.mode == "debug":
+    print("# Debug Mode - Browser will remain open.") # Browser will stay open   
+else: 
+    driver.stop_client() 
+    driver.close()
+    driver.quit()
