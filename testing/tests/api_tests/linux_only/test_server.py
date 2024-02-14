@@ -154,9 +154,9 @@ def test_winlogbeat_settings(es_host, es_port, username, password):
         "created" in body[rootKey]["settings"]["index"]["version"]
     ), "Expected created property, not found"
 
-    data_fields = json.load(
-        open(f"{current_script_dir}/test_data/mapping_datafields.json")
-    )
+    with open(f"{current_script_dir}/test_data/mapping_datafields.txt") as f:
+        data_fields = f.read().splitlines()
+
 
     act_data_fields = body[rootKey]["settings"]["index"]["query"]["default_field"]
     assert (
@@ -182,4 +182,4 @@ def test_winlogbeat_search(es_host, es_port, username, password):
 
     # Validating JSON Response schema
     schema = load_json_schema(f"{current_script_dir}/schemas/winlogbeat_search.json")
-    validate(instance=response.text, schema=schema)
+    validate(instance=response.json(), schema=schema)
