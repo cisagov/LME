@@ -25,4 +25,6 @@ jobs:
 
       - name: Cleanup Docker Compose
         if: always()
-        run: docker-compose down
+        run: |
+          cd testing/development
+          docker-compose down
