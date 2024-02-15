@@ -443,6 +443,7 @@ function installdocker() {
   curl -fsSL https://get.docker.com -o get-docker.sh >/dev/null
   sh get-docker.sh >/dev/null
   service docker start
+  sleep 5
 }
 
 function initdockerswarm() {
