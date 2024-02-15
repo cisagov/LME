@@ -21,5 +21,4 @@ jobs:
 
     - name: Execute steps inside Docker container
       run: |
-        # Replace with the commands you want to run inside your Docker container
-        docker-compose exec ubuntu bash -c "echo 'Container built'"
+        docker-compose -f testing/development/docker-compose.yml exec ubuntu bash -c "echo 'Container built'"
