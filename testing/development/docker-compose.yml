@@ -10,6 +10,7 @@ services:
   lme:
     build: .
     user: admin.ackbar
+    privileged: true
     container_name: lme
     volumes:
       - ../../../LME/:/home/admin.ackbar/LME  # Mounts the parent directory to /app in the container checkout repo as LME

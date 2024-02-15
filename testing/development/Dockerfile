@@ -28,6 +28,15 @@ RUN groupadd -g 1001 admin.ackbar
 # Create a new user 'admin.ackbar' with UID 1001 and add to the 'admin.ackbar' group
 RUN useradd -m -u 1001 -g admin.ackbar --badnames admin.ackbar
 
+# Add 'admin.ackbar' to the sudo group
+RUN usermod -aG sudo admin.ackbar
+
+# Allow 'admin.ackbar' user to run sudo commands without a password
+RUN echo "admin.ackbar ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Change to non-root privilege
+USER admin.ackbar
+
 # Set work directory
 WORKDIR /lme
 
