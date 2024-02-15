@@ -14,12 +14,19 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     wget \
+    sudo \
     && wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
     && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
     && apt-get install -y powershell \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash 
+    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# Create a group 'admin.ackbar' with GID 1001
+RUN groupadd -g 1001 admin.ackbar
+
+# Create a new user 'admin.ackbar' with UID 1001 and add to the 'admin.ackbar' group
+RUN useradd -m -u 1001 -g admin.ackbar --badnames admin.ackbar
 
 # Set work directory
 WORKDIR /lme
