@@ -442,6 +442,7 @@ function installdocker() {
   echo -e "\e[32m[X]\e[0m Installing Docker"
   curl -fsSL https://get.docker.com -o get-docker.sh >/dev/null
   sh get-docker.sh >/dev/null
+  echo "Starting docker"
   service docker start
   sleep 5
 }
