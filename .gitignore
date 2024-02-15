@@ -15,3 +15,5 @@ dashboard_update.sh
 files_for_windows.zip
 lme.conf
 lme_update.sh
+/testing/tests/.env
+/testing/tests/venv/
