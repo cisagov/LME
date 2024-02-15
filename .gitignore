@@ -19,3 +19,7 @@ lme_update.sh
 /testing/tests/.env
 **/.pytest_cache/
 **/__pycache__/
+/testing/*.password.txt
+/testing/configure/azure_scripts/config.ps1
+/testing/configure.zip
+/testing/*.output.log
