@@ -3,7 +3,24 @@ version: '3.8'
 services:
   ubuntu:
     build: .
+    user: admin.ackbar
     container_name: lme_development
     volumes:
       - ../../../LME/:/lme  # Mounts the parent directory to /app in the container checkout repo as LME
     command: sleep infinity
+  lme:
+    build:
+      context: ../../
+      dockerfile: testing/development/Dockerfile
+    privileged: true
+    container_name: lme
+    volumes:
+      - ../../../LME/:/home/admin.ackbar/LME  # Mounts the parent directory to /app in the container checkout repo as LME
+    command: sleep infinity
+    ports:
+      - "443:443"
+      - "9200:9200"
+      - "9300:9300"
+      - "5000:5000"
+      - "9600:9600"
+      - "5601:5601"
