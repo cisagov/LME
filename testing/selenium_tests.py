@@ -397,7 +397,8 @@ class SecurityDashboardSecurityLogTests(unittest.TestCase):
 
     def test_process_started_with_different_creds(self):
         """Is there any data?"""
-        panel = load_panel("Security log - Process started with different credentials- event ID 4648 [could be RUNAS, scheduled tasks]")
+        panel = load_panel("Security log - Process started with different credentials- " \
+        "event ID 4648 [could be RUNAS, scheduled tasks]")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
 class ComputerSoftwareOverviewTests(unittest.TestCase):
@@ -619,8 +620,9 @@ except KeyError:
     MESSAGE = "Error: Elastic password not set. Should be saved as env variable, ELASTIC_PASSWORD."
     print(MESSAGE, file=sys.stderr)
     sys.exit(1)
+
 unit_argv = [sys.argv[0]] + unittestArgs
-unittest.main(argv=unit_argv)
+unittest.main(argv=unit_argv, exit=False)
 
 if args.mode == "debug":
     print("# Debug Mode - Browser will remain open.") # Browser will stay open   
