@@ -11,7 +11,7 @@ services:
     build:
       context: ../../
       dockerfile: testing/development/Dockerfile
-    user: admin.ackbar
+#    user: admin.ackbar
     privileged: true
     container_name: lme
     volumes:

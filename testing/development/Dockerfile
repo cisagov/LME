@@ -36,19 +36,6 @@ ENV BASE_DIR=/home/admin.ackbar/LME
 # Set work directory
 WORKDIR $BASE_DIR
 
-# Copy the current directory into the container and change the owner to 'admin.ackbar'
-COPY --chown=admin.ackbar:admin.ackbar . $BASE_DIR
-
-# Copy the script into the container. Paths in COPY cannot use ENV or ARG variables.
-#COPY . /
-#COPY . /home/admin.ackbar/LME
-
-# Provide the necessary permissions for the script to be executable and run it
-# Here you can use the environment variable
-# RUN chmod +x $BASE_DIR/build_docker_lme_install.sh \
-#     && $BASE_DIR/build_docker_lme_install.sh
-
-
 # Change to non-root privilege
 USER admin.ackbar
 

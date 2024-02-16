@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-git pull
 cd testing/configure || exit
 sudo ./linux_update_system.sh
 sudo ./linux_install_lme.sh -b cbaxley-168-python_tests
