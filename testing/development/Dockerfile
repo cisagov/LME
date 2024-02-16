@@ -22,23 +22,35 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
-# Create a group 'admin.ackbar' with GID 1001
-RUN groupadd -g 1001 admin.ackbar
-
-# Create a new user 'admin.ackbar' with UID 1001 and add to the 'admin.ackbar' group
-RUN useradd -m -u 1001 -g admin.ackbar --badnames admin.ackbar
-
-# Add 'admin.ackbar' to the sudo group
-RUN usermod -aG sudo admin.ackbar
+# Create a user and group 'admin.ackbar' with GID 1001
+RUN groupadd -g 1001 admin.ackbar \
+    && useradd -m -u 1001 -g admin.ackbar --badnames admin.ackbar \
+    && usermod -aG sudo admin.ackbar
 
 # Allow 'admin.ackbar' user to run sudo commands without a password
 RUN echo "admin.ackbar ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-# Change to non-root privilege
-USER admin.ackbar
+# Define the base directory as an environment variable
+ENV BASE_DIR=/home/admin.ackbar/LME
 
 # Set work directory
-WORKDIR /lme
+WORKDIR $BASE_DIR
+
+# Copy the current directory into the container and change the owner to 'admin.ackbar'
+COPY --chown=admin.ackbar:admin.ackbar . $BASE_DIR
+
+# Copy the script into the container. Paths in COPY cannot use ENV or ARG variables.
+#COPY . /
+#COPY . /home/admin.ackbar/LME
+
+# Provide the necessary permissions for the script to be executable and run it
+# Here you can use the environment variable
+# RUN chmod +x $BASE_DIR/build_docker_lme_install.sh \
+#     && $BASE_DIR/build_docker_lme_install.sh
+
+
+# Change to non-root privilege
+USER admin.ackbar
 
 # Set timezone (optional)
 ENV TZ=America/New_York

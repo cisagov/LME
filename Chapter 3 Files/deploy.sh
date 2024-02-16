@@ -889,7 +889,8 @@ function install() {
   displaycredentials
 
   echo -e "If you prefer to set your own elastic user password, then refer to our troubleshooting documentation:"
-  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n" 
+  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n"
+  return 0
 }
 
 function displaycredentials() {
@@ -1192,6 +1193,7 @@ if [ "$1" == "" ]; then
   usage
 elif [ "$1" == "install" ]; then
   install
+  exit $?  # Exit with the status of the install function
 elif [ "$1" == "uninstall" ]; then
   uninstall
 elif [ "$1" == "upgrade" ]; then
