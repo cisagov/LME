@@ -538,7 +538,7 @@ function pipelineupdate() {
 
 function data_retention() {
   # Show ext4 disk
-  DF_OUTPUT="$(df -BG -l -t ext4 --output=source,size /var/lib/docker)"
+  DF_OUTPUT="$(df -BG -l --output=source,size /var/lib/docker)"
 
   # Pull device name
   DISK_DEV="$(echo "$DF_OUTPUT" | awk 'NR==2 {print $1}')"
