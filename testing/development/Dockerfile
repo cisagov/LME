@@ -37,7 +37,7 @@ ENV BASE_DIR=/home/admin.ackbar/LME
 WORKDIR $BASE_DIR
 
 # Change to non-root privilege
-USER admin.ackbar
+# USER admin.ackbar
 
 # Set timezone (optional)
 ENV TZ=America/New_York
