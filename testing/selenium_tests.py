@@ -538,7 +538,6 @@ class ProcessExplorerTests(unittest.TestCase):
 
 # class AlertingTests(unittest.TestCase):
 #     """Test cases for the Alerting Dashboard"""
-#     #Note, comemnting this dashboard out. It came from main on 2/6/2024 and lacks panel titles.These tests may need to be fixed to accomodate. This dashboard may need updating in general to fit the other dashboards. It also lacks a dashboard menu
 
 #     def setUp(self):
 #         # The dashboard ID is hard-coded in the ndjson file
