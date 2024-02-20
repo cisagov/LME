@@ -71,6 +71,12 @@ echo 'export NEEDRESTART_MODE=a' >> ~/.bashrc
 echo 'export DEBIAN_FRONTEND=noninteractive' | sudo tee -a /root/.bashrc
 echo 'export NEEDRESTART_MODE=a' | sudo tee -a /root/.bashrc
 
+#get interface name of default route
+DEFAULT_IF="$(route | grep '^default' | grep -o '[^ ]*$')"
+
+#get ip of the interface
+EXT_IP="$(/sbin/ifconfig "$DEFAULT_IF" | awk -F ' *|:' '/inet /{print $3}')"
+
 # Execute script with root privileges
 # Todo: We could put a switch here for different versions and just run different expect scripts
 sudo -E bash -c  ". /root/.bashrc && $script_dir/linux_install_lme.exp"
