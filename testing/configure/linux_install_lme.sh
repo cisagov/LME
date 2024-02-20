@@ -77,8 +77,19 @@ DEFAULT_IF="$(route | grep '^default' | grep -o '[^ ]*$')"
 #get ip of the interface
 EXT_IP="$(/sbin/ifconfig "$DEFAULT_IF" | awk -F ' *|:' '/inet /{print $3}')"
 
+function installdocker() {
+  echo -e "\e[32m[X]\e[0m Installing Docker"
+  curl -fsSL https://get.docker.com -o get-docker.sh >/dev/null
+  sudo sh get-docker.sh >/dev/null
+  echo "Starting docker"
+  sudo service docker start
+  sleep 5
+}
+
 # Pull the images so you don't have to wait for them in expect
-echo "Pulling the images. This may take some time."
+installdocker
+
+echo -e "\e[32m[X]\e[0m Pulling the images. This may take some time."
 docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull --quiet
 
 

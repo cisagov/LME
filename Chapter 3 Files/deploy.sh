@@ -458,7 +458,7 @@ function initdockerswarm() {
 
 function pulllme() {
   info " Pulling ELK images"
-  docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull 
+  docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull --quiet
 }
 
 function deploylme() {
