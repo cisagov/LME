@@ -20,10 +20,14 @@ jobs:
         run: docker-compose -f testing/development/docker-compose.yml up  -d
 
       - name: Execute steps inside ubuntu container
-        run: docker-compose exec ubuntu bash -c "echo 'Ubuntu container built'"
+        run: |
+          cd testing/development
+          docker-compose exec ubuntu bash -c "echo 'Ubuntu container built'"
 
       - name: Execute steps inside lme container
-        run: docker-compose exec lme bash -c "ls -l"
+        run: | 
+          cd testing/development
+          docker-compose exec lme bash -c "ls -l"
 
       - name: Cleanup Docker Compose
         if: always()
