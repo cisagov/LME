@@ -50,13 +50,13 @@ send "\r"
 
 
 
-set timeout 240 
+set timeout 310 
 expect {
     -re {Waiting for Elasticsearch to be ready} {
         puts " Elasticsearch is being prepared"
         exp_continue
     }
-    -re {\\\.} {
+    -re {\\.} {
         puts " - "
         exp_continue
     }
