@@ -152,7 +152,7 @@ function setpasswords() {
   temp="temp" 
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
-  max_attempts=25
+  max_attempts=30
   attempt=0
   while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' --cacert certs/root-ca.crt --user elastic:${temp} https://127.0.0.1:9200)" != "200" ]]; do
     printf '.'
