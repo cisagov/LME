@@ -47,7 +47,6 @@ sleep 1
 expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
 sleep 1
 send "\r"
-set timeout 300 
 
 expect eof
 
