@@ -30,8 +30,9 @@ jobs:
 
       - name: Execute steps inside lme container
         run: |
+          set -x
           cd testing/development
-          docker-compose exec lme bash -c "cd testing/development && ls -la"
+          docker-compose exec lme bash -c "ls -la"
 
       - name: Cleanup Docker Compose
         if: always()
