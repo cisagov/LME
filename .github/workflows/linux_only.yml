@@ -32,7 +32,7 @@ jobs:
         run: |
           set -x
           cd testing/development
-          docker-compose exec -T lme bash -c "ls -la"
+          docker-compose exec -T lme bash -c "cd testing/development && ls -la"
 
       - name: Cleanup Docker Compose
         if: always()
