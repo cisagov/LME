@@ -19,7 +19,7 @@ jobs:
       - name: Run Docker Compose
         run: docker-compose -f testing/development/docker-compose.yml up  -d
 
-      - name: List docker containers 
+      - name: List docker containers to wait for them to start
         run: |
           docker ps 
 
@@ -30,9 +30,8 @@ jobs:
 
       - name: Execute steps inside lme container
         run: |
-          set -x
           cd testing/development
-          docker-compose exec lme bash -c "ls -la"
+          docker-compose exec lme bash -c "cd testing/development && ls -la"
 
       - name: Cleanup Docker Compose
         if: always()
