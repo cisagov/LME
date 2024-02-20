@@ -90,7 +90,7 @@ function installdocker() {
 installdocker
 
 echo -e "\e[32m[X]\e[0m Pulling the images. This may take some time."
-docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull --quiet
+docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack.yml pull --quiet
 
 
 # Execute script with root privileges
