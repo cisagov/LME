@@ -47,6 +47,10 @@ sleep 1
 expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
 sleep 1
 send "\r"
+
+
+
+set timeout 240 
 expect {
     -re {Waiting for Elasticsearch to be ready} {
         puts "Elasticsearch is being prepared"
