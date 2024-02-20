@@ -17,9 +17,7 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
 
       - name: Run Docker Compose
-        run: |
-          cd testing/development
-          docker-compose -f testing/development/docker-compose.yml up  -d
+        run: docker-compose -f testing/development/docker-compose.yml up  -d
 
       - name: Execute steps inside ubuntu container
         run: docker-compose exec ubuntu bash -c "echo 'Ubuntu container built'"
