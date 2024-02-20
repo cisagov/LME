@@ -62,25 +62,65 @@ jobs:
         run: |
           semgrep --config "p/r2c" .
 
-  release:
+  build-release:
+    if: startsWith(github.head_ref, 'release') # trigger job on creation of release-* PR
+    # if: github.ref == 'refs/heads/main' # trigger job on push to main 
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: [lint, semgrep-scan]
     steps:
       - name: Checkout
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@v4
 
-      - name: Set up tag name
-        id: tag
-        run: echo "::set-output name=tag::${GITHUB_REF##*/}"
+      - name: Get release version
+        id: version
+        run: | 
+          echo "version=${GITHUB_HEAD_REF##*-}" >> $GITHUB_ENV
 
-      - name: Build
-        run: git ls-files | zip release-${{ steps.tag.outputs.tag }}.zip -@
+      - name: Get current date
+        id: date
+        run: |
+          echo "date=$(date + '%Y-%m-%d')" >> $GITHUB_ENV 
 
-      - name: Release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+      - name: Build assets
+        run: git ls-files | zip LME-${{ env.version }}.zip -@
+
+      - name: Build Changelog
+        id: release
+        uses: mikepenz/release-changelog-builder-action@v3
         with:
-          files: release-${{ steps.tag.outputs.tag }}.zip
+          #fromTag: ${{ github.head_ref }}
+          #toTag: ${{ github.ref }}
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}",
+              "pr_template": "- #{{TITLE}}",
+              "categories": [
+                {
+                  "title": "## What's Added",
+                  "labels": ["feat"],
+                },
+                {
+                  "title": "## What's Fixed",
+                  "labels": ["fix"],
+                },
+                {
+                  "title": "##Uncategorized",
+                  "labels": [],
+                },
+              ]
+            }
+          commitMode: true
+          failOnError: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "LME v${{ env.version }}"
+          tag_name: "v${{ env.version }}"
+          files: LME-${{ env.version }}.zip
           draft: true
-          generate_release_notes: true
+          generate_release_notes: false
+          body: "## [${{ env.version }}] - Timberrrrr! - ${{ env.date }}\n ${{ steps.release.outputs.changelog }}"
           fail_on_unmatched_files: true
