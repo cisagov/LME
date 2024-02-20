@@ -19,6 +19,10 @@ jobs:
       - name: Run Docker Compose
         run: docker-compose -f testing/development/docker-compose.yml up  -d
 
+      - name: List docker containers 
+        run: |
+          docker ps 
+
       - name: Execute steps inside ubuntu container
         run: |
           cd testing/development
