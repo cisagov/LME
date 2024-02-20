@@ -77,6 +77,11 @@ DEFAULT_IF="$(route | grep '^default' | grep -o '[^ ]*$')"
 #get ip of the interface
 EXT_IP="$(/sbin/ifconfig "$DEFAULT_IF" | awk -F ' *|:' '/inet /{print $3}')"
 
+# Pull the images so you don't have to wait for them in expect
+echo "Pulling the images. This may take some time."
+docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull --quiet
+
+
 # Execute script with root privileges
 # Todo: We could put a switch here for different versions and just run different expect scripts
 sudo -E bash -c  ". /root/.bashrc && $script_dir/linux_install_lme.exp"
