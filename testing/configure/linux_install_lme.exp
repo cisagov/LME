@@ -56,7 +56,7 @@ expect {
         puts " Elasticsearch is being prepared"
         exp_continue
     }
-    -re {\\.} {
+    -re {\.} {
         puts " - "
         exp_continue
     }
