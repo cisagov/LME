@@ -47,8 +47,34 @@ sleep 1
 expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
 sleep 1
 send "\r"
-
-expect eof
+expect {
+    -re {Waiting for Elasticsearch to be ready} {
+        puts "Elasticsearch is being prepared"
+        exp_continue
+    }
+    -re {We think your main disk is} {
+        puts "Disk message received"
+        exp_continue
+    }
+    -re {Bootstrapping} {
+        puts "Bootstrapping in progress"
+        exp_continue
+    }
+    -re {Uploading Kibana dashboards} {
+        puts "Kibana dashboards are being uploaded"
+        exp_continue
+    }
+    -re {dashboard_update:} {
+        puts "Dashboard update in progress"
+        exp_continue
+    }
+    timeout {
+        puts "Script timed out"
+    }
+    eof {
+        puts "End of file reached"
+    }
+}
 
 log_file
 

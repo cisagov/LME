@@ -536,7 +536,7 @@ function pipelineupdate() {
 '
 }
 
-function data_retention() {
+function data_retentionn() {
   # Show ext4 disk
   DF_OUTPUT="$(df -BG -l --output=source,size /var/lib/docker)"
 
