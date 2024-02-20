@@ -25,7 +25,8 @@ jobs:
           docker-compose exec ubuntu bash -c "echo 'Ubuntu container built'"
 
       - name: Execute steps inside lme container
-        run: | 
+        run: |
+          set -x
           cd testing/development
           docker-compose exec lme bash -c "ls -la"
 
