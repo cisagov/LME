@@ -24,16 +24,21 @@ jobs:
         run: |
           docker ps 
 
-      - name: Execute steps inside ubuntu container
+      - name: Execute commands inside ubuntu container
         run: |
           cd testing/development
-          docker-compose exec ubuntu bash -c "echo 'Ubuntu container built'"
+          docker-compose exec -T ubuntu bash -c "echo 'Ubuntu container built'"
 
-      - name: Execute steps inside lme container
+      - name: Install LME in container
         run: |
           set -x
           cd testing/development
           docker-compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh"
+
+      - name: Run api tests in container 
+        run: |
+          cd testing/development
+          docker-compose exec -T lme bash -c ". testing/configure/lib/functions.sh &&  extract_credentials && pytest testing/tests/ && pytest testing/tests/api_tests/linux_only/"
 
       - name: Cleanup Docker Compose
         if: always()

@@ -15,13 +15,18 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     sudo \
+    pkg-config \
+    libcairo2-dev \
+    libdbus-1-dev \
+    distro-info \
+    libgirepository1.0-dev \
     && wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
     && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
     && apt-get install -y powershell \
     && rm -rf /var/lib/apt/lists/* \
     && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
-    && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \ 
+    && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt install -y ./google-chrome-stable_current_amd64.deb \
     && rm -rf google-chrome-stable_current_amd64.deb \
     && sudo apt-get install -f \

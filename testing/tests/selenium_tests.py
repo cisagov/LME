@@ -601,10 +601,18 @@ class HealthCheckTests(unittest.TestCase):
 options = webdriver.ChromeOptions()
 if args.mode == "detached" or args.mode =="debug": #browser opens
     print("# " + args.mode + " mode #")
-    options.add_experimental_option("detach", True) 
+    options.add_experimental_option("detach", True)
+
 else: #Browser does not open. Default mode is headless
     print("# headless mode #")
     options.add_argument("--headless=new")
+    # options.add_argument("--proxy-server='direct://'")
+    # options.add_argument("--proxy-bypass-list=*")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
 s = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=s, options=options)

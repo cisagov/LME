@@ -28,4 +28,5 @@ extract_credentials() {
             "dashboard_update") export dashboard_update=$value ;;
         esac
     done < <(tail -n 18 "$file_path" | grep -E "(elastic|kibana|logstash_system|logstash_writer|dashboard_update):")
+    export ELASTIC_PASSWORD=$elastic
 }
