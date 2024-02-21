@@ -20,7 +20,14 @@ RUN apt-get update && apt-get install -y \
     && apt-get update \
     && apt-get install -y powershell \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
+    && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \ 
+    && apt install -y ./google-chrome-stable_current_amd64.deb \
+    && rm -rf google-chrome-stable_current_amd64.deb \
+    && sudo apt-get install -f \
+    && apt-get clean
+
+
 
 # Create a user and group 'admin.ackbar' with GID 1001
 RUN groupadd -g 1001 admin.ackbar \
