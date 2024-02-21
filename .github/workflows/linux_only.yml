@@ -39,9 +39,9 @@ jobs:
       - name: Run api tests in container 
         run: |
           cd testing/development
-          docker-compose exec -T lme bash -c ". testing/configure/lib/functions.sh \
+          docker-compose exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
           &&  extract_credentials \
-          && . ~/venv_test/bin/activate \
+          && . /home/admin.ackbar/venv_test/bin/activate \
           && pytest testing/tests/api_tests/linux_only/"
 
       - name: Cleanup Docker Compose
