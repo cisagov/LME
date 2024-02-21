@@ -45,7 +45,7 @@ jobs:
           &&  extract_credentials output.log \
           &&  sudo rm output.log \
           && . /home/admin.ackbar/venv_test/bin/activate \
-          && pytest testing/tests/api_tests/linux_only/"
+          && PYTEST_ADDOPTS="--basetemp=/home/admin.ackbar" pytest testing/tests/api_tests/linux_only/"
 
       - name: Cleanup Docker Compose
         if: always()
