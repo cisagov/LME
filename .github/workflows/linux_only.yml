@@ -41,7 +41,7 @@ jobs:
           cd testing/development
           docker-compose exec -T lme bash -c ". testing/configure/lib/functions.sh \
           &&  extract_credentials \
-          && . testing/tests/venv/bin/activate \
+          && . testing/tests/venv_test/bin/activate \
           && pytest testing/tests/ \
           && pytest testing/tests/api_tests/linux_only/"
 
