@@ -14,7 +14,8 @@ jobs:
 
       - name: Set up Docker Compose
         run: |
-          sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
+          -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
 
       - name: Run Docker Compose
@@ -38,7 +39,11 @@ jobs:
       - name: Run api tests in container 
         run: |
           cd testing/development
-          docker-compose exec -T lme bash -c ". testing/configure/lib/functions.sh &&  extract_credentials && pytest testing/tests/ && pytest testing/tests/api_tests/linux_only/"
+          docker-compose exec -T lme bash -c ". testing/configure/lib/functions.sh \
+          &&  extract_credentials \
+          && . testing/tests/venv/bin/activate \
+          && pytest testing/tests/ \
+          && pytest testing/tests/api_tests/linux_only/"
 
       - name: Cleanup Docker Compose
         if: always()
