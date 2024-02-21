@@ -72,17 +72,9 @@ expect {
         puts " Kibana dashboards are being uploaded"
         exp_continue
     }
-    -re {dashboard_update:} {
-        puts " Dashboard update in progress"
-        exp_continue
-    }
-    timeout {
-        puts " Script timed out"
-    }
-    eof {
-        puts " End of file reached"
-    }
 }
+
+expect eof
 
 log_file
 

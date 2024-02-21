@@ -41,6 +41,7 @@ jobs:
         run: |
           cd testing/development
           docker-compose exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
+          &&  ls /opt/lme/Chapter\ 3\ Files \
           &&  extract_credentials \
           && . /home/admin.ackbar/venv_test/bin/activate \
           && pytest testing/tests/api_tests/linux_only/"
