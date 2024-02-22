@@ -35,9 +35,9 @@
 
 - [ ] All tests pass
 - [ ] PR has been tested and the documentation for testing is above
+- [ ] Squash and merge all commits into one PR level commit 
 
 ## ✅ Post-merge Checklist
 
-- [ ] Squash all commits into one PR level commit 
 - [ ] Delete the branch to keep down number of branches
 
