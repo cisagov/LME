@@ -24,3 +24,4 @@ lme_update.sh
 /testing/configure.zip
 /testing/*.output.log
 .history
+testing/configure/get-docker.sh
