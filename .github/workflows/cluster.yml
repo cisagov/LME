@@ -1,12 +1,11 @@
-name: Linux Only
+name: Cluster Run 
 
 on:
   workflow_dispatch:
   pull_request:
 
 jobs:
-  build-and-test-linux-only:
-    # runs-on: ubuntu-latest
+  build-and-test-cluster:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -34,32 +33,19 @@ jobs:
         run: |
           docker ps 
 
-      - name: Execute commands inside ubuntu container
-        run: |
-          cd testing/development
-          docker-compose exec -T ubuntu bash -c "echo 'Ubuntu container built'"
-
-      - name: Install LME in container
+      - name: Execute powershell in container 
         run: |
           set -x
           cd testing/development
-          docker-compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh \
-          && chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
-
-      - name: Run api tests in container 
-        run: |
-          cd testing/development
-          docker-compose exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
-          &&  sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
-          &&  extract_credentials output.log \
-          &&  sudo rm output.log \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          &&  sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          &&  pytest testing/tests/api_tests/linux_only/"
+          docker-compose exec -T lme bash -c "./testing/development/build_cluster.ps1"
+        env:
+          AZURE_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
+          AZURE_SECRET: ${{ env.AZURE_SECRET }}
+          AZURE_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT: ${{ env.AZURE_TENANT }}
 
       - name: Cleanup Docker Compose
         if: always()
         run: |
           cd testing/development
-          docker-compose exec -T  lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
           docker-compose down
