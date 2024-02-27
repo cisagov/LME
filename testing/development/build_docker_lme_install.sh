@@ -9,4 +9,3 @@ python3 -m venv /home/admin.ackbar/venv_test
 . /home/admin.ackbar/venv_test/bin/activate
 pip install -r requirements.txt
 chown admin.ackbar:admin.ackbar /home/admin.ackbar/venv_test -R
-#pytest api_tests/linux_only/

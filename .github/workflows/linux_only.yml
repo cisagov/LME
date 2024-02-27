@@ -52,4 +52,5 @@ jobs:
         if: always()
         run: |
           cd testing/development
+          docker-compose exec -T  lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
           docker-compose down
