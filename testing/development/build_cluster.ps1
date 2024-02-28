@@ -1,10 +1,1 @@
-try {
-    $output = az login --service-principal -u  -p $env:AZURE_SECRET --tenant $env:AZURE_TENANT 2>&1
-    Write-Output $output
-} catch {
-    Write-Error $_
-    exit 1
-}
-
-
-
+az login --service-principal -u $env:AZURE_CLIENT_ID -p $env:AZURE_SECRET --tenant $env:AZURE_TENANT
