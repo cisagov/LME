@@ -19,7 +19,10 @@ jobs:
           echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
           echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
-
+      - name: Generate unique ID
+        id: unique_id
+        run: echo "UNIQUE_ID=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)" >> $GITHUB_ENV
+      
       - name: Set up Docker Compose
         run: |
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
@@ -42,6 +45,7 @@ jobs:
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
             \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
             ./testing/development/build_cluster.ps1; \
             exit \$LASTEXITCODE;
           }"
