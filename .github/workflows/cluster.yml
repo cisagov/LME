@@ -41,12 +41,10 @@ jobs:
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
             \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
-            ./testing/development/build_cluster.ps1 -ErrorAction Continue; \
-            if (\$LASTEXITCODE -ne 0) { Write-Error 'Build failed'; exit \$LASTEXITCODE } \
+            ./testing/development/build_cluster.ps1 -ErrorAction Stop \
             }" 2>&1)
           echo "$COMMAND_OUTPUT"
-          if echo "$COMMAND_OUTPUT" | grep -q 'Build failed'; then exit 1; fi
-
+          grep -q 'Build failed' <<< "$COMMAND_OUTPUT" && exit 1
 
       - name: Cleanup Docker Compose
         if: always()
