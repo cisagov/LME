@@ -37,7 +37,7 @@ jobs:
         run: |
           set +e  
           cd testing/development
-          docker-compose exec --rm -T lme pwsh -Command "& { exit 1 }"
+          docker-compose exec -T lme pwsh -Command "& { exit 1 }"
           EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
           set -e  
