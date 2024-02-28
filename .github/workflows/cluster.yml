@@ -43,7 +43,7 @@ jobs:
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
             \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
             ./testing/development/build_cluster.ps1; \
-            exit $LASTEXITCODE;
+            exit \$LASTEXITCODE;
           }"
           EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
