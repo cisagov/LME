@@ -36,6 +36,7 @@ jobs:
       - name: Execute powershell in container 
         run: |
           set +e  
+          cd testing/development
           docker-compose run --rm -T lme pwsh -Command "& { exit 1 }"
           EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
