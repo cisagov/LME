@@ -35,7 +35,6 @@ jobs:
 
       - name: Execute powershell in container 
         run: |
-          set -e
           cd testing/development
           docker-compose run --rm -T lme pwsh -c "& { \
             \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
@@ -43,13 +42,12 @@ jobs:
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
             \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
             ./testing/development/build_cluster.ps1; \
-            }"
-            EXIT_CODE=$?
-            if [ $EXIT_CODE -ne 0 ]; then
-              echo "Command failed with exit code $EXIT_CODE"
-              exit $EXIT_CODE
-            fi
-            set -e 
+          }"
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Command failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
 
       - name: Cleanup Docker Compose
         if: always()
