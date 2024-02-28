@@ -37,10 +37,6 @@ jobs:
         run: |
           set -x
           cd testing/development
-          docker-compose exec -T lme pwsh -c "./testing/development/build_cluster.ps1"
-        run: |
-          set -x
-          cd testing/development
           COMMAND_OUTPUT=$(docker-compose exec -T lme pwsh -c "& { \
             try { ./testing/development/build_cluster.ps1 -ErrorAction Stop } \
             catch { Write-Error 'Build failed'; exit 1 }; \
@@ -48,8 +44,6 @@ jobs:
             }" 2>&1)
           echo "$COMMAND_OUTPUT"
           grep -q 'Build failed' <<< "$COMMAND_OUTPUT" && exit 1
-
-
         env:
           AZURE_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
           AZURE_SECRET: ${{ env.AZURE_SECRET }}
