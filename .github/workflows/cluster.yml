@@ -36,22 +36,13 @@ jobs:
       - name: Execute powershell in container 
         run: |
           cd testing/development
-          COMMAND_OUTPUT=$(docker-compose exec -T lme pwsh -c "& { \
+          docker-compose run --rm -T lme pwsh -c "& { \
             \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
             \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
-            ./testing/development/build_cluster.ps1 \
-            if (\$LASTEXITCODE -ne 0) { Write-Output 'Script execution failed'; exit \$LASTEXITCODE } \
-            else { Write-Output 'Script execution succeeded' }\
-            }" 2>&1)
-          echo "$COMMAND_OUTPUT"
-          if echo "$COMMAND_OUTPUT" | grep -q 'Script execution failed'; then
-            echo 'Detected script failure.'
-            exit 1
-          fi
-
-
+            ./testing/development/build_cluster.ps1; \
+            }"
 
       - name: Cleanup Docker Compose
         if: always()
