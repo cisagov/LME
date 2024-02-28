@@ -41,7 +41,7 @@ jobs:
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
             \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
-            ./testing/development/build_cluster.ps1 -ErrorAction Continue; \
+            ./testing/development/build_cluster.ps1 \
             if (\$LASTEXITCODE -ne 0) { Write-Output 'Script execution failed'; exit \$LASTEXITCODE } \
             else { Write-Output 'Script execution succeeded' }\
             }" 2>&1)
