@@ -37,7 +37,13 @@ jobs:
         run: |
           set +e  
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { exit 1 }"
+          docker-compose exec -T lme pwsh -Command "& { 
+            \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
+            ./testing/development/build_cluster.ps1 \  
+          }"
           EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
           set -e  
