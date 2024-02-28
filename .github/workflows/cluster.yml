@@ -35,20 +35,18 @@ jobs:
 
       - name: Execute powershell in container 
         run: |
-          set -x
           cd testing/development
           COMMAND_OUTPUT=$(docker-compose exec -T lme pwsh -c "& { \
+            `$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
+            `$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
+            `$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
+            `$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
             try { ./testing/development/build_cluster.ps1 -ErrorAction Stop } \
             catch { Write-Error 'Build failed'; exit 1 }; \
             exit \
             }" 2>&1)
           echo "$COMMAND_OUTPUT"
           grep -q 'Build failed' <<< "$COMMAND_OUTPUT" && exit 1
-        env:
-          AZURE_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
-          AZURE_SECRET: ${{ env.AZURE_SECRET }}
-          AZURE_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT: ${{ env.AZURE_TENANT }}
 
       - name: Cleanup Docker Compose
         if: always()
