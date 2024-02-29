@@ -61,4 +61,14 @@ jobs:
         if: always()
         run: |
           cd testing/development
+          docker-compose exec -T lme pwsh -Command "& { 
+            \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            ./testing/development/destroy_cluster.ps1; \
+            exit \$LASTEXITCODE;
+          }"
           docker-compose down
