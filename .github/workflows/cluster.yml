@@ -36,6 +36,7 @@ jobs:
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
 
+
       - name: Run Docker Compose
         run: docker-compose -f testing/development/docker-compose.yml up  -d
 
