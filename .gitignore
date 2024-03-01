@@ -2,6 +2,7 @@
 .DS_Store
 /.idea/
 /.vscode/
+**/.env
 /Chapter 4 Files/*.dumped.ndjson
 /Chapter 4 Files/exported/
 

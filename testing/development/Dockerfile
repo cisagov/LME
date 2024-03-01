@@ -1,5 +1,7 @@
 # Use Ubuntu 22.04 as base image
 FROM ubuntu:22.04
+ARG USER_ID=1001
+ARG GROUP_ID=1001
 
 # Set environment variable to avoid interactive dialogues during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -35,8 +37,8 @@ RUN apt-get update && apt-get install -y \
 
 
 # Create a user and group 'admin.ackbar' with GID 1001
-RUN groupadd -g 1001 admin.ackbar \
-    && useradd -m -u 1001 -g admin.ackbar --badnames admin.ackbar \
+RUN groupadd -g $GROUP_ID admin.ackbar \
+    && useradd -m -u $USER_ID -g admin.ackbar --badnames admin.ackbar \
     && usermod -aG sudo admin.ackbar
 
 # Allow 'admin.ackbar' user to run sudo commands without a password

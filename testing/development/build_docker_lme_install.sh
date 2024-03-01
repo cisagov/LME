@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 cd testing/configure || exit
 sudo ./linux_update_system.sh
+# TODO: change this to the main branch before it is merged
 sudo ./linux_install_lme.sh -b cbaxley-194-workflows
 . lib/functions.sh
 extract_credentials

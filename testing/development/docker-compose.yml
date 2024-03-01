@@ -2,20 +2,29 @@ version: '3.8'
 
 services:
   ubuntu:
-    build: .
-    user: admin.ackbar
+    build: 
+      context: .
+      args:
+        USER_ID: "${HOST_UID:-1001}"
+        GROUP_ID: "${HOST_GID:-1001}"
+    # user: admin.ackbar
     container_name: lme_development
+    user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     volumes:
-      - ../../../LME/:/lme  # Mounts the parent directory to /app in the container checkout repo as LME
+      - ../../../LME/:/lme  # Mounts the parent directory to /lme in the container checkout repo as LME
     command: sleep infinity
   lme:
     build:
       context: ../../
       dockerfile: testing/development/Dockerfile
+      args:
+        USER_ID: "${HOST_UID:-1001}"
+        GROUP_ID: "${HOST_GID:-1001}"
     privileged: true
     container_name: lme
+    user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     volumes:
-      - ../../../LME/:/home/admin.ackbar/LME  # Mounts the parent directory to /app in the container checkout repo as LME
+      - ../:/home/admin.ackbar/LME  # Mounts the parent directory to /home/admin.ackbar/LME in the container checkout repo as LME
     command: sleep infinity
     ports:
       - "443:443"
