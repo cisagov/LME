@@ -36,6 +36,13 @@ jobs:
         run: |
           docker ps 
 
+      - name: Set the environment for docker-compose 
+        run: |
+          cd testing/development
+          # Get the UID and GID of the current user
+          echo "HOST_UID=$(id -u)" > .env
+          echo "HOST_GID=$(id -g)" >> .env
+
       - name: List files in home directory 
         run: |
           set +e  
