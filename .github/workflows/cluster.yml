@@ -41,7 +41,9 @@ jobs:
           set +e  
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
-            ls 
+            ls -la 
+            cd ..
+            ls -la 
           }"
 
       - name:  Build the cluster 
