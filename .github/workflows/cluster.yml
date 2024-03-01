@@ -36,10 +36,16 @@ jobs:
         run: |
           docker ps 
 
-      - name: Execute powershell in container 
+      - name: List files in home directory 
         run: |
           set +e  
-          cd testing/development
+          docker-compose exec -T lme pwsh -Command "& { 
+            ls 
+          }"
+
+      - name:  Build the cluster 
+        run: |
+          set +e  
           docker-compose exec -T lme pwsh -Command "& { 
             \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
@@ -60,7 +66,6 @@ jobs:
       - name: Cleanup Docker Compose
         if: always()
         run: |
-          cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
             \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
