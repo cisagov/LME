@@ -44,15 +44,16 @@ jobs:
         run: |
           docker ps 
 
-      - name: List files in home directory 
+      - name: List files in home directory
         run: |
-          set +e  
+          set +e
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
-            ls -la 
-            cd ..
-            ls -la 
+          docker-compose exec -T lme pwsh -Command "& { \
+            ls -la; \
+            cd ..; \
+            ls -la; \
           }"
+
 
       - name:  Build the cluster 
         run: |
