@@ -69,5 +69,5 @@ jobs:
         if: always()
         run: |
           cd testing/development
-          docker-compose exec -T -u root.root lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
+          docker-compose exec -T -u root lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
           docker-compose down
