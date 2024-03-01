@@ -48,9 +48,7 @@ jobs:
         run: |
           set +e
           cd testing/development
-          docker-compose exec -T lme bash -c "ls -la \
-            && cd .. \
-            && ls -la"
+          docker-compose exec -T lme bash -c "pwd && ls -la"
 
 
       - name:  Build the cluster 
