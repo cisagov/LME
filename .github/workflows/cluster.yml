@@ -29,13 +29,6 @@ jobs:
           -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
 
-      - name: Run Docker Compose
-        run: docker-compose -f testing/development/docker-compose.yml up  -d
-
-      - name: List docker containers to wait for them to start
-        run: |
-          docker ps 
-
       - name: Set the environment for docker-compose 
         run: |
           cd testing/development
@@ -43,14 +36,21 @@ jobs:
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
 
+      - name: Run Docker Compose
+        run: docker-compose -f testing/development/docker-compose.yml up  -d
+
+      - name: List docker containers to wait for them to start
+        run: |
+          docker ps 
+
       - name: List files in home directory 
         run: |
           set +e  
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
-            ls -la 
-            cd ..
-            ls -la 
+          docker-compose exec -T lme pwsh -Command "& { \
+            ls -la \ 
+            cd .. \
+            ls -la \
           }"
 
       - name:  Build the cluster 
