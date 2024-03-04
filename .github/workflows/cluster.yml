@@ -93,7 +93,7 @@ jobs:
             exit $EXIT_CODE
           fi
 
-      - name: Cleanup Docker Compose
+      - name: Cleanup environment 
         if: always()
         run: |
           cd testing/development
