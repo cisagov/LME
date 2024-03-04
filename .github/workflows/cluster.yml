@@ -55,7 +55,7 @@ jobs:
           set +e  
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
-            cwd; \
+            cd /home/admin.ackbar/LME; \
             ls -la; \
             exit \$LASTEXITCODE;
           }"
