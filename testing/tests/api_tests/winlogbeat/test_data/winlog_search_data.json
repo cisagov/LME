@@ -1,0 +1,113 @@
+{
+    "took": 1,
+    "timed_out": false,
+    "_shards": {
+        "total": 1,
+        "successful": 1,
+        "skipped": 0,
+        "failed": 0
+    },
+    "hits": {
+        "total": {
+            "value": 10000,
+            "relation": "gte"
+        },
+        "max_score": 0.25743395,
+        "hits": [
+            {
+                "_index": "winlogbeat-000001",
+                "_id": "jCVVrI0BCo1Z0LKYxRqP",
+                "_score": 0.25743395,
+                "_ignored": [
+                    "event.original"
+                ],
+                "_source": {
+                    "agent": {
+                        "name": "DC1",
+                        "id": "13fc3581-db7f-4963-a466-7eb8f9ab6a12",
+                        "type": "winlogbeat",
+                        "ephemeral_id": "db2ea4d0-70ac-4801-bcb6-84a9e5a307e1",
+                        "version": "8.5.0"
+                    },
+                    "@timestamp": "2024-02-15T10:35:16.259Z",
+                    "winlog": {
+                        "computer_name": "DC1.lme.local",
+                        "process": {
+                            "pid": 652,
+                            "thread": {
+                                "id": 2268
+                            }
+                        },
+                        "keywords": [
+                            "Audit Success"
+                        ],
+                        "channel": "Security",
+                        "event_data": {
+                            "ProcessName": "-",
+                            "LogonGuid": "{8a506935-9240-03e6-19c8-ff37db6880af}",
+                            "TargetOutboundDomainName": "-",
+                            "VirtualAccount": "%%1843",
+                            "IpPort": "50375",
+                            "TransmittedServices": "-",
+                            "LmPackageName": "-",
+                            "RestrictedAdminMode": "-",
+                            "ElevatedToken": "%%1842",
+                            "WorkstationName": "-",
+                            "SubjectDomainName": "-",
+                            "TargetDomainName": "LME.LOCAL",
+                            "LogonProcessName": "Kerberos",
+                            "LogonType": "3",
+                            "SubjectLogonId": "0x0",
+                            "KeyLength": "0",
+                            "TargetOutboundUserName": "-",
+                            "TargetLogonId": "0x1cb3bd",
+                            "SubjectUserName": "-",
+                            "TargetLinkedLogonId": "0x0",
+                            "IpAddress": "10.1.0.6",
+                            "TargetUserName": "C1$",
+                            "ProcessId": "0x0",
+                            "ImpersonationLevel": "%%1840",
+                            "SubjectUserSid": "S-1-0-0",
+                            "TargetUserSid": "S-1-5-21-3445698209-1349834950-1391258014-1601",
+                            "AuthenticationPackageName": "Kerberos"
+                        },
+                        "opcode": "Info",
+                        "version": 2,
+                        "record_id": 14554,
+                        "task": "Logon",
+                        "event_id": "4624",
+                        "provider_guid": "{54849625-5478-4994-a5ba-3e3b0328c30d}",
+                        "activity_id": "{2915349f-12cd-0000-0c69-031bef5fda01}",
+                        "api": "wineventlog",
+                        "provider_name": "Microsoft-Windows-Security-Auditing"
+                    },
+                    "ecs": {
+                        "version": "8.0.0"
+                    },
+                    "log": {
+                        "level": "information"
+                    },
+                    "host": {
+                        "name": "DC1.lme.local"
+                    },
+                    "@version": "1",
+                    "message": "An account was successfully logged on.\n\nSubject:\n\tSecurity ID:\t\tS-1-0-0\n\tAccount Name:\t\t-\n\tAccount Domain:\t\t-\n\tLogon ID:\t\t0x0\n\nLogon Information:\n\tLogon Type:\t\t3\n\tRestricted Admin Mode:\t-\n\tVirtual Account:\t\tNo\n\tElevated Token:\t\tYes\n\nImpersonation Level:\t\tDelegation\n\nNew Logon:\n\tSecurity ID:\t\tS-1-5-21-3445698209-1349834950-1391258014-1601\n\tAccount Name:\t\tC1$\n\tAccount Domain:\t\tLME.LOCAL\n\tLogon ID:\t\t0x1CB3BD\n\tLinked Logon ID:\t\t0x0\n\tNetwork Account Name:\t-\n\tNetwork Account Domain:\t-\n\tLogon GUID:\t\t{8a506935-9240-03e6-19c8-ff37db6880af}\n\nProcess Information:\n\tProcess ID:\t\t0x0\n\tProcess Name:\t\t-\n\nNetwork Information:\n\tWorkstation Name:\t-\n\tSource Network Address:\t10.1.0.6\n\tSource Port:\t\t50375\n\nDetailed Authentication Information:\n\tLogon Process:\t\tKerberos\n\tAuthentication Package:\tKerberos\n\tTransited Services:\t-\n\tPackage Name (NTLM only):\t-\n\tKey Length:\t\t0\n\nThis event is generated when a logon session is created. It is generated on the computer that was accessed.\n\nThe subject fields indicate the account on the local system which requested the logon. This is most commonly a service such as the Server service, or a local process such as Winlogon.exe or Services.exe.\n\nThe logon type field indicates the kind of logon that occurred. The most common types are 2 (interactive) and 3 (network).\n\nThe New Logon fields indicate the account for whom the new logon was created, i.e. the account that was logged on.\n\nThe network fields indicate where a remote logon request originated. Workstation name is not always available and may be left blank in some cases.\n\nThe impersonation level field indicates the extent to which a process in the logon session can impersonate.\n\nThe authentication information fields provide detailed information about this specific logon request.\n\t- Logon GUID is a unique identifier that can be used to correlate this event with a KDC event.\n\t- Transited services indicate which intermediate services have participated in this logon request.\n\t- Package name indicates which sub-protocol was used among the NTLM protocols.\n\t- Key length indicates the length of the generated session key. This will be 0 if no session key was requested.",
+                    "event": {
+                        "ingested": "2024-02-15T10:35:18.799709017Z",
+                        "code": "4624",
+                        "original": "An account was successfully logged on.\n\nSubject:\n\tSecurity ID:\t\tS-1-0-0\n\tAccount Name:\t\t-\n\tAccount Domain:\t\t-\n\tLogon ID:\t\t0x0\n\nLogon Information:\n\tLogon Type:\t\t3\n\tRestricted Admin Mode:\t-\n\tVirtual Account:\t\tNo\n\tElevated Token:\t\tYes\n\nImpersonation Level:\t\tDelegation\n\nNew Logon:\n\tSecurity ID:\t\tS-1-5-21-3445698209-1349834950-1391258014-1601\n\tAccount Name:\t\tC1$\n\tAccount Domain:\t\tLME.LOCAL\n\tLogon ID:\t\t0x1CB3BD\n\tLinked Logon ID:\t\t0x0\n\tNetwork Account Name:\t-\n\tNetwork Account Domain:\t-\n\tLogon GUID:\t\t{8a506935-9240-03e6-19c8-ff37db6880af}\n\nProcess Information:\n\tProcess ID:\t\t0x0\n\tProcess Name:\t\t-\n\nNetwork Information:\n\tWorkstation Name:\t-\n\tSource Network Address:\t10.1.0.6\n\tSource Port:\t\t50375\n\nDetailed Authentication Information:\n\tLogon Process:\t\tKerberos\n\tAuthentication Package:\tKerberos\n\tTransited Services:\t-\n\tPackage Name (NTLM only):\t-\n\tKey Length:\t\t0\n\nThis event is generated when a logon session is created. It is generated on the computer that was accessed.\n\nThe subject fields indicate the account on the local system which requested the logon. This is most commonly a service such as the Server service, or a local process such as Winlogon.exe or Services.exe.\n\nThe logon type field indicates the kind of logon that occurred. The most common types are 2 (interactive) and 3 (network).\n\nThe New Logon fields indicate the account for whom the new logon was created, i.e. the account that was logged on.\n\nThe network fields indicate where a remote logon request originated. Workstation name is not always available and may be left blank in some cases.\n\nThe impersonation level field indicates the extent to which a process in the logon session can impersonate.\n\nThe authentication information fields provide detailed information about this specific logon request.\n\t- Logon GUID is a unique identifier that can be used to correlate this event with a KDC event.\n\t- Transited services indicate which intermediate services have participated in this logon request.\n\t- Package name indicates which sub-protocol was used among the NTLM protocols.\n\t- Key length indicates the length of the generated session key. This will be 0 if no session key was requested.",
+                        "provider": "Microsoft-Windows-Security-Auditing",
+                        "created": "2024-02-15T10:35:17.667Z",
+                        "kind": "event",
+                        "action": "Logon",
+                        "outcome": "success"
+                    },
+                    "tags": [
+                        "beats",
+                        "beats_input_codec_plain_applied"
+                    ]
+                }
+            }
+        ]
+    }
+}
