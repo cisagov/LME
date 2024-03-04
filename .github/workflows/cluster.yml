@@ -50,6 +50,22 @@ jobs:
           cd testing/development
           docker-compose exec -T lme bash -c "pwd && ls -la"
 
+      - name:  Check powershell environment 
+        run: |
+          set +e  
+          cd testing/development
+          docker-compose exec -T lme pwsh -Command "& { 
+            cwd; \
+            ls -la; \
+            exit \$LASTEXITCODE;
+          }"
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          set -e  
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
+
 
       - name:  Build the cluster 
         run: |

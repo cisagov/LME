@@ -24,7 +24,7 @@ services:
     container_name: lme
     user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     volumes:
-      - ../:/home/admin.ackbar/LME  # Mounts the parent directory to /home/admin.ackbar/LME in the container checkout repo as LME
+      - ../../:/home/admin.ackbar/LME  # Mounts the parent directory to /home/admin.ackbar/LME in the container checkout repo as LME
     command: sleep infinity
     ports:
       - "443:443"
