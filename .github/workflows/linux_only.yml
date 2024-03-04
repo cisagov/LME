@@ -20,27 +20,25 @@ jobs:
           echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
           echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
-
       - name: Set up Docker Compose
         run: |
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
           -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
 
-      - name: Set the environment for docker-compose 
+      - name: Set the environment for docker-compose
         run: |
           cd testing/development
           # Get the UID and GID of the current user
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
 
-
       - name: Run Docker Compose
         run: docker-compose -f testing/development/docker-compose.yml up  -d
 
       - name: List docker containers to wait for them to start
         run: |
-          docker ps 
+          docker ps
 
       - name: Execute commands inside ubuntu container
         run: |
@@ -52,9 +50,9 @@ jobs:
           set -x
           cd testing/development
           docker-compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh \
-          && chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
+          && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
 
-      - name: Run api tests in container 
+      - name: Run api tests in container
         run: |
           cd testing/development
           docker-compose exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
