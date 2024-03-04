@@ -59,7 +59,7 @@ jobs:
           set +e  
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/; \
+            cd /home/admin.ackbar/LME; \
             ls -la; \
             exit \$LASTEXITCODE;
           }"
@@ -76,7 +76,7 @@ jobs:
           set +e  
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME; \
+            cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
@@ -98,6 +98,7 @@ jobs:
         run: |
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
             \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
