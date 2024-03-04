@@ -6,7 +6,13 @@ if ([string]::IsNullOrWhiteSpace($env:RESOURCE_GROUP)) {
     exit 1
 }
 
-# Delete the resource group
-az group delete --name "$env:RESOURCE_GROUP" --yes --no-wait
+# Check if the resource group exists
+$resourceGroupExists = az group exists --name "$env:RESOURCE_GROUP"
 
-Write-Host "Deletion of resource group $($env:RESOURCE_GROUP) initiated."
+if ($resourceGroupExists -eq 'true') {
+    # Delete the resource group if it exists
+    az group delete --name "$env:RESOURCE_GROUP" --yes --no-wait
+    Write-Host "Deletion of resource group $($env:RESOURCE_GROUP) initiated."
+} else {
+    Write-Host "Resource group $($env:RESOURCE_GROUP) does not exist. No action taken."
+}
