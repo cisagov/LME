@@ -112,3 +112,21 @@ python3 -m venv venv
 pip install -r requirements.txt
 pytest
 ```
+
+## Generating Test HTML Reports
+After the tests have been executed, run the following command to generate HTML report to view Test Results.
+
+```
+pip install pytest-html
+pytest --html=report.html
+```
+
+Note: pytest-html has been added to requirements.txt. If the user is running installation on requirements.txt then there is no need to install pytest-html separately.
+
+Outside the virtual env, after html report is generated, run the following command once on the html report to attribute apporpiate ownsership on the html file so that you can open the file with the browser of choice. Google Chrome browser seems to provide a better display than firefox.
+
+```
+chown 1000.1000 report.html
+```
+
+When a test fails, the test result details on the report provide appropriate information on the error message as you would expect to see on console. 
