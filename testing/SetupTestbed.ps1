@@ -176,8 +176,7 @@ function Set-NetworkRules {
             "--source-address-prefixes $AllowedSourcesList " +
             "--destination-address-prefixes '*' " +
             "--destination-port-ranges $port " +
-            "--description 'Allow inbound from $sources on $port via $protocol connections.' " +
-            "--tags project=`"$Project`" created=`"$Today`" createdBy=`"$CurrentUser`""
+            "--description 'Allow inbound from $sources on $port via $protocol connections.' " 
 
         Write-Output "Running command: $command"
 
