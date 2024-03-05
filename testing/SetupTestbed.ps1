@@ -166,20 +166,24 @@ function Set-NetworkRules {
         $priority = $Priorities[$i]
         $protocol = $Protocols[$i]
         Write-Output "`nCreating Network Port $port rule..."
+        $command = "az network nsg rule create --name Network_Port_Rule_$port " +
+            "--resource-group $ResourceGroup " +
+            "--nsg-name NSG1 " +
+            "--priority $priority " +
+            "--direction Inbound " +
+            "--access Allow " +
+            "--protocol $protocol " +
+            "--source-address-prefixes $AllowedSourcesList " +
+            "--destination-address-prefixes '*' " +
+            "--destination-port-ranges $port " +
+            "--description 'Allow inbound from $sources on $port via $protocol connections.' " +
+            "--tags project=`"$Project`" created=`"$Today`" createdBy=`"$CurrentUser`""
 
-        $networkRuleResponse = az network nsg rule create --name Network_Port_Rule_$port `
-            --resource-group $ResourceGroup `
-            --nsg-name NSG1 `
-            --priority $priority `
-            --direction Inbound `
-            --access Allow `
-            --protocol $protocol `
-            --source-address-prefixes $AllowedSourcesList `
-            --destination-address-prefixes '*' `
-            --destination-port-ranges $port `
-            --description "Allow inbound from $sources on $port via $protocol connections." `
-            --tags project="$Project" created="$Today" createdBy="$CurrentUser"
+        Write-Output "Running command: $command"
+
+        $networkRuleResponse = Invoke-Expression $command
         Write-Output $networkRuleResponse
+
     }
 }
 
