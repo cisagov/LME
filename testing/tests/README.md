@@ -117,13 +117,16 @@ pytest
 After the tests have been executed, run the following command to generate HTML report to view Test Results.
 
 ```
-pip install pytest-html
 pytest --html=report.html
 ```
 
-Note: pytest-html has been added to requirements.txt. If the user is running installation on requirements.txt then there is no need to install pytest-html separately.
+Note: pytest-html has been added to requirements.txt. If for any reason pytest-html is not installed on your virtual environment; you may first need to install it with  the following command. 
 
-Outside the virtual env, after html report is generated, run the following command once on the html report to attribute apporpiate ownsership on the html file so that you can open the file with the browser of choice. Google Chrome browser seems to provide a better display than firefox.
+```
+pip install pytest-html
+```
+
+Outside the virtual env, after html report is generated, run the following command once on the html report to attribute appropriate ownsership on the html file so that you can open the file with the browser of choice. Google Chrome browser seems to provide a better display than Firefox.
 
 ```
 chown 1000.1000 report.html
