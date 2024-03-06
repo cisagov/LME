@@ -111,18 +111,20 @@ jobs:
 
       - name:  Set the environment passwords for other steps 
         run: |
-          set +e  
+          set +ex
           cd testing/development
           docker-compose exec -T lme bash -c "cd /home/admin.ackbar/LME/testing \
            && ls -la\
-           && cat 'LME-pipe-${{ github.run_id }}.password.txt'\
+           && cat 'LME-pipe-${{ github.run_id }}.password.txt' \
            && . configure/lib/functions.sh \
-           && extract_credentials 'LME-pipe-${{ github.run_id }}.password.txt'\
+           && extract_credentials 'LME-pipe-${{ github.run_id }}.password.txt' \
+           && echo elastic $elastic \
            && echo "elastic=$elastic" >> ${{ github.run_id }}.github.sh \
            && echo "kibana=$kibana" >> ${{ github.run_id }}.github.sh \
            && echo "logstash_system=$logstash_system" >> ${{ github.run_id }}.github.sh \
            && echo "logstash_writer=$logstash_writer" >> ${{ github.run_id }}.github.sh \
            && echo "dashboard_update=$dashboard_update" >> ${{ github.run_id }}.github.sh "
+           cat ../${{ github.run_id }}.github.sh
            . ../${{ github.run_id }}.github.sh
            echo "elastic=$elastic" >> $GITHUB_ENV
            echo "kibana=$kibana" >> $GITHUB_ENV
