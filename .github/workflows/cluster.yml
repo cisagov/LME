@@ -13,17 +13,14 @@ jobs:
 
       - name: Setup environment variables
         run: |
-          echo "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "AZURE_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-          echo "AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-          echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
-          echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          # echo "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          # echo "AZURE_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
+          # echo "AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
+          # echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
+          # echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
-
-      - name: Generate unique ID
-        id: unique_id
-        run: echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
+          echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
       
       - name: Set up Docker Compose
         run: |
@@ -38,7 +35,7 @@ jobs:
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
 
-      # - name: Run Docker Compose
+      # - name: Run Docker Compose Build to fix a user id issue in a prebuilt container
       #   run: |
       #     cd testing/development
       #     docker-compose build --no-cache 
@@ -78,12 +75,12 @@ jobs:
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ github.run_id }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ github.run_id }}'; \
             \$env:IP_ADDRESS='${{ env.IP_ADDRESS }}'; \
             ./development/build_cluster.ps1 -IPAddress \$env:IP_ADDRESS; \
             exit \$LASTEXITCODE;
@@ -101,12 +98,12 @@ jobs:
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ github.run_id }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ github.run_id }}'; \
             ./development/install_lme.ps1; \
             exit \$LASTEXITCODE;
           }"
@@ -123,12 +120,12 @@ jobs:
           cd testing/development
           docker-compose exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ env.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ env.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ env.AZURE_CLIENT_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ env.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ github.run_id }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ github.run_id }}'; \
             ./development/destroy_cluster.ps1; \
             exit \$LASTEXITCODE;
           }"
