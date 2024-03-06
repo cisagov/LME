@@ -13,11 +13,6 @@ jobs:
 
       - name: Setup environment variables
         run: |
-          # echo "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-          # echo "AZURE_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-          # echo "AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-          # echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
-          # echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
           echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
@@ -113,6 +108,27 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
+
+      - name:  Set the environment passwords for other steps 
+        run: |
+          set +e  
+          cd testing/development
+          docker-compose exec -T lme bash -c "cd /home/admin.ackbar/LME/testing \
+           && ls -la\
+           && cat 'LME-pipe-${{ github.run_id }}.password.txt'\
+           && . configure/lib/functions.sh \
+           && extract_credentials 'LME-pipe-${{ github.run_id }}'\
+           && echo "elastic=$elastic" >> $GITHUB_ENV \
+           && echo "kibana=$kibana" >> $GITHUB_ENV \
+           && echo "logstash_system=$logstash_system" >> $GITHUB_ENV \
+           && echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV\
+           && echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV"
+
+      - name:  Set the environment passwords for other steps 
+        run: |
+          set +e  
+          cd testing/development
+          docker-compose exec -T lme bash -c "echo ${{ env.elastic }}"
 
       - name: Cleanup environment 
         if: always()
