@@ -117,14 +117,14 @@ jobs:
            && ls -la\
            && cat 'LME-pipe-${{ github.run_id }}.password.txt'\
            && . configure/lib/functions.sh \
-           && extract_credentials 'LME-pipe-${{ github.run_id }}'\
+           && extract_credentials 'LME-pipe-${{ github.run_id }}.password.txt'\
            && echo "elastic=$elastic" >> $GITHUB_ENV \
            && echo "kibana=$kibana" >> $GITHUB_ENV \
            && echo "logstash_system=$logstash_system" >> $GITHUB_ENV \
            && echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV\
            && echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV"
 
-      - name:  Set the environment passwords for other steps 
+      - name:  Check setting the environment passwords for other steps 
         run: |
           set +e  
           cd testing/development
