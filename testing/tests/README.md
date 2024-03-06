@@ -126,7 +126,7 @@ Note: pytest-html has been added to requirements.txt. If for any reason pytest-h
 pip install pytest-html
 ```
 
-Outside the virtual env, after html report is generated, run the following command once on the html report to attribute appropriate ownsership on the html file so that you can open the file with the browser of choice. Google Chrome browser seems to provide a better display than Firefox.
+After html report is generated, run the following command outside virtual environment to attribute appropriate ownership on the html file so that you can open the file with the browser of choice. Google Chrome browser seems to provide a better display than Firefox.
 
 ```
 chown 1000.1000 report.html
