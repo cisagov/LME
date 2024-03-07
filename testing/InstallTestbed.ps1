@@ -254,7 +254,7 @@ $getElasticsearchPasswordsResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVM `
   --resource-group $ResourceGroup `
-  --scripts "content=\$(sed -n '/^## elastic/,/^#\\{30,\\}/p' \"/opt/lme/Chapter 3 Files/output.log\")"
+  --scripts 'sed -n "/^## elastic/,/^####################/p" "/opt/lme/Chapter 3 Files/output.log"'  
 
 Write-Output $ProcessSeparator
 

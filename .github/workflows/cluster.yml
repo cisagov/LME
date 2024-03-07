@@ -124,6 +124,8 @@ jobs:
            && echo "logstash_system=$logstash_system" >> ${{ env.UNIQUE_ID }}.github.sh \
            && echo "logstash_writer=$logstash_writer" >> ${{ env.UNIQUE_ID }}.github.sh \
            && echo "dashboard_update=$dashboard_update" >> ${{ env.UNIQUE_ID }}.github.sh "
+           ls -la 
+           ls -la ../
            cat ../${{ env.UNIQUE_ID }}.github.sh 
            . ../${{ env.UNIQUE_ID }}.github.sh
            echo "elastic=$elastic" >> $GITHUB_ENV
