@@ -132,15 +132,12 @@ jobs:
             echo "logstash_system=$logstash_system" >> $GITHUB_ENV
             echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
             echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
-            #  ls -la 
-            #  ls -la ../
-            #  cat ../${{ env.UNIQUE_ID }}.github.sh 
 
       - name:  Check setting the environment passwords for other steps 
         run: |
           set +e  
           cd testing/development
-          docker-compose exec -T lme bash -c "echo ${{ env.elastic }}"
+          docker-compose exec -T lme bash -c "echo Elastic: ${{ env.elastic }}"
 
       - name: Cleanup environment 
         if: always()
