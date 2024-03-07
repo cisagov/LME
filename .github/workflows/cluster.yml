@@ -115,8 +115,6 @@ jobs:
           cd testing/development
           docker-compose exec -T lme bash -c "
             cd /home/admin.ackbar/LME/testing \
-            && ls -la\
-            && cat 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
             && . configure/lib/functions.sh \
             && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
             && touch ${{ env.UNIQUE_ID }}.github.sh \
