@@ -118,13 +118,14 @@ jobs:
            && cat 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
            && . configure/lib/functions.sh \
            && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
-           && echo "elastic: \$elastic" \
+           && echo elastic: \$elastic \
            && touch ${{ env.UNIQUE_ID }}.github.sh\
-           && echo "elastic=$elastic" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo "kibana=$kibana" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo "logstash_system=$logstash_system" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo "logstash_writer=$logstash_writer" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo "dashboard_update=$dashboard_update" >> ${{ env.UNIQUE_ID }}.github.sh "
+           && echo \"elastic=$elastic\" >> ${{ env.UNIQUE_ID }}.github.sh \
+           && echo \"kibana=\$kibana\" >> ${{ env.UNIQUE_ID }}.github.sh \
+           && echo \"logstash_system=$logstash_system\" >> ${{ env.UNIQUE_ID }}.github.sh \
+           && echo \"logstash_writer=$logstash_writer\" >> ${{ env.UNIQUE_ID }}.github.sh \
+           && echo \"dashboard_update=$dashboard_update\" >> ${{ env.UNIQUE_ID }}.github.sh \
+           "
            ls -la 
            ls -la ../
            cat ../${{ env.UNIQUE_ID }}.github.sh 
