@@ -20,7 +20,7 @@ extract_credentials() {
         # Remove non-word characters (keep only word characters)
         value=$(echo "$value" | sed 's/[^[:alnum:]_]//g')
 
-        echo "key: $key, value: $value"
+        echo "key: -$key-, value: $value"
 
         case $key in
             "elastic") export elastic=$value ;;
