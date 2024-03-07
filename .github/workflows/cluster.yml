@@ -113,28 +113,28 @@ jobs:
         run: |
           set +ex
           cd testing/development
-          docker-compose exec -T lme bash -c "cd /home/admin.ackbar/LME/testing \
-           && ls -la\
-           && cat 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
-           && . configure/lib/functions.sh \
-           && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
-           && echo elastic: \$elastic \
-           && touch ${{ env.UNIQUE_ID }}.github.sh\
-           && echo \"elastic=$elastic\" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo \"kibana=\$kibana\" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo \"logstash_system=$logstash_system\" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo \"logstash_writer=$logstash_writer\" >> ${{ env.UNIQUE_ID }}.github.sh \
-           && echo \"dashboard_update=$dashboard_update\" >> ${{ env.UNIQUE_ID }}.github.sh \
-           "
-           ls -la 
-           ls -la ../
-           cat ../${{ env.UNIQUE_ID }}.github.sh 
-           . ../${{ env.UNIQUE_ID }}.github.sh
-           echo "elastic=$elastic" >> $GITHUB_ENV
-           echo "kibana=$kibana" >> $GITHUB_ENV
-           echo "logstash_system=$logstash_system" >> $GITHUB_ENV
-           echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
-           echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
+          docker-compose exec -T lme bash -c "
+            cd /home/admin.ackbar/LME/testing \
+            && ls -la\
+            && cat 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
+            && . configure/lib/functions.sh \
+            && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
+            && touch ${{ env.UNIQUE_ID }}.github.sh \
+            && echo \"elastic=\$elastic\" >> ${{ env.UNIQUE_ID }}.github.sh \
+            && echo \"kibana=\$kibana\" >> ${{ env.UNIQUE_ID }}.github.sh \
+            && echo \"logstash_system=\$logstash_system\" >> ${{ env.UNIQUE_ID }}.github.sh \
+            && echo \"logstash_writer=\$logstash_writer\" >> ${{ env.UNIQUE_ID }}.github.sh \
+            && echo \"dashboard_update=\$dashboard_update\" >> ${{ env.UNIQUE_ID }}.github.sh \
+            "
+          #  ls -la 
+          #  ls -la ../
+          #  cat ../${{ env.UNIQUE_ID }}.github.sh 
+          #  . ../${{ env.UNIQUE_ID }}.github.sh
+          #  echo "elastic=$elastic" >> $GITHUB_ENV
+          #  echo "kibana=$kibana" >> $GITHUB_ENV
+          #  echo "logstash_system=$logstash_system" >> $GITHUB_ENV
+          #  echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
+          #  echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
 
       - name:  Check setting the environment passwords for other steps 
         run: |
