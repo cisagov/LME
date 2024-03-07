@@ -44,7 +44,6 @@ jobs:
 
       - name: List files in home directory
         run: |
-          set +e
           cd testing/development
           docker-compose exec -T lme bash -c "pwd && ls -la"
 
@@ -111,7 +110,6 @@ jobs:
 
       - name:  Set the environment passwords for other steps 
         run: |
-          set +ex
           cd testing/development
           docker-compose exec -T lme bash -c "
             cd /home/admin.ackbar/LME/testing \
@@ -133,7 +131,6 @@ jobs:
 
       - name:  Check setting the environment passwords for other steps 
         run: |
-          set +e  
           cd testing/development
           docker-compose exec -T lme bash -c "echo Elastic: ${{ env.elastic }}"
 
