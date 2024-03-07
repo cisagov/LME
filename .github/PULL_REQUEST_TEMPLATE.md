@@ -9,6 +9,9 @@
 <!-- What problem does this change solve? How did you solve it? -->
 <!-- Mention any related issue(s) here using appropriate keywords such -->
 <!-- as "closes" or "resolves" to auto-close them on merge. -->
+<!-- If this PR is *not* being merged into main, the related issues will not -->
+<!-- be auto-closed, so you need to add the issue into the Development box -->
+<!-- in the right sidebar -->
 
 ### 📷 Screenshots (DELETE IF UNAPPLICABLE)
 
