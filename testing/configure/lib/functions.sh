@@ -44,4 +44,5 @@ write_credentials_to_file() {
     echo "logstash_system:$logstash_system" >> "$file_path"
     echo "logstash_writer:$logstash_writer" >> "$file_path"
     echo "dashboard_update:$dashboard_update" >> "$file_path"
+    ls -l
 }
