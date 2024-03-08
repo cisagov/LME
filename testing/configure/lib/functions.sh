@@ -30,3 +30,18 @@ extract_credentials() {
     done < <(tail -n 18 "$file_path" | grep -E "(elastic|kibana|logstash_system|logstash_writer|dashboard_update):")
     export ELASTIC_PASSWORD=$elastic
 }
+
+write_credentials_to_file() {
+    local file_path=$1
+    # exit if file path is not provided
+    if [ -z "$file_path" ]; then
+        echo "File path is required"
+        return 1
+    fi
+    # Write credentials to the file
+    echo "elastic:$elastic" > "$file_path"
+    echo "kibana:$kibana" >> "$file_path"
+    echo "logstash_system:$logstash_system" >> "$file_path"
+    echo "logstash_writer:$logstash_writer" >> "$file_path"
+    echo "dashboard_update:$dashboard_update" >> "$file_path"
+}

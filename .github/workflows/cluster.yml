@@ -115,14 +115,10 @@ jobs:
             cd /home/admin.ackbar/LME/testing \
             && . configure/lib/functions.sh \
             && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
-            && touch ${{ env.UNIQUE_ID }}.github.sh \
-            && echo \"elastic=\$elastic\" >> ${{ env.UNIQUE_ID }}.github.sh \
-            && echo \"kibana=\$kibana\" >> ${{ env.UNIQUE_ID }}.github.sh \
-            && echo \"logstash_system=\$logstash_system\" >> ${{ env.UNIQUE_ID }}.github.sh \
-            && echo \"logstash_writer=\$logstash_writer\" >> ${{ env.UNIQUE_ID }}.github.sh \
-            && echo \"dashboard_update=\$dashboard_update\" >> ${{ env.UNIQUE_ID }}.github.sh \
+            && write_credentials_to_file ${{ env.UNIQUE_ID }}.github_env.sh \
             "
-            . ../${{ env.UNIQUE_ID }}.github.sh
+            . ../${{ env.UNIQUE_ID }}.github_env.sh
+            rm ../${{ env.UNIQUE_ID }}.github_env.sh
             echo "elastic=$elastic" >> $GITHUB_ENV
             echo "kibana=$kibana" >> $GITHUB_ENV
             echo "logstash_system=$logstash_system" >> $GITHUB_ENV
