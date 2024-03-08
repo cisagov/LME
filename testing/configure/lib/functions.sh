@@ -39,10 +39,9 @@ write_credentials_to_file() {
         return 1
     fi
     # Write credentials to the file
-    echo "elastic:$elastic" > "$file_path"
-    echo "kibana:$kibana" >> "$file_path"
-    echo "logstash_system:$logstash_system" >> "$file_path"
-    echo "logstash_writer:$logstash_writer" >> "$file_path"
-    echo "dashboard_update:$dashboard_update" >> "$file_path"
-    ls -l
+    echo "export elastic=$elastic" > "$file_path"
+    echo "export kibana=$kibana" >> "$file_path"
+    echo "export logstash_system=$logstash_system" >> "$file_path"
+    echo "export logstash_writer=$logstash_writer" >> "$file_path"
+    echo "export dashboard_update=$dashboard_update" >> "$file_path"
 }

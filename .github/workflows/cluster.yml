@@ -115,7 +115,7 @@ jobs:
             cd /home/admin.ackbar/LME/testing \
             && . configure/lib/functions.sh \
             && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
-            && write_credentials_to_file ${{ env.UNIQUE_ID }}.github_env.sh \
+            && write_credentials_to_file '${{ env.UNIQUE_ID }}.github_env.sh' \
             "
             . ../${{ env.UNIQUE_ID }}.github_env.sh
             rm ../${{ env.UNIQUE_ID }}.github_env.sh
