@@ -153,8 +153,8 @@ jobs:
             az vm run-command invoke  \
               --command-id RunPowerShellScript  \
               --name DC1  \
-              --resource-group $ResourceGroup \
-              --scripts "ls C:\"; \
+              --resource-group \$env:ResourceGroup \
+              --scripts 'ls C:\'; \
             exit \$LASTEXITCODE;
           }"
           EXIT_CODE=$?
