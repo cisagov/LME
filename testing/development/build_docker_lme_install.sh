@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+<<<<<<< HEAD
 
 # Parse command line arguments
 while getopts ":b:v:" opt; do
@@ -44,3 +45,15 @@ python3 -m venv /home/admin.ackbar/venv_test
 . /home/admin.ackbar/venv_test/bin/activate
 pip install -r requirements.txt
 sudo chown admin.ackbar:admin.ackbar /home/admin.ackbar/venv_test -R
+=======
+cd testing/configure || exit
+sudo ./linux_update_system.sh
+sudo ./linux_install_lme.sh -b cbaxley-168-python_tests
+. lib/functions.sh
+extract_credentials
+cd ../tests/ || exit
+python3 -m venv ~/venv_test
+. ~/venv_test/bin/activate
+pip install -r requirements.txt
+#pytest api_tests/linux_only/
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))

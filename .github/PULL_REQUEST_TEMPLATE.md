@@ -25,7 +25,12 @@
 - [ ] There is a [gitIssue](https://github.com/cisagov/LME/issues) that this PR resolves
 - [ ] The PR's base branch has been modified to be the proper branch. 
 - [ ] Changes are limited to a single goal **AND** 
+<<<<<<< HEAD
       the title reflects this in a clear human readable format for the release notes
+=======
+      the title reflects this in a clear human readable format
+- [ ] Issue that this PR solves has been selected in the Development section
+>>>>>>> 34b2ff9 (Update PULL_REQUEST_TEMPLATE.md (#206))
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
 - [ ] The PR adheres to LME's requirements in [RELEASES.md](https://github.com/cisagov/LME/RELEASES.md#steps-to-submit-a-PR)
 - [ ] These code changes follow [cisagov code standards](https://github.com/cisagov/development-guide).

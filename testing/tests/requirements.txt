@@ -16,6 +16,10 @@ requests>=2.31.0
 rpds-py>=0.17.1
 tomli>=2.0.1
 urllib3>=2.1.0
+<<<<<<< HEAD
 selenium
 webdriver-manager
 pytest-html>=4.1.1
+=======
+pytest-html>=4.1.1
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))

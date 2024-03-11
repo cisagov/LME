@@ -63,11 +63,14 @@ else
   sudo mv "$extracted_filename" /opt/lme
 fi
 
+<<<<<<< HEAD
 # Change the way we check disk usage in the old versions
 perl -pi -e 's/DISK_SIZE="\$\(echo "\$DF_OUTPUT".+?\)"/DISK_SIZE=130/' /opt/lme/Chapter\ 3\ Files/deploy.sh
 perl -pi -e 's/DISK_80=\$\(\(DISK_SIZE_ROUND \* 80 \/ 100\)\)/DISK_80=91/g' /opt/lme/Chapter\ 3\ Files/deploy.sh
 
 
+=======
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
 echo 'export DEBIAN_FRONTEND=noninteractive' >> ~/.bashrc
 echo 'export NEEDRESTART_MODE=a' >> ~/.bashrc
 . ~/.bashrc
@@ -76,6 +79,7 @@ echo 'export NEEDRESTART_MODE=a' >> ~/.bashrc
 echo 'export DEBIAN_FRONTEND=noninteractive' | sudo tee -a /root/.bashrc
 echo 'export NEEDRESTART_MODE=a' | sudo tee -a /root/.bashrc
 
+<<<<<<< HEAD
 #get interface name of default route
 DEFAULT_IF="$(route | grep '^default' | grep -o '[^ ]*$')"
 
@@ -97,6 +101,8 @@ installdocker
 echo -e "\e[32m[X]\e[0m Pulling the images. This may take some time."
 docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack.yml pull --quiet
 
+=======
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
 # Execute script with root privileges
 # Todo: We could put a switch here for different versions and just run different expect scripts
 sudo -E bash -c  ". /root/.bashrc && $script_dir/linux_install_lme.exp"

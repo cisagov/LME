@@ -1,7 +1,10 @@
 # Use Ubuntu 22.04 as base image
 FROM ubuntu:22.04
+<<<<<<< HEAD
 ARG USER_ID=1001
 ARG GROUP_ID=1001
+=======
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
 
 # Set environment variable to avoid interactive dialogues during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -17,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     sudo \
+<<<<<<< HEAD
     cron \
     freerdp2-x11 \
     pkg-config \
@@ -24,11 +28,14 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-dev \
     distro-info \
     libgirepository1.0-dev \
+=======
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
     && wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
     && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
     && apt-get install -y powershell \
     && rm -rf /var/lib/apt/lists/* \
+<<<<<<< HEAD
     && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
     && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt install -y ./google-chrome-stable_current_amd64.deb \
@@ -41,6 +48,13 @@ RUN apt-get update && apt-get install -y \
 # Create a user and group 'admin.ackbar' with GID 1001
 RUN groupadd -g $GROUP_ID admin.ackbar \
     && useradd -m -u $USER_ID -g admin.ackbar --badnames admin.ackbar \
+=======
+    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+
+# Create a user and group 'admin.ackbar' with GID 1001
+RUN groupadd -g 1001 admin.ackbar \
+    && useradd -m -u 1001 -g admin.ackbar --badnames admin.ackbar \
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
     && usermod -aG sudo admin.ackbar
 
 # Allow 'admin.ackbar' user to run sudo commands without a password

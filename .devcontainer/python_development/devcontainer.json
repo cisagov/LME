@@ -14,6 +14,10 @@
         "ms-python.black-formatter"
       ]
     }
+<<<<<<< HEAD
   },
   "remoteUser": "admin.ackbar"
+=======
+  }
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
 }

@@ -2,6 +2,7 @@ name: Cluster Run
 
 on:
   workflow_dispatch:
+<<<<<<< HEAD
   # pull_request:
   #  branches:
   #    - '*'
@@ -276,3 +277,12 @@ jobs:
           }"
           docker compose -p ${{ env.UNIQUE_ID }} down
           docker system prune --force
+=======
+jobs:
+  manual-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Greet
+        run: echo "This is a manually triggered workflow."
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))

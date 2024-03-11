@@ -6229,6 +6229,12 @@
                                 "ClientProcessId": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "CommandLine": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "Company": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -6242,6 +6248,15 @@
                                 "ConfigAccessPolicy": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "Configuration": {
+                                    "type": "keyword"
+                                },
+                                "ConfigurationFileHash": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "ContextInfo": {
                                     "type": "keyword"
                                 },
@@ -6262,6 +6277,12 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
+<<<<<<< HEAD
+=======
+                                "CurrentDirectory": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "CurrentStratumNumber": {
                                     "type": "keyword"
                                 },
@@ -6275,10 +6296,34 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
+<<<<<<< HEAD
+=======
+                                "DestinationHostname": {
+                                    "type": "keyword"
+                                },
+                                "DestinationIp": {
+                                    "type": "keyword"
+                                },
+                                "DestinationIsIpv6": {
+                                    "type": "keyword"
+                                },
+                                "DestinationPort": {
+                                    "type": "keyword"
+                                },
+                                "DestinationPortName": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "Detail": {
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
+<<<<<<< HEAD
+=======
+                                "Details": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "DeviceName": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -6361,6 +6406,12 @@
                                 "ErrorString": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "EventType": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "ExitBootServicesEntry": {
                                     "type": "keyword"
                                 },
@@ -6403,6 +6454,12 @@
                                 "HandleId": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "Hashes": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "HiveName": {
                                     "type": "keyword"
                                 },
@@ -6432,6 +6489,12 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
+<<<<<<< HEAD
+=======
+                                "Image": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "ImagePath": {
                                     "type": "keyword"
                                 },
@@ -6439,6 +6502,12 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
+<<<<<<< HEAD
+=======
+                                "Initiated": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "IntegrityLevel": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -6610,6 +6679,12 @@
                                 "NewTargetUserName": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "NewThreadId": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "NewTime": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -6691,9 +6766,33 @@
                                 "OriginalSize": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
                                 "ParentProcessName": {
                                     "type": "keyword"
                                 },
+=======
+                                "PackageName": {
+                                    "type": "keyword"
+                                },
+                                "ParentCommandLine": {
+                                    "type": "keyword"
+                                },
+                                "ParentImage": {
+                                    "type": "keyword"
+                                },
+                                "ParentProcessGuid": {
+                                    "type": "keyword"
+                                },
+                                "ParentProcessId": {
+                                    "type": "keyword"
+                                },
+                                "ParentProcessName": {
+                                    "type": "keyword"
+                                },
+                                "ParentUser": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "PasswordHistoryLength": {
                                     "type": "keyword"
                                 },
@@ -6735,6 +6834,12 @@
                                 "ProcessCreationTime": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "ProcessGuid": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "ProcessID": {
                                     "type": "keyword"
                                 },
@@ -6770,6 +6875,12 @@
                                 "Properties": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "Protocol": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "ProviderName": {
                                     "type": "keyword"
                                 },
@@ -6788,6 +6899,15 @@
                                 "QueryName": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "QueryResults": {
+                                    "type": "keyword"
+                                },
+                                "QueryStatus": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "ReadOperation": {
                                     "type": "keyword"
                                 },
@@ -6807,6 +6927,12 @@
                                 "ReturnCode": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "RuleName": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "SamAccountName": {
                                     "type": "keyword"
                                 },
@@ -6868,6 +6994,45 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
+<<<<<<< HEAD
+=======
+                                "SourceHostname": {
+                                    "type": "keyword"
+                                },
+                                "SourceImage": {
+                                    "type": "keyword"
+                                },
+                                "SourceIp": {
+                                    "type": "keyword"
+                                },
+                                "SourceIsIpv6": {
+                                    "type": "keyword"
+                                },
+                                "SourcePort": {
+                                    "type": "keyword"
+                                },
+                                "SourcePortName": {
+                                    "type": "keyword"
+                                },
+                                "SourceProcessGuid": {
+                                    "type": "keyword"
+                                },
+                                "SourceProcessId": {
+                                    "type": "keyword"
+                                },
+                                "SourceUser": {
+                                    "type": "keyword"
+                                },
+                                "StartAddress": {
+                                    "type": "keyword"
+                                },
+                                "StartFunction": {
+                                    "type": "keyword"
+                                },
+                                "StartModule": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "StartOSImageStart": {
                                     "type": "keyword"
                                 },
@@ -6920,6 +7085,15 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
+<<<<<<< HEAD
+=======
+                                "TargetFilename": {
+                                    "type": "keyword"
+                                },
+                                "TargetImage": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "TargetInfo": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -6938,12 +7112,24 @@
                                 "TargetName": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "TargetObject": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "TargetOutboundDomainName": {
                                     "type": "keyword"
                                 },
                                 "TargetOutboundUserName": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "TargetProcessGuid": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "TargetProcessId": {
                                     "type": "keyword"
                                 },
@@ -6957,6 +7143,12 @@
                                 "TargetSid": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "TargetUser": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "TargetUserName": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -7001,12 +7193,24 @@
                                 "UpdateReason": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "User": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "UserAccountControl": {
                                     "type": "keyword"
                                 },
                                 "UserContext": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "UserName": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "UserParameters": {
                                     "type": "keyword"
                                 },
@@ -7020,6 +7224,12 @@
                                 "UserWorkstations": {
                                     "type": "keyword"
                                 },
+<<<<<<< HEAD
+=======
+                                "UtcTime": {
+                                    "type": "keyword"
+                                },
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
                                 "Version": {
                                     "type": "keyword",
                                     "ignore_above": 1024

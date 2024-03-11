@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Docker Compose file for setting up development environment for LME project.
 # 
 # This file defines two services:
@@ -17,10 +18,13 @@
 #    - Runs the command "sleep infinity" to keep the container running indefinitely.
 #    - Exposes the following ports: 443, 9200, 9300, 5000, 9600, 5601.
 # 
+=======
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
 version: '3.8'
 
 services:
   ubuntu:
+<<<<<<< HEAD
     build: 
       context: .
       args:
@@ -53,4 +57,27 @@ services:
       - "9300:9300" 
       - "5000:5000" 
       - "9600:9600" 
+=======
+    build: .
+    user: admin.ackbar
+    container_name: lme_development
+    volumes:
+      - ../../../LME/:/lme  # Mounts the parent directory to /app in the container checkout repo as LME
+    command: sleep infinity
+  lme:
+    build:
+      context: ../../
+      dockerfile: testing/development/Dockerfile
+    privileged: true
+    container_name: lme
+    volumes:
+      - ../../../LME/:/home/admin.ackbar/LME  # Mounts the parent directory to /app in the container checkout repo as LME
+    command: sleep infinity
+    ports:
+      - "443:443"
+      - "9200:9200"
+      - "9300:9300"
+      - "5000:5000"
+      - "9600:9600"
+>>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
       - "5601:5601"
