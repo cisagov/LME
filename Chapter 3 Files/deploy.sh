@@ -442,6 +442,9 @@ function installdocker() {
   echo -e "\e[32m[X]\e[0m Installing Docker"
   curl -fsSL https://get.docker.com -o get-docker.sh >/dev/null
   sh get-docker.sh >/dev/null
+  echo "Starting docker"
+  service docker start
+  sleep 5
 }
 
 function initdockerswarm() {
@@ -534,35 +537,39 @@ function pipelineupdate() {
 }
 
 function data_retention() {
-  #show ext4 disk
-  DF_OUTPUT="$(df -h -l -t ext4 --output=source,size /var/lib/docker)"
+  # Show ext4 disk
+  DF_OUTPUT="$(df -BG -l --output=source,size /var/lib/docker)"
 
-  #pull dev name
-  DISK_DEV="$(echo "$DF_OUTPUT" | grep -Po '[0-9]+G')"
+  # Pull device name
+  DISK_DEV="$(echo "$DF_OUTPUT" | awk 'NR==2 {print $1}')"
 
-  #pull dev size
-  DISK_SIZE_ROUND="${DISK_DEV/G/}"
+  # Pull device size
+  DISK_SIZE="$(echo "$DF_OUTPUT" | awk 'NR==2 {print $2}' | sed 's/G//')"
 
-  #lets do math to get 75% (%80 is low watermark for ES but as curator uses this we want to delete data *before* the disk gets full)
-  DISK_80=$((DISK_SIZE_ROUND * 80 / 100))
-
-  echo -e "\e[32m[X]\e[0m We think your main disk is $DISK_DEV"
-
-  if [ "$DISK_80" -lt 30 ]; then
-    echo -e "\e[31m[!]\e[0m LME Requires 128GB of space usable for log retention - exiting"
+  # Check if DISK_SIZE is empty or not a number
+  if ! [[ "$DISK_SIZE" =~ ^[0-9]+$ ]]; then
+    echo -e "\e[31m[!]\e[0m DISK_SIZE not an integer or is empty - exiting."
     exit 1
-  elif [ "$DISK_80" -ge 90 ] && [ "$DISK_80" -le 179 ]; then
+  fi
+
+  echo -e "\e[32m[X]\e[0m We think your main disk is $DISK_DEV and its size is $DISK_SIZE gigabytes"
+
+  if [ "$DISK_SIZE" -lt 128 ]; then
+    echo -e "\e[33m[!]\e[0m Warning: Disk size less than 128GB, recommend a larger disk for production environments. Install continuing..."
+    sleep 3
     RETENTION="30"
-  elif [ "$DISK_80" -ge 180 ] && [ "$DISK_80" -le 359 ]; then
+  elif [ "$DISK_SIZE" -ge 128 ] && [ "$DISK_SIZE" -le 179 ]; then
+    RETENTION="45"
+  elif [ "$DISK_SIZE" -ge 180 ] && [ "$DISK_SIZE" -le 359 ]; then
     RETENTION="90"
-  elif [ "$DISK_80" -ge 360 ] && [ "$DISK_80" -le 539 ]; then
+  elif [ "$DISK_SIZE" -ge 360 ] && [ "$DISK_SIZE" -le 539 ]; then
     RETENTION="180"
-  elif [ "$DISK_80" -ge 540 ] && [ "$DISK_80" -le 719 ]; then
+  elif [ "$DISK_SIZE" -ge 540 ] && [ "$DISK_SIZE" -le 719 ]; then
     RETENTION="270"
-  elif [ "$DISK_80" -ge 720 ]; then
+  elif [ "$DISK_SIZE" -ge 720 ]; then
     RETENTION="365"
   else
-    echo -e "\e[31m[!]\e[0m Unable to determine retention policy - exiting"
+    echo -e "\e[31m[!]\e[0m Unable to determine disk size - exiting."
     exit 1
   fi
 
@@ -736,6 +743,7 @@ function fixreadability() {
 
 
 function install() {
+  export FRESH_INSTALL="true"
   echo -e "Will execute the following intrusive actions:\n\t- apt update & upgrade\n\t- install docker (please uninstall before proceeding, or indicate skipping the install)\n\t- initialize docker swarm (execute \`sudo docker swarm leave --force\`  before proceeding if you are part of a swarm\n\t- automatic os updates via unattened-upgrades\n\t- checkout lme directory to latest version, and throw away local changes)"
 
   prompt "Proceed?"
@@ -748,10 +756,11 @@ function install() {
   fi
 
   echo -e "\e[32m[X]\e[0m Updating OS software"
-  apt update && apt upgrade -y
+  apt-get update
+  DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get  upgrade -yq
 
   echo -e "\e[32m[X]\e[0m Installing prerequisites"
-  apt install ${REQUIRED_PACKS[*]} -y -q
+  DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install ${REQUIRED_PACKS[*]} -yq
 
   if [ -f /var/run/reboot-required ]; then
     echo -e "\e[31m[!]\e[0m A reboot is required in order to proceed with the install."
@@ -880,7 +889,8 @@ function install() {
   displaycredentials
 
   echo -e "If you prefer to set your own elastic user password, then refer to our troubleshooting documentation:"
-  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n" 
+  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n"
+  return 0
 }
 
 function displaycredentials() {
@@ -1169,7 +1179,7 @@ then
   ready "Will install the following packages: ${missing_pkgs[*]}. These are required for LME." 
   sudo apt-get update
   #confirm install
-  sudo apt-get --yes install ${missing_pkgs[*]}
+  sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -yq install ${missing_pkgs[*]}
 fi
 
 #Change current working directory so relative filepaths work
@@ -1183,6 +1193,7 @@ if [ "$1" == "" ]; then
   usage
 elif [ "$1" == "install" ]; then
   install
+  exit $?  # Exit with the status of the install function
 elif [ "$1" == "uninstall" ]; then
   uninstall
 elif [ "$1" == "upgrade" ]; then

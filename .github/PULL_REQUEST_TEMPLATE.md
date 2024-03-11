@@ -9,6 +9,9 @@
 <!-- What problem does this change solve? How did you solve it? -->
 <!-- Mention any related issue(s) here using appropriate keywords such -->
 <!-- as "closes" or "resolves" to auto-close them on merge. -->
+<!-- If this PR is *not* being merged into main, the related issues will not -->
+<!-- be auto-closed, so you need to add the issue into the Development box -->
+<!-- in the right sidebar -->
 
 ### 📷 Screenshots (DELETE IF UNAPPLICABLE)
 
@@ -22,7 +25,12 @@
 - [ ] There is a [gitIssue](https://github.com/cisagov/LME/issues) that this PR resolves
 - [ ] The PR's base branch has been modified to be the proper branch. 
 - [ ] Changes are limited to a single goal **AND** 
+<<<<<<< HEAD
       the title reflects this in a clear human readable format for the release notes
+=======
+      the title reflects this in a clear human readable format
+- [ ] Issue that this PR solves has been selected in the Development section
+>>>>>>> 34b2ff9 (Update PULL_REQUEST_TEMPLATE.md (#206))
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
 - [ ] The PR adheres to LME's requirements in [RELEASES.md](https://github.com/cisagov/LME/RELEASES.md#steps-to-submit-a-PR)
 - [ ] These code changes follow [cisagov code standards](https://github.com/cisagov/development-guide).
@@ -35,9 +43,9 @@
 
 - [ ] All tests pass
 - [ ] PR has been tested and the documentation for testing is above
+- [ ] Squash and merge all commits into one PR level commit 
 
 ## ✅ Post-merge Checklist
 
-- [ ] Squash all commits into one PR level commit 
 - [ ] Delete the branch to keep down number of branches
 

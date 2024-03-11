@@ -1,0 +1,22 @@
+{ 
+  "categories": [
+    {
+      "title": "## What's Added",
+      "labels": ["feat"],
+    },
+    {
+      "title": "## What's Fixed",
+      "labels": ["fix"],
+    },
+    {
+      "title": "## What's Updated",
+      "labels": ["update"],
+    },
+    {
+      "title": "## Uncategorized",
+      "labels": [],
+    },
+  ],
+  "template": "#{{CHANGELOG}}",
+  "pr_template": "* #{{TITLE}} by @#{{AUTHOR}} in ##{{NUMBER}}" 
+}

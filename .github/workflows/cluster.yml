@@ -1,0 +1,11 @@
+name: Cluster Run
+
+on:
+  workflow_dispatch:
+jobs:
+  manual-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Greet
+        run: echo "This is a manually triggered workflow."

@@ -3,7 +3,7 @@
 [![Downloads](https://img.shields.io/github/downloads/cisagov/lme/total.svg)]()
 
 # Logging Made Easy
-Initially created by NCSC and now maintained by CISA, Logging Made Easy is a self-install tutorial for small organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. It's the coming together of multiple free and open software platforms, where LME helps the reader integrate them together to produce an end-to-end logging capability. We also provide some pre-made configuration files and scripts, although there is the option to do it on your own.
+Initially created by NCSC and now maintained by CISA, Logging Made Easy is a self-install tutorial for small organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. It's the coming together of multiple open software platforms which come at no cost to users, where LME helps the reader integrate them together to produce an end-to-end logging capability. We also provide some pre-made configuration files and scripts, although there is the option to do it on your own.
 
 Logging Made Easy can:
 - Show where administrative commands are being run on enrolled devices
@@ -66,7 +66,8 @@ Figure 1: The 3 primary groups of computers in the LME architecture, their descr
 
 ### Reference:
  - [FAQ](/docs/markdown/reference/faq.md)  
- - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)  
+ - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
+ - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
  - [Guide to Organizational Units](/docs/markdown/chapter1/guide_to_ous.md)
 
 ### Maintenance:
