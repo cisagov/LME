@@ -149,7 +149,7 @@ jobs:
             \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
             \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
             \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            az login --service-principal -u $env:AZURE_CLIENT_ID -p $env:AZURE_SECRET --tenant $env:AZURE_TENANT; \
+            az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
             az vm run-command invoke  \
               --command-id RunPowerShellScript  \
               --name DC1  \
