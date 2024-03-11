@@ -65,45 +65,45 @@ jobs:
 
       - name:  Build the cluster 
         run: |
-          set +e
+          set +e  
           cd testing/development
-          docker-compose exec -T --env AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
-                                  --env AZURE_SECRET=${{ secrets.AZURE_SECRET }} \
-                                  --env AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }} \
-                                  --env AZURE_TENANT=${{ secrets.AZURE_TENANT }} \
-                                  --env UNIQUE_ID=${{ env.UNIQUE_ID }} \
-                                  --env RESOURCE_GROUP=${{ env.RESOURCE_GROUP }} \
-                                  --env IP_ADDRESS=${{ env.IP_ADDRESS }} \
-            lme pwsh -Command "& {
-              cd /home/admin.ackbar/LME/testing; \
-              ./development/build_cluster.ps1 -IPAddress \$env:IP_ADDRESS; \
-              exit \$LASTEXITCODE;
-            }"
+          docker-compose exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME/testing; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            \$env:IP_ADDRESS='${{ env.IP_ADDRESS }}'; \
+            ./development/build_cluster.ps1 -IPAddress \$env:IP_ADDRESS; \
+            exit \$LASTEXITCODE;
+          }"
           EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
-          set -e
+          set -e  
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
 
       - name:  Install lme on cluster 
         run: |
-          set +e
+          set +e  
           cd testing/development
-          docker-compose exec -T --env AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }} \
-                                  --env AZURE_SECRET=${{ secrets.AZURE_SECRET }} \
-                                  --env AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }} \
-                                  --env AZURE_TENANT=${{ secrets.AZURE_TENANT }} \
-                                  --env UNIQUE_ID=${{ env.UNIQUE_ID }} \
-                                  --env RESOURCE_GROUP=${{ env.RESOURCE_GROUP }} \
-            lme pwsh -Command "& {
-              cd /home/admin.ackbar/LME/testing; \
-              ./development/install_lme.ps1; \
-              exit \$LASTEXITCODE;
-            }"
+          docker-compose exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME/testing; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            ./development/install_lme.ps1; \
+            exit \$LASTEXITCODE;
+          }"
           EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
-          set -e
+          set -e  
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
@@ -129,8 +129,8 @@ jobs:
         run: |
           cd testing/development
           docker-compose exec -T lme bash -c "
-            if [ -z \"${{ env.elastic }}\" ]; then
-              echo 'Error: env.elastic variable is not set. There may have been a failure in building the cluster' >&2
+            if [ -z \"${{ env.elastica }}\" ]; then
+              echo 'Error: env.elastic variable is not set' >&2
               exit 1
             else
               echo 'Elastic: ${{ env.elastic }}'
