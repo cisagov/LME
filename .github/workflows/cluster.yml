@@ -129,7 +129,7 @@ jobs:
         run: |
           cd testing/development
           docker-compose exec -T lme bash -c "
-            if [ -z \"${{ env.elastica }}\" ]; then
+            if [ -z \"${{ env.elastic }}\" ]; then
               echo 'Error: env.elastic variable is not set' >&2
               exit 1
             else
