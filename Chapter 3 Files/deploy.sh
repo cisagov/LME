@@ -442,6 +442,9 @@ function installdocker() {
   echo -e "\e[32m[X]\e[0m Installing Docker"
   curl -fsSL https://get.docker.com -o get-docker.sh >/dev/null
   sh get-docker.sh >/dev/null
+  echo "Starting docker"
+  service docker start
+  sleep 5
 }
 
 function initdockerswarm() {
@@ -535,7 +538,7 @@ function pipelineupdate() {
 
 function data_retention() {
   # Show ext4 disk
-  DF_OUTPUT="$(df -BG -l -t ext4 --output=source,size /var/lib/docker)"
+  DF_OUTPUT="$(df -BG -l --output=source,size /var/lib/docker)"
 
   # Pull device name
   DISK_DEV="$(echo "$DF_OUTPUT" | awk 'NR==2 {print $1}')"
@@ -886,7 +889,8 @@ function install() {
   displaycredentials
 
   echo -e "If you prefer to set your own elastic user password, then refer to our troubleshooting documentation:"
-  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n" 
+  echo -e "https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md#changing-elastic-username-password\n\n"
+  return 0
 }
 
 function displaycredentials() {
@@ -1189,6 +1193,7 @@ if [ "$1" == "" ]; then
   usage
 elif [ "$1" == "install" ]; then
   install
+  exit $?  # Exit with the status of the install function
 elif [ "$1" == "uninstall" ]; then
   uninstall
 elif [ "$1" == "upgrade" ]; then
