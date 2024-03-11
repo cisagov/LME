@@ -125,10 +125,17 @@ jobs:
             echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
             echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
 
-      - name:  Check setting the environment passwords for other steps 
+      - name:  Check that the environment variables are set 
         run: |
           cd testing/development
-          docker-compose exec -T lme bash -c "echo Elastic: ${{ env.elastic }}"
+          docker-compose exec -T lme bash -c "
+            if [ -z \"${{ env.elastica }}\" ]; then
+              echo 'Error: env.elastic variable is not set' >&2
+              exit 1
+            else
+              echo 'Elastic: ${{ env.elastic }}'
+            fi
+          "
 
       - name: Cleanup environment 
         if: always()
