@@ -16,4 +16,6 @@ Set-Location -Path $targetDirectory
 
 # Execute the SetupTestbed.ps1 script with parameters
 # TODO: Change to full install before merge
-.\SetupTestbed.ps1 -AllowedSources "$IPAddress/32" -l centralus -ResourceGroup $env:RESOURCE_GROUP -y -m 
+$allowedSources = "$IPAddress/32"
+$setupCommand = ".\SetupTestbed.ps1 -AllowedSources $allowedSources -l centralus -ResourceGroup $env:RESOURCE_GROUP -y -m"
+$setupCommand | Tee-Object -FilePath "./$env:RESOURCE_GROUP.cluster.output.log"

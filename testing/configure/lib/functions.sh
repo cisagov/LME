@@ -45,3 +45,15 @@ write_credentials_to_file() {
     echo "export logstash_writer=$logstash_writer" >> "$file_path"
     echo "export dashboard_update=$dashboard_update" >> "$file_path"
 }
+
+
+extract_ls1_ip() {
+    local file_path=$1
+    # exit if file path is not provided
+    if [ -z "$file_path" ]; then
+        echo "File path is required"
+        return 1
+    fi
+    publicIpAddress=$(sed -n '/Creating LS1.../,/}/p' $file_path | awk -F'"' '/publicIpAddress/{print $4}')
+    export LS1_IP=$publicIpAddress
+}
