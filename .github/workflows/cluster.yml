@@ -137,32 +137,32 @@ jobs:
             fi
           "
 
-      - name: Run a command on the domain controller 
-        run: |
-          set +e  
-          cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
-            az vm run-command invoke  \
-              --command-id RunPowerShellScript  \
-              --name DC1  \
-              --resource-group \$env:RESOURCE_GROUP \
-              --scripts 'ls C:\'; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
+      # - name: Run a command on the domain controller 
+      #   run: |
+      #     set +e  
+      #     cd testing/development
+      #     docker-compose exec -T lme pwsh -Command "& { 
+      #       cd /home/admin.ackbar/LME/testing; \
+      #       \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+      #       \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+      #       \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+      #       \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+      #       \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+      #       \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+      #       az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
+      #       az vm run-command invoke  \
+      #         --command-id RunPowerShellScript  \
+      #         --name DC1  \
+      #         --resource-group \$env:RESOURCE_GROUP \
+      #         --scripts 'ls C:\'; \
+      #       exit \$LASTEXITCODE;
+      #     }"
+      #     EXIT_CODE=$?
+      #     echo "Exit code: $EXIT_CODE"
+      #     set -e  
+      #     if [ "$EXIT_CODE" -ne 0 ]; then
+      #       exit $EXIT_CODE
+      #     fi
 
       - name: Run a command on the linux machine 
         run: |
