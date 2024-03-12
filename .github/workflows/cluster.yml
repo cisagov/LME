@@ -193,15 +193,16 @@ jobs:
 
       - name: Run api tests in container
         run: |
+          set +e
           cd testing/development
-          docker-compose exec -T -u admin.ackbar lme bash -c " \
-          echo "export elastic=${{ env.elastic }}" > "testing/tests/.env" \
-          && echo "export ES_HOST=${{ env.IP_ADDRESS }}" >> "testing/tests/.env" \
+          docker-compose exec -T -u admin.ackbar lme bash -c " cd testing/tests\
+          echo "export elastic=${{ env.elastic }}" > ".env" \
+          && echo "export ES_HOST=${{ env.IP_ADDRESS }}" >> ".env" \
           && python3 -m venv /home/admin.ackbar/venv_test \
-          && pip install -r requirements.txt \
           && . /home/admin.ackbar/venv_test/bin/activate \
+          && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && pytest testing/tests/api_tests/linux_only/ \
+          && pytest api_tests/linux_only/ \
           && ls -la"
 
       - name: Cleanup environment 
