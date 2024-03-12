@@ -208,8 +208,7 @@ jobs:
           && . /home/admin.ackbar/venv_test/bin/activate \
           && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && pytest api_tests/linux_only/ \
-          && ls -la"
+          && pytest api_tests/"
 
       - name: Cleanup environment 
         if: always()
