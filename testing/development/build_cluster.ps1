@@ -15,4 +15,5 @@ $targetDirectory = Join-Path -Path $PSScriptRoot -ChildPath "..\\"
 Set-Location -Path $targetDirectory
 
 # Execute the SetupTestbed.ps1 script with parameters
-.\SetupTestbed.ps1 -AllowedSources "$IPAddress/32" -l centralus -ResourceGroup $env:RESOURCE_GROUP -y
+# TODO: Change to full install before merge
+.\SetupTestbed.ps1 -AllowedSources "$IPAddress/32" -l centralus -ResourceGroup $env:RESOURCE_GROUP -y -m 
