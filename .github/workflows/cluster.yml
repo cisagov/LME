@@ -196,8 +196,8 @@ jobs:
           set +e
           cd testing/development
           docker-compose exec -T -u admin.ackbar lme bash -c " cd testing/tests \
-          && echo "export elastic=${{ env.elastic }}" > ".env" \
-          && echo "export ES_HOST=${{ env.IP_ADDRESS }}" >> ".env" \
+          && echo export elastic=${{ env.elastic }} > .env \
+          && echo export ES_HOST=${{ env.IP_ADDRESS }} >> .env \
           && python3 -m venv /home/admin.ackbar/venv_test \
           && . /home/admin.ackbar/venv_test/bin/activate \
           && pip install -r requirements.txt \
