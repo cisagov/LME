@@ -133,7 +133,7 @@ jobs:
               echo 'Error: env.elastic variable is not set' >&2
               exit 1
             else
-              echo 'Elastic: ${{ env.elastic }}'
+              echo 'Elastic password is set'
             fi
           "
 
@@ -195,10 +195,10 @@ jobs:
         run: |
           cd testing/development
           docker-compose exec -T -u admin.ackbar lme bash -c " \
-          && echo "export elastic=${{ env.elastic }}" > "testing/tests/.env" \
+          echo "export elastic=${{ env.elastic }}" > "testing/tests/.env" \
           && echo "export ES_HOST=${{ env.IP_ADDRESS }}" >> "testing/tests/.env" \
-          && python3 -m venv /home/admin.ackbar/venv_test
-          && pip install -r requirements.txt
+          && python3 -m venv /home/admin.ackbar/venv_test \
+          && pip install -r requirements.txt \
           && . /home/admin.ackbar/venv_test/bin/activate \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
           && pytest testing/tests/api_tests/linux_only/ \
