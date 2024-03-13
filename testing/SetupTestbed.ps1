@@ -466,6 +466,13 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --scripts "C:\AddDnsRecord.ps1"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
 
+    $addDnsRecordResponse = az vm run-command invoke `
+        --command-id RunPowerShellScript `
+        --name DC1 `
+        --resource-group $ResourceGroup `
+        --scripts "C:\AddDnsRecord.ps1"
+    Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
+
     Write-Host "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."
     $resolveLs1Response = az vm run-command invoke `
         --command-id RunPowerShellScript `
