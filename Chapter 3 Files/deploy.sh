@@ -658,9 +658,9 @@ function auto_os_updates() {
 }
 
 function config_replicas() {
-  echo -e "\n\e[32m[X]\e[0m Configuring elasticsearch Replica settings"
+  echo -e "\n\e[32m[X]\e[0m Configuring elasticsearch replica settings"
 
-  #set future index to always have no replicas
+  # set future index to always have no replicas
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_index_template/number_of_replicas" -H 'Content-Type: application/json' -d'{
   "index_patterns": ["*"],
   "template": {
@@ -670,7 +670,7 @@ function config_replicas() {
   },
   "priority": 1
 }'
-  #set all current indices to have 0 replicas
+  # set all current indices to have 0 replicas
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/*/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
 }
 
