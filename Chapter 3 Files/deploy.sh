@@ -671,7 +671,7 @@ function config_replicas() {
   "priority": 1
 }'
   # set all current indices to have 0 replicas
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/*/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_all/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
 }
 
 function writeconfig() {
