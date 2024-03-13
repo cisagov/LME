@@ -97,11 +97,11 @@ def test_winlogbeat_search(es_host, es_port, username, password):
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
     data = response.json()
-    # json.dump(
-    #     data,
-    #     open(f"{current_script_dir}/test_data/winlog_search_data.json", "w"),
-    #     indent=4,
-    # )
+    json.dump(
+        data,
+        open(f"{current_script_dir}/test_data/winlog_search_data.json", "w"),
+        indent=4,
+    )
 
     assert data["hits"]["hits"][0]["_source"]["host"]["name"] == "DC1.lme.local"
 

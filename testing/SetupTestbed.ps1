@@ -432,7 +432,7 @@ if (-Not $LinuxOnly){
     Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName. -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00 -AsJob
 }
 `$job = Start-Job -ScriptBlock `$scriptBlock
-`$timeout = 90
+`$timeout = 120 
 if (Wait-Job -Job `$job -Timeout `$timeout) {
     Receive-Job -Job `$job
     Write-Host 'The script completed within the timeout period.'
@@ -459,13 +459,6 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
 
 
     Write-Output "`nRunning script to add DNS entry for Linux server. It could time out or not. Check output of the next command..."
-    $addDnsRecordResponse = az vm run-command invoke `
-        --command-id RunPowerShellScript `
-        --name DC1 `
-        --resource-group $ResourceGroup `
-        --scripts "C:\AddDnsRecord.ps1"
-    Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
-
     $addDnsRecordResponse = az vm run-command invoke `
         --command-id RunPowerShellScript `
         --name DC1 `
