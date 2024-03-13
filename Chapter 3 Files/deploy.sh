@@ -657,13 +657,21 @@ function auto_os_updates() {
   fi
 }
 
-function configelasticsearch() {
+function config_replicas() {
   echo -e "\n\e[32m[X]\e[0m Configuring elasticsearch Replica settings"
 
   #set future index to always have no replicas
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_template/number_of_replicas" -H 'Content-Type: application/json' -d' {  "template": "*",  "settings": {    "number_of_replicas": 0  }}'
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_index_template/number_of_replicas" -H 'Content-Type: application/json' -d'{
+  "index_patterns": ["*"],
+  "template": {
+    "settings": {
+      "number_of_replicas": 0
+    }
+  },
+  "priority": 1
+}'
   #set all current indices to have 0 replicas
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_all/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/*/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
 }
 
 function writeconfig() {
@@ -858,7 +866,6 @@ function install() {
   pulllme
   deploylme
   setpasswords
-  configelasticsearch
   zipfiles
 
   #pipelines
@@ -872,6 +879,9 @@ function install() {
 
   #bootstrap
   bootstrapindex
+
+  #config replicas
+  config_replicas
 
   #create config file
   writeconfig
