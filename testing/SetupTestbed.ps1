@@ -457,7 +457,6 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --scripts "Set-Content -Path 'C:\AddDnsRecord.ps1' -Value ([System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$encodedScript')))"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createDnsScriptResponse")
 
-
     Write-Output "`nRunning script to add DNS entry for Linux server. It could time out or not. Check output of the next command..."
     $addDnsRecordResponse = az vm run-command invoke `
         --command-id RunPowerShellScript `
@@ -465,6 +464,14 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --resource-group $ResourceGroup `
         --scripts "C:\AddDnsRecord.ps1"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
+
+    Write-Output "`nAdding ls1 to hosts file..."
+    $writeToHostsFileResponse = az vm run-command invoke `
+    --command-id RunPowerShellScript `
+    --name DC1 `
+    --resource-group $ResourceGroup `
+    --scripts "Add-Content -Path 'C:\windows\system32\drivers\etc\hosts' -Value '$LsIP ls1.$DomainName'"
+    Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$writeToHostsFileResponse")
 
     Write-Host "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."
     $resolveLs1Response = az vm run-command invoke `
