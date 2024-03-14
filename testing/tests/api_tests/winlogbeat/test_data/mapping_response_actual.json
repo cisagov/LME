@@ -7007,9 +7007,6 @@
                                 "UserContext": {
                                     "type": "keyword"
                                 },
-                                "UserName": {
-                                    "type": "keyword"
-                                },
                                 "UserParameters": {
                                     "type": "keyword"
                                 },
