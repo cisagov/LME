@@ -11,4 +11,4 @@ Set-Location -Path $targetDirectory
 
 # Execute the InstallTestbed.ps1 script with parameters
 # TODO: Change to full install before merge
-.\InstallTestbed.ps1 -ResourceGroup $env:RESOURCE_GROUP -y | Tee-Object -FilePath "./$env:RESOURCE_GROUP.output.log"
+.\InstallTestbed.ps1 -ResourceGroup $env:RESOURCE_GROUP -m | Tee-Object -FilePath "./$env:RESOURCE_GROUP.output.log"
