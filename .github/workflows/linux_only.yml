@@ -46,24 +46,24 @@ jobs:
           cd testing/development
           docker-compose exec -T ubuntu bash -c "echo 'Ubuntu container built'"
 
-      # - name: Install LME in container
-      #   run: |
-      #     set -x
-      #     cd testing/development
-      #     docker-compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh \
-      #     && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
+      - name: Install LME in container
+        run: |
+          set -x
+          cd testing/development
+          docker-compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh \
+          && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
 
-      # - name: Run api tests in container
-      #   run: |
-      #     cd testing/development
-      #     docker-compose exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
-      #     &&  sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
-      #     &&  extract_credentials output.log \
-      #     &&  sudo rm output.log \
-      #     && . /home/admin.ackbar/venv_test/bin/activate \
-      #     &&  sudo chmod ugo+w /home/admin.ackbar/LME/ \
-      #     &&  pytest testing/tests/api_tests/linux_only/ \
-      #     && ls -la"
+      - name: Run api tests in container
+        run: |
+          cd testing/development
+          docker-compose exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
+          &&  sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
+          &&  extract_credentials output.log \
+          &&  sudo rm output.log \
+          && . /home/admin.ackbar/venv_test/bin/activate \
+          &&  sudo chmod ugo+w /home/admin.ackbar/LME/ \
+          &&  pytest testing/tests/api_tests/linux_only/ \
+          && ls -la"
 
       - name: Cleanup Docker Compose
         if: always()
