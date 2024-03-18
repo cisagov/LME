@@ -1,8 +1,9 @@
 name: Linux Only
 
 on:
-  workflow_dispatch:
   pull_request:
+    branches:
+      - '*'
 
 jobs:
   build-and-test-linux-only:
