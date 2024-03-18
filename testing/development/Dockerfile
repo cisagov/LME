@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     sudo \
+    freerdp2-x11 \
     pkg-config \
     libcairo2-dev \
     libdbus-1-dev \
