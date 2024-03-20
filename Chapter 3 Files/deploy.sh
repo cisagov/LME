@@ -533,7 +533,7 @@ function data_retention() {
 
   echo -e "\e[32m[X]\e[0m We are assigning $RETENTION days as your retention period for log storage"
 
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ilm/policy/lme_ilm_policy" -H 'Content-Type: application/json' -d'
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_ilm/policy/winlogbeat" -H 'Content-Type: application/json' -d'
 {
   "policy": {
     "phases": {
@@ -564,7 +564,7 @@ function data_retention() {
       }
     },
     "_meta": {
-      "description": "LME ILM policy using the hot and warm phases with a retention of '$RETENTION' days"
+      "description": "LME Winlogbeat ILM policy using the hot and warm phases with a retention of '$RETENTION' days"
     }
   }
 }
