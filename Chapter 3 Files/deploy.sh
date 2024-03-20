@@ -457,15 +457,8 @@ function initdockerswarm() {
 }
 
 function pulllme() {
-  if [ -t 1 ]; then
-    # Running in a terminal
-    echo -e "\e[32m[X]\e[0m Pulling ELK images"
-    docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull
-  else
-    # Not running in a terminal
-    echo "Pulling ELK images"
-    docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull --quiet
-  fi
+  echo "Pulling ELK images"
+  docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull --quiet
 }
 
 function deploylme() {

@@ -65,8 +65,7 @@ jobs:
           &&  sudo rm output.log \
           && . /home/admin.ackbar/venv_test/bin/activate \
           &&  sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          &&  pytest testing/tests/api_tests/linux_only/ \
-          && ls -la"
+          &&  pytest testing/tests/api_tests/linux_only/ "
 
       - name: Cleanup Docker Compose
         if: always()
