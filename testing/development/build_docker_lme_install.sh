@@ -2,7 +2,7 @@
 cd testing/configure || exit
 sudo ./linux_update_system.sh
 # TODO: change this to the main branch before it is merged
-sudo ./linux_install_lme.sh -b release-1.4.0
+sudo ./linux_install_lme.sh -b main
 . lib/functions.sh
 extract_credentials
 echo $elastic
