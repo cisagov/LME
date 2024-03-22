@@ -1,4 +1,16 @@
+param(
+    [switch]$m,
+    [string]$v,
+    [string]$b
+)
+
 $ErrorActionPreference = 'Stop'
+
+# Check if -v and -b are mutually exclusive
+if ($v -and $b) {
+    Write-Error "Error: -v and -b are mutually exclusive. Please provide only one of them."
+    exit 1
+}
 
 # Log in using Azure CLI
 az login --service-principal -u $env:AZURE_CLIENT_ID -p $env:AZURE_SECRET --tenant $env:AZURE_TENANT
@@ -9,6 +21,17 @@ $targetDirectory = Join-Path -Path $PSScriptRoot -ChildPath "..\\"
 # Change to the target directory
 Set-Location -Path $targetDirectory
 
+# Prepare the parameters for InstallTestbed.ps1
+$installTestbedParams = @()
+if ($m) {
+    $installTestbedParams += "-m"
+}
+if ($v) {
+    $installTestbedParams += "-v $v"
+}
+if ($b) {
+    $installTestbedParams += "-b $b"
+}
+
 # Execute the InstallTestbed.ps1 script with parameters
-# TODO: Change to full install before merge
-.\InstallTestbed.ps1 -ResourceGroup $env:RESOURCE_GROUP  | Tee-Object -FilePath "./$env:RESOURCE_GROUP.output.log"
+& .\InstallTestbed.ps1 -ResourceGroup $env:RESOURCE_GROUP @installTestbedParams | Tee-Object -FilePath "./$env:RESOURCE_GROUP.output.log"
