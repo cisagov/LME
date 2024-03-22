@@ -23,14 +23,14 @@ Set-Location -Path $targetDirectory
 
 # Prepare the parameters for InstallTestbed.ps1
 $installTestbedParams = "" 
-if ($m) {
-    $installTestbedParams += " -m "
-}
 if ($v) {
     $installTestbedParams += " -v $v "
 }
 if ($b) {
     $installTestbedParams += " -b $b "
+}
+if ($m) {
+    $installTestbedParams += " -m "
 }
 
 # Execute the InstallTestbed.ps1 script with parameters
