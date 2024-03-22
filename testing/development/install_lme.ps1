@@ -22,16 +22,16 @@ $targetDirectory = Join-Path -Path $PSScriptRoot -ChildPath "..\\"
 Set-Location -Path $targetDirectory
 
 # Prepare the parameters for InstallTestbed.ps1
-$installTestbedParams = @()
+$installTestbedParams = "" 
 if ($m) {
-    $installTestbedParams += "-m"
+    $installTestbedParams += " -m "
 }
 if ($v) {
-    $installTestbedParams += "-v $v"
+    $installTestbedParams += " -v $v "
 }
 if ($b) {
-    $installTestbedParams += "-b $b"
+    $installTestbedParams += " -b $b "
 }
 
 # Execute the InstallTestbed.ps1 script with parameters
-.\InstallTestbed.ps1 -ResourceGroup $env:RESOURCE_GROUP @installTestbedParams | Tee-Object -FilePath "./$env:RESOURCE_GROUP.output.log"
+.\InstallTestbed.ps1 -ResourceGroup $env:RESOURCE_GROUP $installTestbedParams | Tee-Object -FilePath "./$env:RESOURCE_GROUP.output.log"

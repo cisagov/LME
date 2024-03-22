@@ -53,7 +53,7 @@ jobs:
         run: |
           set -x
           cd testing/development
-          docker-compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b main\
+          docker-compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b main \
           && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
 
       - name: Run api tests in container
