@@ -98,7 +98,6 @@ jobs:
           extract_ls1_ip 'LME-pipe-${{ env.UNIQUE_ID }}.cluster.output.log'
           echo "LS1_IP=$LS1_IP" >> $GITHUB_ENV
           
-
       - name:  Install lme on cluster 
         run: |
           set +e  
