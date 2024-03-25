@@ -6229,9 +6229,6 @@
                                 "ClientProcessId": {
                                     "type": "keyword"
                                 },
-                                "CommandLine": {
-                                    "type": "keyword"
-                                },
                                 "Company": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -6243,12 +6240,6 @@
                                     "type": "keyword"
                                 },
                                 "ConfigAccessPolicy": {
-                                    "type": "keyword"
-                                },
-                                "Configuration": {
-                                    "type": "keyword"
-                                },
-                                "ConfigurationFileHash": {
                                     "type": "keyword"
                                 },
                                 "ContextInfo": {
@@ -6271,9 +6262,6 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
-                                "CurrentDirectory": {
-                                    "type": "keyword"
-                                },
                                 "CurrentStratumNumber": {
                                     "type": "keyword"
                                 },
@@ -6287,27 +6275,9 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
-                                "DestinationHostname": {
-                                    "type": "keyword"
-                                },
-                                "DestinationIp": {
-                                    "type": "keyword"
-                                },
-                                "DestinationIsIpv6": {
-                                    "type": "keyword"
-                                },
-                                "DestinationPort": {
-                                    "type": "keyword"
-                                },
-                                "DestinationPortName": {
-                                    "type": "keyword"
-                                },
                                 "Detail": {
                                     "type": "keyword",
                                     "ignore_above": 1024
-                                },
-                                "Details": {
-                                    "type": "keyword"
                                 },
                                 "DeviceName": {
                                     "type": "keyword",
@@ -6391,9 +6361,6 @@
                                 "ErrorString": {
                                     "type": "keyword"
                                 },
-                                "EventType": {
-                                    "type": "keyword"
-                                },
                                 "ExitBootServicesEntry": {
                                     "type": "keyword"
                                 },
@@ -6436,9 +6403,6 @@
                                 "HandleId": {
                                     "type": "keyword"
                                 },
-                                "Hashes": {
-                                    "type": "keyword"
-                                },
                                 "HiveName": {
                                     "type": "keyword"
                                 },
@@ -6468,18 +6432,12 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
-                                "Image": {
-                                    "type": "keyword"
-                                },
                                 "ImagePath": {
                                     "type": "keyword"
                                 },
                                 "ImpersonationLevel": {
                                     "type": "keyword",
                                     "ignore_above": 1024
-                                },
-                                "Initiated": {
-                                    "type": "keyword"
                                 },
                                 "IntegrityLevel": {
                                     "type": "keyword",
@@ -6652,9 +6610,6 @@
                                 "NewTargetUserName": {
                                     "type": "keyword"
                                 },
-                                "NewThreadId": {
-                                    "type": "keyword"
-                                },
                                 "NewTime": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -6736,25 +6691,7 @@
                                 "OriginalSize": {
                                     "type": "keyword"
                                 },
-                                "PackageName": {
-                                    "type": "keyword"
-                                },
-                                "ParentCommandLine": {
-                                    "type": "keyword"
-                                },
-                                "ParentImage": {
-                                    "type": "keyword"
-                                },
-                                "ParentProcessGuid": {
-                                    "type": "keyword"
-                                },
-                                "ParentProcessId": {
-                                    "type": "keyword"
-                                },
                                 "ParentProcessName": {
-                                    "type": "keyword"
-                                },
-                                "ParentUser": {
                                     "type": "keyword"
                                 },
                                 "PasswordHistoryLength": {
@@ -6798,9 +6735,6 @@
                                 "ProcessCreationTime": {
                                     "type": "keyword"
                                 },
-                                "ProcessGuid": {
-                                    "type": "keyword"
-                                },
                                 "ProcessID": {
                                     "type": "keyword"
                                 },
@@ -6836,9 +6770,6 @@
                                 "Properties": {
                                     "type": "keyword"
                                 },
-                                "Protocol": {
-                                    "type": "keyword"
-                                },
                                 "ProviderName": {
                                     "type": "keyword"
                                 },
@@ -6855,12 +6786,6 @@
                                     "ignore_above": 1024
                                 },
                                 "QueryName": {
-                                    "type": "keyword"
-                                },
-                                "QueryResults": {
-                                    "type": "keyword"
-                                },
-                                "QueryStatus": {
                                     "type": "keyword"
                                 },
                                 "ReadOperation": {
@@ -6880,9 +6805,6 @@
                                     "type": "keyword"
                                 },
                                 "ReturnCode": {
-                                    "type": "keyword"
-                                },
-                                "RuleName": {
                                     "type": "keyword"
                                 },
                                 "SamAccountName": {
@@ -6946,42 +6868,6 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
-                                "SourceHostname": {
-                                    "type": "keyword"
-                                },
-                                "SourceImage": {
-                                    "type": "keyword"
-                                },
-                                "SourceIp": {
-                                    "type": "keyword"
-                                },
-                                "SourceIsIpv6": {
-                                    "type": "keyword"
-                                },
-                                "SourcePort": {
-                                    "type": "keyword"
-                                },
-                                "SourcePortName": {
-                                    "type": "keyword"
-                                },
-                                "SourceProcessGuid": {
-                                    "type": "keyword"
-                                },
-                                "SourceProcessId": {
-                                    "type": "keyword"
-                                },
-                                "SourceUser": {
-                                    "type": "keyword"
-                                },
-                                "StartAddress": {
-                                    "type": "keyword"
-                                },
-                                "StartFunction": {
-                                    "type": "keyword"
-                                },
-                                "StartModule": {
-                                    "type": "keyword"
-                                },
                                 "StartOSImageStart": {
                                     "type": "keyword"
                                 },
@@ -7034,12 +6920,6 @@
                                     "type": "keyword",
                                     "ignore_above": 1024
                                 },
-                                "TargetFilename": {
-                                    "type": "keyword"
-                                },
-                                "TargetImage": {
-                                    "type": "keyword"
-                                },
                                 "TargetInfo": {
                                     "type": "keyword",
                                     "ignore_above": 1024
@@ -7058,16 +6938,10 @@
                                 "TargetName": {
                                     "type": "keyword"
                                 },
-                                "TargetObject": {
-                                    "type": "keyword"
-                                },
                                 "TargetOutboundDomainName": {
                                     "type": "keyword"
                                 },
                                 "TargetOutboundUserName": {
-                                    "type": "keyword"
-                                },
-                                "TargetProcessGuid": {
                                     "type": "keyword"
                                 },
                                 "TargetProcessId": {
@@ -7081,9 +6955,6 @@
                                     "ignore_above": 1024
                                 },
                                 "TargetSid": {
-                                    "type": "keyword"
-                                },
-                                "TargetUser": {
                                     "type": "keyword"
                                 },
                                 "TargetUserName": {
@@ -7130,16 +7001,10 @@
                                 "UpdateReason": {
                                     "type": "keyword"
                                 },
-                                "User": {
-                                    "type": "keyword"
-                                },
                                 "UserAccountControl": {
                                     "type": "keyword"
                                 },
                                 "UserContext": {
-                                    "type": "keyword"
-                                },
-                                "UserName": {
                                     "type": "keyword"
                                 },
                                 "UserParameters": {
@@ -7153,9 +7018,6 @@
                                     "ignore_above": 1024
                                 },
                                 "UserWorkstations": {
-                                    "type": "keyword"
-                                },
-                                "UtcTime": {
                                     "type": "keyword"
                                 },
                                 "Version": {

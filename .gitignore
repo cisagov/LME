@@ -2,6 +2,7 @@
 .DS_Store
 /.idea/
 /.vscode/
+**/.env
 /Chapter 4 Files/*.dumped.ndjson
 /Chapter 4 Files/exported/
 
@@ -23,3 +24,5 @@ lme_update.sh
 /testing/configure/azure_scripts/config.ps1
 /testing/configure.zip
 /testing/*.output.log
+.history
+testing/configure/get-docker.sh
