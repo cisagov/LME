@@ -110,7 +110,7 @@ jobs:
             \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
             \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
             \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            ./development/install_lme.ps1 -b 'release-1.3.2' -m; \
+            ./development/install_lme.ps1 -b 'release-1.3.2'; \
             exit \$LASTEXITCODE;
           }"
           EXIT_CODE=$?
