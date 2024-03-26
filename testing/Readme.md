@@ -3,7 +3,7 @@ This script creates a "blank slate" for testing/configuring LME.
 
 Using the Azure CLI, it creates the following:
 - A resource group
-- A virtual network, subnet, and network security group
+- A virtual network, subnet and network security group
 - 2 VMs: "DC1," a Windows server, and "LS1," a Linux server
 - Client VMs: Windows clients "C1", "C2", etc. up to 16 based on user input 
 - Promotes DC1 to a domain controller
@@ -86,7 +86,7 @@ Example:
 | 5     | Save the login credentials printed to the terminal at the end. *See note*                                                                                 |                                                       |
 | 6     | When you're done testing, simply delete the resource group to clean up all resources created.                                                             |                                                       |
 
-Note: When the script finishes you will be in the azure_scripts directory, and you should see the elasticsearch credentials printed to the terminal. 
+Note: When the script finishes you will be in the azure_scripts directory. You should see the elasticsearch credentials printed to the terminal. 
 You will need to `cd ../../` to get back to the LME directory. All the passwords should also be in the `<$ResourceGroup>.password.txt` file.
 
 
