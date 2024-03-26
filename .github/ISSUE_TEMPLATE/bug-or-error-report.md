@@ -10,7 +10,7 @@ assignees: ''
 ## **BEFORE CREATING THE ISSUE, CHECK THE FOLLOWING GUIDES**: 
  - [ ] [FAQ](https://github.com/cisagov/LME/blob/main/docs/markdown/reference/faq.md)
  - [ ] [Troubleshooting](https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md)
- - [ ] Search current/closed issues for similar questions, and utilize github/google search to see if an answer exists for the error I'm encountering.  
+ - [ ] Search current/closed issues for similar questions and utilize github/google search to see if an answer exists for the error you are encountering.
 
 If the above did not answer your question, proceed with creating an issue below: 
 
@@ -18,7 +18,7 @@ If the above did not answer your question, proceed with creating an issue below:
 <!-- A clear and concise description of what the bug is. -->
 
 ## To Reproduce
-<!-- Steps to reproduce the behavior. These should be clear enough that our team can understand your running environment, software/operating system versions, and anything else we might need to debug the issue.  -->  
+<!-- Steps to reproduce the behavior. These should be clear enough that our team can understand your running environment, software/operating system versions and anything else we might need to debug the issue.  -->  
 <!-- Good examples can be found here: [Issue 1](https://github.com/cisagov/LME/issues/15) [Issue 2](https://github.com/cisagov/LME/issues/19).  --> 
 
 ### Please complete the following information
@@ -45,7 +45,7 @@ lsb_release -a
 ```
 for name in $(sudo docker ps -a --format '{{.Names}}'); do echo -e "\n\n\n-----------$name----------"; sudo docker logs $name | tail -n 20; done
 ```
-Increase the number of lines if your issue is not present, or include a relevant log of the erroring container
+Increase the number of lines if your issue is not present or include a relevant log of the erroring container
 - Output of the relevant /var/log/cron_logs/ file
 
 ## Expected behavior
