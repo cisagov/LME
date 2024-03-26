@@ -1,7 +1,7 @@
 # Chapter 4 - Post Install Actions
 
 ## Chapter Overview
-In this chapter we will:
+This chapter will include:
 * Log in to Kibana in order to view your logs
 * Check you are getting logs from your clients
 * Enable the default detection rules
