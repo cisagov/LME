@@ -10,7 +10,7 @@ Using the Azure CLI, it creates the following:
 - Adds C1 to the managed domain
 - Adds a DNS entry pointing to LS1
 
-This script does not install LME; it simply creates a fresh environment that's ready to have LME installed.
+This script does not install LME. It simply creates a fresh environment that's ready to have LME installed.
 
 ## Usage
 | **Parameter**      | **Alias** | **Description**                                                                                                                                                   | **Required** |
