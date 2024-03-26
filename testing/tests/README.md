@@ -72,8 +72,8 @@ container, it may take a little time for VSCode to install the necessary extensi
 variables before running tests.
 
 ## Python Virtual Environment Setup
-In order for VSCode to use the python modules for the tests, you will want to install a
-python virtual environment for it to use. You can make a python virtual environment
+In order for VSCode to use the python modules for the tests, you will have to install a
+python virtual environment. You can make a python virtual environment
 folder that is available for both of the development containers by making it in the 
 `testing/tests` folder. Then you can have only one copy of the environment for both 
 container options. 
