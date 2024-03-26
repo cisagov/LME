@@ -18,14 +18,14 @@
 ## 🧪 Testing 
 
 <!-- How did you test your changes? How could someone else test this PR? -->
-<!-- Include details of your testing environment, and the tests you ran to -->
+<!-- Include details of your testing environment, and the tests you ran to. -->
 <!-- see how your change affects other areas of the code, etc. -->
 
 ## ✅ Pre-approval checklist ##
 
 - [ ] Changes are limited to a single goal **AND** 
-      the title reflects this in a clear human readable format
-- [ ] Issue that this PR solves has been selected in the Development section
+      the title reflects this in a clear human readable format.
+- [ ] Issue that this PR solves has been selected in the Development section.
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
 - [ ] The PR adheres to LME's requirements in [RELEASES.md](https://github.com/cisagov/LME/RELEASES.md#steps-to-submit-a-PR)
 - [ ] These code changes follow [cisagov code standards](https://github.com/cisagov/development-guide).
@@ -33,11 +33,11 @@
 
 ## ✅ Pre-merge Checklist
 
-- [ ] All tests pass
-- [ ] PR has been tested and the documentation for testing is above
-- [ ] Squash and merge all commits into one PR level commit 
+- [ ] All tests pass.
+- [ ] PR has been tested and the documentation for testing is above.
+- [ ] Squash and merge all commits into one PR level commit. 
 
 ## ✅ Post-merge Checklist
 
-- [ ] Delete the branch to keep down number of branches
+- [ ] Delete the branch to keep down number of branches.
 
