@@ -23,7 +23,7 @@ The team requests a brief description if one submits a fix for a current issue o
 
 ## Content: 
 
-Each release generally notes the Additions, Changes, and Fixes addressed in the release and the contributors that provided code for the release. Additionally, relevant builds of the release will be attached with the release. Tagging the release will correspond with its originating branch's SEMVER number.
+Each release generally notes the Additions, Changes and Fixes addressed in the release and the contributors that provided code for the release. Additionally, relevant builds of the release will be attached with the release. Tagging the release will correspond with its originating branch's SEMVER number.
 
 ## Update Process:
 Developments and changes will accrue in a release-X.Y.Z branch according to the level of the release as documented in [Pull Requests](#pull-requests). The process of merging all changes into a release branch and preparing it for release is documented below.
@@ -33,10 +33,10 @@ Each code freeze will have an announced end date/time in accordance with our pub
 
 ### Steps:
 
-1. Goals/changes/updates to LME will be tracked in LME's public [project](https://github.com/orgs/cisagov/projects/68). These updates to LME will be tracked by pull requests (and may be backed by corresponding issues for documentation purposes for documentation purposes) to a specific `release-X.Y.Z` branch.
-2. As commits are pushed to the PRs set to pull into a release branch, we will determine a time to cease developments. When its determined the features developed in a `release` branch meet a goal or publish point, we will merge all the release's PR's into one combined state onto the `release-.X.Y.Z` branch. This will make sure all testing happens from a unified branch state, and will minimize the number of merge conflicts that occur, easing coordination of merge conflicts. 
-3. Once all work has been merged into an initial release, we will mark the pull request for the release with a `code freeze` label to denote that the release is no longer excepting new features/developments/etc...., all PRs that commit to the release branch should only be to fix breaking changes or failed tests. We’ll also invite the community to pull the frozen `release` branch to test and validate if the new changes cause issues in their environment.
-4. Finally, when all testing and community feedback is complete we'll merge into main with a new tag denoting the `release-X.Y.Z` SEMVER value `X.Y.Z`.
+1. The team will track goals/changes/updates in LME's public [project](https://github.com/orgs/cisagov/projects/68). Pull requests will track updates to LME (and may be backed by corresponding issues for documentation purposes for documentation purposes) to a specific `release-X.Y.Z` branch.
+2. As commits are pushed to the PRs set to pull into a release branch, we will determine a time to cease developments. When the team determines that features developed in a `release` branch meet a goal or publish point, we will merge all the release's PR's into one combined state onto the `release-.X.Y.Z` branch. This will ensure all testing happens from a unified branch state and will minimize the number of merge conflicts that occur, easing coordination of merge conflicts. 
+3. Once the team has merged all work into an initial release, we will mark the pull request for the release with a `code freeze` label to denote that the release is no longer excepting new features/developments/etc...., all PRs that commit to the release branch should only be to fix breaking changes or failed tests. We’ll also invite the community to pull the frozen `release` branch to test and validate if the new changes cause issues in their environment.
+4. Finally, when all testing and community feedback is complete, we'll merge into main with a new tag denoting the `release-X.Y.Z` SEMVER value `X.Y.Z`.
 
 ### Caveats:
 Major or Minor SEMVER LME versions will only be pushed to `main` with testing and validation of code to ensure stability and compatibility. However, new major changes will not always be backwards compatible.
