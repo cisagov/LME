@@ -15,9 +15,9 @@ In a web browser, navigate to ```https://your_Linux_server``` and authenticate w
 
 ### 4.1.1 Import Initial Dashboards
 
-As of LME version 0.4, the initial process of creating an index and importing dashboards should be handled automatically in the install process. Upon logging in to Kibana the number of dashboards should be visible under the ‘Dashboard’ tab on the left-hand side.
+As of LME version 0.4, the initial process of creating an index and importing dashboards should be automati in the installation process. Upon logging into Kibana the number of dashboards should be visible under the ‘Dashboard’ tab on the left-hand side.
 
-If an error was encountered during the initial dashboard import, the upload can be reattempted by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
+If you encounter an error during the initial dashboard import, the upload can be reattempted by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
 
 ```
 sudo /opt/lme/dashboard_update.sh
