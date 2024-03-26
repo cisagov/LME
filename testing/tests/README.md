@@ -24,7 +24,7 @@ If you want to run tests within the
 Python Development environment option, you will have to make a `.vscode/launch.json` in the root 
 of your environment. This folder isn't checked into the repo so it has to be manually
 created. 
-The easy way to create this file is to click on the play button (triangle) with the little bug on it in your 
+To create this file, click on the play button (triangle) with the little bug on it in your 
 VSCode activity bar. There will be a link there to "create a launch.json file". Click on that link and select 
 "Python Debugger"->"Python File". This will create a file and open it. Replace its contents with the below 
 code to run the `api_tests` in `testing/tests/api_tests`.
