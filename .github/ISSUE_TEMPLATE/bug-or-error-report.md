@@ -10,7 +10,7 @@ assignees: ''
 ## **BEFORE CREATING THE ISSUE, CHECK THE FOLLOWING GUIDES**: 
  - [ ] [FAQ](https://github.com/cisagov/LME/blob/main/docs/markdown/reference/faq.md)
  - [ ] [Troubleshooting](https://github.com/cisagov/LME/blob/main/docs/markdown/reference/troubleshooting.md)
- - [ ] Search current/closed issues for similar questions, and utilize github/google search to see if an answer exists for the error I'm encountering.  
+ - [ ] Search current/closed issues for similar questions, and utilize github/google search to see if an answer exists for the error you are encountering.  
 
 If the above did not answer your question, proceed with creating an issue below: 
 
