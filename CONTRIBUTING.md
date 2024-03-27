@@ -1,6 +1,6 @@
 # Welcome #
 
-Wewant you to contribute to LME. If you're unsure or hesitant to make a recommendation, just ask, submit the issue or pull request. The worst that can happen is that you'll be politely asked to change something. We appreciate any sort of contribution(s), and don't want to stifle innovation.
+We want you to contribute to LME. If you're unsure or hesitant to make a recommendation, just ask, submit the issue or pull request. The worst that can happen is that you'll be politely asked to change something. We appreciate any sort of contribution, and we don't want to stifle innovation.
 
 Before contributing, we encourage you to read our CONTRIBUTING policy (you are here), our LICENSE, and our README, all of which are in this repository.
 
