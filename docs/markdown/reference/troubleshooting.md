@@ -87,7 +87,7 @@ By default the `ForwardedEvents` maximum log size is around 20MB so events will 
 ![Adjusting the log size](/docs/imgs/AdjustForwardedEventsLogSize.png)
 
 ### Events not forwarding from Domain Controllers
-Please be aware that Logging Made Easy does not currently support logging Domain Controllers, and the log volumes may be significant from servers with this role.  If you wish to proceed forwarding logs from your Domain Controllers please be aware you do this at your own risk!  Monitoring such servers has not been tested and may have unintended side effects.
+Please be aware that Logging Made Easy does not currently support logging Domain Controllers, and the log volumes may be significant from servers with this role.  If you wish to proceed forwarding logs from your Domain Controllers please be aware you do this at your own risk.  We have not tested monitoring such servers and they may have unintended side effects.
 
 
 
@@ -103,7 +103,7 @@ root@util:~# resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 ```
 
 ### Containers restarting/not running: 
-Usually if you have issues with containers restarting there is probably something wrong with your host or the container itself. Like in the above sample, a wrong password could be preventing the Elastic Stack from operating properly. You can check the container logs like so: 
+Usually if you have issues with containers restarting, there is probably something wrong with your host or the container itself. Like in the above sample, a wrong password could be preventing the Elastic Stack from operating properly. You can check the container logs like so: 
 ```
 #TO list the name of the container
 sudo docker ps --format "{{.Names}}"
@@ -156,7 +156,7 @@ echo "xpack.security.http.ssl.verification_mode: certificate" >> config/elastics
 #add a -f if needed
 elasticsearch-reset-password -v -u elastic -i --url https://localhost:9200
 ```
-If the elasticsearch-reset-password is not available in your version of elasticsearch, you may be able to try recreating the container with a newer version of LME and running the same above steps. We have not tested this last suggestion, so attempting this last step won't be supported, but is worth a try if none of the above works.
+If the elasticsearch-reset-password is not available in your version of elasticsearch, you may be able to try recreating the container with a newer version of LME and running the same above steps. We have not tested this last suggestion, so attempting this last step won't be supported, but it is worth a try if none of the above works.
 
 ### Elasticsearch fails to boot on Linux server
 Sometimes environmental differences can make the installation process get screwed up [ISSUE](https://github.com/cisagov/LME/issues/21). If you have the luxury, you could perform a full reinstall: 
@@ -174,7 +174,7 @@ cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh install
 #Save credentials, then continue with Chapter 3 installation
 ```
-Optionally you could uninstall docker entirely and reinstall it from the deploy.sh script. If you do end up removing Docker this link could be helpful: https://askubuntu.com/a/1021506.
+You could uninstall docker entirely and reinstall it from the deploy.sh script. If you do end up removing Docker this link could be helpful: https://askubuntu.com/a/1021506.
 
 ## Chapter 4 and Beyond
 
@@ -225,7 +225,7 @@ If this Index pattern is not selected as the default, this can be re-done by cli
 
 ### Unhealthy Cluster Status
 
-There are a number of reasons why the cluster's health may be yellow or red, but a common cause is unassigned replica shards. As LME is a single-node instance by default this is means that replicas will never be assigned, but this issue is commonly caused by built-in indices which do not have the `index.auto_expand_replicas` value correctly set. This will be fixed in a future release of Elastic, but can be temporarily diagnosed and resolved as follows: 
+There are a number of reasons why the cluster's health may be yellow or red, but a common cause is unassigned replica shards. As LME is a single-node instance by default this means that replicas will never be assigned, but this issue is commonly caused by built-in indices which do not have the `index.auto_expand_replicas` value correctly set. Elastic will fix this in a future release of Elastic, but for now you can temporarily diagnose and resolve this as follows: 
 
 Check the cluster health by running the following request against Elasticsearch (an easy way to do this is to navigate to `Dev Tools` in Kibana under `Management` on the left-hand menu):
 
@@ -239,7 +239,7 @@ If it shows any unassigned shards, these can be enumerated with the following co
 GET _cat/shards?v=true&h=index,shard,prirep,state,node,unassigned.reason&s=state
 ```
 
-If the `UNASSIGNED` shard is shown as `r` rather than `p` this means it's a replica. In this case the error can be safely fixed in the single-node default installation of LME by forcing all indices to have a replica count of 0 using the following request:
+If the `UNASSIGNED` shard is shown as `r` rather than `p` this means it's a replica. In this case you can safely fix the error in the single-node default installation of LME by forcing all indices to have a replica count of 0 using the following request:
 
 ```
 PUT _settings
@@ -256,9 +256,9 @@ For errors encountered when re-indexing existing data as part of an an LME versi
 
 ### Illegal Argument Exception While Re-Indexing 
 
-With the correct mapping in place it is not possible to store a string value in any of the fields which represent IP addresses, for example ```source.ip``` or ```destination.ip```. If any of these values are represented in your current data as strings, such as ```LOCAL``` it will not be possible to successfully re-index with the correct mapping. In this instance the simplest fix is to modify your existing data to store the relevant fields as valid IP representations using the update_by_query method, documented [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update-by-query.html).
+With the correct mapping in place it is not possible to store a string value in any of the fields which represent IP addresses, for example ```source.ip``` or ```destination.ip```. If any of these values are in your current data as strings, such as ```LOCAL``` it will not be possible to successfully re-index with the correct mapping. In this instance the simplest fix is to modify your existing data to store the relevant fields as valid IP representations using the update_by_query method, documented [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update-by-query.html).
 
-An example of this is shown below, which may need to be modified for the particular field that is causing problems:
+An example of this is shown below, which may need modification for the particular field that is causing problems:
 
 ```
 POST winlogbeat-11.06.2021/_update_by_query
@@ -282,7 +282,7 @@ For security the self-signed certificates generated for use by LME at install ti
 
 ### Dashboard Update Script Failing
 
-If you encounter an error when the dashboards are updated using the dashboard update script, either manually or as part of automatic updates, this may mean that your current version of Elastic is too old to support the minimum functionality required for the new dashboard versions. Ensure that the latest supported version of the Elastic stack is in use with the following command:
+If you encounter an error when you update the dashboards using the dashboard update script, either manually or as part of automatic updates, this may mean that your current version of Elastic is too old. To ensure that the latest supported version of the Elastic stack is in use with the following command:
 ```
 cd /opt/lme/Chapter\ 1\ Files/
 sudo ./deploy.sh update
