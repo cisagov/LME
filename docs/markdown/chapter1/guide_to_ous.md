@@ -2,8 +2,8 @@
 ## Guide to Organizational Units
 
 What is an Organizational Unit?
-An Organizational Unit can in its simplest form be thought of as a folder to contain Users, Computers and groups.
-OUs can be used to select a subset of computers that you want to be included in the LME Client group for testing before rolling out LME site wide.
+An Organizational Unit is a folder that contains Users, Computers and groups.
+You can use OUs to select a subset of computers that you want to be included in the LME Client group for testing before rolling out LME site wide.
 
 ### 1 - How to make an OU
 **1.1** Open the Group Policy Management Console by running ```gpmc.msc```. You can run this command by pressing Windows key + R.
