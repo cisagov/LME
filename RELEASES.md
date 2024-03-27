@@ -10,7 +10,7 @@ The patch versions will generally adhere to the following guidelines:
 
 ### Timelines
 
-Development lifecycle timelines will vary depending on project goals, tasking, community contributions, and vision.
+Development lifecycle timelines will vary depending on project goals, tasking, community contributions and vision.
 
 
 ## Current Release Branch:
