@@ -29,7 +29,7 @@ LME does not support upgrading directly from versions prior to v0.5 to v1.0. Pri
 
 ## 3. Upgrade from v0.5 to v1.0.0
 
-Since LME's transition from the NCSC to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository. Because vital configuration files are stored within the same folder as the git repo, it's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
+Since LME's transition from the NCSC to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository, because vital configuration files are stored within the same folder as the git repo. It's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
 
 
 ```
@@ -60,7 +60,7 @@ sudo ./deploy.sh upgrade
 ```
 **The last step of this script makes all files only readable by their owner in /opt/lme, so that all root owned files with passwords in them are only readable by root. This prevents a local unprivileged user from gaining access to the elastic stack.**
 
-Once the deploy update is finished, next update the dashboards that are provided alongside LME to the latest version. This can be done by running the below script, with more detailed instructions available [here](/docs/markdown/chapter4.md#411-import-initial-dashboards):
+Once the deploy update is complete, next update the dashboards that are provided alongside LME to the latest version. This can be done by running the below script, with more detailed instructions available [here](/docs/markdown/chapter4.md#411-import-initial-dashboards):
 
 \*\**NOTE:*\*\* *You may need to wait several minutes for Kibana to successfully initialize after the update before running this script during the upgrade process. If you encounter a "Failed to connect" error or an "Entity Too Large" error wait for several minutes before trying again.*
 
