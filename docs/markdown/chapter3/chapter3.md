@@ -15,14 +15,14 @@ In this chapter you will:
 This section covers the installation and configuration of the Database and search functionality on a Linux server. We will install the ‘ELK’ Stack from Elasticsearch for this portion.
 
 What is the ELK Stack?
-"ELK" is the acronym for three open projects which come at no cost to users: Elasticsearch, Logstash, and Kibana. Elasticsearch is a search and analytics engine. Logstash is a server‑side data processing pipeline that ingests data from multiple sources simultaneously, transforms it, and then sends it to a "stash" like Elasticsearch. Kibana lets users visualize data with charts and graphs in Elasticsearch.
+"ELK" is the acronym for three open projects which come at no cost to users: Elasticsearch, Logstash and Kibana. Elasticsearch is a search and analytics engine. Logstash is a server‑side data processing pipeline that ingests data from multiple sources simultaneously, transforms them and then sends it to a "stash" like Elasticsearch. Kibana lets users visualize data with charts and graphs in Elasticsearch.
 
 ![Elkstack components](/docs/imgs/elkstack.jpg)
 <p align="center">
 Figure 1: Elastic Stack components
 </p>
 
-Elasticsearch, Logstash, Kibana, and Winlogbeat are developed by [Elastic](https://www.elastic.co/). Before following this guide and running our install script, you should review and ensure that you agree with the license terms associated with these products. Elastic’s license terms can be found on their GitHub page [here](https://github.com/elastic). By running our install script you are agreeing to Elastic’s terms.
+[Elastic](https://www.elastic.co/) developed Elastisearch, Logstash, Kibana and Winglogbeat. Before following this guide and running our install script, you should review and ensure that you agree with the license terms associated with these products. Elastic’s license terms can be found on their GitHub page [here](https://github.com/elastic). By running our install script you are agreeing to Elastic’s terms.
 
 This script also makes use of use of Docker Community Edition (CE). By following this guide and using our install script you are agreeing to the Docker CE license, which can be found [here](https://github.com/docker/docker-ce/blob/master/LICENSE).
 
@@ -167,7 +167,7 @@ The command will ask for a password to connect. Enter your password and press en
 `files_for_windows.zip` should then be downloaded to your desktop.
 
 #### Method 3: Web Server
-You can also download the file over a Python HTTP server, included on Linux by default. On the Linux server, running the below commands will copy the zip file into your home directory, and host an HTTP server listening on port 8000.
+You can also download the file over a Python HTTP server, included on Linux by default. On the Linux server, running the below commands will copy the zip file into your home directory and host an HTTP server listening on port 8000.
 
 \*\***This will download the files over http which is not encrypted,   
 so ensure you trust the network you're downloading the zip file over**\*\*
@@ -199,7 +199,7 @@ Whichever method you used in [step 3.2.4](#324-download-files-for-windows-event-
   - wlbclient.crt
   - winlogbeat.yml
 
-These are certificates, keys, and configuration files required for the Event Collector to securely transfer event logs to the Linux ELK server.
+These are certificates, keys and configuration files required for the Event Collector to securely transfer event logs to the Linux ELK server.
 
 **Download winlogbeat:**
 
@@ -247,7 +247,7 @@ Theres a few steps we need to follow to trust the self-signed cert:
 1. Grab the self-signed certificate authority for LME (done in step [3.2.4](#324-download-files-for-windows-event-collector)).
 2. Have our clients trust the certificate authority (see command below).
 
-This will trust the self signed cert and any other certificates it signs. If this certificate is stolen by an attacker, they can use it to trick your browser into trusting any website they setup. Make sure this cert is kept safe and secure. 
+This will trust the self signed cert and any other certificates it signs. If an attacker steals this certificate, they can use it to trick your browser into trusting any website they setup. Make sure this cert is kept safe and secure. 
 
 We've already downloaded the self-signed cert in previous steps in Chapter 3, so now we just need to tell Windows to trust the certificates our self-signed cert has setup for our LME services.
 
