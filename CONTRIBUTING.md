@@ -25,13 +25,13 @@ Example:
 
 ## Pull Requests (PR)
 
-If you choose to submit a pull request, your pull request must passed various sanity checks in our continuous integration (CI) pipeline, before we merge it. Your pull request may fail these checks, and that's OK. If you want, you can stop there and wait for us to make the necessary corrections to ensure your code passes the CI checks. It helps our community if you fix the issue found by our CI pipeline. 
+If you choose to submit a pull request, your pull request must pass various sanity checks in our continuous integration (CI) pipeline, before we merge it. Your pull request may fail these checks, and that's OK. If you want, you can stop there and wait for us to make the necessary corrections to ensure your code passes the CI checks. It helps our community if you fix the issue found by our CI pipeline. 
 
 Below are some loose requirements we'd like all PR's to follow. Our release process is documented in [Releases](releases.md).
 
 ### Quality assurance and code reviews
 
-Our team will test, vet and review all PR's before our team merges a PR with the main code base. All should be pull requess into the upcoming release branch. You can find that by searching for the highest SEMVER `release-X.Y.Z` branch or following our release documentation.
+Our team will test, vet and review all PR's before our team merges a PR with the main code base. All code should be pull requested into the upcoming release branch. You can find that by searching for the highest SEMVER `release-X.Y.Z` branch or following our release documentation.
 
 ### Steps to submit a PR
 	- All PRs should request merges back into LME's *CLOSEST* Major or Minor upcoming release branch `release-X.Y.Z`. This will be viewable in the branch list on Github. You can also refer to our release documentation for guidance. 
