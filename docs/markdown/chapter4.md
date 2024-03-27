@@ -3,13 +3,13 @@
 ## Chapter Overview
 
 * Logging in to Kibana to view logs
-* Check that logs are being recived
+* Check that logs are being received
 * Enable the default detection rules
 * Kibana basics
 
 ## 4.1 Initial Kibana setup
 
-Once chapters 1 to 3 are completed, you can import an existing set of Kibana dashboards, which will visualize the logs, and answer questions like 'What patch level the clients running?'.
+Once chapters 1 to 3 are completed, you can import an existing set of Kibana dashboards, which will visualize the logs, and answer questions like 'What patch level are the clients running?'.
 
 In a web browser, navigate to ```https://your_Linux_server``` and authenticate with the credentials provided in [Chapter 3.2](/docs/markdown/chapter3/chapter3.md#32-install-lme-the-easy-way-using-our-script).
 
@@ -26,7 +26,7 @@ sudo /opt/lme/dashboard_update.sh
 :hammer_and_wrench: If this does not resolve the issue or you wish to manually import the dashboards, see [Troubleshooting: Manual Dashboard Install](/docs/markdown/reference/troubleshooting.md#manual-dashboard-install) for the previous installation instructions.
 
 
-### 4.1.2 Check that logs are being recieved 
+### 4.1.2 Check that logs are being received 
 
 While on the Elastic home page, click on the hamburger icon on the left, select "Analytics" and click "Dashboard" and select "User Security," to show a dashboard similar to Figure 2.
 
@@ -37,7 +37,7 @@ While on the Elastic home page, click on the hamburger icon on the left, select 
 Figure 2 - The LME NEW - User Security - Overview
 </p>
 
-In the top right hand corner, click the calendar icon to the left of "Last 15 minutes" and select "Today" to change the date range to only include today's data, and the dashboard accurately represente the machines that have been sending logs. Changing to "Last 7 days" are useful to visualize logs over time.
+In the top right hand corner, click the calendar icon to the left of "Last 15 minutes" and select "Today" to change the date range to only include today's data, and the dashboard accurately represent the machines that have been sending logs. Changing to "Last 7 days" is useful to visualize logs over time.
 
 ## 4.2 Enable Alerts
 
@@ -99,7 +99,7 @@ C:\Windows\SYSTEM32\cmd.exe /c "\\testme.local\SYSVOL\testme.local\Sysmon\update
 
 Elasticsearch has provided a number of videos exploring the features of Kibana and how to create new dashboards and analytics. https://www.youtube.com/playlist?list=PLhLSfisesZIvA8ad1J2DSdLWnTPtzWSfI
 
-Kibana's usefull features are as following:
+Kibana's useful features are as following:
 
 ### 4.3.1 Dashboards
 Found under "Analytics" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for starting points offered by Elasticsearch.
