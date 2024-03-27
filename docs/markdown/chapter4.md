@@ -15,9 +15,9 @@ In a web browser, navigate to ```https://your_Linux_server``` and authenticate w
 
 ### 4.1.1 Import Initial Dashboards
 
-As of LME version 0.4, the initial process of creating an index and importing dashboards should be automati in the installation process. Upon logging into Kibana the number of dashboards should be visible under the ‘Dashboard’ tab on the left-hand side.
+As of LME version 0.4, the install process automatically handles the initial  index creating process and importing dashboards. Upon logging in to Kibana the number of dashboards should be visible under the ‘Dashboard’ tab on the left-hand side.
 
-If you encounter an error during the initial dashboard import, the upload can be reattempted by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
+If the initial dashboard import is met with an error, the upload can be reattempted by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
 
 ```
 sudo /opt/lme/dashboard_update.sh
@@ -28,7 +28,7 @@ sudo /opt/lme/dashboard_update.sh
 
 ### 4.1.2 Check that logs are being recieved 
 
-While on the Elastic home page, click on the hamburger icon on the left, then under "Analytics,"  and click "Dashboard." From there, select "User Security." This will show a dashboard similar to Figure 2.
+While on the Elastic home page, click on the hamburger icon on the left, select "Analytics" and click "Dashboard" and select "User Security," to show a dashboard similar to Figure 2.
 
 <p align="center">
     <img src="/docs/imgs/usersec.png" width="66%" />
@@ -37,7 +37,7 @@ While on the Elastic home page, click on the hamburger icon on the left, then un
 Figure 2 - The LME NEW - User Security - Overview
 </p>
 
-In the top right hand corner, click the calendar icon to the left of "Last 15 minutes" and select "Today." This will change the date range to only include today's data, and the dashboard accurately represente the machines that have been sending logs. Changing to "Last 7 days" are useful to visualize logs over time.
+In the top right hand corner, click the calendar icon to the left of "Last 15 minutes" and select "Today" to change the date range to only include today's data, and the dashboard accurately represente the machines that have been sending logs. Changing to "Last 7 days" are useful to visualize logs over time.
 
 ## 4.2 Enable Alerts
 
@@ -73,7 +73,7 @@ Rules without the "ML" tag should still be activated through this bulk action, r
 
 Depending on the environment, exceptions may be added to some of the built-in Elastic rules shown above to prevent false positives. These will be specific to your environment and should be tightly scoped so as to avoid excluding potentially malicious behavior, but may be beneficial to filter out some of the benign behavior of LME (for example to prevent the Sysmon update script creating alerts).
 
-An example of this is shown below, with further information available [here](https://www.elastic.co/guide/en/security/current/detections-ui-exceptions.html).
+An example is shown below, with further information available [here](https://www.elastic.co/guide/en/security/current/detections-ui-exceptions.html).
 
 First, navigate to the "Manage Detection Rules" section as described above, and then search for and select the rule you wish to add an exception for:
 
@@ -85,11 +85,11 @@ Then navigate to the "Exceptions" tab above the "Trend" section and then select 
 
 ![Add Exceptions](/docs/imgs/add-exceptions.png)
 
-From here, configure the necessary exception, taking care to ensure that it is tightly scoped and will not inadvertently prevent detection of actual malicious behavior:
+Next, configure the necessary exception, taking care to ensure that it is tightly scoped and will not inadvertently prevent detection of actual malicious behavior:
 
 ![Example Exception](/docs/imgs/example-exception.png)
 
-Note that in this instance the following command line value has been added as an exception, but the ```testme.local``` domain would need to be updated to match the location you installed the update batch script to during the LME installation, the same value used to update the scheduled task as described [here](/docs/markdown/chapter2.md#222---scheduled-task-gpo-policy).
+Note that in this instance the following command line value has been added as an exception, but the ```testme.local``` domain would need updateding to match the location you installed the update batch script to during the LME installation, the same value used to update the scheduled task as described [here](/docs/markdown/chapter2.md#222---scheduled-task-gpo-policy).
 
 ```
 C:\Windows\SYSTEM32\cmd.exe /c "\\testme.local\SYSVOL\testme.local\Sysmon\update.bat"
@@ -97,17 +97,17 @@ C:\Windows\SYSTEM32\cmd.exe /c "\\testme.local\SYSVOL\testme.local\Sysmon\update
 
 ## 4.3 Learning how to use Kibana
 
-If you have never used Kibana before, Elasticsearch has provided a number of videos exploring the features of Kibana and how to create new dashboards and analytics. https://www.youtube.com/playlist?list=PLhLSfisesZIvA8ad1J2DSdLWnTPtzWSfI
+Elasticsearch has provided a number of videos exploring the features of Kibana and how to create new dashboards and analytics. https://www.youtube.com/playlist?list=PLhLSfisesZIvA8ad1J2DSdLWnTPtzWSfI
 
-Kibana comes with many useful features. In particular, make note of the following:
+Kibana's usefull features are as following:
 
 ### 4.3.1 Dashboards
-Found under "Analytics" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for some starting points offered by Elasticsearch.
+Found under "Analytics" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for starting points offered by Elasticsearch.
 
 Note:  If you make changes to the dashboards that LME provides, be sure to save your changes to a dashboard with a different name.  Otherwise, your changes will be overwritten when you upgrade LME.
 
 ### 4.3.2 Discover
-Found under "Analytics" -> "Discover," Discover allows you view raw events and craft custom filters to find events of interest. For example, to inspect all DNS queries made on a computer named "Example-1," you could insert the following query where it says "Filter your data using KQL syntax":
+Found under "Analytics" -> "Discover," Discover allows the view raw events and craft custom filters to find events of interest. For example, to inspect all DNS queries made on a computer named "Example-1," you could insert the following query where it says "Filter your data using KQL syntax":
 ```
 event.code: 22 and host.name: Example-1
 ```
