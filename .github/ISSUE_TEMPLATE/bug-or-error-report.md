@@ -15,19 +15,34 @@ assignees: ''
 If the above did not answer your question, proceed with creating an issue below: 
 
 ## Describe the bug
-<!-- A clear and concise description of what the bug is. -->
+<!-- A clear and concise description of what the software flaw you are experiencing looks like, or what the behavior is. -->
+
+## Expected behavior
+A clear and concise description of what you expected to happen.
+
 
 ## To Reproduce
 <!-- Steps to reproduce the behavior. These should be clear enough that our team can understand your running environment, software/operating system versions and anything else we might need to debug the issue.  -->  
 <!-- Good examples can be found here: [Issue 1](https://github.com/cisagov/LME/issues/15) [Issue 2](https://github.com/cisagov/LME/issues/19).  --> 
 
 ### Please complete the following information
-#### **Desktop:**
- - OS: [e.g. Windows 10]
- - Browser: [e.g. Firefox Version 104.0.1]
- - Software version: [e.g. Sysmon v15.0, Winlogbeat 8.11.1]
+
+#### **Setup**
+- Are you running the LME machines in a virtual environment (i.e. Docker) or are you running natively on the machines?
+- Which version of LME are you installing?
+- Is this a first-time installation or are you upgrading?  If upgrading, what was your previous version?
+
+#### **Desktop:** (Client Machines)
+- OS: [e.g. Windows 10]
+- Browser: [e.g. Firefox Version 104.0.1]
+- Software version: [e.g. Sysmon v15.0]
+
+#### **Domain Controller:** 
+- OS: [e.g. Windows Server]
+- Browser: [e.g. Firefox Version 104.0.1]
+- Software version: [e.g. Winlogbeat 8.11.1]
  
-#### **Server:**
+#### **ElasticSearch/Kibana Server:**
 - OS: [e.g. Ubuntu 22.04]
 - Software Versions:
   - ELK: [e.g. 8.7.1]
@@ -48,11 +63,9 @@ for name in $(sudo docker ps -a --format '{{.Names}}'); do echo -e "\n\n\n------
 Increase the number of lines if your issue is not present or include a relevant log of the erroring container
 - Output of the relevant /var/log/cron_logs/ file
 
-## Expected behavior
-A clear and concise description of what you expected to happen.
 
 ## Screenshots **OPTIONAL**
 If applicable, add screenshots to help explain your problem.
 
 ## Additional context
-Add any other context about the problem here.
+Add any other context about the problem or any unique environment information here.
