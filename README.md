@@ -24,7 +24,9 @@ We have done the hard work to make things simple. We will tell you what to downl
 
 The current architecture is based upon Windows Clients, Microsoft Sysmon, Windows Event Forwarding and the ELK stack.
 
-We are **not** able to comment on or troubleshoot individual installations. If you believe you have have found an issue with the LME code or documentation please submit a [GitHub issue](https://github.com/cisagov/lme/issues). If you have a question about your installation, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to see if your issue has been addressed before.
+We are **not** able to comment on or troubleshoot individual installations. If you believe you have have found an issue with the LME code or documentation please submit a [GitHub issue](https://github.com/cisagov/lme/issues). If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before.  If not, then submit a GitHub issue using the Bug Template, ensuring that you provide all the requested information.
+
+ If you have a general question about LME or a suggestion on how to improve it, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
 
 ## Who is Logging Made Easy for?
 
