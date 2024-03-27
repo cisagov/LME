@@ -20,14 +20,14 @@ This chapter will require the clients and event collector to be Active Directory
 ## 1.2 Firewall rules and where to host
 You will need TCP port 5985 open between the clients and the Windows Event Collector. You also need port 5044 open between the Windows Event Collector and the Linux server.
 
-We recommend that this traffic does not go directly across the Internet, so you should host the Windows Event Collector on the local network, in a similar place to the Active Directory server.
+We recommend that this traffic does not go directly across the internet, so you should host the Windows Event Collector on the local network, in a similar place to the Active Directory server.
 
 ## 1.3 Download LME
-There are several files within the LME repo that need to be available on a domain controller. These files will be needed for both Chapters 1 and 2. While there are multiple ways to accomplish this, one simple method is to download the latest release package.
+There are several files within the LME repo that need to be available on a domain controller. You will need these fles for both Chapters 1 and 2. While there are multiple ways to accomplish this, one simple method is to download the latest release package.
 
 1. While on a domain controller, download [the desired release](https://github.com/cisagov/lme/releases/).
 2. Open File Explorer, locate and extract the release file downloaded in step 1, for example, LME-1.0.zip.
-3. Move the LME folder somewhere safe. There is no set location where this folder is required to be, but it should be saved somewhere it won't be inadvertently modified or deleted during the installation process. After installation is complete, the folder can be safely deleted.
+3. Move the LME folder somewhere safe. There is no set location requirement for this folder, but you should be save it  somewhere you will not inadvertently modify or delete it during the installation process. After installation is complete, you can safely delete the folder.
 
 ## 1.4 Import Group Policy objects
 Group policy objects (GPOs) are a convenient way to administer technical policies across an Active Directory domain. LME comes with two GPOs that work together to forward events from the client machines to the Event Collector.
