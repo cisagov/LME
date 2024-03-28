@@ -15,7 +15,7 @@ A user with the skill level of a systems administrator or enthusiast can insall 
 
 … then you are likely to have the skills to install LME.
 
-Allow a couple of days to run through the entire installation process, though you can break up the process to fit your schedule. While we have automated steps where we can and made the instructions as detailed as possible, installation will require more steps than simply using an installation wizard.
+Allow a couple of days to run through the entire installation process. You can break up the process to fit your schedule. While we have automated steps and made the instructions as detailed as possible, installation will require more steps than simply using an installation wizard.
 
 ## High level overview diagram of the LME system
 
