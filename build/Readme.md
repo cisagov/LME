@@ -1,16 +1,16 @@
 # Generating the docs: 
 
-This directory uses [pandoc](), a universal document converter, to build the markdown files into a pdf. Due to regulatory concerns we cannot release a pdf here directly, but you can utilize the following script to build the markdown docs into a pdf so you can use them offline if desired.
+This directory uses [pandoc](), a universal document converter, to build the markdown files into a pdf. Due to regulatory concerns LME cannot release a pdf directly, but you can utilize the following script to build the markdown docs into a pdf so you can use them offline if desired.
 
 In our testing we utilized the macos package manager [homebrew](https://brew.sh/) to install our packages.
 
 ## Installing pandoc
 
-After you have homebrew make sure to install mactex:
+After installing homebrew make sure to install mactex:
 ```bash
 brew install mactex
 ```
-This is a huge file that makes compiling everything super easy.
+This is a large file that simplyfies compiling everything.
 
 Finally install pandoc: [link](https://pandoc.org/installing.html)  
 ```bash
@@ -18,7 +18,7 @@ brew install pandoc
 ```
 
 ### Installing on other platforms
-Other operating systems and their respective latex/pandoc packages have not been tested nor will LME supported them. Since not every organization will have access to a MacOS operating system, but might wish to compile the docs anyway, please reachout and the team will attempt to help you compile the docs into a pdf. Any operating system with a latex package and pandoc executable should suffice.  There are also many other ways to convert github flavored markdown to pdf if you google them and want to compile using a different method than we've provided here.
+Other operating systems and their respective latex/pandoc packages have not been tested nor will LME support them in the future. Since not every organization has access to a MacOS operating system, but might wish to compile the docs anyway, please reachout to LME and the team will attempt to help you compile the docs into a pdf. Any operating system with a latex package and pandoc executable should suffice.  There are several other ways to convert github flavored markdown to pdf if you search them online and want to compile using a different method than provided here.
 
 ## Compiling: 
 This command below will compile the markdown docs on MacOS from the homebrew install pandoc/mactex packages:
