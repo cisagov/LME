@@ -20,10 +20,9 @@ Using Docker helps to avoid polluting your host environment with multiple versio
 When you select the Python Tests option to run your container in, there are already
 config files for running tests in VSCode so you won't have to set this part up. 
 
-If you want to run tests within the 
-Python Development environment option, you will have to make a `.vscode/launch.json` in the root 
-of your environment. This folder isn't checked into the repo so it has to be manually
-created. 
+If you want to run tests within the Python Development environment option, you will have to make a `.vscode/launch.json` in the root 
+of your environment. This folder isn't checked into the repo so it has to be manually created. 
+
 To create this file, click on the play button (triangle) with the little bug on it in your 
 VSCode activity bar. There will be a link there to "create a launch.json file". Click on that link and select 
 "Python Debugger"->"Python File". This will create a file and open it. Replace its contents with the below 
@@ -79,7 +78,6 @@ folder that is available for both of the development containers by making it in 
 container options. 
 You can do this by opening a new terminal in VSCode, within the `testing/tests` 
 directory, and running:
-
 
 `python3 -m venv venv`
 

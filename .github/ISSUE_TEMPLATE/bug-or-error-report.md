@@ -20,7 +20,6 @@ If the above did not answer your question, proceed with creating an issue below:
 ## Expected behavior
 A clear and concise description of what you expected to happen.
 
-
 ## To Reproduce
 <!-- Steps to reproduce the behavior. These should be clear enough that our team can understand your running environment, software/operating system versions and anything else we might need to debug the issue.  -->  
 <!-- Good examples can be found here: [Issue 1](https://github.com/cisagov/LME/issues/15) [Issue 2](https://github.com/cisagov/LME/issues/19).  --> 

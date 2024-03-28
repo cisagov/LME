@@ -10,8 +10,7 @@
 <!-- Mention any related issue(s) here using appropriate keywords such -->
 <!-- as "closes" or "resolves" to auto-close them on merge. -->
 <!-- If this PR is *not* being merged into main, the related issues will not -->
-<!-- be auto-closed, so you need to add the issue into the Development box -->
-<!-- in the right sidebar -->
+<!-- be auto-closed, so you need to close the issue manually -->
 
 ### 📷 Screenshots (DELETE IF UNAPPLICABLE)
 
@@ -22,10 +21,11 @@
 <!-- see how your change affects other areas of the code, etc. -->
 
 ## ✅ Pre-approval checklist ##
-
+- [ ] There is a [gitIssue](https://github.com/cisagov/LME/issues) that this PR resolves
+- [ ] Git Issue that this PR solves has been selected in the Development section
+- [ ] The PR's base branch has been modified to be the proper branch. 
 - [ ] Changes are limited to a single goal **AND** 
-      the title reflects this in a clear human readable format.
-- [ ] Issue that this PR solves has been selected in the Development section.
+      the title reflects this in a clear human readable format for the release notes
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
 - [ ] The PR adheres to LME's requirements in [RELEASES.md](https://github.com/cisagov/LME/RELEASES.md#steps-to-submit-a-PR)
 - [ ] These code changes follow [cisagov code standards](https://github.com/cisagov/development-guide).
@@ -40,4 +40,5 @@
 ## ✅ Post-merge Checklist
 
 - [ ] Delete the branch to keep down number of branches.
-
+- [ ] The PR is labeled with `feat` for an added new feature, `update` for an update, **OR** `fix` for a fix.
+- [ ] The PR contains `Resolves #<issue #>` so that merging it closes out the corresponding issue.  For example `Resolves #132`.

@@ -3,7 +3,7 @@
 [![Downloads](https://img.shields.io/github/downloads/cisagov/lme/total.svg)]()
 
 # Logging Made Easy
-CISA's Logging Made Easy has a self-install tutorial for organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. LME is the integartion of multiple open software platforms which come at no cost to users. LME helps users integrate software platforms together to produce an end-to-end logging capability. LME also provides some pre-made configuration files and scripts, although there is the option to do this on your own.
+CISA's Logging Made Easy has a self-install tutorial for organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. LME is the integration of multiple open software platforms which come at no cost to users. LME helps users integrate software platforms together to produce an end-to-end logging capability. LME also provides some pre-made configuration files and scripts, although there is the option to do this on your own.
 
 Logging Made Easy can:
 - Show where administrative commands are being run on enrolled devices
