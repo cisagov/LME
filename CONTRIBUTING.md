@@ -1,8 +1,8 @@
 # Welcome #
 
-We want you to contribute to LME. If you're unsure or hesitant to make a recommendation, just ask, submit the issue or pull request. The worst that can happen is that you'll be politely asked to change something. We appreciate any sort of contribution, and we don't want to stifle innovation.
+Users are welcome to contribute to LME. If you're unsure or hesitant to make a recommendation, just ask, submit the issue or pull request. The LME team appreciates any sort of contribution, and does not want to stifle innovation.
 
-Before contributing, we encourage you to read our CONTRIBUTING policy (you are here), our LICENSE, and our README, all of which are in this repository.
+Before contributing, please read the CONTRIBUTING policy (you are here), LICENSE, and README, all of which are in this repository.
 
 ## Issues 
 
@@ -25,7 +25,7 @@ Example:
 
 ## Pull Requests (PR)
 
-If you choose to submit a pull request, your pull request must pass various sanity checks in our continuous integration (CI) pipeline, before we merge it. Your pull request may fail these checks, and that's OK. If you want, you can stop there and wait for us to make the necessary corrections to ensure your code passes the CI checks. It helps our community if you fix the issue found by our CI pipeline. 
+If you choose to submit a pull request, your pull request must pass various sanity checks in the continuous integration (CI) pipeline, before merging it. Your pull request may fail these checks, and that's OK. If you want, you can stop there and wait for us to make the necessary corrections to ensure your code passes the CI checks. It helps our community if you fix the issue found by our CI pipeline. 
 
 Below are some loose requirements we'd like all PR's to follow. Our release process is documented in [Releases](releases.md).
 
