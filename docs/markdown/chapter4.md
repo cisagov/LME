@@ -9,15 +9,15 @@
 
 ## 4.1 Initial Kibana setup
 
-Once chapters 1 to 3 are completed, you can import an existing set of Kibana dashboards, which will visualize the logs, and answer questions like 'What patch level are the clients running?'.
+Once chapters 1 to 3 are complete, you can import an existing set of Kibana dashboards, which will visualize the logs, and answer questions like 'What patch level are the clients running?'.
 
 In a web browser, navigate to ```https://your_Linux_server``` and authenticate with the credentials provided in [Chapter 3.2](/docs/markdown/chapter3/chapter3.md#32-install-lme-the-easy-way-using-our-script).
 
 ### 4.1.1 Import Initial Dashboards
 
-As of LME version 0.4, the install process automatically handles the initial  index creating process and importing dashboards. Upon logging in to Kibana the number of dashboards should be visible under the ‘Dashboard’ tab on the left-hand side.
+As of LME version 0.4, the install process automatically handles the initial  index creating process and importing dashboards. Upon logging into Kibana the number of dashboards should be visible under the ‘Dashboard’ tab on the left-hand side.
 
-If the initial dashboard import is met with an error, the upload can be reattempted by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
+If the initial dashboard import has an error, you can reattempt the upload by running the dashboard update script created within the root LME directory (**NOT** the one in 'Chapter 3 Files'):
 
 ```
 sudo /opt/lme/dashboard_update.sh
@@ -37,7 +37,7 @@ While on the Elastic home page, click on the hamburger icon on the left, select 
 Figure 2 - The LME NEW - User Security - Overview
 </p>
 
-In the top right hand corner, click the calendar icon to the left of "Last 15 minutes" and select "Today" to change the date range to only include today's data, and the dashboard accurately represent the machines that have been sending logs. Changing to "Last 7 days" is useful to visualize logs over time.
+In the top right hand corner, click the calendar icon to the left of "Last 15 minutes" and select "Today" to change the date range to only include today's data. The dashboard accurately represents the machines that have been sending logs. Changing to "Last 7 days" is useful to visualize logs over time.
 
 ## 4.2 Enable Alerts
 
@@ -71,7 +71,7 @@ Rules without the "ML" tag should still be activated through this bulk action, r
 
 ### 4.2.1 Add rule exceptions
 
-Depending on the environment, exceptions may be added to some of the built-in Elastic rules shown above to prevent false positives. These will be specific to your environment and should be tightly scoped so as to avoid excluding potentially malicious behavior, but may be beneficial to filter out some of the benign behavior of LME (for example to prevent the Sysmon update script creating alerts).
+Depending on the environment, exceptions may be added to some of the built-in Elastic rules shown above to prevent false positives. These will be specific to your environment and should be tightly scoped to avoid excluding potentially malicious behavior but may be beneficial to filter out some of the benign behavior of LME (for example to prevent the Sysmon update script creating alerts).
 
 An example is shown below, with further information available [here](https://www.elastic.co/guide/en/security/current/detections-ui-exceptions.html).
 
@@ -89,7 +89,7 @@ Next, configure the necessary exception, taking care to ensure that it is tightl
 
 ![Example Exception](/docs/imgs/example-exception.png)
 
-Note that in this instance the following command line value has been added as an exception, but the ```testme.local``` domain would need updateding to match the location you installed the update batch script to during the LME installation, the same value used to update the scheduled task as described [here](/docs/markdown/chapter2.md#222---scheduled-task-gpo-policy).
+Note that in this instance the following command line value has been added as an exception, but the ```testme.local``` domain would need updating to match the location you installed the update batch script to during the LME installation, the same value used to update the scheduled task as described [here](/docs/markdown/chapter2.md#222---scheduled-task-gpo-policy).
 
 ```
 C:\Windows\SYSTEM32\cmd.exe /c "\\testme.local\SYSVOL\testme.local\Sysmon\update.bat"
@@ -102,7 +102,7 @@ Elasticsearch has provided a number of videos exploring the features of Kibana a
 Kibana's useful features are as following:
 
 ### 4.3.1 Dashboards
-Found under "Analytics" -> "Dashboard," dashboards are a great way to visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for starting points offered by Elasticsearch.
+Found under "Analytics" -> "Dashboard," dashboards visualize LME data. LME comes with several dashboards. Take some time to get familiar with the different dashboards already available. If interested in creating custom dashboards, see the link above for starting points offered by Elasticsearch.
 
 Note:  If you make changes to the dashboards that LME provides, be sure to save your changes to a dashboard with a different name.  Otherwise, your changes will be overwritten when you upgrade LME.
 
