@@ -1,15 +1,15 @@
 # Chapter 3 – Installing the ELK Stack and Retrieving Logs
 
 ## Chapter Overview
-In this chapter you will:
-* Install a new Linux server for events to be sent to.
-* Run a script to:
+Chapter 3 covers:
+* Installating a new Linux server for events to be sent to.
+* Running a script to:
     * install Docker.
     * secure the Linux server.
     * secure the Elasticsearch server.
     * generate certificates.
     * deploy the LME Docker stack.
-* Configure the Windows Event Collector to send logs to the Linux server.
+* Configuring the Windows Event Collector to send logs to the Linux server.
 
 ## Introduction
 This section covers the installation and configuration of the Database and search functionality on a Linux server. We will install the ‘ELK’ Stack from Elasticsearch for this portion.
