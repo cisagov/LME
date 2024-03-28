@@ -14,7 +14,7 @@ cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh renew
 ```
 
-This will prompt you to select which certificates to regenerate, and can be used to individually recreate certificates as required or to replace the root CA and all other certificates entirely. When re-creating the certificates due to an imminent expiry the root CA can be left as is, with all of the certificates which are due to expire selected to be recreated:
+This will prompt you to select which certificates to regenerate, and you can individually recreate certificates as required or to replace the root CA and all other certificates entirely. When re-creating the certificates due to an imminent expiration the root CA can be left as is with all of the certificates, which are due to expire selected to be recreated:
 
 ```bash
 Do you want to regenerate the root Certificate Authority (warning - this will invalidate all current certificates in use) ([y]es/[n]o): n
@@ -120,11 +120,11 @@ In order for the Winlogbeat client certificate to be included in the ```files_fo
 /opt/lme/Chapter\ 3\ Files/certs/wlbclient.key
 /opt/lme/Chapter\ 3\ Files/certs/wlbclient.crt
 ```
-Alternatively these files can be transfered to the Windows Event Collector server separately if desired.
+Alternatively you can transfer these files to the Windows Event Collector server separately if desired.
 
 ### Installation
 
-Once the certificates have been generated as required and copied into the correct location, simply run the installer as instructed in [Chapter 3](/docs/markdown/chapter3/chapter3.md), selecting "No" when prompted to generate self-signed certificates. The installer should then ensure that the files are in the correct location and proceed as normal, making use of the manually created certificates instead.
+Once you have generated the certificates as required and copied them into the correct location, simply run the installer as instructed in [Chapter 3](/docs/markdown/chapter3/chapter3.md), selecting "No" when prompted to generate self-signed certificates. The installer should then ensure that the files are in the correct location and proceed as normal, making use of the manually created certificates instead.
 
 ## Migrating from Self-Signed Certificates
 
@@ -134,9 +134,9 @@ It is possible to migrate from the default self-signed certificates to manually 
 
 To begin this process you will need to generate the required certificates that you intend to use as part of the LME installation going forward. The certificates must meet the requirements set out above under [Certificate Creation](#certificate-creation).
 
-Once the required certificates have been created they must be copied into the correct location, as described in the [Certificate Location](#certificate-locations) section above. If you have an existing installation with self-signed certificates then files will already exist in these locations, and will need to be overwritten with the newly created certificate files.
+Once you create the required certificates, you must copy them into the correct location, as described in the [Certificate Location](#certificate-locations) section above. If you have an existing installation with self-signed certificates then files will already exist in these locations, and you will need to overwrite them with the newly created certificate files.
 
-Once the certificate files have been copied into the correct locations calling the deploy script's "renew" function and prompting it **not** to regenerate any of the certificates will cause it to replace the currently in-use certificates with the newly copied files:
+Once you have copied the certificate files into the correct locations calling the deploy script's "renew" function and prompting it **not** to regenerate any of the certificates will cause it to replace the currently in-use certificates with the newly copied files:
 
 ```
 cd /opt/lme/Chapter\ 3\ Files/
