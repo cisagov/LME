@@ -6,13 +6,13 @@ Figure 1: Finished state of Chapter 1
 </p>
 
 ## Chapter Overview
-In this chapter you will:
-* Add some Group Policy Objects (GPOs) to your Active Directory (AD).
-* Configure the Windows Event Collector listener service.
-* Configure clients to send logs to this box.
+This chapter will cover:
+* Adding some Group Policy Objects (GPOs) to your Active Directory (AD).
+* Configuring the Windows Event Collector listener service.
+* Configuring clients to send logs to this box.
 
 ## 1.1 Introduction
-This chapter will cover setting up the built-in Windows functionality for event forwarding. This effectively takes the individual events (such as a file being opened) and sends them to a central machine for processing. This is similar to the setup discussed in this [Microsoft blog](https://docs.microsoft.com/en-us/windows/security/threat-protection/use-windows-event-forwarding-to-assist-in-intrusion-detection).
+This chapter will cover setting up the built-in Windows functionality for event forwarding, effectively taking the individual events (such as a file being opened) and sending them to a central machine for processing. This is similar to the setup discussed in this [Microsoft blog](https://docs.microsoft.com/en-us/windows/security/threat-protection/use-windows-event-forwarding-to-assist-in-intrusion-detection).
 
 Only a selection of events will be sent from the client's ‘Event Viewer’ to a central ‘Event Collector’. The events will then be uploaded to the database and dashboard in Chapter 3.
 This chapter will require the clients and event collector to be Active Directory domain joined and the event collector to be either a Windows server or a Windows client operating system.
