@@ -2,7 +2,7 @@
 ## Guide to Organizational Units
 
 What is an Organizational Unit?
-An Organizational Unit is a folder that contains Users, Computers and groups.
+An Organizational Unit is a folder that contains users, computers and groups.
 You can use OUs to select a subset of computers that you want to be included in the LME Client group for testing before rolling out LME site wide.
 
 ### 1 - How to make an OU
