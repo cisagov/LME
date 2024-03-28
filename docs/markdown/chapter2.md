@@ -5,7 +5,7 @@ In this chapter you will:
 * Setup a GPO or SCCM job to deploy Sysmon across your clients.
 
 ## 2.1 Introduction
-Sysmon is a Windows service developed by Microsoft to generate rich Windows event logs with much more information than the default events created in Windows. Having comprehensive logs is critical in monitoring your system and keeping it secure. The information contained within Sysmon's logs are based on settings defined in an XML configuration file and can be configured to your liking, though templates will be provided to get you started.
+Microsoft developed Sysmon in Windows to generate rich Windows event logs with much more information than the default events created in Windows. Having comprehensive logs is critical in monitoring your system and keeping it secure. The information contained within Sysmon's logs are based on settings defined in an XML configuration file and can be configured to your liking, though templates will be provided to get you started.
 
 **By following this guide and using Sysmon, you are agreeing to the following EULA.
 Please read this before continuing.
@@ -24,7 +24,7 @@ Using Microsoft Group Policy to deploy LME requires two main things:
 If you get stuck while trying to add and configure GPO's, refer back to Chapter 1 for a quick refresher.
 
 ### 2.2.1 - Folder Layout
-A centralized network folder accessible by all machines that are going to be running Sysmon is needed. We suggest inside the SYSVOL directory as a suitable place since this is configured by default to have very restricted write permissions.
+You need a centralized network folder accessible by all machines that are going to be running Sysmon. We suggest inside the SYSVOL directory as a suitable place since this is configured by default to have very restricted write permissions.
 **It is extremely important that the folder contents cannot be modified by users, hence recommending SYSVOL folder.**
 
 The SYSVOL directory is located on the Domain Controller at `C:\Windows\SYSVOL\SYSVOL\<YOUR-DOMAIN-NAME>`, where "YOUR-DOMAIN-NAME" refers to your active directory domain name. You can also access it over the network at `\\<YOUR-DOMAIN-NAME>\SYSVOL\<YOUR-DOMAIN-NAME>`. As you are adding files to the SYSVOL directory throughout this chapter, you can either add them on the Domain Controller locally or over the network.
@@ -90,7 +90,7 @@ This section sets up a scheduled task to run update.bat (stored on a network fol
 Figure 2: Specify the path to the update.bat file as the action for the scheduled test.
 </p>
 
-At this point, the GPO should be properly configured, but without additional intervention, it could take up to 24 hours for the scheduled task to activate. Before it does, Sysmon will not show up as a service on the clients. However, further steps can be taken to ensure immediate installation.
+At this point, you should have configured the GOP properly, but without additional intervention, it could take up to 24 hours for the scheduled task to activate. Before it does, Sysmon will not show up as a service on the clients. However, you can take further steps to ensure immediate installation.
 - View the "Triggers" tab of the "LME-Sysmon-Task-Properties" page. Click "Daily," then "Edit..." Note the start time specified. Each day, starting at that specific time, the LME-Sysmon-Task will run, repeating every 30 minutes. If that time has already passed on the day you created the GPO, the task won't activate for the first time until the following day. Generally speaking, you'll want to set the time to the beginning of the day for complete coverage, but you may consider adjusting it temporarily for testing purposes so that it will activate while you can observe it.
 - By default, Windows will update group policy settings only every 90 minutes. You can manually trigger a group policy update by running `gpupdate /force` in an elevated Command Prompt window on a given client to apply the GPO to that specific client immediately. 
 
@@ -109,7 +109,7 @@ Uninstall program:
 Detection method: `File exists - C:\Windows\sysmon64.exe`
 
 ## Chapter 2 - Checklist
-1. Ensure that your files and folders in the network share are nested and named correctly. Remember that in Windows, case in filenames or folders does not matter.
+1. Ensure that your files and folders in the network share are nested and named correctly. Remember that in Windows, the case in filenames or folders does not matter.
 
 ```
 NETWORK_SHARE (e.g. SYSVOL)

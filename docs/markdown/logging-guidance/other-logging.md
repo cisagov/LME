@@ -1,14 +1,14 @@
 # Additional Logging
 
-As of the release of LME v0.5, the Logstash configuration has been modified to remove the exposed Syslog port from the LME host itself. Instead, LME has been changed to support ingest from multiple Elastic Beats - to make it easier to customize LME installs to handle additional logging in a manner compliant with the Elastic Common Schema (ECS).
+As of the release of LME v0.5, the Logstash configuration has been modified to remove the exposed Syslog port from the LME host itself. Instead, we have changed LME to support ingest from multiple Elastic Beats - to make it easier to customize LME installs to handle additional logging in a manner compliant with the Elastic Common Schema (ECS).
 
 As the logging and analysis of Windows Event Logs is the central goal of LME, this support for other log types is not provided out of the box on fresh installations. However it can be manually configured using the steps below.
 
-Note: We **do not** provide technical support for this process or any issues arising from it. This information is provided as an example solely to help you get started expanding LME to suit your own needs as required. This information also assumes a level of familiarity with the concepts involved, and is not intended to be an "out of the box" solution in the same way as LME's Windows logging capabilities. We are working to support other logging data in the future.
+Note: We **do not** provide technical support for this process or any issues arising from it. We provide this information as an example solely to help you get started expanding LME to suit your own needs as required. This information assumes a level of familiarity with the concepts involved and is not intended to be an "out of the box" solution in the same way as LME's Windows logging capabilities. We are working to support other logging data in the future.
 
 ## Identify a Beat to Use
 
-In order to ingest different log types, Elastic provides a variety of different "Beat" log shippers beyond just the Winlogbeat shipper used by LME. Each of these is aimed at a specific type of data and logging, and so the first step is to review the type of data that you wish to add to LME, and what your needs for this log are, to decide which Beat suits this need best.
+To ingest different log types, Elastic provides a variety of different "Beat" log shippers beyond just the Winlogbeat shipper used by LME. Each of these is aimed at a specific type of data and logging. The first step is to review the type of data that you wish to add to LME and what your needs for this log are. After you should decide which Beat suits your need the best.
 
 The following list provides links to Elastic's description of each Beat other than Winlogbeat, which can be used to evaluate their suitability, although generally speaking Filebeat would be used for most non-Windows operating system logging:
 
@@ -23,7 +23,7 @@ Once you have identified the correct Beat to use for your logging requirements, 
 
 ### Identifying a module
 
-In the event you are using Filebeat, Auditbeat or Metricbeat, you will also have the option of using an additional "module" as part of your configuration to transform your data to comply with the Elastic Common Schema. In this instance, review the list of modules for the relevant Beat and decide if any of these are appropriate for the type of data you wish to ingest before proceeding:
+In the event you are using Filebeat, Auditbeat, or Metricbeat, you will also have the option of using an additional "module" as part of your configuration to transform your data to comply with the Elastic Common Schema. Review the list of modules for the relevant Beat and decide if any of these are appropriate for the type of data you wish to ingest before proceeding:
 
 * [Auditbeat](https://www.elastic.co/guide/en/beats/auditbeat/current/auditbeat-modules.html)
 * [Filebeat](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-modules.html)
@@ -31,7 +31,7 @@ In the event you are using Filebeat, Auditbeat or Metricbeat, you will also have
 
 ## Configuring LME Permissions
 
-Once you have identified the Beat required, LME will require additional configuration in order to allow Logstash to correctly create and use the relevant indices. Specifically, Elasticsearch needs to be modified to allow the logstash_writer user to manage an index pattern associated with the Beat you have chosen.
+Once you have identified the Beat required, LME will require additional configuration to allow Logstash to correctly create and use the relevant indices. Specifically, Elasticsearch needs to be modified to allow the logstash_writer user to manage an index pattern associated with the Beat you have chosen.
 
 This can be done by accessing the `Roles` section under `Stack Management`:
 
@@ -53,13 +53,13 @@ After this click `Update role`:
 
 ## Beat Setup
 
-Once LME has been configured with the required permissions, you are able to proceed with the configuration of your chosen Beat. The steps for this will vary dependent upon the Beat you have selected and the logs you wish to collect.
+Once you configure LME with the required permissions, you can to proceed with the configuration of your chosen Beat. The steps for this will vary dependent upon the Beat you have selected and the logs you wish to collect.
 
 ### Installation
 
-The installation will vary from Beat to Beat. In general it will likely involve either copying files in to Program Files and running a PowerShell script (similar to the LME Winlogbeat installation) if installing on Windows, or installing a package containing the Beat if installing on Linux or Mac OS.
+The installation will vary from Beat to Beat. In general it will likely involve either copying files in to Program Files and running a PowerShell script (similar to the LME Winlogbeat installation) if installing on Windows or installing a package containing the Beat if installing on Linux or Mac OS.
 
-Note: It is also possible to install a second Beat alongside the host used to run Winlogbeat as part of the LME installation process. This may be desirable in order to simplify the configuration process and transferring of files, although in practice any host compatible with the relevant Elastic beat can be used.
+Note: It is also possible to install a second Beat alongside the host used to run Winlogbeat as part of the LME installation process. This may be desirable to simplify the configuration process and transferring of files, although in practice any host compatible with the relevant Elastic beat can be used.
 
 The Beat version used must match that officially supported by LME. Please check the corresponding document in [Chapter 3](/docs/markdown/chapter3/chapter3.md#331-files-required)
 
@@ -68,7 +68,7 @@ The instructions for the installation of each Beat available can be found by fol
 
 #### Enable Modules (Optional)
 
-If using a "module" as part of the Beat set up, this can be enabled now. In order to enable a specific module please refer to the documentation for the relevant Beat, as listed here.
+If using a "module" as part of the Beat set up, you can now enable this. To enable a specific module please refer to the documentation for the relevant Beat, as listed here.
 
 Generally, modules can be listed by running the Beat directly with the command `modules list`, and then enabled by running `modules enable [module]`. For example to enable the Cisco module in Filebeat on Windows you would run the following commands from an administrative PowerShell window within the Filebeat directory:
 
@@ -81,7 +81,7 @@ PS > .\filebeat.exe modules enable cisco
 
 #### Log Collection
 
-Once installed, configuring the Beat will depend largely on what log sources you wish to collect, how you wish to ingest them, and which Beat you have chosen to do this. Please see the standard Elastic documentation for specifics on how to ingest the log set which is relevant to you.
+Once installed, configuring the Beat will depend largely on what log sources you wish to collect, how you wish to ingest them and which Beat you have chosen to do this. Please see the standard Elastic documentation for specifics on how to ingest the log set which is relevant to you.
 
 If using a module to collect logs, the log input should be configured in the `modules.d` folder within the Beat's installation directory. If not making use of a Beat which uses modules, it is instead configured in the Beat's base `yaml` file in the installation directory.
 
@@ -292,7 +292,7 @@ No specific advice around troubleshooting a custom log setup is available, as th
 
 The generic troubleshooting steps listed [here](/docs/markdown/reference/troubleshooting.md) are still likely to be a good starting point if you do encounter any issues with this customisation, and should be reviewed if something goes wrong.
 
-One commonly observed flaw with some Beats is to default to a relication setting that is incompatible with LME's default single-node cluster, causing a yellow cluster health state and unassigned replica shards. This is likely to be fixed in a later release of Elastic, but in the meantime details on diagnosing and resolving it can be found here. If this re-occurs each time a new index is created for your additional logs, it can be resolved by editing the index template in `Stack Management` -> `Index Management` -> `Index Templates` -> `[beatname]-[beatversion]` to include the following settings:
+One commonly observed flaw with some Beats is to default to a relication setting that is incompatible with LME's default single-node cluster, causing a yellow cluster health state and unassigned replica shards. Elastic will likely fix this in a later release, but in the meantime details on diagnosing and resolving it is here. If this re-occurs each time a new index is created for your additional logs, it can be resolved by editing the index template in `Stack Management` -> `Index Management` -> `Index Templates` -> `[beatname]-[beatversion]` to include the following settings:
 
 ```
 {

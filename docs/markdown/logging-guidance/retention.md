@@ -2,7 +2,7 @@
 
 By default, LME will configure an index lifecycle policy that will delete
 indexes based on estimated disk usage. Initially, 80% of the disk will be used
-for the indices, with an assumption that a day of logs will use 1Gb of disk
+for the indexes, with an assumption that a day of logs will use 1Gb of disk
 space.
 
 If you wish to adjust the number of days retained, then this can be done in
@@ -26,6 +26,6 @@ documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/d
 more information.
 
 Click the "Save policy" button and the new setting will be applied to the LME
-indices. The changes will be applied immediately, so care should be taken to
+indexes. The changes will be applied immediately, so care should be taken to
 ensure that the new policy does not result in unwanted data loss. (E.g. by
 reducing the retention period, which would cause existing logs to be deleted.)

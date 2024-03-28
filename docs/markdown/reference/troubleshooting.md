@@ -2,9 +2,9 @@
 
 ## Troubleshooting Diagram
 
-Below is a diagram of the LME architecture with labels referring to possible issues at that specific location. Refer to the chart below for protocol information, process information, log file locations, and common issues at each point in LME.
+Below is a diagram of the LME architecture with labels referring to possible issues at specifics locations. Refer to the chart below for protocol information, process information, log file locations and common issues at each point in LME.
 
-You can also find more detailed troubleshooting steps for each chapter after the chart.
+More detailed troubleshooting steps can be found for each chapter after the chart.
 
 ![Troubleshooting overview](/docs/imgs/troubleshooting-overview.jpg)
 <p align="center">  
@@ -23,9 +23,9 @@ Figure 1: Troubleshooting overview diagram
 
 ### Installing Group Policy Management Tools
 
-If you receive the error `Windows cannot find 'gpmc.msc'`, you need to install the optional feature `Group Policy Management Tools`.
+When receiving the error `Windows cannot find 'gpmc.msc'`,  the `Group Policy Management Tools` feature must be installed.
 
-  - For Windows Server, follow Microsoft's instructions [here](https://learn.microsoft.com/en-us/azure/active-directory-domain-services/manage-group-policy#install-group-policy-management-tools). In short, you need to add the "Group Policy Management" Feature from the "Add Roles and Features" menu in Server Manager.
+  - For Windows Server, follow Microsoft's instructions [here](https://learn.microsoft.com/en-us/azure/active-directory-domain-services/manage-group-policy#install-group-policy-management-tools). In short, add the "Group Policy Management" Feature from the "Add Roles and Features" menu in Server Manager.
   - For Windows 10/11, open the "Run" dialog box by pressing Windows key + R. Run the command `ms-settings:optionalfeatures` to open Windows Optional Features in Settings. Select "Add a Feature," then scroll down until you find `RSAT: Group Policy Management Tools`. Check the box next to it and select install.
 
     ![add optional feature](/docs/imgs/gpo_pics/optional_features.png)
@@ -38,7 +38,7 @@ If you receive the error `Windows cannot find 'gpmc.msc'`, you need to install t
     Figure 3: Install RSAT: Group Policy Management Tools
     </p>
 
-- Note: You only need `gpmc.msc` installed on one machine to manage the others. For example, you can install it only on the Domain Controller and modify the Group Policy from that machine.
+- Note: Only `gpmc.msc` needs to be installed on one machine to manage the others. For example, install it only on the Domain Controller and modify the Group Policy from that machine.
 
 ### Installing Active Directory Domain Services
 
@@ -49,7 +49,7 @@ If you receive the error `dsa.msc` cannot be found, you will need to install `Ac
 
 ## Chapter 2 - Installing Sysmon
 
-If you are having trouble not seeing Sysmon logs in the client's Event Viewer or not seeing forwarded logs on the WEC, first try restarting all of your systems and running `gpupdate /force` on the domain controller and clients.
+If you don't see Sysmon logs in the client's Event Viewer or forwarded logs on the WEC, try restarting all systems and running `gpupdate /force` on the domain controller and clients.
 
 ### No Logs Forwarded from Clients
 
@@ -62,22 +62,22 @@ When diagnosing issues in installing Sysmon on the clients using Group Policy, t
 
 By default, Windows will update group policy settings only every 90 minutes. You can manually trigger a group policy update by running `gpupdate /force` in a Command Prompt window on the Domain Controller and the client.
 
-If after ensuring that group policy is updated on the client the client is still missing `LME-Sysmon-Task`, continue to [Step 2](#2-the-task-is-improperly-configured).
+If the client is still missing `LME-Sysmon-Task` after ensuring that group policy is updated on the client, continue to [Step 2](#2-the-task-is-improperly-configured).
 
 #### 2. The task is improperly configured
 
-Windows Tasks are a fickle beast. In order for a task to trigger for the first time, **the trigger time must be set at some time in the future**, even if the Task is set to run repeatedly at a given interval.
+For a task to trigger for the first time, **the trigger time must be set at some time in the future**, even if the task is set to run repeatedly at a given interval.
 
 #### 3. The task runs, but Sysmon is not installed
 
-If you don't see `sysmon64` listed in `services.msc`, it's likely the install script failed somehow. Double check that the files are organized correctly according to the diagram in the [Chapter 2 checklist](/docs/markdown/chapter2.md#chapter-2---checklist). 
+If you don't see `sysmon64` listed in `services.msc`, it's likely the install script failed. Double check that the files are organized correctly according to the diagram in the [Chapter 2 checklist](/docs/markdown/chapter2.md#chapter-2---checklist). 
 
 ## Chapter 3 - Installing the ELK Stack and Retrieving Logs
 
 ### Events not forwarded to Kibana
 The `winlogbeat` service installed in [section 3.3](/docs/markdown/chapter3/chapter3.md#33-configuring-winlogbeat-on-windows-event-collector-server) is responsible for sending events from the collector to Kibana.  Confirm the `winlogbeat` service is running and check the log file (`C:\ProgramData\winlogbeat\logs`) for errors.
 
-By default the `ForwardedEvents` maximum log size is around 20MB so events will be lost if the `winlogbeat` service stops.  Consider increasing the size of the `ForwardedEvents` log file to help reduce log loss in this scenario.  Historical logs are sent once the `winlogbeat` service starts.
+By default the `ForwardedEvents` maximum log size is roughly 20MB so events will be lost if the `winlogbeat` service stops.  Consider increasing the size of the `ForwardedEvents` log file to help reduce log loss in this scenario.  Historical logs are sent once the `winlogbeat` service starts.
 
 * Open Microsoft Event View (`eventvwr`)
 * Expand _Windows Logs_ and right click _Forwarded Events_
@@ -87,7 +87,7 @@ By default the `ForwardedEvents` maximum log size is around 20MB so events will 
 ![Adjusting the log size](/docs/imgs/AdjustForwardedEventsLogSize.png)
 
 ### Events not forwarding from Domain Controllers
-Please be aware that Logging Made Easy does not currently support logging Domain Controllers, and the log volumes may be significant from servers with this role.  If you wish to proceed forwarding logs from your Domain Controllers please be aware you do this at your own risk!  Monitoring such servers has not been tested and may have unintended side effects.
+Please be aware that Logging Made Easy does not currently support logging Domain Controllers, and the log volumes may be significant from servers with this role.  If you wish to proceed forwarding logs from your Domain Controllers please be aware you do this at your own risk. LME has not tested monitoring such servers and they may have unintended side effects.
 
 
 
@@ -103,7 +103,7 @@ root@util:~# resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 ```
 
 ### Containers restarting/not running: 
-Usually if you have issues with containers restarting there is probably something wrong with your host or the container itself. Like in the above sample, a wrong password could be preventing the Elastic Stack from operating properly. You can check the container logs like so: 
+Usually if issues arise with containers restarting, typically something is wrong with the host or the container itself. simmilar to the sample above, a wrong password could prevent the Elastic Stack from operating properly. You can check the container logs like so: 
 ```
 #TO list the name of the container
 sudo docker ps --format "{{.Names}}"
@@ -114,7 +114,7 @@ sudo docker logs -f [CONTAINER_NAME]
 Hopefully that is enough to determine the issue, but below we have some common issues you could encounter: 
 
 #### Directory Permission issues
-If you encounter errors like [this](https://github.com/cisagov/LME/issues/15) in the container logs, probably your host ownership or permissions for mounted files, don't match what the container expects them to be. In this case the `/usr/share/elasticsearch/backups` which is mapped from `/opt/lme/backups` on the host. 
+If you encounter errors like [this](https://github.com/cisagov/LME/issues/15) in the container logs, your host ownership or permissions for mounted files don't match what the container expects them to be. In this case the `/usr/share/elasticsearch/backups` which is mapped from `/opt/lme/backups` on the host. 
 You can see this in the [docker-compose-stack.yml](https://github.com/cisagov/LME/blob/main/Chapter%203%20Files/docker-compose-stack.yml) file: 
 ```
 ╰─$ cat Chapter\ 3\ Files/docker-compose-stack.yml | grep -i volume -A 5
@@ -127,7 +127,7 @@ You can see this in the [docker-compose-stack.yml](https://github.com/cisagov/LM
         target: /usr/share/elasticsearch/backups
 ```
 
-To fix this you can change the permissions to what the container expects: 
+To fix, change the permissions to what the container expects: 
 ```
 sudo chown -R 1000:1000 /opt/lme/backups
 ```
@@ -136,7 +136,7 @@ We know this by investigating the backing docker container image for elasticsear
 
 
 ####  deploy.sh stalls on: waiting for elasticsearch to connect
-This was a bug that was fixed in the current iteration of deploy.sh. This occurs if the `elastic` user password was already set in a previous deployment of LME. The easiest fix for this is to delete your old LME volumes as that will clear out any old settings that would be preventing install.
+This bug was fixed in the current iteration of deploy.sh. This occurs if the `elastic` user password was already set in a previous deployment of LME. The easiest fix  is to delete your old LME volumes as that will clear out any old settings that would be preventing install.
 ```
 #DONT RUN THIS IF YOU HAVE DATA YOU WANT TO PRESERVE!!
 sudo docker volume rm lme_esdata
@@ -156,12 +156,12 @@ echo "xpack.security.http.ssl.verification_mode: certificate" >> config/elastics
 #add a -f if needed
 elasticsearch-reset-password -v -u elastic -i --url https://localhost:9200
 ```
-If the elasticsearch-reset-password is not available in your version of elasticsearch, you may be able to try recreating the container with a newer version of LME and running the same above steps. We have not tested this last suggestion, so attempting this last step won't be supported, but is worth a try if none of the above works.
+If the elasticsearch-reset-password is not available in your version of elasticsearch, you can try recreating the container with a newer version of LME and running the same above steps. This has not been tested, so attempting this last step is not supported, but it is worth a try if none of the above works.
 
 ### Elasticsearch fails to boot on Linux server
-Sometimes environmental differences can make the installation process get screwed up [ISSUE](https://github.com/cisagov/LME/issues/21). If you have the luxury, you could perform a full reinstall: 
+Sometimes environmental differences can harm the installation process [ISSUE](https://github.com/cisagov/LME/issues/21). In this case a full reinstall may be necessary: 
 
-If you are unable to access https://<LINUX_SERVER_IP/HOSTNAME>, this is most likely because the elasticsearch service fails to run on the Linux server. To perform a full reinstall: 
+If  https://<LINUX_SERVER_IP/HOSTNAME> is unaccessibale, this is most likely because the elasticsearch service fails to run on the Linux server. To perform a full reinstall: 
 ```
 cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh uninstall
@@ -174,7 +174,7 @@ cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh install
 #Save credentials, then continue with Chapter 3 installation
 ```
-Optionally you could uninstall docker entirely and reinstall it from the deploy.sh script. If you do end up removing Docker this link could be helpful: https://askubuntu.com/a/1021506.
+You could uninstall docker entirely and reinstall it from the deploy.sh script. If you do end up removing Docker this link could be helpful: https://askubuntu.com/a/1021506.
 
 ## Chapter 4 and Beyond
 
@@ -225,7 +225,7 @@ If this Index pattern is not selected as the default, this can be re-done by cli
 
 ### Unhealthy Cluster Status
 
-There are a number of reasons why the cluster's health may be yellow or red, but a common cause is unassigned replica shards. As LME is a single-node instance by default this is means that replicas will never be assigned, but this issue is commonly caused by built-in indices which do not have the `index.auto_expand_replicas` value correctly set. This will be fixed in a future release of Elastic, but can be temporarily diagnosed and resolved as follows: 
+There are a number of reasons why the cluster's health may be yellow or red, but a common cause is unassigned replica shards. As LME is a single-node instance by default, meaning that replicas will never be assigned, but this issue is commonly caused by built-in indices which do not have the `index.auto_expand_replicas` value correctly set. Elastic will fix this in a future release of Elastic, but for now you can temporarily diagnose and resolve this as follows: 
 
 Check the cluster health by running the following request against Elasticsearch (an easy way to do this is to navigate to `Dev Tools` in Kibana under `Management` on the left-hand menu):
 
@@ -239,7 +239,7 @@ If it shows any unassigned shards, these can be enumerated with the following co
 GET _cat/shards?v=true&h=index,shard,prirep,state,node,unassigned.reason&s=state
 ```
 
-If the `UNASSIGNED` shard is shown as `r` rather than `p` this means it's a replica. In this case the error can be safely fixed in the single-node default installation of LME by forcing all indices to have a replica count of 0 using the following request:
+If the `UNASSIGNED` shard is shown as `r` rather than `p` this means it's a replica. In this case you can safely fix the error in the single-node default installation of LME by forcing all indices to have a replica count of 0 using the following request:
 
 ```
 PUT _settings
@@ -256,9 +256,9 @@ For errors encountered when re-indexing existing data as part of an an LME versi
 
 ### Illegal Argument Exception While Re-Indexing 
 
-With the correct mapping in place it is not possible to store a string value in any of the fields which represent IP addresses, for example ```source.ip``` or ```destination.ip```. If any of these values are represented in your current data as strings, such as ```LOCAL``` it will not be possible to successfully re-index with the correct mapping. In this instance the simplest fix is to modify your existing data to store the relevant fields as valid IP representations using the update_by_query method, documented [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update-by-query.html).
+With the correct mapping in place it is not possible to store a string value in any of the fields which represent IP addresses, for example ```source.ip``` or ```destination.ip```. If any of these values are in your current data as strings, such as ```LOCAL``` it will not successfully re-index with the correct mapping. In this instance the simplest fix is to modify the existing data to store the relevant fields as valid IP representations using the update_by_query method, documented [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update-by-query.html).
 
-An example of this is shown below, which may need to be modified for the particular field that is causing problems:
+An example of this is shown below, which may need modification for the particular field that is causing problems:
 
 ```
 POST winlogbeat-11.06.2021/_update_by_query
@@ -282,7 +282,7 @@ For security the self-signed certificates generated for use by LME at install ti
 
 ### Dashboard Update Script Failing
 
-If you encounter an error when the dashboards are updated using the dashboard update script, either manually or as part of automatic updates, this may mean that your current version of Elastic is too old to support the minimum functionality required for the new dashboard versions. Ensure that the latest supported version of the Elastic stack is in use with the following command:
+If you encounter an error when you update the dashboards using the dashboard update script, either manually or as part of automatic updates, this may mean that your current version of Elastic is too old. To ensure that the latest supported version of the Elastic stack is in use with the following command:
 ```
 cd /opt/lme/Chapter\ 1\ Files/
 sudo ./deploy.sh update
@@ -313,7 +313,7 @@ sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-co
 
 ### Changing elastic Username Password
 
-After doing an install if you wish to change the password to the elastic username you can use the following command: 
+If you wish to change the password to the elastic username after installing you can use the following command: 
 
 NOTE: You will need to run this command with an account that can access /opt/lme. If you can't sudo the user account will at least need to be able to access the certs located in the command. 
 

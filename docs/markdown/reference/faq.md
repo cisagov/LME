@@ -1,10 +1,10 @@
 # FAQ
 
 ## Basic Troubleshooting
-You can find basic troubleshooting steps in the [Troubleshooting Guide](troubleshooting.md).
+Troubleshooting steps are in the [Troubleshooting Guide](troubleshooting.md).
 
 ## Finding your LME version (and the components versions)
-When reporting an issue or suggesting improvements, it is important to include the versions of all the components, where possible. This ensures that the issue has not already been fixed!
+When reporting an issue or suggesting improvements, it is important to include the versions of all the components, when possible, to ensure that the issue has not already been fixed.
 
 ### Windows Server
 * Operating System: Press "Windows Key"+R and type ```winver```

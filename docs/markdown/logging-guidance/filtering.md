@@ -1,6 +1,6 @@
 # Filtering logs:
  
-There may come a time where a log is not particularly useful or an aspect of LME proves overly verbose (e.g.: [Dashboard spamming events](https://github.com/cisagov/LME/issues/22). We try our best to make everything useful by default but cannot predict every eventuality since all environments will be different. So to enable users to make the LME system more useful (and hopefully commit their own pull requests back with updates :) ), we are documenting here how you can filter out logs in the:
+There may come a time where a log is not particularly useful or an aspect of LME proves overly verbose (e.g.: [Dashboard spamming events](https://github.com/cisagov/LME/issues/22). We try our best to make everything useful by default but cannot predict every eventuality since all environments will be different. To enable users to make the LME system more useful, we document here how to filter out logs in the:
 
 1. Dashboard
 2. Host logging utility (e.g. winlogbeat)
@@ -10,7 +10,7 @@ Have fun reading and applying these concepts
 
 ## Dashboard:
 
-The below example shows a filter that can be applied to a search, and saved with a dashboard to filter out unneeded windows event log [4624](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624) with a TargetUserName field that has a `$ `. 
+The below example shows a filter that you can apply to a search and save with a dashboard to filter out unneeded windows event log [4624](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624) with a TargetUserName field that has a `$ `. 
 ```
 {
   "bool": {
