@@ -3,7 +3,7 @@
 [![Downloads](https://img.shields.io/github/downloads/cisagov/lme/total.svg)]()
 
 # Logging Made Easy
-CISA's Logging Made Easy has a self-install tutorial for small organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. It's the coming together of multiple open software platforms which come at no cost to users. LME helps the users integrate them together to produce an end-to-end logging capability. We also provide some pre-made configuration files and scripts, although there is the option to do this on your own.
+CISA's Logging Made Easy has a self-install tutorial for organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. LME is the integartion of multiple open software platforms which come at no cost to users. LME helps users integrate software platforms together to produce an end-to-end logging capability. LME also provides some pre-made configuration files and scripts, although there is the option to do this on your own.
 
 Logging Made Easy can:
 - Show where administrative commands are being run on enrolled devices
@@ -20,30 +20,28 @@ Logging Made Easy can:
 
 **LME is a 'homebrew' way of gathering logs and querying for attacks.**
 
-We have done the hard work to make things simple. We will tell you what to download, which configurations to use and have created convenient scripts to auto-configure wherever possible.
+The LME team simplified the process and created clear instruction on what to download and which configugrations to use, and created convinent scripts to auto configure when possible. 
 
-The current architecture is based upon Windows Clients, Microsoft Sysmon, Windows Event Forwarding and the ELK stack.
+The current architecture is based on Windows Clients, Microsoft Sysmon, Windows Event Forwarding and the ELK stack.
 
-We are **not** able to comment on or troubleshoot individual installations. If you believe you have have found an issue with the LME code or documentation please submit a [GitHub issue](https://github.com/cisagov/lme/issues). If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before.  If not, then submit a GitHub issue using the Bug Template, ensuring that you provide all the requested information.
+LME is **not** able to comment on or troubleshoot individual installations. If you believe you have have found an issue with the LME code or documentation please submit a [GitHub issue](https://github.com/cisagov/lme/issues). If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before.  If not, then submit a GitHub issue using the Bug Template, ensuring that you provide all the requested information.
 
- If you have a general question about LME or a suggestion on how to improve it, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
+For general questions about LME and suggestions, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
 
 ## Who is Logging Made Easy for?
 
 From single IT administrators with a handful of devices in their network to larger organizations.
 
-LME is for you if:
+LME is suited for for:
 
-*	You don’t have a [SOC](https://en.wikipedia.org/wiki/Information_security_operations_center), SIEM or any monitoring in place at the moment.
-*	You lack the budget, time or understanding to set up your own logging system.
-*	You recognize the need to begin gathering logs and monitoring your IT.
-*	You understand that LME has limitations.
+*Oganization without [SOC](https://en.wikipedia.org/wiki/Information_security_operations_center), SIEM or any monitoring in place at the moment.
+*	Organizations that lack the budget, time or understanding to set up a logging system.
+*	Organizations that that require gathering logs and monitoring IT
+*	Organizations that understand LMEs limitiation
 
-If any, or all, of these criteria fit, then LME is for you.
 
-LME is useful for:
 
-*	Small isolated networks where corporate monitoring doesn’t reach.
+LME is most useful for small isolated networks where corporate monitoring doesn’t reach.
 
 ## Overview
 The LME architecture consists of 3 groups of computers, as summarized in the following diagram:
