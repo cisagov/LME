@@ -63,6 +63,11 @@ else
   sudo mv "$extracted_filename" /opt/lme
 fi
 
+# Change the way we check disk usage in the old versions
+perl -pi -e 's/DISK_SIZE="\$\(echo "\$DF_OUTPUT".+?\)"/DISK_SIZE=130/' /opt/lme/Chapter\ 3\ Files/deploy.sh
+perl -pi -e 's/DISK_80=\$\(\(DISK_SIZE_ROUND \* 80 \/ 100\)\)/DISK_80=91/g' /opt/lme/Chapter\ 3\ Files/deploy.sh
+
+
 echo 'export DEBIAN_FRONTEND=noninteractive' >> ~/.bashrc
 echo 'export NEEDRESTART_MODE=a' >> ~/.bashrc
 . ~/.bashrc

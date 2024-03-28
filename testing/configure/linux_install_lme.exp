@@ -39,12 +39,12 @@ send "ls1.lme.local\r"
 
 sleep 1
 
-expect -re {continue with self signed certificates.*: y}
+expect -re {.*ntinue with self signed certificates.*: y}
 sleep 1
 send "\r"
 sleep 1
 
-expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
+expect -re {.*ip Docker Install\? \(\[y\]es/\[n\]o\): n}
 sleep 1
 send "\r"
 

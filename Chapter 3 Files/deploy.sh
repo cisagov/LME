@@ -1080,6 +1080,8 @@ function upgrade() {
 
     elif [ "$version" == $latest ]; then
       info "You're on the latest version!"
+    elif [ "$version" > "1.3.0" ]; then
+      info "There are no upgrades in this version. $version"
     else
       error "Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
     fi

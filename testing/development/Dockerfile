@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     sudo \
+    cron \
     freerdp2-x11 \
     pkg-config \
     libcairo2-dev \
