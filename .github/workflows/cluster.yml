@@ -25,8 +25,9 @@ jobs:
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
           echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
-          LATEST_BRANCH=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name | sub("^v"; "") | "release-" + .' | head -n 1)
-          echo "LATEST_BRANCH=$LATEST_BRANCH" >> $GITHUB_ENV
+          LATEST_BRANCH_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name | sub("^v"; "") | "release-" + .' | head -n 1)
+          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR"
+          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR" >> $GITHUB_ENV
       
       - name: Set up Docker Compose
         run: |
