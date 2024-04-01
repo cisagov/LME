@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 
+set -e
+
 # Find out where I am
 script_path=$(readlink -f "$0")
 script_dir=$(dirname "$script_path")
 # Move up to the testing directory
-
+echo "Changig directory to $script_dir/../"
 cd "$script_dir/../" || exit 1
 
 git config --global --add safe.directory /home/admin.ackbar/LME
 git config --global --add safe.directory /opt/lme
 
 #Get the branch I am working on
+echo "Checking current branch"
 export current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 # Get the version that we are going to upgrade to
