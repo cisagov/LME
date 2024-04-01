@@ -170,7 +170,12 @@ jobs:
               --command-id RunShellScript  \
               --name LS1  \
               --resource-group \$env:RESOURCE_GROUP \
-              --scripts 'cd /home/admin.ackbar/LME/testing/ && ./development/upgrade_lme.sh '; \
+              --scripts 'cd /home/admin.ackbar/ \
+                && git checkout https://github.com/cisagov/LME.git \
+                && cd LME \
+                && git checkout -t cbaxley-194-workflows \
+                && cd testing \
+                && ./development/upgrade_lme.sh '; \
             exit \$LASTEXITCODE;
           }"
           EXIT_CODE=$?
