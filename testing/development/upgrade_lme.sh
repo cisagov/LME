@@ -16,6 +16,7 @@ git config --global --add safe.directory /opt/lme
 echo "Checking current branch"
 export current_branch=$(git rev-parse --abbrev-ref HEAD)
 
+
 # Get the version that we are going to upgrade to
 . ./merging_version.sh
 
