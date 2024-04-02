@@ -4,7 +4,7 @@
 ## What kind of IT skills do I need to install LME?
 
 
-The LME project can be installed by someone at the skill level of a systems administrator or enthusiast. If you have ever…
+A user with the skill level of a systems administrator or enthusiast can insall the LME project. If you have ever…
 
 
 * Installed a Windows server and connected it to an Active Directory domain
@@ -13,9 +13,9 @@ The LME project can be installed by someone at the skill level of a systems admi
 * Installed a Linux operating system, and logged in over SSH.
 
 
-… then you are likely to have the skills to install LME!
+… then you are likely to have the skills to install LME.
 
-We estimate that you should allow a couple of days to run through the entire installation process, though you can break up the process to fit your schedule. While we have automated steps where we can and made the instructions as detailed as possible, installation will require more steps than simply using an installation wizard.
+Allow a couple of days to run through the entire installation process. You can break up the process to fit your schedule. While we have automated steps and made the instructions as detailed as possible, installation will require more steps than simply using an installation wizard.
 
 ## High level overview diagram of the LME system
 
@@ -26,7 +26,7 @@ Figure 1: High level overview, linking to documentation chapters
 
 ## How much does LME cost?
 
-The portions of this package developed by the United States government are distributed under the Creative Commons 0 ("CC0") license. Portions created by government contractors at the behest of CISA are provided with the explicit grant of right to use, modify, and redistribute the code subject to this statement and the existing license structure. All other portions, including new submissions from all others, are subject to the Apache License, Version 2.0.
+The portions of this package developed by the United States government are distributed under the Creative Commons 0 ("CC0") license. CISA government contractors have created certain portions and are providing them with the explicit grant of right to use, modify and redistribute the code subject to this statement and the existing license structure. All other portions, including new submissions from all others, are subject to the Apache License, Version 2.0.
 This project (scripts, documentation, and so on) is licensed under the [Apache License 2.0 and Creative Commons 0](../../LICENSE).
 
 The design uses open software which comes at no cost to the user, we will maintain a pledge to ensure that no paid software licenses are needed above standard infrastructure costs (With the exception of Windows Operating system Licensing).
