@@ -173,7 +173,7 @@ jobs:
               --scripts 'cd /home/admin.ackbar/ \
                 && git clone https://github.com/cisagov/LME.git \
                 && cd LME \
-                && git checkout -t cbaxley-194-workflows \
+                && git checkout -t origin/cbaxley-194-workflows \
                 && cd testing \
                 && ./development/upgrade_lme.sh ;  exit \$?'; \
             exit \$LASTEXITCODE;
