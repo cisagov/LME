@@ -2,12 +2,12 @@
 
 Please see https://github.com/cisagov/LME/releases/ for our latest release.
 
-Below you can find the upgrade paths that are currently supported and what steps are required for these upgrades. Note that major version upgrades tend to include significant changes, and so will require manual intervention and will not be automatically applied, even if auto-updates are enabled.
+Below you can find the upgrade paths that are currently supported and what steps you need for these upgrades. Note that major version upgrades tend to include significant changes and will require manual intervention and will not be automatically applied, even if you enable auto-updates.
 
-Applying these changes is automated for any new installations. But, if you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
+Applying these changes is automated for any new installations. If you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
 
 ## 1. Finding your LME version (and the components versions)
-When reporting an issue or suggesting improvements, it is important to include the versions of all the components, where possible. This ensures that the issue has not already been fixed! 
+When reporting an issue or suggesting improvements, please include the versions of all the components, where possible. This is to enusre that we have not already fixed the issue.
 
 ### 1.1. Windows Server
 * Operating System: Press "Windows Key"+R and type ```winver```
@@ -29,7 +29,7 @@ LME does not support upgrading directly from versions prior to v0.5 to v1.0. Pri
 
 ## 3. Upgrade from v0.5 to v1.0.0
 
-Since LME's transition from the NCSC to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository. Because vital configuration files are stored within the same folder as the git repo, it's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
+Since LME's transition from the NCSC U.K. to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository, because vital configuration files are stored within the same folder as the git repo. It's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
 
 
 ```
@@ -60,14 +60,14 @@ sudo ./deploy.sh upgrade
 ```
 **The last step of this script makes all files only readable by their owner in /opt/lme, so that all root owned files with passwords in them are only readable by root. This prevents a local unprivileged user from gaining access to the elastic stack.**
 
-Once the deploy update is finished, next update the dashboards that are provided alongside LME to the latest version. This can be done by running the below script, with more detailed instructions available [here](/docs/markdown/chapter4.md#411-import-initial-dashboards):
+Once the deploy update is complete, next update the dashboards that are provided alongside LME to the latest version. You can do this by running the below script, with more detailed instructions available [here](/docs/markdown/chapter4.md#411-import-initial-dashboards):
 
 \*\**NOTE:*\*\* *You may need to wait several minutes for Kibana to successfully initialize after the update before running this script during the upgrade process. If you encounter a "Failed to connect" error or an "Entity Too Large" error wait for several minutes before trying again.*
 
 ##### Optional Substep: Clear out old dashboards
 **Skip this step if you don't want to clear out the old dashboards**
 
-The LME team  will not be maintaining any old dashboards from the old NCSC LME version, so if you would like to clean up your LME you can remove the dashboards by navigating to: https://<SERVER_DOMAIN/IP>/app/management/kibana/objects
+The LME team  will not be maintaining any old dashboards from the old NCSC U.K. LME version, so if you would like to clean up your LME you can remove the dashboards by navigating to: https://<SERVER_DOMAIN/IP>/app/management/kibana/objects
 
 From there select all the dashboards in the search: `type:(dashboard)` and delete them. 
 Then you can re-import the new dashboards like above.
@@ -98,7 +98,7 @@ To update Winlogbeat:
 3. Re-install Winlogbeat, using the new copy of files_for_windows.zip, following the instructions listed under [3.3 Configuring Winlogbeat on Windows Event Collector Server](/docs/markdown/chapter3/chapter3.md#33-configuring-winlogbeat-on-windows-event-collector-server)
 
 ### 3.3. Network Share Updates
-LME v1.0 made a minor change to the file structure used in the SYSVOL folder, so a few manual changes are needed to accommodate this.
+LME v1.0 made a minor change to the file structure used in the SYSVOL folder, so you need a few manual changes to accommodate this.
 1. Set up the SYSVOL folder as described in [2.2.1 - Folder Layout](/docs/markdown/chapter2.md#221---folder-layout).
 2. Replace the old version of update.bat with the [latest version](/Chapter%202%20Files/GPO%20Deployment/update.bat).
 3. Update the path to update.bat used in the LME-Sysmon-Task GPO (refer to [2.2.3 - Scheduled task GPO Policy](/docs/markdown/chapter2.md#223---scheduled-task-gpo-policy)).

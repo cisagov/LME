@@ -1,15 +1,14 @@
 # Backing up LME Logs
 
-Logs are backed up using the built-in Elastic facilities. Out of the box,
-Elasticsearch supports backing up to filesystems, and this is the only approach
-supported by LME. Other backup destinations are supported but these require
-separate plugins, and are not supported by LME.
+You back up logs using the built-in Elastic facilities. Out of the box,
+Elasticsearch supports backing up to filesystems, and this is the only approach LME supports. Other backup destinations are supported but these require
+separate plugins, and LME does not not support them.
 
 ## Approach
 
-Backups are created using Elasticsearch snapshots. The initial snapshot will
-contain all of the current logs but subsequent backups will only contain changes
-since the last snapshot was taken. It is therefore possible to take regular
+You create backups using Elasticsearch snapshots. The initial snapshot will
+contain all of the current logs but subsequent backups will onlyYou  contain changes
+since the last snapshot was taken. It is possible to take regular
 backups without a significant effect on the system's performance and without
 consuming large amounts of disk space.
 
@@ -20,12 +19,10 @@ consuming large amounts of disk space.
 The LME installation creates a bind mount in Docker that maps to the
 `/opt/lme/backups` directory on the host system.
 
-The LME log retention period is determined by the amount of disk space on the
-host system. Therefore it is **strongly** recommended that an external drive be
-mounted at the `/opt/lme/backups` location so that both disk space is conserved
+The amount of disk space on the host system determines the LME log retention period. We **strongly** recommend thatyou mount an external drive at the `/opt/lme/backups` location so that both disk space is conserved
 and to ensure that backups exist on a separate drive. Backups use a large volume of disk space, and if the storage volume provided is not suitable to store these logs without running out of space backups may cease to function, or LME may stop working altogether if all available disk space on the primary host is consumed.
 
-Once the external drive has been mounted on the host, you will need to ensure the ownership of the `/opt/lme/backups` folder is correct, to ensure the elasticsearch user can write the backups correctly. By default this folder will likely be owned by the root user, and this will need to be changed so that it is owned by the user you created during the operating system's installation, typically Ubuntu or similar. This can be achieved using the following command:
+Once you have mounted the external drive on the host, you will need to ensure the ownership of the `/opt/lme/backups` folder is correct, to ensure the elasticsearch user can write the backups correctly. By default the root user will likely be the owner of this folder, and you will need to change this so that the user you created during the operating system's installation is the owner. To do this use the following command:
 
 ```
 sudo chown -R 1000 /opt/lme/backups/
@@ -68,7 +65,7 @@ then click the "Create a policy" button:
 On the next screen, pick a name for your new policy ("lme-snapshots" in this
 example). For the snapshot name the value `<lme-daily-{now/d}>` will create
 files with the prefix `lme-daily` and with the current date as a suffix. Make
-sure your new repository is selected, and then configure a schedule in line with
+sure that you select your new repository, and then configure a schedule in line with
 your backup policy. Elasticsearch uses incremental snapshots for its backup,
 and so only the previous day's logs will need to be snapshotted, which will help
 minimize the performance impact.
@@ -87,7 +84,7 @@ Review the new policy and click "Create policy".
 
 ![Policy Five](/docs/imgs/backup_pics/policy_5.png)
 
-If you want to test the new policy, or to create the initial snapshot, you can
+If you want to test the new policy or want to create the initial snapshot, you can
 select the "Run now" option for the policy on the polices tab:
 
 ![Policy Six](/docs/imgs/backup_pics/policy_6.png)
