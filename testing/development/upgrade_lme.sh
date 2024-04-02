@@ -23,5 +23,5 @@ export current_branch=$(git rev-parse --abbrev-ref HEAD)
 # Checkout the version we are on
 sudo  echo "Current branch: $current_branch"
 sudo  echo "Forcing version: $FORCE_LATEST_VERSION"
-sudo  sh -c "cd '/opt/lme/' && git checkout -t origin/$current_branch && git pull"
+sudo  sh -c "cd '/opt/lme/' && git checkout 'Chapter\ 3\ Files/deploy.sh' && git checkout -t origin/$current_branch && git pull"
 sudo  sh -c "export FORCE_LATEST_VERSION=$FORCE_LATEST_VERSION && cd '/opt/lme/Chapter 3 Files' && ./deploy.sh upgrade" 
