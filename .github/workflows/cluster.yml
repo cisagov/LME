@@ -170,7 +170,7 @@ jobs:
               --command-id RunShellScript  \
               --name LS1  \
               --resource-group \$env:RESOURCE_GROUP \
-              --scripts 'cd /home/admin.ackbar/ \
+              --scripts 'pwd && whoami && cd /home/admin.ackbar/ \
                 && git clone https://github.com/cisagov/LME.git \
                 && cd LME \
                 && git checkout -t origin/cbaxley-194-workflows \
