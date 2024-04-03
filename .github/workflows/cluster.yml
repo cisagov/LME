@@ -175,7 +175,7 @@ jobs:
                 && cd LME \
                 && git checkout -t origin/cbaxley-194-workflows \
                 && cd testing \
-                && ./development/upgrade_lme.sh;')
+                && ./development/upgrade_lme.sh; exit \$?'")
           echo "Output: $output"
           if echo "$output" | grep -q "UPGRADE_SUCCESSFUL"; then
             echo "Upgrade successful"
