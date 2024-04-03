@@ -176,6 +176,7 @@ jobs:
                 && git checkout -t origin/cbaxley-194-workflows \
                 && cd testing \
                 && ./development/upgrade_lme.sh ; exit \$?'; \
+            Write-Host \$output; \
             if (\$output -notlike '*UPGRADE_SUCCESSFUL*') { \
               Write-Host 'Upgrade failed'; \
               exit 1; \
