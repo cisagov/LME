@@ -153,11 +153,11 @@ jobs:
             fi
           "
       # TODO: Check this for failure and format the output
-      - name: Upgrade to the version being built 
+      - name: Upgrade to the version being built
         run: |
           set +e
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "\
+          output=$(docker-compose exec -T lme pwsh -Command "\
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -166,7 +166,7 @@ jobs:
             \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
             \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
             az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
-            \$output = az vm run-command invoke \
+            az vm run-command invoke \
               --command-id RunShellScript \
               --name LS1 \
               --resource-group \$env:RESOURCE_GROUP \
@@ -175,20 +175,15 @@ jobs:
                 && cd LME \
                 && git checkout -t origin/cbaxley-194-workflows \
                 && cd testing \
-                && ./development/upgrade_lme.sh ; exit \$?'; \
-            Write-Host \$output; \
-            if (\$output -notlike '*UPGRADE_SUCCESSFUL*') { \
-              Write-Host 'Upgrade failed'; \
-              exit 1; \
-            } else { \
-              Write-Host 'Upgrade successful'; \
-              exit 0; \
-            }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
+                && ./development/upgrade_lme.sh ; exit \$?' \
+            | Select-Object -Expand message")
+          echo "Output: $output"
+          if echo "$output" | grep -q "UPGRADE_SUCCESSFUL"; then
+            echo "Upgrade successful"
+            exit 0
+          else
+            echo "Upgrade failed"
+            exit 1
           fi
 
       # - name: Run a command on the domain controller 
