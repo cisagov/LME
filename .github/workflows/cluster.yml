@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.1.1
-
+    
       - name: Setup environment variables
         run: |
           PUBLIC_IP=$(curl -s https://api.ipify.org)
@@ -39,36 +39,36 @@ jobs:
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
           -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
-
+    
       - name: Set the environment for docker-compose 
         run: |
           cd testing/development
           # Get the UID and GID of the current user
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
-
+    
       # - name: Run Docker Compose Build to fix a user id issue in a prebuilt container
       #   run: |
       #     cd testing/development
-      #     docker-compose build --no-cache 
-
+      #     docker-compose -p ${{ env.UNIQUE_ID }} build --no-cache 
+    
       - name: Run Docker Compose
-        run: docker-compose -f testing/development/docker-compose.yml up  -d
-
+        run: docker-compose -f testing/development/docker-compose.yml -p ${{ env.UNIQUE_ID }} up -d
+    
       - name: List docker containers to wait for them to start
         run: |
           docker ps 
-
+    
       - name: List files in home directory
         run: |
           cd testing/development
-          docker-compose exec -T lme bash -c "pwd && ls -la"
-
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "pwd && ls -la"
+    
       - name:  Check powershell environment 
         run: |
           set +e  
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME; \
             ls -la; \
             exit \$LASTEXITCODE;
@@ -79,12 +79,12 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
-
+    
       - name:  Build the cluster 
         run: |
           set +e  
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -111,7 +111,7 @@ jobs:
         run: |
           set +e  
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -128,11 +128,11 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
-
+    
       - name:  Set the environment passwords for other steps 
         run: |
           cd testing/development
-          docker-compose exec -T lme bash -c "
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
             cd /home/admin.ackbar/LME/testing \
             && . configure/lib/functions.sh \
             && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
@@ -145,11 +145,11 @@ jobs:
             echo "logstash_system=$logstash_system" >> $GITHUB_ENV
             echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
             echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
-
+    
       - name:  Check that the environment variables are set 
         run: |
           cd testing/development
-          docker-compose exec -T lme bash -c "
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
             if [ -z \"${{ env.elastic }}\" ]; then
               echo 'Error: env.elastic variable is not set' >&2
               exit 1
@@ -162,7 +162,7 @@ jobs:
       #   run: |
       #     set +e  
       #     cd testing/development
-      #     docker-compose exec -T lme pwsh -Command "& { 
+      #     docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
       #       cd /home/admin.ackbar/LME/testing; \
       #       \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
       #       \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -184,12 +184,12 @@ jobs:
       #     if [ "$EXIT_CODE" -ne 0 ]; then
       #       exit $EXIT_CODE
       #     fi
-
+    
       - name: Run a command on the linux machine 
         run: |
           set +e  
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -211,13 +211,13 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
-
+    
       # This only passes when you do a full install
       - name: Run api tests in container
         run: |
           set +e
           cd testing/development
-          docker-compose exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
           && echo export elastic=${{ env.elastic }} > .env \
           && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
           && cat .env \
@@ -226,12 +226,12 @@ jobs:
           && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
           && pytest -v api_tests/"
-
+    
       - name: Run selenium tests in container
         run: |
           set +e
           cd testing/development
-          docker-compose exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
           && echo export ELASTIC_PASSWORD=${{ env.elastic }} > .env \
           && . .env \
           && python3 -m venv /home/admin.ackbar/venv_test \
@@ -239,12 +239,12 @@ jobs:
           && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
           && python selenium_tests.py --domain ${{ env.LS1_IP }} -v"
-
+    
       - name: Cleanup environment 
         if: always()
         run: |
           cd testing/development
-          docker-compose exec -T lme pwsh -Command "& { 
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -255,5 +255,5 @@ jobs:
             ./development/destroy_cluster.ps1; \
             exit \$LASTEXITCODE;
           }"
-          docker-compose down
+          docker-compose -p ${{ env.UNIQUE_ID }} down
           docker system prune
