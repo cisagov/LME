@@ -6,6 +6,7 @@ on:
     branches:
       - '*'
 
+
 jobs:
   build-and-test-cluster:
     runs-on: self-hosted
