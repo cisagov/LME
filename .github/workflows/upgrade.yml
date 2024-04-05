@@ -1,4 +1,4 @@
-name: Cluster Run
+name: Build an upgrade
 
 on:
   workflow_dispatch:
