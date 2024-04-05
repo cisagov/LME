@@ -470,7 +470,7 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
     --command-id RunPowerShellScript `
     --name DC1 `
     --resource-group $ResourceGroup `
-    --scripts "Add-Content -Path 'C:\windows\system32\drivers\etc\hosts' -Value '$LsIP ls1.$DomainName'"
+    --scripts "Add-Content -Path 'C:\windows\system32\drivers\etc\hosts' -Value '$LsIP ls1.$DomainName ls1'"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$writeToHostsFileResponse")
 
     Write-Host "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."

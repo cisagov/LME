@@ -1,4 +1,4 @@
-name: Cluster Run 
+name: Build an upgrade 
 
 on:
   workflow_dispatch:
@@ -13,6 +13,7 @@ jobs:
       UNIQUE_ID: 
       IP_ADDRESS: 
       LS1_IP:
+      LATEST_BRANCH:
       BRANCH_NAME:
       elastic:
 
@@ -25,6 +26,9 @@ jobs:
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
           echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
+          LATEST_BRANCH_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name | sub("^v"; "") | "release-" + .' | head -n 1)
+          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR"
+          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR" >> $GITHUB_ENV
 
       - name: Get branch name
         shell: bash
@@ -34,7 +38,8 @@ jobs:
           else
             echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
           fi
-                
+                   
+      
       - name: Set up Docker Compose
         run: |
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
@@ -120,7 +125,7 @@ jobs:
             \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
             \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
             \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            ./development/install_lme.ps1 -b '${{ env.BRANCH_NAME }}'; \
+            ./development/install_lme.ps1 -b '${{ env.LATEST_BRANCH }}'; \
             exit \$LASTEXITCODE;
           }"
           EXIT_CODE=$?
@@ -158,7 +163,39 @@ jobs:
               echo 'Elastic password is set'
             fi
           "
-      
+
+      - name: Upgrade to the version being built
+        run: |
+          set +e
+          cd testing/development
+          output=$(docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "\
+            cd /home/admin.ackbar/LME/testing; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
+            az vm run-command invoke \
+              --command-id RunShellScript \
+              --name LS1 \
+              --resource-group \$env:RESOURCE_GROUP \
+              --scripts 'export HOME=/root pwd && whoami && cd ~ \
+                && git clone https://github.com/cisagov/LME.git \
+                && cd LME \
+                && git checkout -t 'origin/${{ env.BRANCH_NAME }}' \
+                && cd testing \
+                && ./development/upgrade_lme.sh; exit \$?'")
+          echo "Output: $output"
+          if echo "$output" | grep -q "UPGRADE_SUCCESSFUL"; then
+            echo "Upgrade successful"
+            exit 0
+          else
+            echo "Upgrade failed"
+            exit 1
+          fi
+    
       # - name: Run a command on the domain controller 
       #   run: |
       #     set +e  
