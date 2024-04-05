@@ -1,4 +1,4 @@
-name: Build an upgrade 
+name: Build an upgrade
 
 on:
   workflow_dispatch:

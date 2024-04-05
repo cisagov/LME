@@ -1,4 +1,4 @@
-name: Cluster Run 
+name: Cluster Run
 
 on:
   workflow_dispatch:
