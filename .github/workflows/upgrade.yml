@@ -6,7 +6,6 @@ on:
     branches:
       - '*'
 
-
 jobs:
   build-and-test-cluster:
     runs-on: self-hosted
@@ -31,7 +30,7 @@ jobs:
           echo "LATEST_BRANCH=$LATEST_BRANCH_VAR"
           echo "LATEST_BRANCH=$LATEST_BRANCH_VAR" >> $GITHUB_ENV
 
-      - name: Get branch name
+      - name: Get branch name 
         shell: bash
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
