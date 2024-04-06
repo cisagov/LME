@@ -24,5 +24,7 @@ lme_update.sh
 /testing/configure/azure_scripts/config.ps1
 /testing/configure.zip
 /testing/*.output.log
-.history
-testing/configure/get-docker.sh
+/testing/tests/report.html
+testing/tests/assets/style.css
+.history/
+**/get-docker.sh

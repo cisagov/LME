@@ -18,3 +18,4 @@ tomli>=2.0.1
 urllib3>=2.1.0
 selenium
 webdriver-manager
+pytest-html>=4.1.1
