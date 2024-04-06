@@ -16,7 +16,6 @@ jobs:
       LATEST_BRANCH:
       BRANCH_NAME:
       elastic:
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.1.1

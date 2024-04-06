@@ -7,6 +7,7 @@ on:
       - '*'
 
 jobs:
+
   build-and-test-cluster:
     runs-on: self-hosted
     env:
