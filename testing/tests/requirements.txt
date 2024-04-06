@@ -16,3 +16,4 @@ requests>=2.31.0
 rpds-py>=0.17.1
 tomli>=2.0.1
 urllib3>=2.1.0
+pytest-html>=4.1.1
