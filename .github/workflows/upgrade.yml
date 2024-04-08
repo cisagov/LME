@@ -184,7 +184,8 @@ jobs:
               --scripts 'export HOME=/root; pwd && whoami && cd ~ \
                 && git clone https://github.com/cisagov/LME.git \
                 && cd LME \
-                && git checkout -t 'origin/${{ env.BRANCH_NAME }}' \
+                && echo "Checking out current branch: ${{ env.BRANCH_NAME }}" \
+                && git checkout ${{ env.BRANCH_NAME }} \
                 && cd testing \
                 && ./development/upgrade_lme.sh; exit \$?'")
           echo "Output: $output"
