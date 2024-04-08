@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  build-and-test-cluster:
+  build-and-test-upgrade:
     runs-on: self-hosted
     env:
       UNIQUE_ID: 
