@@ -2,9 +2,9 @@ name: Cluster Run
 
 on:
   workflow_dispatch:
-  #pull_request:
-  #  branches:
-  #    - '*'
+  pull_request:
+   branches:
+     - '*'
 
 jobs:
   build-and-test-cluster:
@@ -51,10 +51,10 @@ jobs:
       # - name: Run Docker Compose Build to fix a user id issue in a prebuilt container
       #   run: |
       #     cd testing/development
-      #     docker-compose -p ${{ env.UNIQUE_ID }} build --no-cache 
+      #     docker compose -p ${{ env.UNIQUE_ID }} build --no-cache 
     
       - name: Run Docker Compose
-        run: docker-compose -f testing/development/docker-compose.yml -p ${{ env.UNIQUE_ID }} up -d
+        run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up -d
     
       - name: List docker containers to wait for them to start
         run: |
@@ -63,13 +63,13 @@ jobs:
       - name: List files in home directory
         run: |
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "pwd && ls -la"
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "pwd && ls -la"
     
       - name:  Check powershell environment 
         run: |
           set +e  
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME; \
             ls -la; \
             exit \$LASTEXITCODE;
@@ -85,7 +85,7 @@ jobs:
         run: |
           set +e  
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -112,7 +112,7 @@ jobs:
         run: |
           set +e  
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -133,7 +133,7 @@ jobs:
       - name:  Set the environment passwords for other steps 
         run: |
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
             cd /home/admin.ackbar/LME/testing \
             && . configure/lib/functions.sh \
             && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
@@ -150,7 +150,7 @@ jobs:
       - name:  Check that the environment variables are set 
         run: |
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
             if [ -z \"${{ env.elastic }}\" ]; then
               echo 'Error: env.elastic variable is not set' >&2
               exit 1
@@ -163,7 +163,7 @@ jobs:
       #   run: |
       #     set +e  
       #     cd testing/development
-      #     docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
       #       cd /home/admin.ackbar/LME/testing; \
       #       \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
       #       \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -190,7 +190,7 @@ jobs:
         run: |
           set +e  
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -232,7 +232,7 @@ jobs:
         run: |
           set +e
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
           && echo export ELASTIC_PASSWORD=${{ env.elastic }} > .env \
           && . .env \
           && python3 -m venv /home/admin.ackbar/venv_test \
@@ -245,7 +245,7 @@ jobs:
         if: always()
         run: |
           cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
             cd /home/admin.ackbar/LME/testing; \
             \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
             \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -256,5 +256,5 @@ jobs:
             ./development/destroy_cluster.ps1; \
             exit \$LASTEXITCODE;
           }"
-          docker-compose -p ${{ env.UNIQUE_ID }} down
-          docker system prune
+          docker compose -p ${{ env.UNIQUE_ID }} down
+          docker system prune -y
