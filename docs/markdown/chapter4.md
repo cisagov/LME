@@ -116,3 +116,33 @@ See [Kibana Query Language](https://www.elastic.co/guide/en/kibana/current/kuery
 
 ### 4.3.3 Alerts
 Found under "Security" -> "Alerts," alerts are a powerful tool that helps automate detection of suspicious events. Review section [4.2 Enable Alerts](#42-enable-alerts) for help configuring alerts. See [Dections and alerts](https://www.elastic.co/guide/en/security/current/detection-engine-overview.html) to learn more.
+
+### 4.3.4 Adding Filters
+You may find you want to filter some results.  For example, the User Security dashboard displays logon attempts that quickly run in the thousands.  You can use a `regexp` filter at the top of the dashboard to get rid of these "fluff" events.
+
+As an example, to filter out unnecessary logons in the User Security dashboard follow these steps: 
+1. Click the `Add filter` '+' sign (upper left).
+2. Click `Edit as Query DSL` to add a regexp filter (upper right of popup):  
+```
+{
+  "bool": {
+    "filter": [
+      {
+        "match_phrase": {
+          "event.code": "4624"
+        }
+      }
+    ],
+    "must_not": [
+      {
+        "regexp": {
+          "winlog.event_data.TargetUserName": ".*$.*"
+        }
+      }
+    ]
+  }
+}
+```
+3. Click `Add Filter` (lower right of popup)
+
+The above filters out for the [4624](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624) events any TargetUserName that has a `$` in the field. 
