@@ -181,7 +181,7 @@ jobs:
               --command-id RunShellScript \
               --name LS1 \
               --resource-group \$env:RESOURCE_GROUP \
-              --scripts 'export HOME=/root pwd && whoami && cd ~ \
+              --scripts 'export HOME=/root; pwd && whoami && cd ~ \
                 && git clone https://github.com/cisagov/LME.git \
                 && cd LME \
                 && git checkout -t 'origin/${{ env.BRANCH_NAME }}' \
