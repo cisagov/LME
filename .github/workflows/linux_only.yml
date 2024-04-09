@@ -44,7 +44,7 @@ jobs:
         echo "HOST_GID=$(id -g)" >> .env
         
     - name: Run Docker Build
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml build lme
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml build lme --no-cache
       
     - name: Run Docker Compose
       run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up -d
