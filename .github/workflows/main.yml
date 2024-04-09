@@ -13,37 +13,37 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    continue-on-error: true  
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Lint Shell Scripts
-        continue-on-error: true
         run: |
           sudo apt-get update
           sudo apt-get install shellcheck
           shellcheck **/*.sh
   
       - name: Lint PowerShell Scripts
-        continue-on-error: true
+        if: ${{ failure() }}
         run: |
           pwsh -Command "Invoke-ScriptAnalyzer -EnableExit -Recurse -Path ."
   
       - name: Lint Lua
-        continue-on-error: true
+        #if: ${{ failure() }}
         run: |
           sudo apt-get install -y luarocks
           sudo luarocks install luacheck
           luacheck **/*.lua
   
       - name: Lint TeX Files
-        continue-on-error: true
+        #if: ${{ failure() }}
         run: |
           sudo apt-get install chktex
           chktex **/*.tex
 
       - name: Lint YAML Files
-        continue-on-error: true
+        #if: ${{ failure() }}
         run: |
           sudo apt-get update
           sudo apt-get install yamllint
