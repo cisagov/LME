@@ -257,4 +257,4 @@ jobs:
             exit \$LASTEXITCODE;
           }"
           docker compose -p ${{ env.UNIQUE_ID }} down
-          docker system prune -y
+          docker system prune --force
