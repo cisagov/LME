@@ -28,7 +28,7 @@ function disable {
       --access Deny `
       --destination-address-prefixes Internet `
       --destination-port-ranges '*'
-      
+ 
   az network nsg rule create --name DENYLOAD `
       --resource-group $ResourceGroup `
       --nsg-name $NSG `

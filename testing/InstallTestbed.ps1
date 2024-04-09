@@ -47,7 +47,7 @@ else {
 }
 
 if ($Version -ne $false -and -not ($Version -match '^[0-9]+\.[0-9]+\.[0-9]+$')) {
-    Write-Host "Invalid version format: $Version. Expected format: X.Y.Z (e.g., 1.3.0)"
+    Write-Error "Invalid version format: $Version. Expected format: X.Y.Z (e.g., 1.3.0)"
     exit 1
 }
 
@@ -139,7 +139,7 @@ if (-Not $LinuxOnly) {
     Start-Sleep 10
 
     # See if we can see the forwarding computers in the DC
-    write-host "`nChecking if we can see the forwarding computers in the DC..."
+    Write-Output "`nChecking if we can see the forwarding computers in the DC..."
     $listForwardingComputersResponse = .\run_script_in_container.ps1 `
         -ResourceGroup $ResourceGroup `
         -VMName $DomainController `
@@ -373,15 +373,15 @@ $runTestResponse = az vm run-command invoke `
   --scripts '/home/admin.ackbar/lme/configure/linux_test_install.sh' | ConvertFrom-Json
 
 $message = $runTestResponse.value[0].message
-Write-Host "$message`n"
-Write-Host "--------------------------------------------"
+Write-Output "$message`n"
+Write-Output "--------------------------------------------"
 
 # Check if there is stderr content in the message field
 if ($message -match '\[stderr\]\n(.+)$') {
-    Write-Host "Tests failed"
+    Write-Output "Tests failed"
     exit 1
 } else {
-    Write-Host "Tests succeeded"
+    Write-Output "Tests succeeded"
 }
 
 Write-Output "`nInstall completed."
@@ -392,6 +392,7 @@ $EsPasswords
 
 # Write the passwords to a file
 $PasswordPath = "..\..\${ResourceGroup}.password.txt"
+<<<<<<< HEAD
 <<<<<<< HEAD
 $EsPasswords | Out-File -Append -FilePath $PasswordPath
 
@@ -413,3 +414,6 @@ Get-Content -Path $PasswordPath
 =======
 $EsPasswords | Out-File -Append -FilePath $PasswordPath
 >>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
+=======
+$EsPasswords | Out-File -Append -FilePath $PasswordPath
+>>>>>>> f785a8a (resolve PSAvoidUsingWriteHost errors)

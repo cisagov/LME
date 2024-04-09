@@ -494,6 +494,7 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     Write-Output "`nAdding ls1 to hosts file..."
     $writeToHostsFileResponse = az vm run-command invoke `
     --command-id RunPowerShellScript `
@@ -505,6 +506,9 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
 =======
 >>>>>>> 450e17d (Rebase latest changes from main into release-1.4.0 (#222))
     Write-Host "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."
+=======
+    Write-Output "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."
+>>>>>>> f785a8a (resolve PSAvoidUsingWriteHost errors)
     $resolveLs1Response = az vm run-command invoke `
         --command-id RunPowerShellScript `
         --resource-group $ResourceGroup `
@@ -512,7 +516,7 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --scripts "Resolve-DnsName ls1"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$resolveLs1Response")
 
-    Write-Host "Removing the Dns script. No output expected..."
+    Write-Output "Removing the Dns script. No output expected..."
     $removeDnsRecordScriptResponse = az vm run-command invoke `
         --command-id RunPowerShellScript `
         --name DC1 `
