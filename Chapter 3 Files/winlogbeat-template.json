@@ -7296,7 +7296,8 @@
       },
       "index": {
         "lifecycle": {
-          "name": "winlogbeat"
+          "name": "winlogbeat",
+          "rollover_alias": "winlogbeat-alias"
         },
         "mapping": {
           "total_fields": {
