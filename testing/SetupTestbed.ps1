@@ -127,6 +127,7 @@ function Get-RandomPassword {
 }
 
 function Set-AutoShutdown {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", '', Scope='Function')]
     param (
         [Parameter(Mandatory)]
         [string]$VMName
@@ -150,7 +151,8 @@ function Set-AutoShutdown {
     }
 }
 
-function Set-NetworkRules {
+function Set-NetworkRule {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", '', Scope='Function')]
     param (
         [Parameter(Mandatory)]
         $AllowedSourcesList
@@ -285,7 +287,7 @@ $createNsgResponse = az network nsg create --name NSG1 `
     --tags project=$Project created=$Today createdBy=$CurrentUser
 Write-Output $createNsgResponse
 
-Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
+Set-NetworkRule -AllowedSourcesList $AllowedSourcesList
 
 ##################
 # Create the VMs #
