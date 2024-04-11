@@ -1,4 +1,19 @@
 # Docker and VSCode Setup
+### Table of Contents
+
+1. [Introduction](#introduction)
+2. [Dev Containers](#dev-containers)
+3. [Building Docker Containers](#building-the-docker-containers-to-use-your-local-username)
+   - [Options](#options)
+     - Python Development Option
+     - Python Tests Option
+   - [Running Tests in the Development Container](#running-tests-in-the-development-container-option)
+4. [VSCode Extensions](#vscode-extensions)
+5. [Environment Variables Setup](#environment-variables-setup)
+6. [Python Virtual Environment Setup](#python-virtual-environment-setup)
+7. [Running the Tests from the Command Line](#running-the-tests-from-the-command-line)
+8. [Generating Test HTML Reports](#generating-test-html-reports)
+
 
 ## Introduction
 This environment is set up to run on a computer with Docker installed and on Visual Studio Code (VSCode).
@@ -40,7 +55,7 @@ Now you will need to build the containers for the first time. Subsequent builds,
 use the prebuilt containers and keep the user id as the correct one in the container. 
 ```bash
 cd testing/development
-docker-compose build --no-cache 
+docker compose build --no-cache 
 ```
 You can follow the rest of the directions on this page and just make sure that when you get into the container, open a new bash shell and do a `ls -la` the files should be owned by `admin.ackbar`
 
@@ -172,3 +187,6 @@ chown 1000.1000 report.html
 ```
 
 When a test fails, the test result details on the report provide appropriate information on the error message as you would expect to see on console. 
+
+
+## Development and Docker

@@ -1,3 +1,22 @@
+# Docker Compose file for setting up development environment for LME project.
+# 
+# This file defines two services:
+# 1. ubuntu:
+#    - Builds an Ubuntu container with the specified USER_ID and GROUP_ID arguments.
+#    - Mounts the parent directory to /lme in the container, allowing access to the LME project.
+#    - Sets the container name to "lme_development".
+#    - Sets the user to the specified HOST_UID and HOST_GID.
+#    - Runs the command "sleep infinity" to keep the container running indefinitely.
+# 
+# 2. lme:
+#    - Builds a container using the Dockerfile located in ../../ directory.
+#    - Uses the specified USER_ID and GROUP_ID arguments.
+#    - Sets the container name to "lme".
+#    - Sets the user to the specified HOST_UID and HOST_GID.
+#    - Mounts the parent directory to /home/admin.ackbar/LME in the container, allowing access to the LME project.
+#    - Runs the command "sleep infinity" to keep the container running indefinitely.
+#    - Exposes the following ports: 443, 9200, 9300, 5000, 9600, 5601.
+# 
 version: '3.8'
 
 services:
@@ -7,12 +26,12 @@ services:
       args:
         USER_ID: "${HOST_UID:-1001}"
         GROUP_ID: "${HOST_GID:-1001}"
-    # user: admin.ackbar
     container_name: lme_development
     user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     volumes:
-      - ../../../LME/:/lme  # Mounts the parent directory to /lme in the container checkout repo as LME
+      - ../../../LME/:/lme
     command: sleep infinity
+
   lme:
     build:
       context: ../../
@@ -24,7 +43,7 @@ services:
     container_name: lme
     user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     volumes:
-      - ../../:/home/admin.ackbar/LME  # Mounts the parent directory to /home/admin.ackbar/LME in the container checkout repo as LME
+      - ../../:/home/admin.ackbar/LME
     command: sleep infinity
     ports:
       - "443:443"
