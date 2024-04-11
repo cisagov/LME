@@ -72,7 +72,7 @@ jobs:
           && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
           && extract_credentials output.log \
           && sudo rm output.log \
-          && docker ps
+          && docker ps \
           && . /home/admin.ackbar/venv_test/bin/activate \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ \
           && pytest testing/tests/api_tests/linux_only/ "
