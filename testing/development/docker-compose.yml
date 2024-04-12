@@ -39,11 +39,15 @@ services:
       args:
         USER_ID: "${HOST_UID:-1001}"
         GROUP_ID: "${HOST_GID:-1001}"
-    privileged: true
     container_name: lme
     user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     volumes:
       - ../../:/home/admin.ackbar/LME
+      - /var/run/docker.sock:/var/run/docker.sock
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
     command: sleep infinity
     ports:
       - "443:443"
