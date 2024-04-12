@@ -97,6 +97,7 @@ installdocker
 echo -e "\e[32m[X]\e[0m Pulling the images. This may take some time."
 docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack.yml pull --quiet
 
+docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack.yml sudo docker swarm leave --force 
 
 # Execute script with root privileges
 # Todo: We could put a switch here for different versions and just run different expect scripts
