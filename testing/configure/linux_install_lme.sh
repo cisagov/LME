@@ -88,7 +88,6 @@ function installdocker() {
   sudo sh get-docker.sh >/dev/null
   echo "Starting docker"
   sudo service docker start
-  sudo docker swarm leave --force 
   sleep 5
 }
 
