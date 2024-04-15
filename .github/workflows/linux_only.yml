@@ -31,15 +31,19 @@ jobs:
         echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
         echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
     
-    - name: Get branch name
+    - name: Set Branch Name
       shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        HEAD_REF: ${{ github.head_ref }}
+        GITHUB_REF: ${{ github.ref }}
       run: |
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
-          echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+        if [ "$EVENT_NAME" == "pull_request" ]; then
+          echo "BRANCH_NAME=$HEAD_REF" >> $GITHUB_ENV
         else
-          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          BRANCH_REF="${GITHUB_REF##*/}"
+          echo "BRANCH_NAME=$BRANCH_REF" >> $GITHUB_ENV
         fi
-                
         
     - name: Set up Docker Compose
       run: |
