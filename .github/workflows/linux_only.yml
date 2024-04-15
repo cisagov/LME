@@ -13,6 +13,7 @@ jobs:
     
     env:
       UNIQUE_ID:
+      BRANCH_NAME:
     
     steps:
     - name: Checkout repository
@@ -29,6 +30,16 @@ jobs:
         echo "AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
         echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
         echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+    
+    - name: Get branch name
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+        else
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        fi
+                
         
     - name: Set up Docker Compose
       run: |
@@ -62,7 +73,7 @@ jobs:
       run: |
         set -x
         cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b main \
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b ${{ env.BRANCH_NAME }} \
           && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
           
     - name: Run api tests in container
