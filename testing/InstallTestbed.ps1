@@ -28,6 +28,7 @@ param (
 # If you were to need the password from the SetupTestbed.ps1 script, you could use this:
 # $Password = Get-Content "${ResourceGroup}.password.txt"
 
+
 $ProcessSeparator = "`n----------------------------------------`n"
 
 # Define our library path
@@ -254,9 +255,8 @@ $getElasticsearchPasswordsResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVM `
   --resource-group $ResourceGroup `
-  --scripts 'tail -n14 "/opt/lme/Chapter 3 Files/output.log" | head -n9'
+  --scripts 'sed -n "/^## elastic/,/^####################/p" "/opt/lme/Chapter 3 Files/output.log"'  
 
-# Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$getElasticsearchPasswordsResponse")
 Write-Output $ProcessSeparator
 
 if (-Not $LinuxOnly){

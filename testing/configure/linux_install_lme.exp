@@ -39,15 +39,40 @@ send "ls1.lme.local\r"
 
 sleep 1
 
-expect -re {continue with self signed certificates.*: y}
+expect -re {.*ntinue with self signed certificates.*: y}
 sleep 1
 send "\r"
 sleep 1
 
-expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
+expect -re {.*ip Docker Install\? \(\[y\]es/\[n\]o\): n}
 sleep 1
 send "\r"
-set timeout 600
+
+
+
+set timeout 310 
+expect {
+    -re {Waiting for Elasticsearch to be ready} {
+        puts " Elasticsearch is being prepared"
+        exp_continue
+    }
+    -re {\.} {
+        puts " . "
+        exp_continue
+    }
+    -re {We think your main disk is} {
+        puts " Disk message received"
+        exp_continue
+    }
+    -re {Bootstrapping} {
+        puts " Bootstrapping in progress"
+        exp_continue
+    }
+    -re {Uploading Kibana dashboards} {
+        puts " Kibana dashboards are being uploaded"
+        exp_continue
+    }
+}
 
 expect eof
 

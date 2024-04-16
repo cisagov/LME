@@ -1,10 +1,64 @@
 # Docker and VSCode Setup
+### Table of Contents
+
+1. [Introduction](#introduction)
+2. [Dev Containers](#dev-containers)
+3. [Building Docker Containers](#building-the-docker-containers-to-use-your-local-username)
+   - [Options](#options)
+     - Python Development Option
+     - Python Tests Option
+   - [Running Tests in the Development Container](#running-tests-in-the-development-container-option)
+4. [VSCode Extensions](#vscode-extensions)
+5. [Environment Variables Setup](#environment-variables-setup)
+6. [Python Virtual Environment Setup](#python-virtual-environment-setup)
+7. [Running the Tests from the Command Line](#running-the-tests-from-the-command-line)
+8. [Generating Test HTML Reports](#generating-test-html-reports)
+
 
 ## Introduction
 This environment is set up to run on a computer with Docker installed and on Visual Studio Code (VSCode).
 
 ## Dev Containers 
 On your host machine, you will want to install the Dev Containers extension in VSCode. With Docker installed on your host machine, you should be able to reopen this repository in a container and select different environment options. To open the repository in a container, press the blue connect button at the far bottom left of the VSCode window. This will prompt you with options to open in the different environments.
+
+## Building the docker containers to use your local username
+The docker-compose file in the development contianer is set to use the `.env` file in the `/testing/development` folder. 
+
+If you don't have a .env file, it will use the userid 1001 by default. 
+Check and see what your userid is in your host machine by running 
+```bash
+ls -lna ~ 
+```
+This will tell you your user id and group id of the host machine. Look at what id the files are owned by. 
+```bash
+drwxr-x--- 1 1000 1000 4096 Mar  1 13:04 .
+drwxr-xr-x 1    0    0 4096 Mar  1 12:44 ..
+-rw------- 1 1000 1000   21 Mar  1 13:04 .bash_history
+-rw-r--r-- 1 1000 1000  220 Jan  6  2022 .bash_logout
+-rw-r--r-- 1 1000 1000 3771 Jan  6  2022 .bashrc
+drwxr-xr-x 3 1000 1000 4096 Mar  1 13:04 .dotnet
+-rw-r--r-- 1 1000 1000  292 Mar  1 13:04 .gitconfig
+drwx------ 2 1000 1000 4096 Mar  1 13:04 .gnupg
+-rw-r--r-- 1 1000 1000  807 Jan  6  2022 .profile
+drwxr-xr-x 2 1000 1000 4096 Mar  1 13:04 .ssh
+drwxr-xr-x 6 1000 1000 4096 Mar  1 13:04 .vscode-server
+drwxr-xr-x 2    0    0 4096 Mar  1 12:44 LME
+```
+In this case you can see the files like `.bash_history` are owned by `1000 1000`. 
+The first number is your user id and the second is your group id. 
+So in the `testing/development` folder make a new file named `.env` and put this in it:
+```bash
+HOST_UID=1000
+HOST_GID=1000
+```
+Now you will need to build the containers for the first time. Subsequent builds, and up, will
+use the prebuilt containers and keep the user id as the correct one in the container. 
+```bash
+cd testing/development
+docker compose build --no-cache 
+```
+You can follow the rest of the directions on this page and just make sure that when you get into the container, open a new bash shell and do a `ls -la` the files should be owned by `admin.ackbar`
+
 
 ### Options
 - **Python Development Option**: This option is for development of the entire codebase and
@@ -133,3 +187,6 @@ chown 1000.1000 report.html
 ```
 
 When a test fails, the test result details on the report provide appropriate information on the error message as you would expect to see on console. 
+
+
+## Development and Docker

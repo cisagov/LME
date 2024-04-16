@@ -34,13 +34,14 @@ parser.add_argument('--timeout', help='Timeout, in seconds. Defaults to 30.',
     default=30,
     type=int)
 parser.add_argument('--mode', help='Headless, no browser, detached, open browser, debug, open browser and leave it open. Default is no headless.', default='headless')
+parser.add_argument('--domain', help='The ip or domain of the elasticsearch server', default='ls1')
 
 args, unittestArgs = parser.parse_known_args()
 
 def login(password : str) -> None:
     """Login and load the home page"""
 
-    url = "https://ls1"
+    url = f"https://{args.domain}"
     driver.get(url)
 
     # Wait for the login page to load
@@ -80,7 +81,7 @@ class BasicLoading(unittest.TestCase):
         """If for some reason we weren't able to access the webpage at
         all, this would be the first test to show it."""
 
-        driver.get("https://ls1/app/dashboards")
+        driver.get(f"https://{args.domain}/app/dashboards")
         selector = 'div[data-test-subj="dashboardLandingPage"]'
         expected_cond = EC.presence_of_element_located((By.CSS_SELECTOR, selector))
         WebDriverWait(driver, args.timeout).until(expected_cond)
@@ -92,7 +93,7 @@ class UserSecurityTests(unittest.TestCase):
     def setUp(self):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
-        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -237,7 +238,7 @@ class UserHRTests(unittest.TestCase):
     def setUp(self):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
-        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -297,7 +298,7 @@ class SecurityDashboardSecurityLogTests(unittest.TestCase):
     def setUp(self):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
-        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -403,7 +404,7 @@ class ComputerSoftwareOverviewTests(unittest.TestCase):
     def setUp(self):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "33f0d3b0-8b8a-11ea-b1c6-a5bf39283f12"
-        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -448,7 +449,7 @@ class SysmonSummaryTests(unittest.TestCase):
     def setUp(self):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "d2c73990-e5d4-11e9-8f1d-73a2ea4cc3ed"
-        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -488,7 +489,7 @@ class ProcessExplorerTests(unittest.TestCase):
     def setUp(self):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "f2cbc110-8400-11ee-a3de-f1bc0525ad6c"
-        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -538,7 +539,7 @@ class ProcessExplorerTests(unittest.TestCase):
 #     def setUp(self):
 #         # The dashboard ID is hard-coded in the ndjson file
 #         dashboard_id = "ac1078e0-8a32-11ea-8939-89f508ff7909"
-#         driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+#         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
 #         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
 #         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -569,7 +570,7 @@ class HealthCheckTests(unittest.TestCase):
     def setUp(self):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "51fe1470-fa59-11e9-bf25-8f92ffa3e3ec"
-        driver.get(f"https://ls1/app/dashboards#/view/{dashboard_id}")
+        driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
@@ -601,10 +602,18 @@ class HealthCheckTests(unittest.TestCase):
 options = webdriver.ChromeOptions()
 if args.mode == "detached" or args.mode =="debug": #browser opens
     print("# " + args.mode + " mode #")
-    options.add_experimental_option("detach", True) 
+    options.add_experimental_option("detach", True)
+
 else: #Browser does not open. Default mode is headless
     print("# headless mode #")
     options.add_argument("--headless=new")
+    # options.add_argument("--proxy-server='direct://'")
+    # options.add_argument("--proxy-bypass-list=*")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
 s = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=s, options=options)

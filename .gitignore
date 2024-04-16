@@ -2,6 +2,7 @@
 .DS_Store
 /.idea/
 /.vscode/
+**/.env
 /Chapter 4 Files/*.dumped.ndjson
 /Chapter 4 Files/exported/
 
@@ -25,3 +26,5 @@ lme_update.sh
 /testing/*.output.log
 /testing/tests/report.html
 testing/tests/assets/style.css
+.history/
+**/get-docker.sh
