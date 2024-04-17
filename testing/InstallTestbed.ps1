@@ -398,3 +398,5 @@ Branch: $Branch
 
 # Output the parameters to the end of the password file
 $paramsToWrite | Out-File -Append -FilePath $PasswordPath
+
+Get-Content -Path $PasswordPath
