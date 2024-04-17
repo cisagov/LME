@@ -384,3 +384,17 @@ $EsPasswords
 # Write the passwords to a file
 $PasswordPath = "..\..\${ResourceGroup}.password.txt"
 $EsPasswords | Out-File -Append -FilePath $PasswordPath
+
+# Constructing a string that will hold all the command-line parameters to be written to the file
+$paramsToWrite = @"
+ResourceGroup: $ResourceGroup
+DomainController: $DomainController
+LinuxVM: $LinuxVM
+NumClients: $NumClients
+LinuxOnly: $($LinuxOnly.IsPresent)
+Version: $Version
+Branch: $Branch
+"@
+
+# Output the parameters to the end of the password file
+$paramsToWrite | Out-File -Append -FilePath $PasswordPath
