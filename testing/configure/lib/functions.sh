@@ -1,26 +1,22 @@
 extract_credentials() {
-    local file_path=${1:-'/opt/lme/Chapter 3 Files/output.log'}
-    if [ ! -f "$file_path" ]; then
-        echo "File not found: $file_path"
-        return 1
-    fi
+  local file_path=${1:-'/opt/lme/Chapter 3 Files/output.log'}
 
-    # Use a while loop directly reading from a process substitution
-    while IFS=: read -r line rest; do
-        line=$(echo "$line" | sed 's/^## //g' | xargs)
-        rest=$(echo "$rest" | xargs)
+  if [ ! -f "$file_path" ]; then
+    echo "File not found: $file_path"
+    return 1
+  fi
 
-        key=$(echo "$line" | awk '{print $1}')
-        value=$rest
+  # Use sed to extract the lines containing the credentials
+  credentials=$(sed -n '/^## [a-zA-Z_]*:/p' "$file_path")
 
-        case $key in
-            "elastic" | "kibana" | "logstash_system" | "logstash_writer" | "dashboard_update")
-                export "$key"="$value"
-                ;;
-        esac
-    done < <(awk '/^## \w+:/{print $0}' "$file_path")
+  # Loop through the extracted lines and assign the values to variables
+  while IFS=: read -r key value; do
+    key=$(echo "$key" | sed 's/^## //g' | tr -d '[:space:]')
+    value=$(echo "$value" | tr -d '\r\n')
+    export "$key"="$value"
+  done <<< "$credentials"
 
-    export ELASTIC_PASSWORD=$elastic
+  export ELASTIC_PASSWORD=$elastic
 }
 
 write_credentials_to_file() {

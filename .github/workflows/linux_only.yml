@@ -98,5 +98,5 @@ jobs:
       run: |
         cd testing/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T -u root lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
-        # docker compose -p ${{ env.UNIQUE_ID }} down
-        # docker system prune -a --force
+        docker compose -p ${{ env.UNIQUE_ID }} down
+        docker system prune -a --force
