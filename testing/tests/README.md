@@ -190,3 +190,46 @@ When a test fails, the test result details on the report provide appropriate inf
 
 
 ## Development and Docker
+Using Visual Studio Code you can open this project in a container so you can develop in an environment that is just like the pipeline runs. 
+In order to do so, you will need to create a directory at the root of the repo and put some folders inside of it. 
+```bash
+mkdir -p .devcontainer/python_development
+touch .devcontainer/python_development/devcontainer.json
+```
+
+Once you have set up this configuration you can add this to `devcontainer.json`:
+```json
+{
+  "name": "Python Development",
+  "dockerComposeFile": [
+    "../../testing/development/docker-compose.yml"
+  ],
+  "service": "ubuntu",
+  "shutdownAction": "none",
+  "workspaceFolder": "/lme",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "littlefoxteam.vscode-python-test-adapter",
+        "ms-python.black-formatter"
+      ]
+    }
+  },
+  "remoteUser": "admin.ackbar"
+}
+```
+
+Now you can press the blue button at the far bottom left of the VSCode editor and select "Reopen in container", choosing the "Python Development" option.
+
+In this container, you can reach an lme install (on the host's docker) by connecting to `lme` lme resolves to the other container where 
+you can run an lme install on. 
+You can see how to do an lme install on that container by looking at the `linux_only.yml` pipeline in the `.github/workflows` directory.
+
+At the time of this writing, you can run this on your host's system (not in the dev container):
+```bash
+cd LME/testing/development/
+docker compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b your-branch-name-with-no-quotes"
+```
+
+Once you do that, you can now reach that install from within your dev containers by using the hostname `lme`. 
