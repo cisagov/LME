@@ -80,18 +80,40 @@ jobs:
         docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b ${{ env.BRANCH_NAME }} \
           && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
           
-    - name: Run api tests in container
+    # - name: Run api tests in container
+    #   run: |
+    #     cd testing/development
+    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
+    #       && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
+    #       && extract_credentials output.log \
+    #       && sudo rm output.log \
+    #       && sudo docker ps \
+    #       && . /home/admin.ackbar/venv_test/bin/activate \
+    #       && sudo chmod ugo+w /home/admin.ackbar/LME/ \
+    #       && pytest testing/tests/api_tests/linux_only/ "
+          
+    - name: Run selenium tests in container
       run: |
         cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
-          && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c "
+          . testing/configure/lib/functions.sh \
+          && echo export ELASTIC_PASSWORD=${{ env.elastic }} > testing/tests/.env \
+          && cat >> testing/tests/.env << EOL
+          export KIBANA_HOST=localhost
+          export KIBANA_PORT=443
+          export KIBANA_USER=elastic
+          export SELENIUM_TIMEOUT=60
+          export SELENIUM_MODE=headless
+          EOL
+          && . testing/tests/.env \
+          && sudo cp /opt/lme/Chapter\\ 3\\ Files/output.log . \
           && extract_credentials output.log \
           && sudo rm output.log \
           && sudo docker ps \
           && . /home/admin.ackbar/venv_test/bin/activate \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          && pytest testing/tests/api_tests/linux_only/ "
-          
+          && pytest testing/tests/selenium_tests/linux_only/ \
+        "          
     - name: Cleanup Docker Compose
       if: always()
       run: |
