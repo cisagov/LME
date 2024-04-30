@@ -88,20 +88,47 @@ After that, the Run and Debug interface will change and have a green arrow in it
 {
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Python Debugger: Run Tests",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "pytest",
-            "args": [
-                "${workspaceFolder}/testing/tests/api_tests" // Path to your tests
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false, // Set this to false to allow debugging into external libraries
-            "cwd": "${workspaceFolder}/testing/tests/" // Set the working directory
-        }
+      {
+        "name": "Python Debugger: Run API Tests",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "pytest",
+        "args": [
+          "${workspaceFolder}/testing/tests/api_tests"
+        ],
+        "console": "integratedTerminal",
+        "justMyCode": false,
+        "cwd": "${workspaceFolder}/testing/tests",
+        "envFile": "${workspaceFolder}/testing/tests/.env"
+      },
+      {
+        "name": "Python Debugger: Run Selenium linux only Tests",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "pytest",
+        "args": [
+          "${workspaceFolder}/testing/tests/selenium_tests/linux_only"
+        ],
+        "console": "integratedTerminal",
+        "justMyCode": false,
+        "cwd": "${workspaceFolder}/testing/tests",
+        "envFile": "${workspaceFolder}/testing/tests/.env"
+      },
+      {
+        "name": "Python Debugger: Run Selenium Tests",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/testing/tests/selenium_tests.py",
+        "args": [
+          "--domain", "172.19.0.3"
+        ],
+        "console": "integratedTerminal",
+        "justMyCode": false,
+        "cwd": "${workspaceFolder}/testing/tests",
+        "envFile": "${workspaceFolder}/testing/tests/.env",
+      }
     ]
-}
+  }
 ```
 If you want to get the test explorer (beaker icon) to be able to find your tests, you can add
 this to your `.vscode/settings.json`, so it knows to look in the `/testing/tests` folder. 
@@ -230,6 +257,7 @@ At the time of this writing, you can run this on your host's system (not in the 
 ```bash
 cd LME/testing/development/
 docker compose exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b your-branch-name-with-no-quotes"
+# Make sure your branch is pushed up to github before running this. 
 ```
 
 Once you do that, you can now reach that install from within your dev containers by using the hostname `lme`. 

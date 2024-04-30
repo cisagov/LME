@@ -113,12 +113,25 @@ You can create these files in the .vscode directory in the root of your repo and
         "envFile": "${workspaceFolder}/testing/tests/.env"
       },
       {
+        "name": "Python Debugger: Run Selenium linux only Tests",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "pytest",
+        "args": [
+          "${workspaceFolder}/testing/tests/selenium_tests/linux_only"
+        ],
+        "console": "integratedTerminal",
+        "justMyCode": false,
+        "cwd": "${workspaceFolder}/testing/tests",
+        "envFile": "${workspaceFolder}/testing/tests/.env"
+      },
+      {
         "name": "Python Debugger: Run Selenium Tests",
         "type": "debugpy",
         "request": "launch",
         "program": "${workspaceFolder}/testing/tests/selenium_tests.py",
         "args": [
-          "--domain", "172.212.163.74"
+          "--domain", "lme"
         ],
         "console": "integratedTerminal",
         "justMyCode": false,
