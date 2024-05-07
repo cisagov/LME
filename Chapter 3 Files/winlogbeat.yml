@@ -21,7 +21,8 @@ output.logstash:
   # The Logstash hosts
   hosts: ["logstash_dns_name:5044"]
 
-  # Optional SSL. By default is off.
+  # By default from Elastic, SSL/TLS is Optional. By default it is off.
+  # If ssl.certificate, ssl.certificate_authorities and ssl.key are set, SSL/TLS is enabled.
   # List of root certificates for HTTPS server verifications
   ssl.certificate_authorities: ["C:\\Program Files\\lme\\root-ca.crt"]
 
