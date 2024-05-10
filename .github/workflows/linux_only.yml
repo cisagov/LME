@@ -62,16 +62,17 @@ jobs:
       run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml build lme --no-cache
       
     - name: Run Docker Compose
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up -d
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up lme -d
       
     - name: List docker containers to wait for them to start
       run: |
         docker ps
-        
-    - name: Execute commands inside ubuntu container
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "echo 'Ubuntu container built'"
+    
+    # We are not using the ubuntu container so no use waiting for it to start
+    # - name: Execute commands inside ubuntu container
+    #   run: |
+    #     cd testing/development
+    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "echo 'Ubuntu container built'"
         
     - name: Install LME in container
       run: |
@@ -98,4 +99,4 @@ jobs:
         cd testing/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T -u root lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
         docker compose -p ${{ env.UNIQUE_ID }} down
-        docker system prune --force
+        docker system prune -a --force
