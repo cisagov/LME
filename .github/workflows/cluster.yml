@@ -244,7 +244,7 @@ jobs:
           && . /home/admin.ackbar/venv_test/bin/activate \
           && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && pytest -v selenium/"
+          && pytest -v selenium_tests/"
     
       # - name: Run selenium tests in container
       #   run: |
