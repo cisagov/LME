@@ -1,0 +1,12 @@
+name: Burndown Chart 
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  my_job:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Print a greeting 
+      run: echo "Hello, world!"
