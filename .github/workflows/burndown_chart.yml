@@ -7,7 +7,7 @@ on:
       - '*'
 
 jobs:
-  my_job:
+  create_chart:
     runs-on: ubuntu-latest
     
     steps:
