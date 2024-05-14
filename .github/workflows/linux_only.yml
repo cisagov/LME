@@ -1,102 +1,102 @@
-name: Linux Only
-
-on:
-  workflow_dispatch:
-  pull_request:
-    branches:
-      - '*'
-
-jobs:
-  build-and-test-linux-only:
-    # runs-on: ubuntu-latest
-    runs-on: self-hosted
-    
-    env:
-      UNIQUE_ID:
-      BRANCH_NAME:
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4.1.1
-      
-    - name: Setup environment variables
-      run: |
-        echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
-        
-    - name: Setup environment variables
-      run: |
-        echo "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "AZURE_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-        echo "AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-        echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
-        echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-    
-    - name: Set Branch Name
-      shell: bash
-      env:
-        EVENT_NAME: ${{ github.event_name }}
-        HEAD_REF: ${{ github.head_ref }}
-        GITHUB_REF: ${{ github.ref }}
-      run: |
-        if [ "$EVENT_NAME" == "pull_request" ]; then
-          echo "BRANCH_NAME=$HEAD_REF" >> $GITHUB_ENV
-        else
-          BRANCH_REF="${GITHUB_REF##*/}"
-          echo "BRANCH_NAME=$BRANCH_REF" >> $GITHUB_ENV
-        fi
-        
-    - name: Set up Docker Compose
-      run: |
-        sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
-          -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        
-    - name: Set the environment for docker-compose
-      run: |
-        cd testing/development
-        # Get the UID and GID of the current user
-        echo "HOST_UID=$(id -u)" > .env
-        echo "HOST_GID=$(id -g)" >> .env
-        
-    - name: Run Docker Build
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml build lme --no-cache
-      
-    - name: Run Docker Compose
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up lme -d
-      
-    - name: List docker containers to wait for them to start
-      run: |
-        docker ps
-    
-    # We are not using the ubuntu container so no use waiting for it to start
-    # - name: Execute commands inside ubuntu container
-    #   run: |
-    #     cd testing/development
-    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "echo 'Ubuntu container built'"
-        
-    - name: Install LME in container
-      run: |
-        set -x
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b ${{ env.BRANCH_NAME }} \
-          && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
-          
-    - name: Run api tests in container
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
-          && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
-          && extract_credentials output.log \
-          && sudo rm output.log \
-          && sudo docker ps \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          && pytest testing/tests/api_tests/linux_only/ "
-          
-    - name: Cleanup Docker Compose
-      if: always()
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u root lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
-        docker compose -p ${{ env.UNIQUE_ID }} down
-        docker system prune -a --force
+#name: Linux Only
+#
+#on:
+#  workflow_dispatch:
+#  pull_request:
+#    branches:
+#      - '*'
+#
+#jobs:
+#  build-and-test-linux-only:
+#    # runs-on: ubuntu-latest
+#    runs-on: self-hosted
+#    
+#    env:
+#      UNIQUE_ID:
+#      BRANCH_NAME:
+#    
+#    steps:
+#    - name: Checkout repository
+#      uses: actions/checkout@v4.1.1
+#      
+#    - name: Setup environment variables
+#      run: |
+#        echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
+#        
+#    - name: Setup environment variables
+#      run: |
+#        echo "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+#        echo "AZURE_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
+#        echo "AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
+#        echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
+#        echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+#    
+#    - name: Set Branch Name
+#      shell: bash
+#      env:
+#        EVENT_NAME: ${{ github.event_name }}
+#        HEAD_REF: ${{ github.head_ref }}
+#        GITHUB_REF: ${{ github.ref }}
+#      run: |
+#        if [ "$EVENT_NAME" == "pull_request" ]; then
+#          echo "BRANCH_NAME=$HEAD_REF" >> $GITHUB_ENV
+#        else
+#          BRANCH_REF="${GITHUB_REF##*/}"
+#          echo "BRANCH_NAME=$BRANCH_REF" >> $GITHUB_ENV
+#        fi
+#        
+#    - name: Set up Docker Compose
+#      run: |
+#        sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
+#          -o /usr/local/bin/docker-compose
+#        sudo chmod +x /usr/local/bin/docker-compose
+#        
+#    - name: Set the environment for docker-compose
+#      run: |
+#        cd testing/development
+#        # Get the UID and GID of the current user
+#        echo "HOST_UID=$(id -u)" > .env
+#        echo "HOST_GID=$(id -g)" >> .env
+#        
+#    - name: Run Docker Build
+#      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml build lme --no-cache
+#      
+#    - name: Run Docker Compose
+#      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up lme -d
+#      
+#    - name: List docker containers to wait for them to start
+#      run: |
+#        docker ps
+#    
+#    # We are not using the ubuntu container so no use waiting for it to start
+#    # - name: Execute commands inside ubuntu container
+#    #   run: |
+#    #     cd testing/development
+#    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "echo 'Ubuntu container built'"
+#        
+#    - name: Install LME in container
+#      run: |
+#        set -x
+#        cd testing/development
+#        docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b ${{ env.BRANCH_NAME }} \
+#          && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
+#          
+#    - name: Run api tests in container
+#      run: |
+#        cd testing/development
+#        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
+#          && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
+#          && extract_credentials output.log \
+#          && sudo rm output.log \
+#          && sudo docker ps \
+#          && . /home/admin.ackbar/venv_test/bin/activate \
+#          && sudo chmod ugo+w /home/admin.ackbar/LME/ \
+#          && pytest testing/tests/api_tests/linux_only/ "
+#          
+#    - name: Cleanup Docker Compose
+#      if: always()
+#      run: |
+#        cd testing/development
+#        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u root lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
+#        docker compose -p ${{ env.UNIQUE_ID }} down
+#        docker system prune -a --force
