@@ -9,7 +9,34 @@ on:
 jobs:
   create_chart:
     runs-on: ubuntu-latest
-    
+    env:
+      UNIQUE_ID:      
+
     steps:
-    - name: Print a greeting 
-      run: echo "Hello, world!"
+    - name: Setup environment variables
+      run: |
+        echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
+
+    - name: Run Docker Build
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml build burndown --no-cache
+      
+    - name: Run Docker Compose
+      env: 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml up -d
+      
+    - name: List docker containers to wait for them to start
+      run: |
+        docker ps
+
+    - name: Execute commands inside container 
+      run: |
+        cd testing/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c "echo 'Burndown container built'"
+
+    - name: Cleanup Docker Compose
+      if: always()
+      run: |
+        cd testing/project_management
+        docker compose -p ${{ env.UNIQUE_ID }} down
+        docker system prune -a --force
