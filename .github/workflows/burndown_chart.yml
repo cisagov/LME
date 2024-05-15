@@ -30,14 +30,15 @@ jobs:
       
     - name: List docker containers to wait for them to start
       run: |
-        docker ps
-        - name: Execute commands inside container
-        run: |
-          cd testing/project_management
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c ' \
-            sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json \
-            && cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json \
-          '
+        docker ps 
+
+    - name: Execute commands inside container
+      run: |
+        cd testing/project_management
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c ' \
+          sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json \
+          && cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json \
+        '
 
     - name: Cleanup Docker Compose
       if: always()
