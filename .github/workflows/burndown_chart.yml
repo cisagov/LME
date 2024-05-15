@@ -13,6 +13,9 @@ jobs:
       UNIQUE_ID:      
 
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.1
+
     - name: Setup environment variables
       run: |
         echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
@@ -20,6 +23,8 @@ jobs:
       run: |
           pwd
           ls -la 
+          ls -la testing
+
 
     - name: Run Docker Build
       run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml build burndown --no-cache
