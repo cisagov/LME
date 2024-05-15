@@ -6,3 +6,5 @@ services:
       dockerfile: Dockerfile
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      - ../../../LME/:/lme
