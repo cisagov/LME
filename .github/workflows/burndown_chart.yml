@@ -19,12 +19,6 @@ jobs:
     - name: Setup environment variables
       run: |
         echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
-    - name: Run Docker Build
-      run: |
-          pwd
-          ls -la 
-          ls -la testing
-
 
     - name: Run Docker Build
       run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml build burndown --no-cache
@@ -37,11 +31,13 @@ jobs:
     - name: List docker containers to wait for them to start
       run: |
         docker ps
-
-    - name: Execute commands inside container 
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c "echo 'Burndown container built'"
+        - name: Execute commands inside container
+        run: |
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
+            sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json \
+            && cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
+          '
 
     - name: Cleanup Docker Compose
       if: always()
