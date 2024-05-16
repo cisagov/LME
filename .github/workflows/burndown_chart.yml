@@ -42,34 +42,33 @@ jobs:
       run: |
         docker ps 
 
-    - name: Set up the burndown chart config 
-      run: |
-        cd testing/project_management
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
-        cat > /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json << EOF
-          {
-            "cisagov": {
-              "LME": {
-                "query_variables": {
-                  "organization_name": "cisagov",
-                  "project_number": 68,
-                  "column_count": 5,
-                  "max_cards_per_column_count": 50,
-                  "labels_per_issue_count": 5
-                },
-                "settings": {
-                  "sprint_start_date": "2024-05-01",
-                  "sprint_end_date": "2024-05-16",
-                  "points_label": "Points: "
+        - name: Set up the burndown chart config
+        run: |
+          cd testing/project_management
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
+            cat << EOF > /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
+            {
+              "cisagov": {
+                "LME": {
+                  "query_variables": {
+                    "organization_name": "cisagov",
+                    "project_number": 68,
+                    "column_count": 5,
+                    "max_cards_per_column_count": 50,
+                    "labels_per_issue_count": 5
+                  },
+                  "settings": {
+                    "sprint_start_date": "2024-05-01",
+                    "sprint_end_date": "2024-05-16",
+                    "points_label": "Points: "
+                  }
                 }
               }
             }
-          }
-        EOF
-        sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json \
-        cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json \
-        '
-
+            EOF
+            sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
+            cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
+          '
     - name: Cleanup Docker Compose
       if: always()
       run: |
