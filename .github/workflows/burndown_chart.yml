@@ -46,8 +46,7 @@ jobs:
       run: |
         cd testing/project_management
         docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
-          cat << EOF > /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
-          {
+          echo \'{
             "cisagov": {
               "LME": {
                 "query_variables": {
@@ -64,12 +63,10 @@ jobs:
                 }
               }
             }
-          }
-          EOF
+          }\' > /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
           sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
           cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
         '
-
     - name: Cleanup Docker Compose
       if: always()
       run: |
