@@ -3,7 +3,9 @@
 param (
     [Parameter(Mandatory)]
     [Alias("RG")]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
     [string]$ResourceGroup,
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
     [string]$NSG = "NSG1",
     [switch]$enable = $false
 )
