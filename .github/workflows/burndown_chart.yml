@@ -34,6 +34,9 @@ jobs:
       run: |
         echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
 
+    - name: Create directory for burndown chart
+      run: mkdir -p testing/project_management/github-projects-burndown-chart
+
     - name: Run Docker Build
       run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml build burndown --no-cache
       
