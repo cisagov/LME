@@ -11,6 +11,10 @@ on:
         description: 'Sprint end date (YYYY-MM-DD)'
         required: true
         type: string
+      view:
+        description: 'View number'
+        required: true
+        type: string
     
   pull_request:
     branches:
