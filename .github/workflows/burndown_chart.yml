@@ -56,7 +56,7 @@ jobs:
         '
       
     - name: List files in the current directory
-      run: ls -la
+      run: ls -la testing/project_management
 
     - name: Run the burndown chart script 
       run: |
