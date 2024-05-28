@@ -76,7 +76,7 @@ jobs:
 
     - name: Create workflow summary
       run: |
-        echo "![Generated Chart](./burndown.png)" >> $GITHUB_STEP_SUMMARY
+        echo "![Generated Chart](./artifacts/burndown/burndown.png)" >> $GITHUB_STEP_SUMMARY
 
     - name: Cleanup Docker Compose
       if: always()
