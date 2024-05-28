@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UNIQUE_ID:      
+      start_date:
+      end_date:
+      view:
 
     steps:
     - name: Checkout repository
@@ -56,8 +59,7 @@ jobs:
       run: |
         cd testing/project_management
         docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
-          echo Burndown Token: $BURNDOWN_TOKEN
-          /lme/testing/project_management/setup_config.sh -s $START_DATE -e $END_DATE -v $VIEW -f /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
+          /lme/testing/project_management/setup_config.sh -s ${{ env.START_DATE }}  -e ${{ env.END_DATE }}  -v ${{ env.VIEW }} -f /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
           sed -i "s/\"github_token\": \"\"/\"github_token\": \"$BURNDOWN_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
           cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
           cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
