@@ -15,7 +15,6 @@ on:
         description: 'View number'
         required: true
         type: string
-    
   pull_request:
     branches:
       - '*'
