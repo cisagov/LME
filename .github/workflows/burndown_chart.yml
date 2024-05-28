@@ -51,10 +51,12 @@ jobs:
         cd testing/project_management
         docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
           /lme/testing/project_management/setup_config.sh -s 2024-05-09 -e 2024-05-25 -f /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
-          sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
+          sed -i "s/\"github_token\": \"\"/\"github_token\": \"$BURNDOWN_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
           cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
         '
-      
+      env:
+        BURNDOWN_TOKEN: ${{ secrets.BURNDOWN_TOKEN }}
+       
     - name: List files in the current directory
       run: ls -la 
 
