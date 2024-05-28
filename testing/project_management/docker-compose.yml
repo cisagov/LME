@@ -5,6 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - BURNDOWN_TOKEN=${BURNDOWN_TOKEN}
     volumes:
       - ../../../LME/:/lme
