@@ -63,7 +63,8 @@ echo '{
       "settings": {
         "sprint_start_date": "'"$start_date"'",
         "sprint_end_date": "'"$end_date"'",
-        "points_label": "Points: "
+        "points_label": "Points: ",
+        "version": 2
       }
     }
   }
