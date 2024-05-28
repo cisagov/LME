@@ -39,7 +39,7 @@ jobs:
       
     - name: Run Docker Compose
       env: 
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BURNDOWN_TOKEN: ${{ secrets.BURNDOWN_TOKEN }}
       run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml up -d
       
     - name: List docker containers to wait for them to start
