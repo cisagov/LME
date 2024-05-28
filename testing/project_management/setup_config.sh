@@ -58,7 +58,7 @@ echo '{
         "column_count": 5,
         "max_cards_per_column_count": 50,
         "labels_per_issue_count": 5,
-        "view": '"$view"'
+        "view_number": '"$view"'
       },
       "settings": {
         "sprint_start_date": "'"$start_date"'",
