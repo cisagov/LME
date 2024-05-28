@@ -59,7 +59,7 @@ jobs:
       run: |
         cd testing/project_management
         docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
-          /github-projects-burndown-chart/src/github_projects_burndown_chart/main.py organization LME --filepath ./tmp/test.png
+          python3 /github-projects-burndown-chart/src/github_projects_burndown_chart/main.py organization LME --filepath ./tmp/test.png
         '
       
     - name: List files in the current directory
