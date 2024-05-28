@@ -2,9 +2,25 @@ name: Burndown Chart
 
 on: 
   workflow_dispatch:
-  # pull_request:
-  #   branches:
-  #     - '*'
+    inputs:
+      start_date:
+        description: 'Sprint start date (YYYY-MM-DD)'
+        required: true
+        default: '2024-05-09'
+        type: string
+      end_date:
+        description: 'Sprint end date (YYYY-MM-DD)'
+        required: true
+        default: '2024-05-25'
+        type: string
+      view:
+        description: 'View number'
+        required: true
+        default: '1'
+        type: string
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   create_chart:
