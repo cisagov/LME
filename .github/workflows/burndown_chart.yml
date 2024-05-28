@@ -54,6 +54,9 @@ jobs:
           sed -i "s/\"github_token\": \"\"/\"github_token\": \"$GITHUB_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
           cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
         '
+      
+    - name: List files in the current directory
+      run: ls -la
 
     - name: Run the burndown chart script 
       run: |
@@ -61,13 +64,10 @@ jobs:
         docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
           python3 /github-projects-burndown-chart/src/github_projects_burndown_chart/main.py organization LME --filepath ./tmp/test.png
         '
-      
-    - name: List files in the current directory
-      run: ls -la
 
     - name: Cleanup Docker Compose
       if: always()
       run: |
         cd testing/project_management
         docker compose -p ${{ env.UNIQUE_ID }} down
-        docker system prune -a --force
+        # docker system prune -a --force
