@@ -55,7 +55,7 @@ echo '{
       "query_variables": {
         "organization_name": "cisagov",
         "project_number": 68,
-        "column_count": 5,
+        "column_count": 6,
         "max_cards_per_column_count": 50,
         "labels_per_issue_count": 5,
         "view_number": '"$view"'
