@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 # This ends up just being at the root of the file system
 
 # Clone the github-projects-burndown-chart repository
-RUN git clone https://github.com/thehale/github-projects-burndown-chart && \
+RUN git clone https://github.com/cisagov/github-projects-burndown-chart && \
     cd github-projects-burndown-chart && \
     pip install --no-cache-dir -r requirements.txt && \
     cp src/github_projects_burndown_chart/config/secrets.json.dist src/github_projects_burndown_chart/config/secrets.json  && \
