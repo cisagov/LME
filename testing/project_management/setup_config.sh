@@ -50,7 +50,7 @@ mkdir -p "$(dirname "$file_path")"
 
 # Generate the JSON content with the provided start_date, end_date, and view
 echo '{
-  "organzation": {
+  "organization": {
     "LME": {
       "query_variables": {
         "organization_name": "cisagov",
