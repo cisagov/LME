@@ -34,9 +34,6 @@ jobs:
       run: |
         echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
 
-    - name: Create directory for burndown chart
-      run: mkdir -p testing/project_management/github-projects-burndown-chart
-
     - name: Run Docker Build
       run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml build burndown --no-cache
       
@@ -59,14 +56,16 @@ jobs:
         '
       
     - name: List files in the current directory
-      run: ls -la testing/project_management
+      run: ls -la 
 
     - name: Run the burndown chart script 
       run: |
         cd testing/project_management
         docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
-          python3 /github-projects-burndown-chart/src/github_projects_burndown_chart/main.py organization LME --filepath ./tmp/test.png
+          python3 /github-projects-burndown-chart/src/github_projects_burndown_chart/main.py organization LME --filepath /lme/burndown.png
         '
+    - name: List files in the current directory
+      run: ls -la 
 
     - name: Cleanup Docker Compose
       if: always()
