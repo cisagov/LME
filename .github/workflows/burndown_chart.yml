@@ -56,7 +56,7 @@ jobs:
           cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
         '
       env:
-        BURNDOWN_TOKEN: "Burndown token" 
+        BURNDOWN_TOKEN: ${{ secrets.BURNDOWN_TOKEN }} 
        
     - name: List files in the current directory
       run: ls -la 
