@@ -217,6 +217,7 @@ When a test fails, the test result details on the report provide appropriate inf
 
 
 ## Development and Docker
+
 Using Visual Studio Code you can open this project in a container so you can develop in an environment that is just like the pipeline runs. 
 In order to do so, you will need to create a directory at the root of the repo and put some folders inside of it. 
 ```bash
@@ -261,3 +262,4 @@ docker compose exec -T lme bash -c "./testing/development/build_docker_lme_insta
 ```
 
 Once you do that, you can now reach that install from within your dev containers by using the hostname `lme`. 
+
