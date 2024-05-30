@@ -221,25 +221,43 @@ jobs:
           docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
           && echo export elastic=${{ env.elastic }} > .env \
           && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
-          && cat .env \
           && python3 -m venv /home/admin.ackbar/venv_test \
           && . /home/admin.ackbar/venv_test/bin/activate \
           && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
           && pytest -v api_tests/"
-    
+
       - name: Run selenium tests in container
         run: |
           set +e
           cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
-          && echo export ELASTIC_PASSWORD=${{ env.elastic }} > .env \
-          && . .env \
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+          && echo export elastic=${{ env.elastic }} > .env \
+          && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
+          && echo export KIBANA_HOST= ${{ env.LS1_IP }} >> .env \
+          && echo export KIBANA_PORT=443 >> .env \
+          && echo export KIBANA_USER=elastic >> .env \
+          && echo export SELENIUM_TIMEOUT=60 >> .env \
+          && echo export SELENIUM_MODE=headless >> .env \
+          && cat .env \
           && python3 -m venv /home/admin.ackbar/venv_test \
           && . /home/admin.ackbar/venv_test/bin/activate \
           && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && python selenium_tests.py --domain ${{ env.LS1_IP }} -v"
+          && pytest -v selenium_tests/"
+    
+      # - name: Run selenium tests in container
+      #   run: |
+      #     set +e
+      #     cd testing/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+      #     && echo export ELASTIC_PASSWORD=${{ env.elastic }} > .env \
+      #     && . .env \
+      #     && python3 -m venv /home/admin.ackbar/venv_test \
+      #     && . /home/admin.ackbar/venv_test/bin/activate \
+      #     && pip install -r requirements.txt \
+      #     && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
+      #     && python selenium_tests.py --domain ${{ env.LS1_IP }} -v"
     
       - name: Cleanup environment 
         if: always()
