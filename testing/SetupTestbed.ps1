@@ -182,7 +182,7 @@ function Set-NetworkRule {
 
         Write-Output "Running command: $command"
 
-	# TODO: Avoid using Invoke-Expression; https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.4 
+	# TODO: Avoid using Invoke-Expression; https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.4
         $networkRuleResponse = Invoke-Expression $command
         Write-Output $networkRuleResponse
 
@@ -435,7 +435,7 @@ if (-Not $LinuxOnly){
     Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName. -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00 -AsJob
 }
 `$job = Start-Job -ScriptBlock `$scriptBlock
-`$timeout = 120 
+`$timeout = 120
 if (Wait-Job -Job `$job -Timeout `$timeout) {
     Receive-Job -Job `$job
     Write-Output 'The script completed within the timeout period.'

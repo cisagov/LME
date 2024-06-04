@@ -23,14 +23,14 @@ Replace "YourResourceGroupName" with the name of your Azure Resource Group.
 
 #>
 
-
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
 param(
     [Parameter(Mandatory=$true)]
     [string]$ResourceGroup
 )
 
 function New-AzureName {
-    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", "Scope="Function")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", Scope="Function")]
     param (
         [Parameter(Mandatory=$true)]
         [string]$Prefix
