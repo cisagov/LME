@@ -1,7 +1,7 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
 param (
     [Parameter(Mandatory)]
-    [Alias("RG")] 
+    [Alias("RG") 
     [string]$ResourceGroup,
     [string]$NSG = "NSG1",
     [switch]$enable = $false
@@ -27,7 +27,7 @@ function disable {
       --access Deny `
       --destination-address-prefixes Internet `
       --destination-port-ranges '*'
- 
+
   az network nsg rule create --name DENYLOAD `
       --resource-group $ResourceGroup `
       --nsg-name $NSG `
