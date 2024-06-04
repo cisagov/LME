@@ -30,6 +30,7 @@ param(
 )
 
 function New-AzureName {
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [Parameter(Mandatory=$true)]
         [string]$Prefix
