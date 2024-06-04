@@ -120,6 +120,7 @@ function Get-PrivateKeyFromJson {
     }
 }
 
+[Diagnostics.CodeAnalysis.SuppressMessageAttributes("PSUseSingularNouns", "")]
 function Invoke-GPUpdateOnVMs {
     param(
         [Parameter(Mandatory = $true)]
