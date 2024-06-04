@@ -1,6 +1,4 @@
-
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "ResourceGroup")]
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "NSG")]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSReviewUnusedParameter", "")]
 param (
     [Parameter(Mandatory)]
     [Alias("RG")] 
