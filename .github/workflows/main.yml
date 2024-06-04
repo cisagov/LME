@@ -54,7 +54,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Semgrep Scan
-        continue-on-error: true
         run: |
           semgrep --config "p/r2c" .
 

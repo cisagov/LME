@@ -44,7 +44,7 @@ else {
 }
 
 if ($Version -ne $false -and -not ($Version -match '^[0-9]+\.[0-9]+\.[0-9]+$')) {
-    Write-Host "Invalid version format: $Version. Expected format: X.Y.Z (e.g., 1.3.0)"
+    Write-Error "Invalid version format: $Version. Expected format: X.Y.Z (e.g., 1.3.0)"
     exit 1
 }
 
@@ -364,15 +364,15 @@ $runTestResponse = az vm run-command invoke `
   --scripts '/home/admin.ackbar/lme/configure/linux_test_install.sh' | ConvertFrom-Json
 
 $message = $runTestResponse.value[0].message
-Write-Host "$message`n"
-Write-Host "--------------------------------------------"
+Write-Output "$message`n"
+Write-Output "--------------------------------------------"
 
 # Check if there is stderr content in the message field
 if ($message -match '\[stderr\]\n(.+)$') {
-    Write-Host "Tests failed"
+    Write-Output "Tests failed"
     exit 1
 } else {
-    Write-Host "Tests succeeded"
+    Write-Output "Tests succeeded"
 }
 
 Write-Output "`nInstall completed."
