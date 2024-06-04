@@ -136,7 +136,7 @@ if (-Not $LinuxOnly) {
     Start-Sleep 10
 
     # See if we can see the forwarding computers in the DC
-    write-host "`nChecking if we can see the forwarding computers in the DC..."
+    Write-Output "`nChecking if we can see the forwarding computers in the DC..."
     $listForwardingComputersResponse = .\run_script_in_container.ps1 `
         -ResourceGroup $ResourceGroup `
         -VMName $DomainController `
@@ -255,7 +255,7 @@ $getElasticsearchPasswordsResponse = az vm run-command invoke `
   --command-id RunShellScript `
   --name $LinuxVM `
   --resource-group $ResourceGroup `
-  --scripts 'sed -n "/^## elastic/,/^####################/p" "/opt/lme/Chapter 3 Files/output.log"'  
+  --scripts 'sed -n "/^## elastic/,/^####################/p" "/opt/lme/Chapter 3 Files/output.log"'
 
 Write-Output $ProcessSeparator
 

@@ -30,6 +30,7 @@ param(
 )
 
 function New-AzureName {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", "Scope="Function")]
     param (
         [Parameter(Mandatory=$true)]
         [string]$Prefix
