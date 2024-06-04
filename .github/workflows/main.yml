@@ -25,7 +25,7 @@ jobs:
           shellcheck **/*.sh
   
       - name: Lint PowerShell Scripts
-        if: ${{ failure() }}
+        #if: ${{ failure() }}
         run: |
           pwsh -Command "Invoke-ScriptAnalyzer -EnableExit -Recurse -Path ."
   
