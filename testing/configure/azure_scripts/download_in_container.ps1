@@ -75,7 +75,7 @@ if ($Os -eq "linux") {
     # TODO: We don't want to output this until we fix it so we can put all of the output from thw whole script into one json object
     # We are just ignoring the output for now
     #
-    # Supress error message temporarily because of the above TODO; remove when fixed
+    # Suppress error message temporarily because of the above TODO; remove when fixed
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseDeclaredVarsMoreThanAssignments", "")]
     $CreateDirectoryResponse = az vm run-command invoke `
         --command-id RunShellScript `
