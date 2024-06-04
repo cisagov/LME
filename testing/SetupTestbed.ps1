@@ -151,7 +151,7 @@ function Set-AutoShutdown {
     }
 }
 
-function Set-NetworkRule { 
+function Set-NetworkRule {
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", Scope="Function")]
     param (
         [Parameter(Mandatory)]
