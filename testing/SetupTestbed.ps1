@@ -127,7 +127,7 @@ function Get-RandomPassword {
 }
 
 function Set-AutoShutdown {
-    [CmdletBinding(SupportsShouldProcess)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", Scope="Function")]
     param (
         [Parameter(Mandatory)]
         [string]$VMName
@@ -151,8 +151,8 @@ function Set-AutoShutdown {
     }
 }
 
-function Set-NetworkRule {
-    [CmdletBinding(SupportsShouldProcess)]
+function Set-NetworkRule { 
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", Scope="Function")]
     param (
         [Parameter(Mandatory)]
         $AllowedSourcesList
