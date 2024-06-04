@@ -22,7 +22,7 @@ $targetDirectory = Join-Path -Path $PSScriptRoot -ChildPath "..\\"
 Set-Location -Path $targetDirectory
 
 # Prepare the parameters for InstallTestbed.ps1
-$installTestbedParams = "" 
+$installTestbedParams = ""
 if ($v) {
     $installTestbedParams += " -v $v "
 }
@@ -37,4 +37,5 @@ if ($m) {
 $command = ".\InstallTestbed.ps1 -ResourceGroup $env:RESOURCE_GROUP $installTestbedParams | Tee-Object -FilePath ./$env:RESOURCE_GROUP.output.log"
 
 # Execute the command
+# TODO: Remove use of Invoke-Expression
 Invoke-Expression $command
