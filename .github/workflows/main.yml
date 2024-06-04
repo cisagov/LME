@@ -19,27 +19,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Lint Shell Scripts
+        if: failure()
         run: |
           sudo apt-get update
           sudo apt-get install shellcheck
           shellcheck **/*.sh
   
       - name: Lint PowerShell Scripts
+        if: failure()
         run: |
           pwsh -Command "Invoke-ScriptAnalyzer -EnableExit -Recurse -Path ."
   
       - name: Lint Lua
+        if: failure()
         run: |
           sudo apt-get install -y luarocks
           sudo luarocks install luacheck
           luacheck **/*.lua
   
       - name: Lint TeX Files
+        if: failure()
         run: |
           sudo apt-get install chktex
           chktex **/*.tex
 
       - name: Lint YAML Files
+        if: failure()
         run: |
           sudo apt-get update
           sudo apt-get install yamllint
