@@ -12,6 +12,7 @@ if (-not (Test-Path -Path $SshDirectory)) {
 
 # Function to set ACL for the directory, granting FullControl to SYSTEM and applying inheritance
 function Set-SystemOnlyAclForDirectory {
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [string]$path
     )
@@ -31,6 +32,7 @@ function Set-SystemOnlyAclForDirectory {
 
 # Function to set ACL for a file, granting FullControl only to SYSTEM
 function Set-SystemOnlyAclForFile {
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [string]$path
     )
