@@ -182,10 +182,23 @@ function Set-NetworkRule {
 
         Write-Output "Running command: $command"
 
-	# TODO: Avoid using Invoke-Expression; https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.4
-        $networkRuleResponse = & $command
-        Write-Output $networkRuleResponse
+	# TODO: Avoid using Invoke-Expression; https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.4 
 
+	$networkRuleResponse = az network nsg rule create
+	--name Network_Port_Rule_$port
+	--resource-group $ResourceGroup
+	--nsg-name NSG1
+	--priority $priority
+	--direction Inbound
+	--access Allow 
+	--protocol $protocol
+	--source-address-prefixes $AllowedSourcesList
+	--destination-address-prefixes "*"
+	--destination-port-ranges $port
+	--description "Allow inbound from $sources on $port via $protocol connections."
+	
+	Write-Output "Creating network security group..."
+	Write-Output $networkRuleResponse
     }
 }
 
