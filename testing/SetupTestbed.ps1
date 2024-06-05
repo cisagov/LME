@@ -183,7 +183,7 @@ function Set-NetworkRule {
         Write-Output "Running command: $command"
 
 	# TODO: Avoid using Invoke-Expression; https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.4
-        $networkRuleResponse = Invoke-Expression $command
+        $networkRuleResponse = & $command
         Write-Output $networkRuleResponse
 
     }
