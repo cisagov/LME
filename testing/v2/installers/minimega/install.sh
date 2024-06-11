@@ -53,3 +53,6 @@ ssh $user@$hostname "wget https://github.com/sandia-minimega/minimega/releases/d
 
 # Set up the service and start minimega service
 ssh $user@$hostname "cd /home/$user/minimega && sudo cp minimega.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable minimega && sudo systemctl start minimega"
+
+echo "export PATH=$PATH:/opt/minimega/bin/" >> /root/.bashrc
+
