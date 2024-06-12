@@ -1,4 +1,13 @@
-#!/bin/env bash
+#!/bin/bash
+
+# Path for the SSH keys
+SSH_KEY_PATH="$HOME/.ssh/id_rsa"
+
+# Check if SSH key already exists
+if [ ! -f "$SSH_KEY_PATH" ]; then
+    echo "SSH key not found, generating a new one..."
+    ssh-keygen -t rsa -b 2048 -f "$SSH_KEY_PATH" -N "" -C "ubuntu-vm"
+fi
 
 # Set variables
 export IMG_URL="https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
@@ -31,8 +40,8 @@ autoinstall:
   version: 1
   identity:
     hostname: ubuntu-vm
-    username: lme-user
-    password: $(echo 'lme-user' | openssl passwd -6 -stdin)
+    username: vmuser
+    password: $(echo 'vmuser' | openssl passwd -6 -stdin)
   ssh:
     install-server: true
     authorized-keys:
@@ -45,13 +54,41 @@ EOF
 # Create seed image for the autoinstall
 cloud-localds seed.img user-data
 
-# Start minimega and create the VM
-minimega -p 9000 << EOF
+# Check if minimega is already running
+if ! pgrep -x "minimega" > /dev/null; then
+    # Start minimega in the background if not running
+    minimega &
+    # Give minimega a moment to start up
+    sleep 2
+fi
+
+#vm config qemu-append -drive file=$(pwd)/$IMG_NAME,media=cdrom,index=0,readonly -drive file=$(pwd)/seed.img,media=cdrom,index=1,readonly
+#vm config $VM_NAME meta user-data $(pwd)/user-data
+# Create the MM file with the VM configuration
+MM_FILE_PATH="$(pwd)/$VM_NAME.mm"
+cat > "$MM_FILE_PATH" <<EOF
+clear vm config
 vm config memory $MEMORY
-vm config cpus $CPUS
-vm config disk $DISK_NAME,format=qcow2
-vm config disk $IMG_NAME,readonly
-vm config disk seed.img,readonly
-vm config name $VM_NAME
-vm launch $VM_NAME
+vm config vcpus $CPUS
+vm config disk $(pwd)/$DISK_NAME
+vm config qemu-append -drive file=$(pwd)/seed.img,media=cdrom,index0,readonly
+vm config snapshot false
+vm launch kvm $VM_NAME
 EOF
+
+# Check if the MM file was created successfully
+if [ ! -f "$MM_FILE_PATH" ]; then
+    echo "Failed to create the MM file: $MM_FILE_PATH"
+    exit 1
+fi
+
+# Print the current directory
+echo "Current directory: $(pwd)"
+
+# Create, configure, and launch the VM using the MM file
+minimega -e "read $MM_FILE_PATH"
+
+# List the VMs to verify they are running
+sleep 2
+minimega -e "vm info"
+

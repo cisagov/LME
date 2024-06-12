@@ -29,3 +29,4 @@ testing/tests/assets/style.css
 .history/
 **/get-docker.sh
 **.password.txt
+**.swp

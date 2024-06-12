@@ -51,8 +51,10 @@ ssh $user@$hostname "cd /home/$user/minimega && sudo ./set_gopath.sh '$user'"
 # Install minimega
 ssh $user@$hostname "wget https://github.com/sandia-minimega/minimega/releases/download/2.9/minimega-2.9.deb && sudo apt install ./minimega-2.9.deb" 
 
-# Set up the service and start minimega service
+# Set up the minimega service and start it
 ssh $user@$hostname "cd /home/$user/minimega && sudo cp minimega.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable minimega && sudo systemctl start minimega"
 
-echo "export PATH=$PATH:/opt/minimega/bin/" >> /root/.bashrc
+# Set up the miniweb service and start it
+ssh $user@$hostname "cd /home/$user/minimega && sudo cp miniweb.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable miniweb && sudo systemctl start miniweb"
 
+echo "export PATH=$PATH:/opt/minimega/bin/" >> /root/.bashrc
