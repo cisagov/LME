@@ -74,7 +74,7 @@ def insert_winlog_data(es_host, es_port, username, password, filter_query_filena
     current_script_dir = os.path.dirname(current_script_path)
 
     # This is the query from the dashboard in Kibana
-    filter_query = load_json_schema(f"{current_script_dir}/selenium_tests/queries/{filter_query_filename}")
+    filter_query = load_json_schema(f"{current_script_dir}/data_insertion_tests/queries/{filter_query_filename}")
     filter_query['query']['bool']['filter'][filter_num]['range']['@timestamp']['gte'] = one_day_before
     filter_query['query']['bool']['filter'][filter_num]['range']['@timestamp']['lte'] = one_day_after
 
@@ -86,7 +86,7 @@ def insert_winlog_data(es_host, es_port, username, password, filter_query_filena
     latest_index = get_latest_winlogbeat_index(es_host, es_port, username, password)
 
     # This fixture is a pared down version of the data that will match the query 
-    fixture = load_json_schema(f"{current_script_dir}/selenium_tests/fixtures/{fixture_filename}")
+    fixture = load_json_schema(f"{current_script_dir}/data_insertion_tests/fixtures/{fixture_filename}")
     fixture['@timestamp'] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
     # Insert the fixture into the latest index

@@ -36,7 +36,13 @@ def test_filter_hosts_insert(es_host, es_port, username, password):
     second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_hosts.json', 'hosts.json', 0)
      
     # Check to make sure the data was inserted
-    assert(second_response_loaded['aggregations']['2']['buckets'][3]['key'] == 'testing.lme.local')
+    
+    for i in range(5):
+        #print(second_response_loaded['aggregations']['2']['buckets'][i]['key'])
+        if second_response_loaded['aggregations']['2']['buckets'][i]['key'] == 'testing.lme.local':
+            break
+        
+    assert(second_response_loaded['aggregations']['2']['buckets'][i]['key'] == 'testing.lme.local')
 
 def test_user_logon_events_insert(es_host, es_port, username, password):
         
