@@ -74,7 +74,11 @@ if (Test-Path -Path $libraryPath) {
     . $libraryPath
 }
 else {
+<<<<<<< HEAD
     Write-Error "Library script not found at path: $libraryPathCreating Network Port 22 rule..."
+=======
+    Write-Error "Library script not found at path: $libraryPath"
+>>>>>>> origin/release-1.4.0
 }
 
 
@@ -166,6 +170,7 @@ function Set-NetworkRules {
         $priority = $Priorities[$i]
         $protocol = $Protocols[$i]
         Write-Output "`nCreating Network Port $port rule..."
+<<<<<<< HEAD
         $command = "az network nsg rule create --name Network_Port_Rule_$port " +
             "--resource-group $ResourceGroup " +
             "--nsg-name NSG1 " +
@@ -183,6 +188,21 @@ function Set-NetworkRules {
         $networkRuleResponse = Invoke-Expression $command
         Write-Output $networkRuleResponse
 
+=======
+
+        $networkRuleResponse = az network nsg rule create --name Network_Port_Rule_$port `
+            --resource-group $ResourceGroup `
+            --nsg-name NSG1 `
+            --priority $priority `
+            --direction Inbound `
+            --access Allow `
+            --protocol $protocol `
+            --source-address-prefixes $AllowedSourcesList `
+            --destination-address-prefixes '*' `
+            --destination-port-ranges $port `
+            --description "Allow inbound from $sources on $port via $protocol connections."
+        Write-Output $networkRuleResponse
+>>>>>>> origin/release-1.4.0
     }
 }
 
@@ -432,7 +452,11 @@ if (-Not $LinuxOnly){
     Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName. -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00 -AsJob
 }
 `$job = Start-Job -ScriptBlock `$scriptBlock
+<<<<<<< HEAD
 `$timeout = 120 
+=======
+`$timeout = 90
+>>>>>>> origin/release-1.4.0
 if (Wait-Job -Job `$job -Timeout `$timeout) {
     Receive-Job -Job `$job
     Write-Host 'The script completed within the timeout period.'
@@ -457,6 +481,10 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --scripts "Set-Content -Path 'C:\AddDnsRecord.ps1' -Value ([System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$encodedScript')))"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$createDnsScriptResponse")
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/release-1.4.0
     Write-Output "`nRunning script to add DNS entry for Linux server. It could time out or not. Check output of the next command..."
     $addDnsRecordResponse = az vm run-command invoke `
         --command-id RunPowerShellScript `
@@ -465,6 +493,7 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --scripts "C:\AddDnsRecord.ps1"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$addDnsRecordResponse")
 
+<<<<<<< HEAD
     Write-Output "`nAdding ls1 to hosts file..."
     $writeToHostsFileResponse = az vm run-command invoke `
     --command-id RunPowerShellScript `
@@ -473,6 +502,8 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
     --scripts "Add-Content -Path 'C:\windows\system32\drivers\etc\hosts' -Value '$LsIP ls1.$DomainName ls1'"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$writeToHostsFileResponse")
 
+=======
+>>>>>>> origin/release-1.4.0
     Write-Host "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."
     $resolveLs1Response = az vm run-command invoke `
         --command-id RunPowerShellScript `

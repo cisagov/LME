@@ -26,5 +26,8 @@ lme_update.sh
 /testing/*.output.log
 /testing/tests/report.html
 testing/tests/assets/style.css
+<<<<<<< HEAD
 .history/
 **/get-docker.sh
+=======
+>>>>>>> origin/release-1.4.0

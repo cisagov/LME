@@ -39,11 +39,16 @@ send "ls1.lme.local\r"
 
 sleep 1
 
+<<<<<<< HEAD
 expect -re {.*ntinue with self signed certificates.*: y}
+=======
+expect -re {continue with self signed certificates.*: y}
+>>>>>>> origin/release-1.4.0
 sleep 1
 send "\r"
 sleep 1
 
+<<<<<<< HEAD
 expect -re {.*ip Docker Install\? \(\[y\]es/\[n\]o\): n}
 sleep 1
 send "\r"
@@ -73,6 +78,12 @@ expect {
         exp_continue
     }
 }
+=======
+expect -re {Skip Docker Install\? \(\[y\]es/\[n\]o\): n}
+sleep 1
+send "\r"
+set timeout 600
+>>>>>>> origin/release-1.4.0
 
 expect eof
 

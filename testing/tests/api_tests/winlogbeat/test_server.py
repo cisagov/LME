@@ -28,7 +28,10 @@ def suppress_insecure_request_warning():
     warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
+<<<<<<< HEAD
 @pytest.mark.skip(reason="This test is too fragile and the data is not stable")
+=======
+>>>>>>> origin/release-1.4.0
 def test_elastic_mapping(es_host, es_port, username, password):
     # This test currently works for full installation. For Partial installation (only Ls1), the static mappings file will need to be changed.
     url = f"https://{es_host}:{es_port}/winlogbeat-000001/_mapping"
@@ -41,11 +44,19 @@ def test_elastic_mapping(es_host, es_port, username, password):
     )
 
     # Dumping Actual Response Json into file for comparison if test fails.
+<<<<<<< HEAD
     json.dump(
         response_data,
         open(f"{current_script_dir}/test_data/mapping_response_actual.json", "w"),
         indent=4,
     )
+=======
+    # json.dump(
+    #     response_data,
+    #     open(f"{current_script_dir}/test_data/mapping_response_actual.json", "w"),
+    #     indent=4,
+    # )
+>>>>>>> origin/release-1.4.0
 
     assert static_mapping == response_data, "Mappings Json did not match Expected"
 

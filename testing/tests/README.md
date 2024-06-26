@@ -1,4 +1,5 @@
 # Docker and VSCode Setup
+<<<<<<< HEAD
 ### Table of Contents
 
 1. [Introduction](#introduction)
@@ -14,6 +15,8 @@
 7. [Running the Tests from the Command Line](#running-the-tests-from-the-command-line)
 8. [Generating Test HTML Reports](#generating-test-html-reports)
 
+=======
+>>>>>>> origin/release-1.4.0
 
 ## Introduction
 This environment is set up to run on a computer with Docker installed and on Visual Studio Code (VSCode).
@@ -21,6 +24,7 @@ This environment is set up to run on a computer with Docker installed and on Vis
 ## Dev Containers 
 On your host machine, you will want to install the Dev Containers extension in VSCode. With Docker installed on your host machine, you should be able to reopen this repository in a container and select different environment options. To open the repository in a container, press the blue connect button at the far bottom left of the VSCode window. This will prompt you with options to open in the different environments.
 
+<<<<<<< HEAD
 ## Building the docker containers to use your local username
 The docker-compose file in the development contianer is set to use the `.env` file in the `/testing/development` folder. 
 
@@ -60,6 +64,8 @@ docker compose build --no-cache
 You can follow the rest of the directions on this page and just make sure that when you get into the container, open a new bash shell and do a `ls -la` the files should be owned by `admin.ackbar`
 
 
+=======
+>>>>>>> origin/release-1.4.0
 ### Options
 - **Python Development Option**: This option is for development of the entire codebase and
 is not set up for debugging and running tests easily. If you want to run tests and debug 
@@ -74,11 +80,18 @@ Using Docker helps to avoid polluting your host environment with multiple versio
 When you select the Python Tests option to run your container in, there are already
 config files for running tests in VSCode so you won't have to set this part up. 
 
+<<<<<<< HEAD
 If you want to run tests within the 
 Python Development environment option, you will have to make a `.vscode/launch.json` in the root 
 of your environment. This folder isn't checked into the repo so it has to be manually
 created. 
 The easy way to create this file is to click on the play button (triangle) with the little bug on it in your 
+=======
+If you want to run tests within the Python Development environment option, you will have to make a `.vscode/launch.json` in the root 
+of your environment. This folder isn't checked into the repo so it has to be manually created. 
+
+To create this file, click on the play button (triangle) with the little bug on it in your 
+>>>>>>> origin/release-1.4.0
 VSCode activity bar. There will be a link there to "create a launch.json file". Click on that link and select 
 "Python Debugger"->"Python File". This will create a file and open it. Replace its contents with the below 
 code to run the `api_tests` in `testing/tests/api_tests`.
@@ -88,6 +101,7 @@ After that, the Run and Debug interface will change and have a green arrow in it
 {
     "version": "0.2.0",
     "configurations": [
+<<<<<<< HEAD
       {
         "name": "Python Debugger: Run API Tests",
         "type": "debugpy",
@@ -129,6 +143,22 @@ After that, the Run and Debug interface will change and have a green arrow in it
       }
     ]
   }
+=======
+        {
+            "name": "Python Debugger: Run Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "${workspaceFolder}/testing/tests/api_tests" // Path to your tests
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false, // Set this to false to allow debugging into external libraries
+            "cwd": "${workspaceFolder}/testing/tests/" // Set the working directory
+        }
+    ]
+}
+>>>>>>> origin/release-1.4.0
 ```
 If you want to get the test explorer (beaker icon) to be able to find your tests, you can add
 this to your `.vscode/settings.json`, so it knows to look in the `/testing/tests` folder. 
@@ -153,15 +183,23 @@ container, it may take a little time for VSCode to install the necessary extensi
 variables before running tests.
 
 ## Python Virtual Environment Setup
+<<<<<<< HEAD
 In order for VSCode to use the python modules for the tests, you will want to install a
 python virtual environment for it to use. You can make a python virtual environment
+=======
+In order for VSCode to use the python modules for the tests, you will have to install a
+python virtual environment. You can make a python virtual environment
+>>>>>>> origin/release-1.4.0
 folder that is available for both of the development containers by making it in the 
 `testing/tests` folder. Then you can have only one copy of the environment for both 
 container options. 
 You can do this by opening a new terminal in VSCode, within the `testing/tests` 
 directory, and running:
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/release-1.4.0
 `python3 -m venv venv`
 
 This will make a virtual environment for python to install its modules into. 
@@ -214,6 +252,7 @@ chown 1000.1000 report.html
 ```
 
 When a test fails, the test result details on the report provide appropriate information on the error message as you would expect to see on console. 
+<<<<<<< HEAD
 
 
 ## Development and Docker
@@ -263,3 +302,5 @@ docker compose exec -T lme bash -c "./testing/development/build_docker_lme_insta
 
 Once you do that, you can now reach that install from within your dev containers by using the hostname `lme`. 
 
+=======
+>>>>>>> origin/release-1.4.0
