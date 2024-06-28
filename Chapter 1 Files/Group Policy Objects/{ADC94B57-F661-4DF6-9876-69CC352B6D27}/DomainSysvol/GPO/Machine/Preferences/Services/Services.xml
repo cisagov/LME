@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<NTServices clsid="{2CFB484A-4E96-4b5d-A0B6-093D2F91E6AE}"><NTService clsid="{AB6F0B67-341F-4e51-92F9-005FBFBA1A43}" name="Wecsvc" image="2" changed="2018-12-04 16:53:57" uid="{EABCB6BD-E7C0-4631-A2AB-501A06EDF628}"><Properties startupType="AUTOMATIC" serviceName="Wecsvc" serviceAction="START" timeout="30"/></NTService>
+</NTServices>
