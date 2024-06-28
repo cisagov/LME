@@ -13,6 +13,15 @@ user=$1
 hostname=$2
 password_file=$3
 
+# Store the original working directory
+ORIGINAL_DIR="$(pwd)"
+
+# Get the directory of the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Change to the parent directory of the script
+cd "$SCRIPT_DIR/.."
+
 # Copy the SSH key to the remote machine
 ./minimega/copy_ssh_key.sh $user $hostname $password_file
 
@@ -20,7 +29,7 @@ password_file=$3
 scp -r ./minimega $user@$hostname:/home/$user
 
 # Run the update_packages.sh script on the remote machine this reboots the machine
-ssh $user@$hostname "cd /home/$user/minimega && sudo ./update_packages.sh" 
+ssh $user@$hostname "cd /home/$user/minimega && sudo ./update_packages.sh"
 
 # Reboot the server to apply the changes
 ssh $user@$hostname "sudo shutdown -r now" || true
@@ -43,13 +52,13 @@ done
 echo "Necessary services are running."
 
 # Fix the DNS settings
-ssh $user@$hostname "cd /home/$user/minimega && sudo ./fix_dnsmasq.sh" 
+ssh $user@$hostname "cd /home/$user/minimega && sudo ./fix_dnsmasq.sh"
 
 # Set the GOPATH
-ssh $user@$hostname "cd /home/$user/minimega && sudo ./set_gopath.sh '$user'" 
+ssh $user@$hostname "cd /home/$user/minimega && sudo ./set_gopath.sh '$user'"
 
 # Install minimega
-ssh $user@$hostname "wget https://github.com/sandia-minimega/minimega/releases/download/2.9/minimega-2.9.deb && sudo apt install ./minimega-2.9.deb" 
+ssh $user@$hostname "wget https://github.com/sandia-minimega/minimega/releases/download/2.9/minimega-2.9.deb && sudo apt install ./minimega-2.9.deb"
 
 # Set up the minimega service and start it
 ssh $user@$hostname "cd /home/$user/minimega && sudo cp minimega.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable minimega && sudo systemctl start minimega"
@@ -57,4 +66,12 @@ ssh $user@$hostname "cd /home/$user/minimega && sudo cp minimega.service /etc/sy
 # Set up the miniweb service and start it
 ssh $user@$hostname "cd /home/$user/minimega && sudo cp miniweb.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable miniweb && sudo systemctl start miniweb"
 
-echo "export PATH=$PATH:/opt/minimega/bin/" >> /root/.bashrc
+# Set the path for minimega
+ssh $user@$hostname "echo 'export PATH=\$PATH:/opt/minimega/bin/' | sudo tee -a /root/.bashrc"
+ssh $user@$hostname "echo 'export PATH=\$PATH:/opt/minimega/bin/' >> /home/$user/.bashrc"
+
+# Create the bridge
+ssh $user@$hostname "cd /home/$user/minimega && sudo ./create_bridge.sh"
+
+# Change back to the original directory
+cd "$ORIGINAL_DIR"

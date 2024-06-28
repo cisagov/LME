@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import re
 import string
 import random
 from azure.identity import DefaultAzureCredential
@@ -12,6 +11,7 @@ from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource.subscriptions import SubscriptionClient
 from datetime import datetime
+from pathlib import Path
 
 
 def generate_password(length=12):
@@ -174,6 +174,14 @@ def set_auto_shutdown(devtestlabs_client, subscription_id, resource_group_name, 
     )
     print(f"Auto-Shutdown Rule for {vm_name} created successfully.")
 
+def save_to_parent_directory(filename, content):
+    script_dir = Path(__file__).resolve().parent
+    parent_dir = script_dir.parent
+    file_path = parent_dir / filename
+    with open(file_path, "w") as file:
+        file.write(content)
+    print(f"File saved: {file_path}")
+
 # All arguments are keyword arguments
 def main(
     *,
@@ -300,18 +308,24 @@ def main(
     vm_password = generate_password()
 
     print(f"\nWriting {vm_admin} password to {resource_group.name}.password.txt")
-    with open(f"{resource_group.name}.password.txt", "w") as file:
-        file.write(vm_password)
+    save_to_parent_directory(f"{resource_group.name}.password.txt", vm_password)
 
     subnet_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group.name}/providers/Microsoft.Network/virtualNetworks/{vnet_name}/subnets/{subnet_name}"
 
     public_ip = create_public_ip(network_client, resource_group, location, machine_name)
+
+    print(f"\nWriting public_ip to {resource_group.name}.ip.txt")
+    save_to_parent_directory(f"{resource_group.name}.ip.txt", public_ip.ip_address)
+
     nic = create_network_interface(network_client, resource_group, location, machine_name, subnet_id, ls_ip, public_ip)
 
     print(f"\nCreating {machine_name}...")
     ls1_params = {
         "location": location,
         "hardware_profile": {"vm_size": vm_size},
+        "additional_capabilities": {
+            "nested_virtualization_enabled": True
+        },
         "storage_profile": {
             "image_reference": {
                 "publisher": image_publisher,
@@ -433,22 +447,22 @@ if __name__ == "__main__":
         "--ports",
         type=int,
         nargs="+",
-        default=[22],
-        help="Ports to open. Default: [22]",
+        default=[22, 9001],
+        help="Ports to open. Default: [22, 9001]",
     )
     parser.add_argument(
         "-pr",
         "--priorities",
         type=int,
         nargs="+",
-        default=[1001],
+        default=[1001,1002],
         help="Priorities for the ports. Default: [1001]",
     )
     parser.add_argument(
         "-pt",
         "--protocols",
         nargs="+",
-        default=["Tcp"],
+        default=["Tcp", "Tcp"],
         help="Protocols for the ports. Default: ['Tcp']",
     )
     parser.add_argument(

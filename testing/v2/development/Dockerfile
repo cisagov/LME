@@ -36,7 +36,9 @@ RUN apt-get update && apt-get install -y \
     && sudo apt-get install -f \
     && apt-get clean
 
-
+# Install Ansible
+RUN python3 -m pip install --upgrade pip \
+    && python3 -m pip install ansible
 
 # Create a user and group 'admin.ackbar' with GID 1001
 RUN groupadd -g $GROUP_ID admin.ackbar \
