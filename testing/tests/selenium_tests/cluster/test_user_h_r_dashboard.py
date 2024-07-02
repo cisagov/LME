@@ -23,20 +23,19 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Users", ".echChart",".xyChart__empty")
 
-    @pytest.mark.skip(reason="Skipping this test")
+    #@pytest.mark.skip(reason="Skipping this test")
     def test_inperson_vs_remote_logons(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "In person vs Remote logons", ".needarealvaluehere",".euiText")
-        #This dashboard panel needs test data. Currently the panel only gives No Result found
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "In person vs Remote logons", ".echChart",".euiText")
 
     def test_user_logoff_events(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User logoff events (correlate to logon events)", ".euiDataGrid",".euiDataGrid__noResults")
 
-    @pytest.mark.skip(reason="Skipping this test")
+    #@pytest.mark.skip(reason="Skipping this test")
     def test_user_logon_events(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User logon events (filter by LogonId)", ".needarealvaluehere",".euiText")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User logon events (filter by LogonId)", ".euiDataGrid",".euiDataGrid__noResults")
 
     def test_select_domain_and_username(self, setup_login, kibana_url, timeout):
         driver = setup_login
