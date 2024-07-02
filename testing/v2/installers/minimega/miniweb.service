@@ -1,0 +1,11 @@
+[Unit]
+Description=minimega
+After=network.target
+
+[Service]
+ExecStart=/opt/minimega/bin/miniweb -level debug -logfile /var/log/miniweb.log -root /opt/minimega/web/web/ 
+Restart=always
+WorkingDirectory=/opt/minimega
+
+[Install]
+WantedBy=multi-user.target
