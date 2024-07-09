@@ -16,6 +16,7 @@ When reporting an issue or suggesting improvements, please include the versions 
 * Winlogbeat.exe version: Using PowerShell, navigate to the location of the Winlogbeat executable ("C:\Program Files\lme\winlogbeat-x.x.x-windows-x86_64") and run `.\winlogbeat version`.
 * Sysmon config: From either the top of the file or look at the status dashboard
 * Sysmon executable: Either run sysmon.exe or look at the status dashboard
+* Group Policies: Open Group Policy Management, click on LME-WEC-Client, and check Advanced Audit Configuration under the Settings tabs in the right panel
 
 ### 1.2. Linux Server
 * Docker: on the Linux server type ```docker --version```
@@ -28,7 +29,6 @@ LME does not support upgrading directly from versions prior to v0.5 to v1.0. Pri
 
 
 ## 3. Upgrade from v0.5 to v1.0.0
-
 Since LME's transition from the NCSC U.K. to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository, because vital configuration files are stored within the same folder as the git repo. It's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
 
 
@@ -110,9 +110,7 @@ LME v1.0 made a minor change to the file structure used in the SYSVOL folder, so
 4. Are the events from all clients visible inside elastic? Refer to [4.1.2 Check you are receiving logs](/docs/markdown/chapter4.md#412-check-you-are-receiving-logs).
 
 ## 4. Upgrade to v1.3.1 
-
 This is a hotfix to the install script and some additional troubleshooting steps added to documentation on space management. Unless you're encountering problems with your current installation, or if your logs are running out of space, there's no need to upgrade to v1.3.1, as it doesn't offer any additional functionality changes.
-
 ## 5. Upgrade to v1.3.2 
 
 This is a hotfix to address dashboards which failed to load on a fresh install of v1.3.1. If you are currently running v1.3.0, you do not need to upgrade at this time.  If you are running versions **before** 1.3.0 or are running v1.3.1, we recommend you upgrade to the latest version.
@@ -120,7 +118,6 @@ This is a hotfix to address dashboards which failed to load on a fresh install o
 Please refer to the [Upgrading to latest version](/docs/markdown/maintenance/upgrading.md#upgrading-to-latest-version) to apply the hotfix.
 
 ## 6. v1.3.3 - Update on data retention failure during LME install 
-
 This is a hotfix to address an error with data retention failure in the deploy.sh script during a fresh LME install. We recommend you upgrade to the latest version if you require disk sizes of 1TB or greater. 
 
 If you've tried to install LME before, then run the following commands as root: 
@@ -146,3 +143,7 @@ sudo ./deploy.sh install
 
 The deploy.sh script should have now created new files on the Linux server at location /opt/lme/files_for_windows.zip . This file needs to be copied across and used on the Windows Event Collector server like it was explained in Chapter 3 sections [3.2.4 & 3.3 ](/docs/markdown/chapter3/chapter3.md#324-download-files-for-windows-event-collector). 
 
+## 8. v1.4.0 - Upgrading Group Policy Objects
+1. On the domain controller, open Group Policy Management, and delete "LME-WEC-Client" and "LME-WEC-Server". 
+2. Follow Chapter 1 instructions 1.3 and 1.4 to re-download LME, create the GPOs, import the v1.4.0 GPOs, and link them to your OU. Note: You will not need to create a new OU. You may reuse the OU used in prior installation. (https://github.com/cisagov/LME/blob/main/docs/markdown/chapter1/chapter1.md#13-download-lme)
+3. Right click on the OU the v1.4.0 GPOs are linked to and click "Group Policy Update"
