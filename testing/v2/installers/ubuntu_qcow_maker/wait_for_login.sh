@@ -44,7 +44,7 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
             echo "Successfully connected to VM at $IP."
 	    echo "Sleeping to wait for config to finish"
 	    sleep 60
-            ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" "${SSH_USER}@${IP}" "sudo shutdown -h now"
+            ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" "${SSH_USER}@${IP}" "echo 'Builder VM is ready'"
             exit 0
         else
             echo "Failed to establish SSH connection."

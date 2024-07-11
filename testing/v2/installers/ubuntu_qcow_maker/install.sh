@@ -49,7 +49,7 @@ ssh $user@$hostname "cd /home/$user/ubuntu_qcow_maker && sudo ./setup_dnsmasq.sh
 ssh $user@$hostname "cd /home/$user/ubuntu_qcow_maker && sudo ./iptables.sh"
 
 # Create the VM on the remote machine
-ssh $user@$hostname "cd /home/$user/ubuntu_qcow_maker && sudo ./launch_multiple_vms.sh 2"
+ssh $user@$hostname "cd /home/$user/ubuntu_qcow_maker && sudo ./launch_multiple_vms.sh"
 
 # Change back to the original directory
 cd "$ORIGINAL_DIR"

@@ -29,7 +29,8 @@ def generate_password(length=12):
 
     # Generate the remaining characters
     remaining_length = length - 4
-    remaining_chars = uppercase_letters + lowercase_letters + digits + special_chars
+    remaining_chars = uppercase_letters + lowercase_letters + digits \
+        + special_chars
     password.extend(random.choices(remaining_chars, k=remaining_length))
 
     # Shuffle the password characters randomly
@@ -60,7 +61,8 @@ def create_clients(subscription_id):
     network_client = NetworkManagementClient(credential, subscription_id)
     compute_client = ComputeManagementClient(credential, subscription_id)
     devtestlabs_client = DevTestLabsClient(credential, subscription_id)
-    return resource_client, network_client, compute_client, devtestlabs_client, subscription_id
+    return (resource_client, network_client, compute_client,
+            devtestlabs_client, subscription_id)
 
 
 def check_ports_protocals_and_priorities(ports, priorities, protocols):
@@ -110,6 +112,7 @@ def set_network_rules(
         nsg_rule = nsg_rule_poller.result()
         print(f"Network rule '{nsg_rule.name}' created successfully.")
 
+
 def create_public_ip(network_client, resource_group, location, machine_name):
     print(f"\nCreating public IP address for {machine_name}...")
     unique_dns_name = f"{machine_name}-{random.randint(1000, 9999)}"
@@ -120,14 +123,26 @@ def create_public_ip(network_client, resource_group, location, machine_name):
             "domain_name_label": unique_dns_name
         }
     }
-    public_ip_poller = network_client.public_ip_addresses.begin_create_or_update(
-        resource_group.name, f"{machine_name}-public-ip", public_ip_params
+    public_ip_poller = (
+        network_client.public_ip_addresses
+        .begin_create_or_update(
+            resource_group.name,
+            f"{machine_name}-public-ip",
+            public_ip_params
+        )
     )
     public_ip = public_ip_poller.result()
-    print(f"Public IP address '{public_ip.name}' with ip {public_ip.ip_address} created successfully.")
+    print(
+            f"Public IP address '{public_ip.name}' with "
+            f" ip {public_ip.ip_address} created successfully."
+    )
     return public_ip
 
-def create_network_interface(network_client, resource_group, location, machine_name, subnet_id, private_ip_address, public_ip):
+
+def create_network_interface(
+        network_client, resource_group, location, machine_name,
+        subnet_id, private_ip_address, public_ip
+        ):
     print(f"\nCreating network interface for {machine_name}...")
     nic_params = {
         "location": location,
@@ -150,8 +165,14 @@ def create_network_interface(network_client, resource_group, location, machine_n
     print(f"Network interface '{nic.name}' created successfully.")
     return nic
 
-def set_auto_shutdown(devtestlabs_client, subscription_id, resource_group_name, location, vm_name, auto_shutdown_time, auto_shutdown_email):
-    print(f"\nCreating Auto-Shutdown Rule for {vm_name} at time {auto_shutdown_time}...")
+
+def set_auto_shutdown(
+        devtestlabs_client, subscription_id, resource_group_name, location,
+        vm_name, auto_shutdown_time, auto_shutdown_email
+        ):
+    print(
+            f"\nCreating Auto-Shutdown Rule for {vm_name} "
+            f"at time {auto_shutdown_time}...")
     schedule_name = f"shutdown-computevm-{vm_name}"
 
     schedule_params = Schedule(
@@ -165,7 +186,11 @@ def set_auto_shutdown(devtestlabs_client, subscription_id, resource_group_name, 
             "webhook_url": None,
             "email_recipient": auto_shutdown_email,
         },
-        target_resource_id=f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}/providers/Microsoft.Compute/virtualMachines/{vm_name}",
+        target_resource_id=(
+            f"/subscriptions/{subscription_id}/resourceGroups/"
+            f"{resource_group_name}/providers/Microsoft.Compute/"
+            f"virtualMachines/{vm_name}"
+            ),
         location=location,
     )
 
@@ -173,6 +198,7 @@ def set_auto_shutdown(devtestlabs_client, subscription_id, resource_group_name, 
         resource_group_name, schedule_name, schedule_params
     )
     print(f"Auto-Shutdown Rule for {vm_name} created successfully.")
+
 
 def save_to_parent_directory(filename, content):
     script_dir = Path(__file__).resolve().parent
@@ -182,6 +208,7 @@ def save_to_parent_directory(filename, content):
         file.write(content)
     print(f"File saved: {file_path}")
 
+
 # All arguments are keyword arguments
 def main(
     *,
@@ -189,7 +216,7 @@ def main(
     location: str,
     allowed_sources: str,
     no_prompt: bool,
-    subscription_id: str=None,
+    subscription_id: str = None,
     vnet_name: str,
     vnet_prefix: str,
     subnet_name: str,
@@ -209,8 +236,13 @@ def main(
     auto_shutdown_time: str = None,
     auto_shutdown_email: str = None,
 ):
-    resource_client, network_client, compute_client, devtestlabs_client, subscription_id = create_clients(subscription_id)
-
+    (
+        resource_client,
+        network_client,
+        compute_client,
+        devtestlabs_client,
+        subscription_id
+    ) = create_clients(subscription_id)
 
     # Variables used for Azure tags
     current_user = os.getenv("USER", "unknown")
@@ -221,7 +253,8 @@ def main(
     allowed_sources_list = allowed_sources.split(",")
     if len(allowed_sources_list) < 1:
         print(
-            "**ERROR**: Variable AllowedSources must be set (set with -AllowedSources or -s)"
+            "**ERROR**: Variable AllowedSources must "
+            "be set (set with -AllowedSources or -s)"
         )
         exit(1)
 
@@ -240,7 +273,6 @@ def main(
         if proceed.lower() == "n":
             print("Setup canceled")
             exit()
-
 
     # Setup resource group
     print("\nCreating resource group...")
@@ -307,17 +339,40 @@ def main(
     # Create the VM
     vm_password = generate_password()
 
-    print(f"\nWriting {vm_admin} password to {resource_group.name}.password.txt")
-    save_to_parent_directory(f"{resource_group.name}.password.txt", vm_password)
+    print(
+        f"\nWriting {vm_admin} password to {resource_group.name}.password.txt"
+    )
+    save_to_parent_directory(
+            f"{resource_group.name}.password.txt", vm_password
+    )
 
-    subnet_id = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group.name}/providers/Microsoft.Network/virtualNetworks/{vnet_name}/subnets/{subnet_name}"
+    subnet_id = (
+            f"/subscriptions/{subscription_id}/"
+            f"resourceGroups/{resource_group.name}/"
+            f"providers/Microsoft.Network/"
+            f"virtualNetworks/{vnet_name}/"
+            f"subnets/{subnet_name}"
+            )
 
-    public_ip = create_public_ip(network_client, resource_group, location, machine_name)
+    public_ip = create_public_ip(
+            network_client, resource_group, location, machine_name
+            )
 
     print(f"\nWriting public_ip to {resource_group.name}.ip.txt")
-    save_to_parent_directory(f"{resource_group.name}.ip.txt", public_ip.ip_address)
+    save_to_parent_directory(
+            f"{resource_group.name}.ip.txt",
+            public_ip.ip_address
+        )
 
-    nic = create_network_interface(network_client, resource_group, location, machine_name, subnet_id, ls_ip, public_ip)
+    nic = create_network_interface(
+                network_client,
+                resource_group,
+                location,
+                machine_name,
+                subnet_id,
+                ls_ip,
+                public_ip
+            )
 
     print(f"\nCreating {machine_name}...")
     ls1_params = {
@@ -366,9 +421,17 @@ def main(
 
     # Configure Auto-Shutdown
     if auto_shutdown_time:
-        set_auto_shutdown(devtestlabs_client, subscription_id, resource_group.name, location, machine_name, auto_shutdown_time, auto_shutdown_email)
+        set_auto_shutdown(
+            devtestlabs_client,
+            subscription_id,
+            resource_group.name,
+            location,
+            machine_name,
+            auto_shutdown_time,
+            auto_shutdown_email
+        )
 
-    print(f"\nVM login info:")
+    print("\nVM login info:")
     print(f"ResourceGroup: {resource_group.name}")
     print(f"PublicIP: {public_ip.ip_address}")
     print(f"Username: {vm_admin}")
@@ -393,7 +456,8 @@ if __name__ == "__main__":
         "-s",
         "--allowed-sources",
         required=True,
-        help="XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc... Comma-separated list of CIDR prefixes or IP ranges",
+        help="XX.XX.XX.XX/YY,XX.XX.XX.XX/YY,etc... Comma-separated "
+             "list of CIDR prefixes or IP ranges",
     )
     parser.add_argument(
         "-y",
@@ -404,7 +468,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-sid",
         "--subscription-id",
-        help="Azure subscription ID. If not provided, the default subscription ID will be used.",
+        help="Azure subscription ID. If not provided, "
+             "the default subscription ID will be used.",
     )
     parser.add_argument(
         "-vn",
@@ -419,7 +484,9 @@ if __name__ == "__main__":
         help="Virtual network prefix. Default: 10.1.0.0/16",
     )
     parser.add_argument(
-        "-sn", "--subnet-name", default="SNet1", help="Subnet name. Default: SNet1"
+        "-sn", "--subnet-name",
+        default="SNet1",
+        help="Subnet name. Default: SNet1"
     )
     parser.add_argument(
         "-sp",
@@ -440,7 +507,9 @@ if __name__ == "__main__":
         help="Admin username for the VM. Default: lme-user",
     )
     parser.add_argument(
-        "-m", "--machine-name", default="ubuntu", help="Name of the VM. Default: ubuntu"
+        "-m", "--machine-name",
+        default="ubuntu",
+        help="Name of the VM. Default: ubuntu"
     )
     parser.add_argument(
         "-p",
@@ -455,7 +524,7 @@ if __name__ == "__main__":
         "--priorities",
         type=int,
         nargs="+",
-        default=[1001,1002],
+        default=[1001, 1002],
         help="Priorities for the ports. Default: [1001]",
     )
     parser.add_argument(
@@ -471,7 +540,7 @@ if __name__ == "__main__":
         default="Standard_E2d_v4",
         help="Size of the virtual machine. Default: Standard_E2d_v4",
         # Standard_D8_v4 for testing minimega and a linux install of LME
-        # Standard_D16d_v4 is the smallest VM size that we can get away 
+        # Standard_D16d_v4 is the smallest VM size that we can get away
         #  with for minimega to include all the machines
     )
     parser.add_argument(
@@ -492,6 +561,7 @@ if __name__ == "__main__":
         default="22_04-lts-gen2",
         help="SKU of the VM image. Default: 22_04-lts-gen2",
     )
+    #  ubuntu-24_04-lts
     parser.add_argument(
         "-iv",
         "--image-version",
@@ -508,7 +578,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-ast",
         "--auto-shutdown-time",
-        help="Auto-Shutdown time in UTC (HH:MM, e.g. 22:30, 00:00, 19:00). Convert timezone as necessary.",
+        help="Auto-Shutdown time in UTC (HH:MM, e.g. 22:30, 00:00, 19:00). "
+             "Convert timezone as necessary.",
     )
     parser.add_argument(
         "-ase",
@@ -517,7 +588,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    check_ports_protocals_and_priorities(args.ports, args.priorities, args.protocols)
+    check_ports_protocals_and_priorities(
+            args.ports, args.priorities, args.protocols
+        )
 
     main(
         resource_group=args.resource_group,

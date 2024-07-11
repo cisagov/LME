@@ -21,8 +21,8 @@ fi
 # Set default values
 VM_NAME="ubuntu-runner"
 IMG_NAME="jammy-server-cloudimg-amd64.img"
-MEMORY="2048"
-CPUS="2"
+MEMORY="6144"
+CPUS="4"
 QMP_TIMEOUT="30s"
 
 # Parse command line arguments

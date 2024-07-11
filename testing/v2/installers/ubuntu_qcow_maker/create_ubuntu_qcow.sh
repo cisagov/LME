@@ -17,6 +17,11 @@ export MEMORY="2048"        # Memory size in MB, adjust as needed
 export CPUS="2"             # Number of CPUs, adjust as needed
 export QMP_TIMEOUT="30s"     # QMP timeout in seconds, adjust as needed
 
+get_vm_ip() {
+    #minimega -e .json true .filter name="$VM_NAME" vm info | jq -r '.[].Data[].Networks[].IP4'
+    /opt/minimega/bin/minimega -e .json true vm info | jq -r ".[] | select(.Data[].Name == \"$VM_NAME\") | .Data[].Networks[].IP4"
+}
+
 # Path for the SSH keys
 SSH_KEY_PATH="$HOME/.ssh/id_rsa"
 # Check if SSH key already exists
@@ -31,6 +36,9 @@ if [ ! -f "$IMG_NAME" ]; then
     wget -q $IMG_URL -O $IMG_NAME
     echo "Image downloaded"
 fi
+
+# Resize the downloaded image
+./resize_qcow.sh
 
 # Install cloud-init package if not already installed
 if ! command -v cloud-localds &> /dev/null; then
@@ -114,6 +122,19 @@ fi
 
 # Wait until the machine is configured and then shut it down
 ./wait_for_login.sh
+
+# Get the ip of the machine
+IP=$(get_vm_ip)
+echo $IP
+
+# Copy the script to resize the volume
+scp  -o StrictHostKeyChecking=no resize_fs.sh resize_fs.sh vmuser@$IP:~
+
+# Resize the volume
+ssh -o StrictHostKeyChecking=no vmuser@$IP "sudo /home/vmuser/resize_fs.sh"
+
+# Check the size 
+ssh -o StrictHostKeyChecking=no vmuser@$IP "df -h"
 
 # Clear the mm config for the builder
 /opt/minimega/bin/minimega -e "namespace builder vm kill $VM_NAME"
