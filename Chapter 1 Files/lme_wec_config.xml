@@ -256,6 +256,574 @@
     <!-- A user account was changed--> 
     <Select Path="Security">*[System[(EventID=4738)]]</Select>
   </Query>
+  <Query ID="100" Path="?">
+    <!-- A privilege service was called. -->
+    <Select Path="?">[System[(EventID=4673)]]</Select>
+  </Query>
+  <Query ID="101" Path="?">
+    <!-- An operation was attempted on a privileged object.-->
+    <Select Path="?">[System[(EventID=4674)]]</Select>
+  </Query>
+  <Query ID="102" Path="?">
+    <!-- The state of a transaction has changed -->
+    <Select Path="?">[System[(EventID=4985)]]</Select>
+  </Query>
+  <Query ID="104" Path="?">
+    <!-- New process has been created -->
+    <Select Path="?">[System[(EventID=4688)]]</Select>
+  </Query>
+  <Query ID="105" Path="?">
+    <!-- A process has exited -->
+    <Select Path="?">[System[(EventID=4689)]]</Select>
+  </Query>
+  <Query ID="106" Path="?">
+    <!-- A primary token was assigned to process -->
+    <Select Path="?">[System[(EventID=4696)]]</Select>
+  </Query>
+  <Query ID="107" Path="?">
+    <!-- A remote procedure call was attempted -->
+    <Select Path="?">[System[(EventID=5712)]]</Select>
+  </Query>
+  <Query ID="108" Path="?">
+    <!-- A remote procedure call was attempted -->
+    <Select Path="?">[System[(EventID=5712)]]</Select>
+  </Query>
+  <Query ID="109" Path="?">
+    <!-- The computer attempted to validate the credentials for an account -->
+    <Select Path="?">[System[(EventID=4776)]]</Select>
+  </Query>
+  <Query ID="110" Path="?">
+    <!-- An account was mapped for logon -->
+    <Select Path="?">[System[(EventID=4774)]]</Select>
+  </Query>
+  <Query ID="111" Path="?">
+    <!-- The domain controller failed to validate the credentials for an account -->
+    <Select Path="?">[System[(EventID=4777)]]</Select>
+  </Query>
+  <Query ID="112" Path="?">
+    <!-- An account could not be mapped for logon -->
+    <Select Path="?">[System[(EventID=4775)]]</Select>
+  </Query>
+  <Query ID="113" Path="?">
+    <!-- A Kerberos authentication ticket (TGT) was requested -->
+    <Select Path="?">[System[(EventID=4768)]]</Select>
+  </Query>
+  <Query ID="114" Path="?">
+    <!-- Kerberos pre-authentication failed -->
+    <Select Path="?">[System[(EventID=4771)]]</Select>
+  </Query>
+  <Query ID="115" Path="?">
+    <!-- A kerberos authentication ticket request failed -->
+    <Select Path="?">[System[(EventID=4772)]]</Select>
+  </Query>
+  <Query ID="116" Path="?">
+    <!-- A kerberos service ticket was requested -->
+    <Select Path="?">[System[(EventID=4769)]]</Select>
+  </Query>
+  <Query ID="117" Path="?">
+    <!-- A kerberos service ticket was renewed -->
+    <Select Path="?">[System[(EventID=4770)]]</Select>
+  </Query>
+  <Query ID="118" Path="?">
+    <!-- A kerberos service ticket request failed. -->
+    <Select Path="?">[System[(EventID=4773)]]</Select>
+  </Query>
+  <Query ID="119" Path="?">
+    <!-- An account failed to log on -->
+    <Select Path="?">[System[(EventID=4625)]]</Select>
+  </Query>
+  <Query ID="120" Path="?">
+    <!-- User initiated logoff -->
+    <Select Path="?">[System[(EventID=4647)]]</Select>
+  </Query>
+  <Query ID="121" Path="?">
+    <!-- An account was logged off -->
+    <Select Path="?">[System[(EventID=4634)]]</Select>
+  </Query>
+  <Query ID="122" Path="?">
+    <!-- An account was successfully logged on -->
+    <Select Path="?">[System[(EventID=4624)]]</Select>
+  </Query>
+  <Query ID="123" Path="?">
+    <!-- An account failed to logon -->
+    <Select Path="?">[System[(EventID=4625)]]</Select>
+  </Query>
+  <Query ID="124" Path="?">
+    <!-- A logon was attempted using explicit credentials -->
+    <Select Path="?">[System[(EventID=4648)]]</Select>
+  </Query>
+  <Query ID="125" Path="?">
+    <!-- SIDs were filtered -->
+    <Select Path="?">[System[(EventID=4675)]]</Select>
+  </Query>
+  <Query ID="126" Path="?">
+    <!-- Network policy server discarded the accounting request for a user -->
+    <Select Path="?">[System[(EventID=6274)]]</Select>
+  </Query>
+  <Query ID="127" Path="?">
+    <!-- Network policy server discarded the account request for a user -->
+    <Select Path="?">[System[(EventID=6275)]]</Select>
+  </Query>
+  <Query ID="128" Path="?">
+    <!-- Network policy server quarantine a user -->
+    <Select Path="?">[System[(EventID=6276)]]</Select>
+  </Query>
+  <Query ID="129" Path="?">
+    <!-- Network policy server granted access to a user but put it on probation because the hose did not meet the defined health policy -->
+    <Select Path="?">[System[(EventID=6277)]]</Select>
+  </Query>
+  <Query ID="130" Path="?">
+    <!-- Network policy server granted full access to a user because the host met the defined health policy -->
+    <Select Path="?">[System[(EventID=6278)]]</Select>
+  </Query>
+  <Query ID="131" Path="?">
+    <!-- Network policy server locked the user account due to repeated failed authentication attempts -->
+    <Select Path="?">[System[(EventID=6279)]]</Select>
+  </Query>
+  <Query ID="132" Path="?">
+    <!-- Network Policy Server unlock the user account -->
+    <Select Path="?">[System[(EventID=6280)]]</Select>
+  </Query>
+  <Query ID="133" Path="?">
+    <!-- Special groups have been assigned to a new logon -->
+    <Select Path="?">[System[(EventID=4964)]]</Select>
+  </Query>
+  <Query ID="134" Path="?">
+    <!-- Special privileges assigned to new logon -->
+    <Select Path="?">[System[(EventID=4672)]]</Select>
+  </Query>
+  <Query ID="135" Path="?">
+    <!-- Group membership information -->
+    <Select Path="?">[System[(EventID=4627)]]</Select>
+  </Query>
+  <Query ID="136" Path="?">
+    <!-- A session was reconnected to window station -->
+    <Select Path="?">[System[(EventID=4778)]]</Select>
+  </Query>
+  <Query ID="137" Path="?">
+    <!-- A session was disconnected from a window station -->
+    <Select Path="?">[System[(EventID=4779)]]</Select>
+  </Query>
+  <Query ID="138" Path="?">
+    <!-- The workstation was unlocked -->
+    <Select Path="?">[System[(EventID=4800)]]</Select>
+  </Query>
+  <Query ID="139" Path="?">
+    <!-- The workstation was unlocked -->
+    <Select Path="?">[System[(EventID=4801)]]</Select>
+  </Query>
+  <Query ID="140" Path="?">
+    <!-- The screen saver was invoked -->
+    <Select Path="?">[System[(EventID=4802)]]</Select>
+  </Query>
+  <Query ID="141" Path="?">
+    <!-- The screen saver was dismissed -->
+    <Select Path="?">[System[(EventID=4803)]]</Select>
+  </Query>
+  <Query ID="142" Path="?">
+    <!-- The request credentials delegation was disallowed by policy -->
+    <Select Path="?">[System[(EventID=5378)]]</Select>
+  </Query>
+  <Query ID="143" Path="?">
+    <!-- A request was made to authenticate to a wireless network -->
+    <Select Path="?">[System[(EventID=5632)]]</Select>
+  </Query>
+  <Query ID="144" Path="?">
+    <!-- A request was made to authenticate to a wired network -->
+    <Select Path="?">[System[(EventID=5633)]]</Select>
+  </Query>
+  <Query ID="200" Path="?">
+    <!-- Creating an application group -->
+    <Select Path="?">[System[(EventID=4783)]]</Select>
+  </Query>
+  <Query ID="201" Path="?">
+    <!-- Changing an application group -->
+    <Select Path="?">[System[(EventID=4784)]]</Select>
+  </Query>
+  <Query ID="202" Path="?">
+    <!-- Creating an application group -->
+    <Select Path="?">[System[(EventID=4783)]]</Select>
+  </Query>
+  <Query ID="203" Path="?">
+    <!-- Deleting an application group -->
+    <Select Path="?">[System[(EventID=4789)]]</Select>
+  </Query>
+  <Query ID="204" Path="?">
+    <!-- Adding a member to an application group -->
+    <Select Path="?">[System[(EventID=4785)]]</Select>
+  </Query>
+  <Query ID="205" Path="?">
+    <!-- Removing a member from an application group -->
+    <Select Path="?">[System[(EventID=4786)]]</Select>
+  </Query>
+  <Query ID="206" Path="?">
+    <!-- Creating a computer account -->
+    <Select Path="?">[System[(EventID=4741)]]</Select>
+  </Query>
+  <Query ID="207" Path="?">
+    <!-- Changing a computer account -->
+    <Select Path="?">[System[(EventID=4742)]]</Select>
+  </Query>
+  <Query ID="208" Path="?">
+    <!-- Deleting a computer account -->
+    <Select Path="?">[System[(EventID=4743)]]</Select>
+  </Query>
+  <Query ID="209" Path="?">
+    <!-- Accessing the password hash of a user account (Typically happens during AD Management Tool password migration) -->
+    <Select Path="?">[System[(EventID=4782)]]</Select>
+  </Query>
+  <Query ID="210" Path="?">
+    <!-- Calling Password Policy Checking API -->
+    <Select Path="?">[System[(EventID=4703)]]</Select>
+  </Query>
+  <Query ID="211" Path="?">
+    <!-- User account created -->
+    <Select Path="?">[System[(EventID=4720)]]</Select>
+  </Query>
+  <Query ID="212" Path="?">
+    <!-- User account enabled -->
+    <Select Path="?">[System[(EventID=4722)]]</Select>
+  </Query>
+  <Query ID="213" Path="?">
+    <!-- User account disabled -->
+    <Select Path="?">[System[(EventID=4725)]]</Select>
+  </Query>
+  <Query ID="214" Path="?">
+    <!-- User account deleted -->
+    <Select Path="?">[System[(EventID=4726)]]</Select>
+  </Query>
+  <Query ID="215" Path="?">
+    <!-- User account changed -->
+    <Select Path="?">[System[(EventID=4738)]]</Select>
+  </Query>
+  <Query ID="216" Path="?">
+    <!-- User account locked out -->
+    <Select Path="?">[System[(EventID=4740)]]</Select>
+  </Query>
+  <Query ID="217" Path="?">
+    <!-- User account unlocked -->
+    <Select Path="?">[System[(EventID=4767)]]</Select>
+  </Query>
+  <Query ID="218" Path="?">
+    <!-- User account password is set or changed -->
+    <Select Path="?">[System[(EventID=4724)]]</Select>
+  </Query>
+  <Query ID="219" Path="?">
+    <!-- User account password is set or changed -->
+    <Select Path="?">[System[(EventID=4723)]]</Select>
+  </Query>
+  <Query ID="220" Path="?">
+    <!-- SID is added to the SID history of a user account -->
+    <Select Path="?">[System[(EventID=4765)]]</Select>
+  </Query>
+  <Query ID="221" Path="?">
+    <!-- SID was unable to be added to the SID history of a user account -->
+    <Select Path="?">[System[(EventID=4766)]]</Select>
+  </Query>
+  <Query ID="222" Path="?">
+    <!-- The directory services restore mode password is configured -->
+    <Select Path="?">[System[(EventID=4794)]]</Select>
+  </Query>
+  <Query ID="223" Path="?">
+    <!-- Credential Manager credentials are backed up or restored -->
+    <Select Path="?">[System[(EventID=5376)]]</Select>
+  </Query>
+  <Query ID="224" Path="?">
+    <!-- Credential Manager credentials are backed up or restored -->
+    <Select Path="?">[System[(EventID=5377)]]</Select>
+  </Query>
+  <Query ID="225" Path="?">
+    <!-- New certificate requests -->
+    <Select Path="?">[System[(EventID=4886)]]</Select>
+  </Query>
+  <Query ID="226" Path="?">
+    <!-- New certificate requests -->
+    <Select Path="?">[System[(EventID=4870)]]</Select>
+  </Query>
+  <Query ID="227" Path="?">
+    <!-- Issuing of a certificate -->
+    <Select Path="?">[System[(EventID=4887)]]</Select>
+  </Query>
+  <Query ID="228" Path="?">
+    <!-- Changes to the certificate manager settings for AD CS -->
+    <Select Path="?">[System[(EventID=4890)]]</Select>
+  </Query>
+  <Query ID="229" Path="?">
+    <!-- Importing of a certificate -->
+    <Select Path="?">[System[(EventID=4884)]]</Select>
+  </Query>
+  <Query ID="230" Path="?">
+    <!-- Publishing of a certification authority certificate is to ADDS -->
+    <Select Path="?">[System[(EventID=4895)]]</Select>
+  </Query>
+  <Query ID="231" Path="?">
+    <!-- Archival of a key -->
+    <Select Path="?">[System[(EventID=4893)]]</Select>
+  </Query>
+  <Query ID="232" Path="?">
+    <!-- Archival of a key -->
+    <Select Path="?">[System[(EventID=4894)]]</Select>
+  </Query>
+  <Query ID="233" Path="?">
+    <!-- Importing of a key -->
+    <Select Path="?">[System[(EventID=4894)]]</Select>
+  </Query>
+  <Query ID="234" Path="?">
+    <!-- Retrieval of a key -->
+    <Select Path="?">[System[(EventID=4883)]]</Select>
+  </Query>
+  <Query ID="235" Path="?">
+    <!-- Access files on shared folders and files -->
+    <Select Path="?">[System[(EventID=5140)]]</Select>
+  </Query>
+  <Query ID="236" Path="?">
+    <!-- Audits attempts to access a shared folder -->
+    <Select Path="?">[System[(EventID=5140)]]</Select>
+  </Query>
+  <Query ID="237" Path="?">
+    <!-- Open or close a handle on an object -->
+    <Select Path="?">[System[(EventID=4656)]]</Select>
+  </Query>
+  <Query ID="238" Path="?">
+    <!-- Open or close a handle on an object -->
+    <Select Path="?">[System[(EventID=4658)]]</Select>
+  </Query>
+  <Query ID="239" Path="?">
+    <!-- Creating scheduler jobs -->
+    <Select Path="?">[System[(EventID=4698)]]</Select>
+  </Query>
+  <Query ID="240" Path="?">
+    <!-- Deleting scheduler jobs -->
+    <Select Path="?">[System[(EventID=4699)]]</Select>
+  </Query>
+  <Query ID="241" Path="?">
+    <!-- Enabling scheduler jobs -->
+    <Select Path="?">[System[(EventID=4700)]]</Select>
+  </Query>
+  <Query ID="242" Path="?">
+    <!-- Disabling scheduler jobs -->
+    <Select Path="?">[System[(EventID=4701)]]</Select>
+  </Query>
+  <Query ID="243" Path="?">
+    <!-- Updating scheduler jobs -->
+    <Select Path="?">[System[(EventID=4702)]]</Select>
+  </Query>
+  <Query ID="244" Path="?">
+    <!-- Adding Catalog objects -->
+    <Select Path="?">[System[(EventID=5890)]]</Select>
+  </Query>
+  <Query ID="245" Path="?">
+    <!-- Updating catalog objects -->
+    <Select Path="?">[System[(EventID=5888)]]</Select>
+  </Query>
+  <Query ID="246" Path="?">
+    <!-- Deleting catalog objects -->
+    <Select Path="?">[System[(EventID=5889)]]</Select>
+  </Query>
+  <Query ID="247" Path="?">
+    <!-- Accessing registry objects -->
+    <Select Path="?">[System[(EventID=4657)]]</Select>
+  </Query>
+  <Query ID="248" Path="?">
+    <!-- Starting IPsec services -->
+    <Select Path="?">[System[(EventID=4709)]]</Select>
+  </Query>
+  <Query ID="249" Path="?">
+    <!-- Disable IPsec services -->
+    <Select Path="?">[System[(EventID=4710)]]</Select>
+  </Query>
+  <Query ID="250" Path="?">
+    <!-- Shutdown IPsec services -->
+    <Select Path="?">[System[(EventID=5749)]]</Select>
+  </Query>
+  <Query ID="251" Path="?">
+    <!-- Unexpected shutdown IPsec services -->
+    <Select Path="?">[System[(EventID=5484)]]</Select>
+  </Query>
+  <Query ID="252" Path="?">
+    <!-- Dropping network packets due to integrity check failure -->
+    <Select Path="?">[System[(EventID=4960)]]</Select>
+  </Query>
+  <Query ID="253" Path="?">
+    <!-- Dropping network packets due to replace check failure -->
+    <Select Path="?">[System[(EventID=4961)]]</Select>
+  </Query>
+  <Query ID="254" Path="?">
+    <!-- Dropping network packets due to being in plaintext -->
+    <Select Path="?">[System[(EventID=4963)]]</Select>
+  </Query>
+  <Query ID="255" Path="?">
+    <!-- Receiving network packets with incorrect SPI -->
+    <Select Path="">[System[(EventID=4965)]]</Select>
+  </Query>
+  <Query ID="256" Path="?">
+    <!-- Inability to process Ipsec filters -->
+    <Select Path="?">[System[(EventID=5485)]]</Select>
+  </Query>
+  <Query ID="257" Path="?">
+    <!-- Starting Computer -->
+    <Select Path="?">[System[(EventID=4608)]]</Select>
+  </Query>
+  <Query ID="258" Path="?">
+    <!-- Shutting down computer -->
+    <Select Path="?">[System[(EventID=4609)]]</Select>
+  </Query>
+  <Query ID="259" Path="?">
+    <!-- Change of system time -->
+    <Select Path="?">[System[(EventID=4616)]]</Select>
+  </Query>
+  <Query ID="260" Path="?">
+    <!-- Recovering the system from CrashOnAuditFail -->
+    <Select Path="?">[System[(EventID=4621)]]</Select>
+  </Query>
+  <Query ID="261" Path="?">
+    <!-- Process with invalid use of local procedure call (LPC) used to impersonate client -->
+    <Select Path="?">[System[(EventID=4615)]]</Select>
+  </Query>
+  <Query ID="262" Path="?">
+    <!-- Detection of a Remote Procedure Call (RPC that compromises system integrity) -->
+    <Select Path="?">[System[(EventID=4816)]]</Select>
+  </Query>
+  <Query ID="263" Path="?">
+    <!-- Detection of a Remote Procedure Call (RPC that compromises system integrity) -->
+    <Select Path="?">[System[(EventID=5712)]]</Select>
+  </Query>
+  <Query ID="264" Path="?">
+    <!-- Detection of a hash value of an executable file that is not valid as determined by Code Integrity -->
+    <Select Path="?">[System[(EventID=5038)]]</Select>
+  </Query>
+  <Query ID="265" Path="?">
+    <!-- Changes to the system audit policy -->
+    <Select Path="?">[System[(EventID=4719)]]</Select>
+  </Query>
+  <Query ID="266" Path="?">
+    <!-- Registration of security event sources -->
+    <Select Path="?">[System[(EventID=4904)]]</Select>
+  </Query>
+  <Query ID="267" Path="?">
+    <!-- De-registration of security event sources -->
+    <Select Path="?">[System[(EventID=4905)]]</Select>
+  </Query>
+  <Query ID="268" Path="?">
+    <!-- The Windows Firewall started -->
+    <Select Path="?">[System[(EventID=5024)]]</Select>
+  </Query>
+  <Query ID="269" Path="?">
+    <!-- The Windows Firewall stopped -->
+    <Select Path="?">[System[(EventID=5025)]]</Select>
+  </Query>
+  <Query ID="270" Path="?">
+    <!-- The Windows Firewall Driver started -->
+    <Select Path="?">[System[(EventID=5033)]]</Select>
+  </Query>
+  <Query ID="271" Path="?">
+    <!-- The Windows Firewall Driver stopped -->
+    <Select Path="?">[System[(EventID=5034)]]</Select>
+  </Query>
+  <Query ID="272" Path="?">
+    <!-- Changes to the system audit policy -->
+    <Select Path="?">[System[(EventID=4719)]]</Select>
+  </Query>
+  <Query ID="273" Path="?">
+    <!-- Registration of security event sources -->
+    <Select Path="?">[System[(EventID=4904)]]</Select>
+  </Query>
+  <Query ID="274" Path="?">
+    <!-- De-registration of security event sources -->
+    <Select Path="?">[System[(EventID=4905)]]</Select>
+  </Query>
+  <Query ID="275" Path="?">
+    <!-- Changes to the value of CrashOnAuditFail -->
+    <Select Path="?">[System[(EventID=4906)]]</Select>
+  </Query>
+  <Query ID="276" Path="?">
+    <!-- Changes to the special groups list -->
+    <Select Path="?">[System[(EventID=4908)]]</Select>
+  </Query>
+  <Query ID="277" Path="?">
+    <!-- Remote RPC connection is attempted -->
+    <Select Path="?">[System[(EventID=5712)]]</Select>
+  </Query>
+  <Query ID="278" Path="?">
+    <!-- Creation of forest and domain trusts -->
+    <Select Path="?">[System[(EventID=4865)]]</Select>
+  </Query>
+  <Query ID="279" Path="?">
+    <!-- Modification of forest and domain trusts -->
+    <Select Path="?">[System[(EventID=4867)]]</Select>
+  </Query>
+  <Query ID="280" Path="?">
+    <!-- Removal of forest and domain trusts -->
+    <Select Path="?">[System[(EventID=4866)]]</Select>
+  </Query>
+  <Query ID="281" Path="?">
+    <!-- Changes to Kerberos policy -->
+    <Select Path="?">[System[(EventID=4713)]]</Select>
+  </Query>
+  <Query ID="282" Path="?">
+    <!-- Granting the user right to Access This Computer From the Network -->
+    <Select Path="?">[System[(EventID=4717)]]</Select>
+  </Query>
+  <Query ID="283" Path="?">
+    <!-- Granting the user right to Allow Logon Locally -->
+    <Select Path="?">[System[(EventID=4774)]]</Select>
+  </Query>
+  <Query ID="284" Path="?">
+    <!-- Granting the user right to Allow Logon Locally -->
+    <Select Path="?">[System[(EventID=4672)]]</Select>
+  </Query>
+  <Query ID="285" Path="?">
+    <!-- Namespace collision -->
+    <Select Path="?">[System[(EventID=4864)]]</Select>
+  </Query>
+  <Query ID="286" Path="?">
+    <!-- Removal of user rights (privileges) that are not audited through the Authentication Policy Change subcategory -->
+    <Select Path="?">[System[(EventID=4705)]]</Select>
+  </Query>
+  <Query ID="287" Path="?">
+    <!-- Changes in the Encrypted File System (EFS) policy -->
+    <Select Path="?">[System[(EventID=4714)]]</Select>
+  </Query>
+  <Query ID="288" Path="?">
+    <!-- Changes to Windows Firewall policy settings -->
+    <Select Path="?">[System[(EventID=4954)]]</Select>
+  </Query>
+  <Query ID="289" Path="?">
+    <!-- Changes to WFP providers and engine -->
+    <Select Path="?">[System[(EventID=5448)]]</Select>
+  </Query>
+  <Query ID="290" Path="?">
+    <!-- Rules ignored or not applied by Windows Firewall Service -->
+    <Select Path="?">[System[(EventID=4951)]]</Select>
+  </Query>
+  <Query ID="291" Path="?">
+    <!-- Rules ignored or not applied by Windows Firewall Service -->
+    <Select Path="?">[System[(EventID=4952)]]</Select>
+  </Query>
+  <Query ID="292" Path="?">
+    <!-- Rules ignored or not applied by Windows Firewall Service -->
+    <Select Path="?">[System[(EventID=4953)]]</Select>
+  </Query>
+  <Query ID="293" Path="?">
+    <!-- Changes to Windows Firewall Group Policy settings -->
+    <Select Path="?">[System[(EventID=4954)]]</Select>
+  </Query>
+  <Query ID="294" Path="?">
+    <!-- Kernel-mode cryptographic self tests -->
+    <Select Path="?">[System[(EventID=5062)]]</Select>
+  </Query>
+  <Query ID="295" Path="?">
+    <!-- Cryptographic provider operations -->
+    <Select Path="?">[System[(EventID=5063)]]</Select>
+  </Query>
+  <Query ID="296" Path="?">
+    <!-- Cryptographic provider operations -->
+    <Select Path="?">[System[(EventID=5068)]]</Select>
+  </Query>
+  <Query ID="297" Path="?">
+    <!-- Cryptographic context operations or modifications -->
+    <Select Path="?">[System[(EventID=5064)]]</Select>
+  </Query>
 </QueryList>
 
                 
