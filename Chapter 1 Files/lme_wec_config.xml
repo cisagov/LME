@@ -880,6 +880,14 @@
     <!-- Certificate Authority shut down -->
     <Select Path="Application">[System[(EventID=430)]]</Select>
   </Query>
+  <Query ID="312" Path="Security">
+    <!-- Rule added to firewall exception list -->
+    <Select Path="Security">[System[(EventID=4946)]]</Select>
+  </Query>
+  <Query ID="313" Path="Security">
+    <!-- Firewall setting changed -->
+    <Select Path="Security">[System[(EventID=4950)]]</Select>
+  </Query>
 
 
 </QueryList>
