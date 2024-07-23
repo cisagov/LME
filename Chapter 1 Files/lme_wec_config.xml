@@ -888,6 +888,10 @@
     <!-- Firewall setting changed -->
     <Select Path="Security">[System[(EventID=4950)]]</Select>
   </Query>
+  <Query ID="314" Path="Security">
+    <!-- Rule updated on firewall exception list -->
+    <Select Path="Security">[System[(EventID=4947)]]</Select>
+  </Query>
 
 
 </QueryList>
