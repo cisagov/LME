@@ -1,0 +1,20 @@
+{
+    # Global options
+    admin off  # Disable admin API for security
+}
+
+:80 {
+    redir https://{host}{uri} permanent
+}
+
+
+:443 {
+    tls /etc/caddy/certs/caddy/caddy.crt /etc/caddy/certs/caddy/caddy.key
+
+    reverse_proxy https://lme-kibana:5601 {
+        transport http {
+            tls_trusted_ca_certs /etc/caddy/certs/ca/ca.crt
+            tls_insecure_skip_verify
+        }
+    }
+}
