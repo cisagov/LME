@@ -1,0 +1,7 @@
+# lme.network
+[Network]
+Driver=bridge
+Gateway=10.89.4.1
+IPAMDriver=host-local
+NetworkName=lme
+Subnet=10.89.4.0/24
