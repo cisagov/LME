@@ -1,76 +1,325 @@
+
 ![N|Solid](/docs/imgs/cisa.png)
 
 [![Downloads](https://img.shields.io/github/downloads/cisagov/lme/total.svg)]()
 
-# Logging Made Easy
-Initially created by NCSC and now maintained by CISA, Logging Made Easy is a self-install tutorial for small organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. It's the coming together of multiple open software platforms which come at no cost to users, where LME helps the reader integrate them together to produce an end-to-end logging capability. We also provide some pre-made configuration files and scripts, although there is the option to do it on your own.
+# Logging Made Easy: Podmanized
 
-Logging Made Easy can:
-- Show where administrative commands are being run on enrolled devices
-- See who is using which machine
-- In conjunction with threat reports, it is possible to query for the presence of an attacker in the form of Tactics, Techniques and Procedures (TTPs)
+This will eventually be merged with the Readme file at [LME-README](https://github.com/cisagov/LME). 
 
-## Disclaimer
+## TLDR: 
+LME will now execute its server stack via systemd through quadlet's.   
+All the original compose functionality has been implemented and working.   
 
-**LME is currently still early in development.**
+## Architecture:
+Ubuntu 22.04 server running podman containers setup as podman quadlets controlled via systemd.
 
-***If you have an existing install of the LME Alpha (v0.5 or older) some manual intervention will be required in order to upgrade to the latest version, please see [Upgrading](/docs/markdown/maintenance/upgrading.md) for further information.***
+### Diagram: 
+TODO
 
-**This is not a professional tool, and should not be used as a [SIEM](https://en.wikipedia.org/wiki/Security_information_and_event_management).**
+### why podman?:
+Podman is more secure (by default) against container escape attacks than Docker
 
-**LME is a 'homebrew' way of gathering logs and querying for attacks.**
+### Containers:
+  - caddy: acts as a reverse proxy for the container architecture:
+    - routes traffic to the backend services
+    - hosts lme-front end
+    - helps access all services behind one pane of glass
+  - setup: runs `/config/setup/init-setup.sh` based on the configuration of dns defined in `/config/setup/instances.yml`. The script will create a CA, underlying certs for each service, and intialize the admin accounts for elasticsearch(user:`elastic`) and kibana(user:`kibana_system`). 
+  - elasticsearch: runs the database for LME and indexes all logs
+  - kibana: the front end for querying logs,  investigating via dashboards, and managing fleet agents...
+  - fleet-server: executes a [elastic agent ](https://github.com/elastic/elastic-agent) in fleet-server mode. It coordinates elastic agents to  gather logs and status from clients. Configuration is inspired by the [elastic-container](https://github.com/peasead/elastic-container) project.
+    - Elastic agents provide integrations, have more features than winlogbeat.
+  - wazuh-manager: runs the wazuh manager so we can deploy and manage wazuh agents.
+    -  Wazuh (open source) gives EDR (Endpoint Detection Response) with security dashboards to cover the security of all of the machines.
+  - lme-frontend: will host an api and gui that unifies the architecture behind one interface
 
-We have done the hard work to make things simple. We will tell you what to download, which configurations to use and have created convenient scripts to auto-configure wherever possible.
+## Installation:
 
-The current architecture is based upon Windows Clients, Microsoft Sysmon, Windows Event Forwarding and the ELK stack.
+### **Ubuntu 22.04**:
+Important: Change appropriate variables in `$CLONE_DIRECTORY/example.env`  Each variable is documented inside `example.env`. You'll want to change the default passwords!
 
-We are **not** able to comment on or troubleshoot individual installations. If you believe you have have found an issue with the LME code or documentation please submit a [GitHub issue](https://github.com/cisagov/lme/issues). If you have a question about your installation, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to see if your issue has been addressed before.
+After changing those variables, you can run the automated install, or do a manual install. 
 
-## Who is Logging Made Easy for?
+#### **Automated Install**
+You can run this installer to run the total install in ansible. 
+```bash
+sudo apt update && sudo apt install -y ansible
+# cd ~/LME-PRIV/lme-2-arch # Or path to your clone of this repo
+ansible-playbook install_lme_local.yml
+```
+This assumes that you have the repo in `~/LME-PRIV/`. 
 
-From single IT administrators with a handful of devices in their network to larger organizations.
+If you don't, you can pass the `CLONE_DIRECTORY` variable to the playbook. 
 
-LME is for you if:
+```
+ansible-playbook install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
+```
 
-*	You don’t have a [SOC](https://en.wikipedia.org/wiki/Information_security_operations_center), SIEM or any monitoring in place at the moment.
-*	You lack the budget, time or understanding to set up your own logging system.
-*	You recognize the need to begin gathering logs and monitoring your IT.
-*	You understand that LME has limitations and is better than nothing - but no match for a professional tool.
+This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
 
-If any, or all, of these criteria fit, then LME is a step in the right direction for you.
+**NOTE** [this script](/scripts/set_sysctl_limits.sh) is executed via ansible AND  will change unprivileged ports to start at 80, to allow caddy to listen on 443 from a user run container. If this is not desired, we will be publishing steps to setup firewall rules using ufw//iptables to manage the firewall on this host at a later time. 
 
-LME could also be useful for:
+#### **-- End Automated Install**
 
-*	Small isolated networks where corporate monitoring doesn’t reach.
+#### **Manual Install**( optional if not running ansible install):
+```
+export CLONE_DIRECTORY=~/LME-PRIV/lme-2-arch
+#systemd will setup nix:
+#Old way to setup nix if desired: sh <(curl -L https://nixos.org/nix/install) --daemon
+sudo apt install jq uidmap nix-bin nix-setup-systemd  
 
-## Overview
-The LME architecture consists of 3 groups of computers, as summarized in the following diagram:
-![High level overview](/docs/imgs/OverviewDiagram.png)
+sudo nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+sudo nix-channel --update
 
-<p align="center">
-Figure 1: The 3 primary groups of computers in the LME architecture, their descriptions and the operating systems / software run by each.
-</p>
+# Add user to nix group in /etc/group
+sudo usermod -aG nix-users $USER
 
-## Table of contents
+#install podman and podman-compose
+sudo nix-env -iA nixpkgs.podman 
 
-### Installation:
- - [Prerequisites - Start deployment here](/docs/markdown/prerequisites.md)  
- - [Chapter 1 - Set up Windows Event Forwarding](/docs/markdown/chapter1/chapter1.md)  
- - [Chapter 2 – Sysmon Install](/docs/markdown/chapter2.md)  
- - [Chapter 3 – Database Install](/docs/markdown/chapter3/chapter3.md)  
- - [Chapter 4 - Post Install Actions ](/docs/markdown/chapter4.md)  
+# Set the path for root and lme-user
+#echo 'export PATH=$PATH:$HOME/.nix-profile/bin' >> ~/.bashrc
+echo 'export PATH=$PATH:/nix/var/nix/profiles/default/bin' >> ~/.bashrc
+sudo sh -c 'echo "export PATH=$PATH:/nix/var/nix/profiles/default/bin" >> /root/.bashrc'
 
-### Logging Guidance
- - [Log Retention](/docs/markdown/logging-guidance/retention.md)  
- - [Additional Log Types](/docs/markdown/logging-guidance/other-logging.md)  
+#to allow 443/80 bind and setup memory/limits
+sudo NON_ROOT_USER=$USER $CLONE_DIRECTORY/set_sysctl_limits.sh
 
-### Reference:
- - [FAQ](/docs/markdown/reference/faq.md)  
- - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
- - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
- - [Guide to Organizational Units](/docs/markdown/chapter1/guide_to_ous.md)
+#TODO are these needed? we'll have to see, don't set them for now
+#export XDG_CONFIG_HOME="$HOME/.config"
+#export XDG_RUNTIME_DIR=/run/user/$(id -u)
 
-### Maintenance:
- - [Backups](/docs/markdown/maintenance/backups.md)  
- - [Upgrading](/docs/markdown/maintenance/upgrading.md)  
- - [Certificates](/docs/markdown/maintenance/certificates.md)  
+#setup user-generator on systemd:
+sudo $CLONE_DIRECTORY/link_latest_podman_quadlet.sh
+
+#setup loginctl
+sudo loginctl enable-linger $USER
+```
+
+### Configuration
+
+Configuration is `/config/`
+ in `setup` find the configuration for certificate generation and password setting
+ in `caddy` is the Caddyfile for the reverse proxy
+ 
+Quadlet configuration for containers is in: `/quadlet/`
+
+1. setup `/opt/lme` thats the running directory for lme: 
+```bash
+sudo mkdir -p /opt/lme
+sudo chown -R $USER:$USER /opt/lme
+cp -r $CLONE_DIRECTORY/config/ /opt/lme/
+cp -r $CLONE_DIRECTORY/quadlet/ /opt/lme/
+
+#setup quadlets
+mkdir -p ~/.config/containers/
+ln -s /opt/lme/quadlet ~/.config/containers/systemd
+
+#setup service file
+mkdir -p ~/.config/systemd/user
+ln -s /opt/lme/quadlet/lme.service ~/.config/systemd/user/
+```
+
+#### **--- End Manual Install**
+
+### After install:
+
+Confirm setup: 
+```
+systemctl --user daemon-reload
+systemctl --user list-unit-files lme\*
+```
+
+1. Copy the file `example.env` to the running environment file:
+```bash
+cp $CLONE_DIRECTORY/example.env /opt/lme/lme-environment.env
+```
+    
+3. Change appropriate variables in `/opt/lme/lme-environment.env` Each variable is documented inside `example.env`. You'll want to change the default passwords!
+
+## Run: 
+
+### pull and tag all containers:
+This will let us maintain the lme container versions using the `LME_LATEST` tag. Whenever we update, we change the local image to point to the newest update, and run `podman auto-update` to update the containers. 
+
+**NOTE TO FUTURE SELVES: NEEDS TO BE `LOCALHOST` TO AVOID REMOTE TAGGING ATTACK**
+
+```bash
+sudo mkdir -p /etc/containers
+sudo tee /etc/containers/policy.json <<EOF
+{
+    "default": [
+        {
+            "type": "insecureAcceptAnything"
+        }
+    ]
+}
+EOF
+```
+
+```bash
+#1:
+# cat $CLONE_DIRECTORY/config/containers.txt | xargs -n1 -P8 podman pull -q
+xargs -a $CLONE_DIRECTORY/config/containers.txt -I {} sh -c 'echo "Pulling {}..."; podman pull {} && echo "Successfully pulled {}" || echo "Failed to pull {}"'
+#2:
+for x in $(cat $CLONE_DIRECTORY/config/containers.txt  | tr '\n' ' ');do short=$(echo $x | awk -F/ '{print $3}'| awk -F: '{print $1}'); if [ "$short" == "" ];then short="caddy";fi;  podman image tag $x ${short}:LME_LATEST; done
+```
+
+### Start all the services
+```bash
+systemctl --user daemon-reload
+systemctl --user start lme.service
+```
+
+### verify running: 
+
+Check systemctl:
+```bash
+systemctl --user list-unit-files lme\*
+
+#if something breaks use this to see what goes on:
+journalctl --user -u lme.service
+#or sub in whatever service you want
+
+#try resetting failed: 
+systemctl --user reset-failed
+```
+
+Check you can connect to elasticsearch
+```bash
+#substitute your password below:
+curl -k -u elastic:password1 https://localhost:9200
+```
+
+Check conatiners are running:
+```bash
+podman ps --format "{{.Names}} {{.Status}}"
+```  
+
+example output: 
+```shell
+lme-elasticsearch Up 2 hours (healthy)
+lme-kibana Up 2 hours
+lme-wazuh-manager Up About an hour
+lme-fleet-server Up 50 minutes
+lme-caddy Up 14 minutes
+```
+
+Check you can connect to kibana
+```bash
+#connect via ssh
+ssh -L 8080:localhost:443 [YOUR-LINUX-SERVER]
+#go to browser:
+#https://localhost:8080
+```
+
+### stop service: 
+```
+systemctl --user stop lme-*.service
+```
+
+### delete all data: 
+WARNING THIS WILL DELETE EVERYTHING!!!
+```bash
+WARNING THIS WILL DELETE EVERYTHING!!!
+podman volume ls --format "{{.Name}}" | grep lme | xargs podman volume rm
+```
+
+## Deploying Agents: 
+
+**\*\*TODO\*\* TEST THIS WORKS:** 
+### Deploy Wazuh Agent on client machine (Linux)
+
+curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee -a /etc/apt/sources.list.d/wazuh.list
+
+apt-get update
+
+WAZUH_MANAGER="CHANGE ME TO DOCKER HOST IP ADDRESS" apt-get install wazuh-agent
+
+Start the service: 
+
+```
+systemctl daemon-reload
+systemctl enable wazuh-agent
+systemctl start wazuh-agent
+```
+
+### Deploy Wazuh Agent On client Machine (Windows)
+
+From PowerShell with admin capabilities run the following command
+
+```
+Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi; Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER="IPADDRESS OF WAZUH HOST MACHINE"' -Wait -NoNewWindow
+```
+
+Start the service: 
+
+```
+NET START Wazuh
+```
+
+
+### Deploying Elastic-Agent: 
+1. Run the `scripts/set-fleet.sh` file
+2. follow the gui and deploy an agent on your client: https://0.0.0.0:5601/app/fleet/agents
+# Dev notes:
+Notes to convert compose -> quadlet
+1. start the containers with compose
+2. podlet generate from the containers created
+
+### compose:
+running:  
+```shell
+podman-compose up -d
+```
+
+stopping:  
+```shell
+podman-compose down --remove-orphans
+
+#only run if you want to remove all volumes:
+podman-compose down -v --remove-orphans
+```
+
+### install/get podlet: 
+```
+#https://github.com/containers/podlet/releases
+wget https://github.com/containers/podlet/releases/download/v0.3.0/podlet-x86_64-unknown-linux-gnu.tar.xz
+#add it to path:
+cp ./podlet-x86_64-unknown-linux-gnu/podlet  .local/bin/
+```
+
+### generate the quadlet files:
+[DOCS](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html), [BLOG](https://mo8it.com/blog/quadlet/)  
+
+```
+cd ~/LME-PRIV/quadlet
+
+for x in $(podman ps --filter label=io.podman.compose.project=lme-2-arch -a  --format "{{.Names}}");do echo $x; podlet generate container $x > $x.container;done
+```
+
+### dealing with journalctl logs: 
+https://unix.stackexchange.com/questions/638432/clear-failed-states-or-all-old-logs-from-systemctl-status-service
+```
+#delete all logs:
+sudo rm /var/log/journal/$STRING_OF_HEX/user-1000*
+```
+
+### debugging commands:
+```
+systemctl --user stop lme.service
+systemctl --user status lme*
+systemctl --user restart lme.service
+journalctl --user -u lme-fleet-server.service
+systemctl --user status lme*
+cp -r $CLONE_DIRECTORY/config/ /opt/lme && cp -r $CLONE_DIRECTORY/quadlet /opt/lme
+systemctl --user daemon-reload && systemctl --user list-unit-files lme\*
+systemctl --user reset-failed
+podman volume rm -a
+
+###make sure all ports are free as well: 
+sudo ss -tulpn
+```
