@@ -14,6 +14,13 @@ All the original compose functionality has been implemented and working.
 ## Architecture:
 Ubuntu 22.04 server running podman containers setup as podman quadlets controlled via systemd.
 
+### Required Ports:
+Ports required are as follows:
+ - Elasticsearch: *9200*
+ - Caddy: *443*
+ - Wazuh: *1514,1515,55000,514*
+ - Agent: *8220*
+
 
 ### Diagram: 
 A real diagram is coming, for now this poor man's flow chart is all that is available: (Created with [asciiflow](https://asciiflow.com/#/))
@@ -137,8 +144,8 @@ sudo loginctl enable-linger $USER
 ### Configuration
 
 Configuration is `/config/`
- in `setup` find the configuration for certificate generation and password setting
- in `caddy` is the Caddyfile for the reverse proxy
+ in `setup` find the configuration for certificate generation and password setting. `instances.yml` defines the certificates that will get created.  The shellscripts initialize accounts and create certificates, and will run from their respective quadlet definitions `lme-setup-accts` and `lme-setup-certs` respectively.
+ in `caddy` is the Caddyfile for the reverse proxy. Find more notes on its syntax and configuraiton here: [CADDY DOCS](https://caddyserver.com/docs/caddyfile)
  
 Quadlet configuration for containers is in: `/quadlet/`
 
