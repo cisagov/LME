@@ -16,10 +16,36 @@ Ubuntu 22.04 server running podman containers setup as podman quadlets controlle
 
 
 ### Diagram: 
-A real diagram is coming, for now this poor man's flow chart is all that is available:
+A real diagram is coming, for now this poor man's flow chart is all that is available: (Created with [asciiflow](https://asciiflow.com/#/))
 
 ```
-CLIENT_MACHINE (elastic_agent + wazuh_agent) ->  LME_SERVER ( PODMAN_CONTAINERS ( Caddy() -> (Wazuh Manager || Elastic Fleet) || (LME_FRONTEND) -> (ElasticSearch) -> (Kibana))
+#                                                                       +---------------------------------------------------------------------+
+# #                                                                       |                                                                     |
+# #                                                                       |     LME SERVER                                                      |
+# #                                                                       |                                                                     |
+# #                                                                       |     Podman Containers                                               |
+# #                                                                       |                                                                     |
+# #                                                                       |                    +-----------+                   +-----------+    |
+# #                                                                 ------+------------------->|           |                   |           |    |
+# #                +-----------------------------------+            ^     |                    |  Wazuh    +-------------+     |  Kibana   |    |
+# #                |                                   |            |     |  +---------+       |  Manager  |             |     |           |    |
+# #                |         CLIENT MACHINE            |            |     |  |         |       |           |             |     +----+---^--+    |
+# #                |                                   |            |     |  |  Caddy  |       +-----------+             |          |   |       |
+# #                |                                   |            |     |  |         |                            +----v-----+    |   |       |
+# #                |           WINDOWS                 |            |     |  |         |                            |          |    |   |       |
+# #                |                                   |            |     |  +-----+--^+        +----------+        |  Elastic <----+   |       |
+# #                |        +-----------------+        |            |     |        |  |         |          |        |   search |        |       |
+# #                |        |                 |        |            |     |        |  |         |  Fleet   |        |          +--------+       |
+# #                |        |   Elastic Agent +--------+------------+-----+--------+--+--------->          |        +------^---+                |
+# #                |        +-----------------+        |            |     |        |  |         |  Server  |               |                    |
+# #                |                                   |            |     |      +-v--+-------+ |          +---------------+                    |
+# #                |        +-----------------+        |            |     |      |   LME      | +----------+                                    |
+# #                |        |                 |        |            |     |      |            |                                                 |
+# #                |        |  Wazuh Agent    +--------+------------+     |      |  FrontEnd  |                                                 |
+# #                |        |                 |        |                  |      |            |                                                 |
+# #                |        +-----------------+        |                  |      +------------+                                                 |
+# #                |                                   |                  |                                                                     |
+# # 
 ```
 
 ### why podman?:
