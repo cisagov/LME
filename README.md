@@ -14,11 +14,16 @@ All the original compose functionality has been implemented and working.
 ## Architecture:
 Ubuntu 22.04 server running podman containers setup as podman quadlets controlled via systemd.
 
+
 ### Diagram: 
-TODO
+A real diagram is coming, for now this poor man's flow chart is all that is available:
+
+```
+CLIENT_MACHINE (elastic_agent + wazuh_agent) ->  LME_SERVER ( PODMAN_CONTAINERS ( Caddy() -> (Wazuh Manager || Elastic Fleet) || (LME_FRONTEND) -> (ElasticSearch) -> (Kibana))
+```
 
 ### why podman?:
-Podman is more secure (by default) against container escape attacks than Docker
+Podman is more secure (by default) against container escape attacks than Docker. It also is far more debug and programmer friendly for making containers secure. 
 
 ### Containers:
   - caddy: acts as a reverse proxy for the container architecture:
@@ -33,6 +38,12 @@ Podman is more secure (by default) against container escape attacks than Docker
   - wazuh-manager: runs the wazuh manager so we can deploy and manage wazuh agents.
     -  Wazuh (open source) gives EDR (Endpoint Detection Response) with security dashboards to cover the security of all of the machines.
   - lme-frontend: will host an api and gui that unifies the architecture behind one interface
+
+### Agents: 
+Wazuh agents will enable EDR capabilities, while Elastic agents will enable logging capabilities.
+
+ - https://github.com/wazuh/wazuh-agent   
+ - https://github.com/elastic/elastic-agent  
 
 ## Installation:
 
