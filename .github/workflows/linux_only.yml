@@ -92,6 +92,27 @@ jobs:
           && . /home/admin.ackbar/venv_test/bin/activate \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ \
           && pytest testing/tests/api_tests/linux_only/ "
+
+    - name: Run selenium tests in container
+      run: |
+        cd testing/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c "
+          . testing/configure/lib/functions.sh \
+          && echo export ELASTIC_PASSWORD=${{ env.elastic }} > testing/tests/.env \
+          && echo export KIBANA_HOST=localhost >> testing/tests/.env \
+          && echo export KIBANA_PORT=443 >> testing/tests/.env \
+          && echo export KIBANA_USER=elastic >> testing/tests/.env \
+          && echo export SELENIUM_TIMEOUT=60 >> testing/tests/.env \
+          && echo export SELENIUM_MODE=headless >> testing/tests/.env \
+          && . testing/tests/.env \
+          && sudo cp /opt/lme/Chapter\\ 3\\ Files/output.log . \
+          && extract_credentials output.log \
+          && sudo rm output.log \
+          && sudo docker ps \
+          && . /home/admin.ackbar/venv_test/bin/activate \
+          && sudo chmod ugo+w /home/admin.ackbar/LME/ \
+          && pytest testing/tests/selenium_tests/linux_only/ \
+        "
           
     - name: Cleanup Docker Compose
       if: always()

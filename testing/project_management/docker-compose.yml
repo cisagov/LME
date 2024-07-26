@@ -1,0 +1,10 @@
+version: '3'
+services:
+  burndown:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - BURNDOWN_TOKEN=${BURNDOWN_TOKEN}
+    volumes:
+      - ../../../LME/:/lme
