@@ -327,3 +327,62 @@ sudo curl -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H "
 Replace 'currentpassword' with your current password and 'newpassword' with the password you would like to change it to. 
 
 Utilize environment variables in place of currentpassword and newpassword to avoid saving your password to console history. If not we recommend you clear your history after changing the password with ```history -c```
+
+## Index Management
+
+If you are having issues with your hard disk filling up too fast you can use these steps to delete logs earlier than your current settings.
+
+1. **Log in to Elastic**
+   - Access the Elastic platform and log in with your credentials.
+
+2. **Navigate to Management Section**
+   - In the main menu, scroll down to "Management."
+
+3. **Access Stack Management**
+   - Within the Management section, select "Stack Management."
+
+4. **Select Index Lifecycle Policies**
+   - In Stack Management, find and choose "Index Lifecycle Policies."
+
+5. **Choose the Relevant ILM Policy**
+   - From the list, select `lme_ilm_policy` for editing.
+
+6. **Adjust the Hot Phase Settings**
+   - Navigate to the 'Hot Phase' section.
+   - Expand 'Advanced settings'.
+   - Uncheck "Use recommended defaults."
+   - Change the "Maximum age" setting to match your desired delete phase duration.
+
+     > **Note:** Aligning the maximum age in the hot phase with the delete phase ensures consistency in data retention.
+
+7. **Adjust the Delete Phase Settings**
+   - Scroll to the 'Delete Phase' section.
+   - Find and adjust the "Move data into phase when:" setting.
+   - Ensure the delete phase duration matches the maximum age set in the hot phase.
+
+     > **Note:** This setting determines the deletion timing of your logs. Ensure to back up necessary data before changes.
+
+8. **Save Changes**
+   - Save the adjustments you've made.
+
+9. **Verify the Changes**
+   - Review and ensure that the changes are functioning as intended. Indices may not delete immediately - allow time for job to run.
+
+10. **Document the Changes**
+    - Record the modifications for future reference.
+
+You can also manually delete an index from the GUI under Management > Index Managment or by using the following command: 
+
+```
+curl -X DELETE "https://127.0.0.1:9200/your_index_name" -H "Content-Type: application/json" --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:yourpassword
+```
+> **Note:**    Ensure this is not your current winlogbeat index in use. You should only delete indices that have already rolled over. i.e. if you have index winlogbeat-00001 and winlogbeat-00002 do NOT delete winlogbeat-00002.
+
+If you only have one index you can manually force a rollover with the following command: 
+
+```
+curl -X POST "https://127.0.0.1:9200/winlogbeat-alias/_rollover" -H "Content-Type: application/json" --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:yourpassword
+```
+
+This will rollover winlogbeat-00001 and create winlogbeat-00002. You can now manually delete 00001. 
+

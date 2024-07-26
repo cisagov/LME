@@ -1,0 +1,68 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "cluster_name": {
+      "type": "string"
+    },
+    "cluster_uuid": {
+      "type": "string"
+    },
+    "version": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "string"
+        },
+        "build_flavor": {
+          "type": "string"
+        },
+        "build_type": {
+          "type": "string"
+        },
+        "build_hash": {
+          "type": "string"
+        },
+        "build_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "build_snapshot": {
+          "type": "boolean"
+        },
+        "lucene_version": {
+          "type": "string"
+        },
+        "minimum_wire_compatibility_version": {
+          "type": "string"
+        },
+        "minimum_index_compatibility_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "number",
+        "build_flavor",
+        "build_type",
+        "build_hash",
+        "build_date",
+        "build_snapshot",
+        "lucene_version",
+        "minimum_wire_compatibility_version",
+        "minimum_index_compatibility_version"
+      ]
+    },
+    "tagline": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "cluster_name",
+    "cluster_uuid",
+    "version",
+    "tagline"
+  ]
+}

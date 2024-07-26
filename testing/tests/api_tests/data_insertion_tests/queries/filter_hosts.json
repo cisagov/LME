@@ -1,0 +1,287 @@
+{
+    "aggs": {
+      "2": {
+        "terms": {
+          "field": "host.name",
+          "order": {
+            "_count": "desc"
+          },
+          "size": 25
+        }
+      }
+    },
+    "size": 0,
+    "fields": [
+      {
+        "field": "@timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "code_signature.timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "dll.code_signature.timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "elf.creation_date",
+        "format": "date_time"
+      },
+      {
+        "field": "event.created",
+        "format": "date_time"
+      },
+      {
+        "field": "event.end",
+        "format": "date_time"
+      },
+      {
+        "field": "event.ingested",
+        "format": "date_time"
+      },
+      {
+        "field": "event.start",
+        "format": "date_time"
+      },
+      {
+        "field": "file.accessed",
+        "format": "date_time"
+      },
+      {
+        "field": "file.code_signature.timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "file.created",
+        "format": "date_time"
+      },
+      {
+        "field": "file.ctime",
+        "format": "date_time"
+      },
+      {
+        "field": "file.elf.creation_date",
+        "format": "date_time"
+      },
+      {
+        "field": "file.mtime",
+        "format": "date_time"
+      },
+      {
+        "field": "file.x509.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "file.x509.not_before",
+        "format": "date_time"
+      },
+      {
+        "field": "package.installed",
+        "format": "date_time"
+      },
+      {
+        "field": "process.code_signature.timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "process.elf.creation_date",
+        "format": "date_time"
+      },
+      {
+        "field": "process.end",
+        "format": "date_time"
+      },
+      {
+        "field": "process.parent.code_signature.timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "process.parent.elf.creation_date",
+        "format": "date_time"
+      },
+      {
+        "field": "process.parent.end",
+        "format": "date_time"
+      },
+      {
+        "field": "process.parent.start",
+        "format": "date_time"
+      },
+      {
+        "field": "process.start",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.file.accessed",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.file.code_signature.timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.file.created",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.file.ctime",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.file.elf.creation_date",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.file.mtime",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.first_seen",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.last_seen",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.modified_at",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.x509.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.enrichments.indicator.x509.not_before",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.file.accessed",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.file.code_signature.timestamp",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.file.created",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.file.ctime",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.file.elf.creation_date",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.file.mtime",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.first_seen",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.last_seen",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.modified_at",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.x509.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "threat.indicator.x509.not_before",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.client.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.client.not_before",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.client.x509.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.client.x509.not_before",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.server.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.server.not_before",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.server.x509.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "tls.server.x509.not_before",
+        "format": "date_time"
+      },
+      {
+        "field": "winlog.time_created",
+        "format": "date_time"
+      },
+      {
+        "field": "x509.not_after",
+        "format": "date_time"
+      },
+      {
+        "field": "x509.not_before",
+        "format": "date_time"
+      }
+    ],
+    "script_fields": {},
+    "stored_fields": [
+      "*"
+    ],
+    "runtime_mappings": {
+      "day_of_week": {
+        "type": "long",
+        "script": {
+          "source": "emit(doc['@timestamp'].value.dayOfWeekEnum.getValue())"
+        }
+      },
+      "hour_of_day": {
+        "type": "long",
+        "script": {
+          "source": "emit (doc['@timestamp'].value.getHour())"
+        }
+      }
+    },
+    "_source": {
+      "excludes": []
+    },
+    "query": {
+      "bool": {
+        "must": [],
+        "filter": [
+          {
+            "range": {
+              "@timestamp": {
+                "format": "strict_date_optional_time",
+                "gte": "2024-05-29T13:29:01.758Z",
+                "lte": "2024-05-29T13:44:01.758Z"
+              }
+            }
+          }
+        ],
+        "should": [],
+        "must_not": []
+      }
+    }
+  }

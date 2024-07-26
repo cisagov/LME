@@ -1,0 +1,17 @@
+{
+    "name" : "es01",
+    "cluster_name" : "loggingmadeeasy-es",
+    "cluster_uuid" : "1dhOid2uS5Ct41bytJ6P6Q",
+    "version" : {
+      "number" : "8.11.1",
+      "build_flavor" : "default",
+      "build_type" : "docker",
+      "build_hash" : "6f9ff581fbcde658e6f69d6ce03050f060d1fd0c",
+      "build_date" : "2023-11-11T10:05:59.421038163Z",
+      "build_snapshot" : false,
+      "lucene_version" : "9.8.0",
+      "minimum_wire_compatibility_version" : "7.17.0",
+      "minimum_index_compatibility_version" : "7.0.0"
+    },
+    "tagline" : "You Know, for Search"
+  }

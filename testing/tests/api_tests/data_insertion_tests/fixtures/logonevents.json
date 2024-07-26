@@ -1,0 +1,38 @@
+{
+    "winlog": {
+      "computer_name": "C2.lme.local",
+      "keywords": [
+        "Audit Failure"
+      ],
+      "user": {
+        "name": "APItestuserid",
+        "domain": ""
+      },
+      "event_data": {
+        "LogonType": "2",
+        "SubjectUserName": "-",
+        "FailureReason": "%%2313",
+        "SubjectDomainName": "-",
+        "IpAddress": "194.169.175.22",
+        "TargetUserName": "solidart",
+        "LogonProcessName": "NtLmSsp ",
+        "SubjectUserSid": "S-1-0-0",
+        "TargetUserSid": "S-1-0-0",
+        "AuthenticationPackageName": "NTLM"
+      },
+      "@timestamp": "2024-06-12T09:50:18.252Z",
+      "host": {
+        "name": "C2.lme.local"
+      }  
+    },
+    "event": {
+        "code": "4624",
+        "provider": "Microsoft-Windows-Security-Auditing",
+        "action": "Logon",
+        "outcome": "failure"
+    },
+    "user": {
+        "name": "APItestuserid",
+        "domain": "test"
+    }
+  }

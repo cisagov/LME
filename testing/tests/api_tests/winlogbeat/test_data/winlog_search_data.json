@@ -1,0 +1,86 @@
+{
+    "took": 3,
+    "timed_out": false,
+    "_shards": {
+        "total": 1,
+        "successful": 1,
+        "skipped": 0,
+        "failed": 0
+    },
+    "hits": {
+        "total": {
+            "value": 4283,
+            "relation": "eq"
+        },
+        "max_score": 0.27635396,
+        "hits": [
+            {
+                "_index": "winlogbeat-000001",
+                "_id": "Wqh8PI4BWrHmXCODvAOh",
+                "_score": 0.27635396,
+                "_source": {
+                    "agent": {
+                        "name": "DC1",
+                        "id": "329b0988-40f1-4f26-9656-7f038ebc8d9c",
+                        "ephemeral_id": "f189af81-3221-404f-a99c-350a087003fb",
+                        "type": "winlogbeat",
+                        "version": "8.5.0"
+                    },
+                    "@timestamp": "2024-03-14T10:23:08.964Z",
+                    "winlog": {
+                        "record_id": 4714,
+                        "computer_name": "DC1.lme.local",
+                        "process": {
+                            "pid": 648,
+                            "thread": {
+                                "id": 3684
+                            }
+                        },
+                        "event_id": "4634",
+                        "task": "Logoff",
+                        "keywords": [
+                            "Audit Success"
+                        ],
+                        "provider_guid": "{54849625-5478-4994-a5ba-3e3b0328c30d}",
+                        "channel": "Security",
+                        "api": "wineventlog",
+                        "event_data": {
+                            "TargetLogonId": "0x5bec95",
+                            "LogonType": "3",
+                            "TargetUserName": "DC1$",
+                            "TargetDomainName": "LME",
+                            "TargetUserSid": "S-1-5-18"
+                        },
+                        "opcode": "Info",
+                        "provider_name": "Microsoft-Windows-Security-Auditing"
+                    },
+                    "ecs": {
+                        "version": "8.0.0"
+                    },
+                    "log": {
+                        "level": "information"
+                    },
+                    "host": {
+                        "name": "DC1.lme.local"
+                    },
+                    "@version": "1",
+                    "message": "An account was logged off.\n\nSubject:\n\tSecurity ID:\t\tS-1-5-18\n\tAccount Name:\t\tDC1$\n\tAccount Domain:\t\tLME\n\tLogon ID:\t\t0x5BEC95\n\nLogon Type:\t\t\t3\n\nThis event is generated when a logon session is destroyed. It may be positively correlated with a logon event using the Logon ID value. Logon IDs are only unique between reboots on the same computer.",
+                    "event": {
+                        "ingested": "2024-03-14T10:23:11.521737481Z",
+                        "code": "4634",
+                        "original": "An account was logged off.\n\nSubject:\n\tSecurity ID:\t\tS-1-5-18\n\tAccount Name:\t\tDC1$\n\tAccount Domain:\t\tLME\n\tLogon ID:\t\t0x5BEC95\n\nLogon Type:\t\t\t3\n\nThis event is generated when a logon session is destroyed. It may be positively correlated with a logon event using the Logon ID value. Logon IDs are only unique between reboots on the same computer.",
+                        "provider": "Microsoft-Windows-Security-Auditing",
+                        "kind": "event",
+                        "created": "2024-03-14T10:23:10.459Z",
+                        "action": "Logoff",
+                        "outcome": "success"
+                    },
+                    "tags": [
+                        "beats",
+                        "beats_input_codec_plain_applied"
+                    ]
+                }
+            }
+        ]
+    }
+}

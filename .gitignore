@@ -2,6 +2,7 @@
 .DS_Store
 /.idea/
 /.vscode/
+**/.env
 /Chapter 4 Files/*.dumped.ndjson
 /Chapter 4 Files/exported/
 
@@ -15,3 +16,16 @@ dashboard_update.sh
 files_for_windows.zip
 lme.conf
 lme_update.sh
+**/venv/
+/testing/tests/.env
+**/.pytest_cache/
+**/__pycache__/
+/testing/*.password.txt
+/testing/configure/azure_scripts/config.ps1
+/testing/configure.zip
+/testing/*.output.log
+/testing/tests/report.html
+testing/tests/assets/style.css
+.history/
+**/get-docker.sh
+*.vim

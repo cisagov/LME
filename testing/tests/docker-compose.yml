@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  ubuntu:
+    build: .
+    container_name: lme_testing
+    volumes:
+      - .:/app  # Mounts the current directory to /app in the container
+    command: sleep infinity
