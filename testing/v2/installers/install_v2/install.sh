@@ -1,68 +1,42 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Initialize variables
-VM_NAME=""
-VM_USER=""
-MAX_ATTEMPTS=30
-SLEEP_INTERVAL=10
+set -e
 
-# Function to print usage
-usage() {
-    echo "Usage: $0 -n <vm_name> -u <vm_user>"
-    echo "  -n    Specify the VM name"
-    echo "  -u    Specify the VM user"
+# Check if the required arguments are provided
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <username> <hostname> <password_file>"
     exit 1
-}
-
-# Parse command-line arguments
-while getopts "n:u:" opt; do
-    case $opt in
-        n) VM_NAME="$OPTARG" ;;
-        u) VM_USER="$OPTARG" ;;
-        *) usage ;;
-    esac
-done
-
-# Check if required arguments are provided
-if [[ -z "$VM_NAME" || -z "$VM_USER" ]]; then
-    echo "Error: Both VM name and VM user must be provided."
-    usage
 fi
 
-get_ip() {
-    /opt/minimega/bin/minimega -e .json true .filter name="$VM_NAME" vm info | jq -r '.[].Data[].Networks[].IP4'
-}
+# Set the remote server details from the command-line arguments
+user=$1
+hostname=$2
+password_file=$3
+branch=$4
 
-echo "Waiting for IP assignment for VM: $VM_NAME (User: $VM_USER)"
+# Store the original working directory
+ORIGINAL_DIR="$(pwd)"
 
-IP=""
-for ((i=1; i<=MAX_ATTEMPTS; i++)); do
-    IP=$(get_ip)
+# Get the directory of the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    if [[ -z "$IP" || "$IP" == "null" ]]; then
-        echo "Attempt $i: No IP assigned yet. Waiting $SLEEP_INTERVAL seconds..."
+# Change to the parent directory of the script
+cd "$SCRIPT_DIR/.."
 
-        if [[ $i -eq $MAX_ATTEMPTS ]]; then
-            echo "Timeout: Failed to get IP for $VM_NAME after $MAX_ATTEMPTS attempts."
-            exit 1
-        fi
+# Copy the SSH key to the remote machine
+./lib/copy_ssh_key.sh $user $hostname $password_file
 
-        sleep $SLEEP_INTERVAL
-    else
-        echo "The IP of $VM_NAME is $IP"
-        break
-    fi
-done
-
-echo "VM Name: $VM_NAME"
-echo "VM User: $VM_USER"
-echo "VM IP: $IP"
-
-ssh  -o StrictHostKeyChecking=no $VM_USER@$IP 'sudo apt-get update && sudo apt-get -y install ansible'
-
-echo "Ansible installed successfully on $VM_NAME"
-
-# Run the ansible installer here once it is merged to LME
+echo "Installing ansible"
+ssh  -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible'
 
 
+# Need to set up so we can checkout a particular branch or pull down a release
+echo "Checking out code"
+ssh  -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git && cd LME && git checkout -t origin/${branch}"
+echo "Code cloned to $HOME/LME"
 
+echo "Running ansible installer"
+ssh  -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook scripts/install_lme_local.yml"
+
+# Change back to the original directory
+cd "$ORIGINAL_DIR"

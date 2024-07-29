@@ -4,7 +4,7 @@
   connection: local
   become: no  # Default to no privilege escalation
   vars:
-    clone_directory: "{{ clone_dir | default('~/LME-PRIV/lme-2-arch') }}"
+    clone_directory: "{{ clone_dir | default('~/LME/') }}"
     install_user: "{{ ansible_user_id }}"
 
   tasks:
@@ -90,7 +90,7 @@
       become: yes
 
     - name: Link latest podman quadlet
-      command: "{{ clone_directory }}/link_latest_podman_quadlet.sh"
+      command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
       become: yes
 
     - name: Enable linger for user
@@ -153,7 +153,7 @@
 
     - name: Copy example.env to lme-environment.env
       copy:
-        src: "{{ clone_directory }}/example.env"
+        src: "{{ clone_directory }}/config/example.env"
         dest: /opt/lme/lme-environment.env
         remote_src: yes
         owner: "{{ install_user }}"
