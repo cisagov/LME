@@ -36,7 +36,7 @@ ssh  -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clon
 echo "Code cloned to $HOME/LME"
 
 echo "Running ansible installer"
-ssh  -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook scripts/install_lme_local.yml"
+ssh  -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && cp config/example.env config/lme-environment.env && ansible-playbook scripts/install_lme_local.yml"
 
 # Change back to the original directory
 cd "$ORIGINAL_DIR"
