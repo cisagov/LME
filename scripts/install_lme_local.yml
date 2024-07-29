@@ -12,6 +12,37 @@
       set_fact:
         clone_directory: "{{ clone_directory | expanduser }}"
 
+    - name: Ensure /opt/lme directory exists
+      file:
+        path: /opt/lme
+        state: directory
+        owner: "{{ install_user }}"
+        group: "{{ install_user }}"
+        mode: '0700'
+      become: yes
+
+    - name: Check if lme-environment.env exists
+      stat:
+        path: "{{ clone_directory }}/config/lme-environment.env"
+      register: env_file
+
+    - name: Fail if lme-environment.env doesn't exist
+      fail:
+        msg: "lme-environment.env file not found in {{ clone_directory }}/config/. Please copy example.env to lme-environment.env in the config directory and edit it before running this playbook."
+      when: not env_file.stat.exists
+
+    - name: Move lme-environment.env to /opt/lme
+      command: "mv {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
+      become: yes
+
+    - name: Set correct permissions for lme-environment.env
+      file:
+        path: /opt/lme/lme-environment.env
+        owner: "{{ install_user }}"
+        group: "{{ install_user }}"
+        mode: '0600'
+      become: yes
+
     - name: Check sudo setup
       command: sudo -n true
       register: sudo_check
@@ -97,15 +128,6 @@
       command: "loginctl enable-linger {{ install_user }}"
       become: yes
 
-    - name: Create LME directory
-      file:
-        path: /opt/lme
-        state: directory
-        owner: "{{ install_user }}"
-        group: "{{ install_user }}"
-        mode: '0755'
-      become: yes
-
     - name: Copy config files
       copy:
         src: "{{ clone_directory }}/config/"
@@ -150,15 +172,6 @@
       systemd:
         daemon_reload: yes
         scope: user
-
-    - name: Copy example.env to lme-environment.env
-      copy:
-        src: "{{ clone_directory }}/config/example.env"
-        dest: /opt/lme/lme-environment.env
-        remote_src: yes
-        owner: "{{ install_user }}"
-        group: "{{ install_user }}"
-      become: yes
 
     - name: Create containers directory
       file:
