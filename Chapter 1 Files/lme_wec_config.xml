@@ -654,7 +654,7 @@
   </Query>
   <Query Id="255" Path="Security">
     <!-- Receiving network packets with incorrect SPI -->
-    <Select Path="">*[System[(EventID=4965)]]</Select>
+    <Select Path="Security">*[System[(EventID=4965)]]</Select>
   </Query>
   <Query Id="256" Path="Security">
     <!-- Inability to process Ipsec filters -->
