@@ -4,7 +4,7 @@
   connection: local
   become: no  # Default to no privilege escalation
   vars:
-    clone_directory: "{{ clone_dir | default('~/LME/') }}"
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
 
   tasks:
@@ -84,7 +84,7 @@
       become: yes
 
     - name: Set sysctl limits
-      command: "{{ clone_directory }}/set_sysctl_limits.sh"
+      command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
       environment:
         NON_ROOT_USER: "{{ install_user }}"
       become: yes
