@@ -44,9 +44,11 @@ The Policy Changes and System Activity dashboard enables users to monitor policy
 The Identity Access Management dashboard provides users with a collection of important security events involving identity and critical object access. This includes when registry objects, task scheduler jobs, and when password hashes are accessed. Users will also be able to monitor when passwords are reset, changed, and when users are locked out of their accounts. This dashboard also tracks when the default domain policy is changed which involves the domain password policy. 
 
 ## Privileged Activity log Dashboard
+
 The Privileged Activity Log Dashboard enables users to carry on audits related to non-sensitive and sensitive events by showcasing the number of privileged service attempts, sensitive privilege attempts and non-sensitive privilege attempts made per host name. It also shows the number of processes created and terminated per host name. Such as process creation count, process termination counts as well as assigned token creation count per host.
 
 ## Credential Access logs Dashboard
+
 The Credential Access logs Dashboard, focuses on account logon and account logoff audit events. In this dashboard, users will be able to monitor, audit logon attempts per hosts, logon using explicit credential attempts, account lockout attempts per host, special logon attempts per hosts, disconnection attempts, and credential validation attempts per host. Dashboard panels will also showcase Kerberos authentication services per host.
 
 
