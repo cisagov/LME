@@ -50,6 +50,14 @@ def test_user_logon_events_insert(es_host, es_port, username, password):
     
     # Check to make sure the data was inserted
     assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'APItestuserid')
+    
+
+def test_file_downloads_insert(es_host, es_port, username, password):
+        
+    second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_fileCreatedDownloads.json', 'fileCreatedDownloads.json', 2)
+    
+    # Check to make sure the data was inserted
+    assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'C:\\Users\\admin.ackbar\\Downloads\\test.txt')    
 
 
 
