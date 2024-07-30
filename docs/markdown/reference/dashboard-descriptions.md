@@ -35,7 +35,7 @@ The Alert Dashboard enables users to define rules that detect complex conditions
 
 The HealthCheck Dashboard gives users the ability to view different processes such as unexpected shutdowns, events by each machine, total hosts and total number of logged in admins with data that is based on a selected date range.  Users can verify the health of their system by observing events such as if there are more admin users than expected or if an unexpected shutdown occurs. 
 
-##  Policy Changes and System Activity
+## Policy Changes and System Activity
 
 The Policy Changes and System Activity dashboard enables users to monitor policy changes and important system activity. Users will be able to monitor the status of their firewall, including when it is turned on, off, its settings are changed, or exception rules are added or modified. This dashboard will also show when firewall, audit, or Kerberos policies are changed on their domain. Users will also be able to monitor when their PCs are turned on, off, and when RPC (Remote Procedure Call) connections are attempted on their domain. 
 
