@@ -2,7 +2,7 @@
 
 Please see https://github.com/cisagov/LME/releases/ for our latest release.
 
-Below you can find the upgrade paths that are currently supported and what steps you need for these upgrades. Note that major version upgrades tend to include significant changes and will require manual intervention and will not be automatically applied, even if you enable auto-updates.
+Below you can find the upgrade paths that are currently supported and what steps are required for these upgrades. Note that major version upgrades tend to include significant changes, and so will require manual intervention and will not be automatically applied, even if auto-updates are enabled.
 
 Applying these changes is automated for any new installations. If you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
 

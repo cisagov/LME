@@ -2,10 +2,277 @@ name: Cluster Run
 
 on:
   workflow_dispatch:
+  # pull_request:
+  #  branches:
+  #    - '*'
+
 jobs:
-  manual-job:
-    runs-on: ubuntu-latest
+  build-and-test-cluster:
+    runs-on: self-hosted
+    env:
+      UNIQUE_ID:
+      IP_ADDRESS:
+      LS1_IP:
+      BRANCH_NAME:
+      elastic:
 
     steps:
-      - name: Greet
-        run: echo "This is a manually triggered workflow."
+      - name: Checkout repository
+        uses: actions/checkout@v4.1.1
+
+      - name: Setup environment variables
+        run: |
+          PUBLIC_IP=$(curl -s https://api.ipify.org)
+          echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
+          echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
+
+      - name: Get branch name
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+          else
+            echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
+          -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
+      - name: Set the environment for docker-compose
+        run: |
+          cd testing/development
+          # Get the UID and GID of the current user
+          echo "HOST_UID=$(id -u)" > .env
+          echo "HOST_GID=$(id -g)" >> .env
+
+      # - name: Run Docker Compose Build to fix a user id issue in a prebuilt container
+      #   run: |
+      #     cd testing/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} build --no-cache
+
+      - name: Run Docker Compose
+        run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up -d
+
+      - name: List docker containers to wait for them to start
+        run: |
+          docker ps 
+
+      - name: List files in home directory
+        run: |
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "pwd && ls -la"
+
+      - name:  Check powershell environment
+        run: |
+          set +e  
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME; \
+            ls -la; \
+            exit \$LASTEXITCODE;
+          }"
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          set -e  
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
+
+      - name:  Build the cluster
+        run: |
+          set +e  
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME/testing; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            \$env:IP_ADDRESS='${{ env.IP_ADDRESS }}'; \
+            ./development/build_cluster.ps1 -IPAddress \$env:IP_ADDRESS; \
+            exit \$LASTEXITCODE;
+          }"
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          set -e  
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
+          cd .. 
+          . configure/lib/functions.sh
+          extract_ls1_ip 'LME-pipe-${{ env.UNIQUE_ID }}.cluster.output.log'
+          echo "LS1_IP=$LS1_IP" >> $GITHUB_ENV
+
+      - name:  Install lme on cluster
+        run: |
+          set +e  
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME/testing; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            ./development/install_lme.ps1 -b '${{ env.BRANCH_NAME }}'; \
+            exit \$LASTEXITCODE;
+          }"
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          set -e  
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
+
+      - name:  Set the environment passwords for other steps
+        run: |
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
+            cd /home/admin.ackbar/LME/testing \
+            && . configure/lib/functions.sh \
+            && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
+            && write_credentials_to_file '${{ env.UNIQUE_ID }}.github_env.sh' \
+            "
+            . ../${{ env.UNIQUE_ID }}.github_env.sh
+            rm ../${{ env.UNIQUE_ID }}.github_env.sh
+            echo "elastic=$elastic" >> $GITHUB_ENV
+            echo "kibana=$kibana" >> $GITHUB_ENV
+            echo "logstash_system=$logstash_system" >> $GITHUB_ENV
+            echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
+            echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
+
+      - name:  Check that the environment variables are set
+        run: |
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
+            if [ -z \"${{ env.elastic }}\" ]; then
+              echo 'Error: env.elastic variable is not set' >&2
+              exit 1
+            else
+              echo 'Elastic password is set'
+            fi
+          "
+
+      # - name: Run a command on the domain controller
+      #   run: |
+      #     set +e
+      #     cd testing/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& {
+      #       cd /home/admin.ackbar/LME/testing; \
+      #       \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+      #       \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+      #       \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+      #       \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+      #       \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+      #       \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+      #       az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
+      #       az vm run-command invoke  \
+      #         --command-id RunPowerShellScript  \
+      #         --name DC1  \
+      #         --resource-group \$env:RESOURCE_GROUP \
+      #         --scripts 'ls C:\'; \
+      #       exit \$LASTEXITCODE;
+      #     }"
+      #     EXIT_CODE=$?
+      #     echo "Exit code: $EXIT_CODE"
+      #     set -e
+      #     if [ "$EXIT_CODE" -ne 0 ]; then
+      #       exit $EXIT_CODE
+      #     fi
+
+      - name: Run a command on the linux machine
+        run: |
+          set +e  
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME/testing; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
+            az vm run-command invoke  \
+              --command-id RunShellScript  \
+              --name LS1  \
+              --resource-group \$env:RESOURCE_GROUP \
+              --scripts 'ls -lan'; \
+            exit \$LASTEXITCODE;
+          }"
+          EXIT_CODE=$?
+          echo "Exit code: $EXIT_CODE"
+          set -e  
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
+
+      # This only passes when you do a full install
+      - name: Run api tests in container
+        run: |
+          set +e
+          cd testing/development
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+          && echo export elastic=${{ env.elastic }} > .env \
+          && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
+          && python3 -m venv /home/admin.ackbar/venv_test \
+          && . /home/admin.ackbar/venv_test/bin/activate \
+          && pip install -r requirements.txt \
+          && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
+          && pytest -v api_tests/"
+
+      - name: Run selenium tests in container
+        run: |
+          set +e
+          cd testing/development
+          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+          && echo export elastic=${{ env.elastic }} > .env \
+          && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
+          && echo export KIBANA_HOST= ${{ env.LS1_IP }} >> .env \
+          && echo export KIBANA_PORT=443 >> .env \
+          && echo export KIBANA_USER=elastic >> .env \
+          && echo export SELENIUM_TIMEOUT=60 >> .env \
+          && echo export SELENIUM_MODE=headless >> .env \
+          && cat .env \
+          && python3 -m venv /home/admin.ackbar/venv_test \
+          && . /home/admin.ackbar/venv_test/bin/activate \
+          && pip install -r requirements.txt \
+          && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
+          && pytest -v selenium_tests/"
+
+      # - name: Run selenium tests in container
+      #   run: |
+      #     set +e
+      #     cd testing/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
+      #     && echo export ELASTIC_PASSWORD=${{ env.elastic }} > .env \
+      #     && . .env \
+      #     && python3 -m venv /home/admin.ackbar/venv_test \
+      #     && . /home/admin.ackbar/venv_test/bin/activate \
+      #     && pip install -r requirements.txt \
+      #     && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
+      #     && python selenium_tests.py --domain ${{ env.LS1_IP }} -v"
+
+      - name: Cleanup environment
+        if: always()
+        run: |
+          cd testing/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+            cd /home/admin.ackbar/LME/testing; \
+            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
+            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
+            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
+            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
+            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
+            ./development/destroy_cluster.ps1; \
+            exit \$LASTEXITCODE;
+          }"
+          docker compose -p ${{ env.UNIQUE_ID }} down
+          docker system prune --force
