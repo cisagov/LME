@@ -49,7 +49,7 @@ The Privileged Activity Log dashboard enables users to carry on audits related t
 
 ## Credential Access Log
 
-The Credential Access logs dashboard, focuses on account logon and account logoff audit events. In this dashboard, users will be able to monitor, audit logon attempts per hosts, logon using explicit credential attempts, account lockout attempts per host, special logon attempts per hosts, disconnection attempts, and credential validation attempts per host. Dashboard panels will also showcase Kerberos authentication services per host.
+The Credential Access Log dashboard, focuses on account logon and account logoff audit events. In this dashboard, users will be able to monitor, audit logon attempts per hosts, logon using explicit credential attempts, account lockout attempts per host, special logon attempts per hosts, disconnection attempts, and credential validation attempts per host. Dashboard panels will also showcase Kerberos authentication services per host.
 
 
 
