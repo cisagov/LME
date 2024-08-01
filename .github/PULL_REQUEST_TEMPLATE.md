@@ -10,7 +10,8 @@
 <!-- Mention any related issue(s) here using appropriate keywords such -->
 <!-- as "closes" or "resolves" to auto-close them on merge. -->
 <!-- If this PR is *not* being merged into main, the related issues will not -->
-<!-- be auto-closed, so you need to close the issue manually -->
+<!-- be auto-closed, so you need to add the issue into the Development box -->
+<!-- in the right sidebar -->
 
 ### 📷 Screenshots (DELETE IF UNAPPLICABLE)
 
@@ -25,7 +26,8 @@
 - [ ] Git Issue that this PR solves has been selected in the Development section
 - [ ] The PR's base branch has been modified to be the proper branch. 
 - [ ] Changes are limited to a single goal **AND** 
-      the title reflects this in a clear human readable format for the release notes
+      the title reflects this in a clear human readable format
+- [ ] Issue that this PR solves has been selected in the Development section
 - [ ] I have read and agree to LME's [CONTRIBUTING.md](https://github.com/cisagov/LME/CONTRIBUTING.md) document.
 - [ ] The PR adheres to LME's requirements in [RELEASES.md](https://github.com/cisagov/LME/RELEASES.md#steps-to-submit-a-PR)
 - [ ] These code changes follow [cisagov code standards](https://github.com/cisagov/development-guide).

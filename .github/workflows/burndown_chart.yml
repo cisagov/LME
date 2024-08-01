@@ -1,0 +1,100 @@
+name: Burndown Chart 
+
+on: 
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Sprint start date (YYYY-MM-DD)'
+        required: true
+        default: '2024-05-09'
+        type: string
+      end_date:
+        description: 'Sprint end date (YYYY-MM-DD)'
+        required: true
+        default: '2024-05-25'
+        type: string
+      view:
+        description: 'View number'
+        required: true
+        default: '1'
+        type: string
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  create_chart:
+    runs-on: ubuntu-latest
+    env:
+      UNIQUE_ID:      
+      start_date:
+      end_date:
+      view:
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.1
+
+    - name: Setup environment variables
+      run: |
+        echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
+    
+    - name: Set default dates
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "start_date=2024-05-09" >> $GITHUB_ENV
+        echo "end_date=2024-05-25" >> $GITHUB_ENV
+        echo "view=1" >> $GITHUB_ENV
+
+    - name: Use dispatch inputs
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        echo "start_date=${{ github.event.inputs.start_date }}" >> $GITHUB_ENV
+        echo "end_date=${{ github.event.inputs.end_date }}" >> $GITHUB_ENV
+        echo "view=${{ github.event.inputs.view }}" >> $GITHUB_ENV
+
+    - name: Run Docker Build
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml build burndown --no-cache
+      
+    - name: Run Docker Compose
+      env: 
+        BURNDOWN_TOKEN: ${{ secrets.BURNDOWN_TOKEN }}
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/project_management/docker-compose.yml up -d
+      
+    - name: List docker containers to wait for them to start
+      run: |
+        docker ps 
+
+    - name: Set up the burndown chart config
+      env:
+        BURNDOWN_TOKEN: ${{ secrets.BURNDOWN_TOKEN }}
+        UNIQUE_ID: ${{ env.UNIQUE_ID }}
+        START_DATE: ${{ env.start_date }}
+        END_DATE: ${{ env.end_date }}
+        VIEW: ${{ env.view }}
+      run: |
+        cd testing/project_management
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
+          /lme/testing/project_management/setup_config.sh -s ${{ env.START_DATE }}  -e ${{ env.END_DATE }}  -v ${{ env.VIEW }} -f /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
+          sed -i "s/\"github_token\": \"\"/\"github_token\": \"$BURNDOWN_TOKEN\"/g" /github-projects-burndown-chart/src/github_projects_burndown_chart/config/secrets.json
+          cat /github-projects-burndown-chart/src/github_projects_burndown_chart/config/config.json
+        '
+       
+    - name: Run the burndown chart script 
+      run: |
+        cd testing/project_management
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T burndown bash -c '
+          python3 /github-projects-burndown-chart/src/github_projects_burndown_chart/main.py organization LME --filepath /lme/burndown.png
+        '
+    - name: Upload chart artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: burndown
+        path: burndown.png
+
+    - name: Cleanup Docker Compose
+      if: always()
+      run: |
+        cd testing/project_management
+        docker compose -p ${{ env.UNIQUE_ID }} down
+        # docker system prune -a --force
