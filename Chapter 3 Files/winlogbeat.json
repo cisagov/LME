@@ -1,0 +1,43 @@
+{
+    "description": "Winlogbeat Routing Pipeline",
+    "on_failure": [
+        {
+            "set": {
+                "field": "error.message",
+                "value": "Processor \"{{ _ingest.on_failure_processor_type }}\" with tag \"{{ _ingest.on_failure_processor_tag }}\" in pipeline \"{{ _ingest.on_failure_pipeline }}\" failed with message \"{{ _ingest.on_failure_message }}\""
+            }
+        }
+    ],
+    "processors": [
+        {
+            "set": {
+                "field": "event.ingested",
+                "value": "{{_ingest.timestamp}}"
+            }
+        },
+        {
+            "pipeline": {
+                "if": "ctx?.winlog?.channel == 'Security' && ['Microsoft-Windows-Eventlog', 'Microsoft-Windows-Security-Auditing'].contains(ctx?.winlog?.provider_name)",
+                "name": "winlogbeat-8.5.0-security"
+            }
+        },
+        {
+            "pipeline": {
+                "if": "ctx?.winlog?.channel == 'Microsoft-Windows-Sysmon/Operational'",
+                "name": "winlogbeat-8.5.0-sysmon"
+            }
+        },
+        {
+            "pipeline": {
+                "if": "ctx?.winlog?.channel == 'Windows PowerShell'",
+                "name": "winlogbeat-8.5.0-powershell"
+            }
+        },
+        {
+            "pipeline": {
+                "if": "ctx?.winlog?.channel == 'Microsoft-Windows-PowerShell/Operational'",
+                "name": "winlogbeat-8.5.0-powershell_operational"
+            }
+        }
+    ]
+}
