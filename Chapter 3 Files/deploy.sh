@@ -152,7 +152,7 @@ function setpasswords() {
   temp="temp" 
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
-  max_attempts=25
+  max_attempts=30
   attempt=0
   while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' --cacert certs/root-ca.crt --user elastic:${temp} https://127.0.0.1:9200)" != "200" ]]; do
     printf '.'
@@ -457,8 +457,8 @@ function initdockerswarm() {
 }
 
 function pulllme() {
-  info " Pulling ELK images"
-  docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull
+  echo "Pulling ELK images"
+  docker compose -f /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml pull --quiet
 }
 
 function deploylme() {
@@ -1090,6 +1090,8 @@ function upgrade() {
 
     elif [ "$version" == $latest ]; then
       info "You're on the latest version!"
+    elif [ "$version" > "1.3.0" ]; then
+      info "There are no upgrades in this version. $latest"
     else
       error "Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
     fi

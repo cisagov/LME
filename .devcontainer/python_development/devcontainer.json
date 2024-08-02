@@ -14,5 +14,6 @@
         "ms-python.black-formatter"
       ]
     }
-  }
+  },
+  "remoteUser": "admin.ackbar"
 }
