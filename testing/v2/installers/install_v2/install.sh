@@ -4,7 +4,7 @@ set -e
 
 # Check if the required arguments are provided
 if [ $# -lt 3 ]; then
-    echo "Usage: $0 <username> <hostname> <password_file>"
+    echo "Usage: $0 <username> <hostname> <password_file> <branch>"
     exit 1
 fi
 
