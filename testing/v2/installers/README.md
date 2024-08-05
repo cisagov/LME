@@ -1,5 +1,8 @@
 There are readmes for each of the installer directories.
 
+You'll need to follow the steps in [Azure Authentication](/testing/v2/installers/azure/build_azure_linux_network.md#authentication) and 
+[Python Setup](/testing/v2/installers/azure/build_azure_linux_network.md#setup) prior to running the steps below. 
+
 Quick Start
 
 ```bash
