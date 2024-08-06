@@ -113,8 +113,8 @@ def set_network_rules(
         print(f"Network rule '{nsg_rule.name}' created successfully.")
 
 
-def create_public_ip(network_client, resource_group, location, machine_name, nsg_id):
-    print(f"\nCreating public IP address for {machine_name} with associated NSG...")
+def create_public_ip(network_client, resource_group, location, machine_name):
+    print(f"\nCreating public IP address for {machine_name}")
     unique_dns_name = f"{machine_name}-{random.randint(1000, 9999)}"
     public_ip_params = {
         "location": location,
@@ -122,9 +122,6 @@ def create_public_ip(network_client, resource_group, location, machine_name, nsg
         "dns_settings": {
             "domain_name_label": unique_dns_name
         },
-        "network_security_group": {
-            "id": nsg_id
-        }
     }
     public_ip_poller = (
         network_client.public_ip_addresses
@@ -137,14 +134,14 @@ def create_public_ip(network_client, resource_group, location, machine_name, nsg
     public_ip = public_ip_poller.result()
     print(
         f"Public IP address '{public_ip.name}' with "
-        f"ip {public_ip.ip_address} and associated NSG created successfully."
+        f"ip {public_ip.ip_address} created successfully."
     )
     return public_ip
 
 
 def create_network_interface(
         network_client, resource_group, location, machine_name,
-        subnet_id, private_ip_address, public_ip
+        subnet_id, private_ip_address, public_ip, nsg_id
         ):
     print(f"\nCreating network interface for {machine_name}...")
     nic_params = {
@@ -160,12 +157,15 @@ def create_network_interface(
                 }
             }
         ],
+        "network_security_group": {
+            "id": nsg_id
+        }
     }
     nic_poller = network_client.network_interfaces.begin_create_or_update(
         resource_group.name, f"{machine_name}-nic", nic_params
     )
     nic = nic_poller.result()
-    print(f"Network interface '{nic.name}' created successfully.")
+    print(f"Network interface '{nic.name}' created successfully with associated NSG.")
     return nic
 
 
@@ -210,21 +210,6 @@ def save_to_parent_directory(filename, content):
     with open(file_path, "w") as file:
         file.write(content)
     print(f"File saved: {file_path}")
-
-def associate_nsg_with_public_ip(network_client, resource_group_name, public_ip_name, nsg_name):
-    print(f"\nAssociating NSG '{nsg_name}' with public IP '{public_ip_name}'...")
-    public_ip = network_client.public_ip_addresses.get(resource_group_name, public_ip_name)
-    nsg = network_client.network_security_groups.get(resource_group_name, nsg_name)
-    
-    public_ip.network_security_group = {'id': nsg.id}
-    public_ip_poller = network_client.public_ip_addresses.begin_create_or_update(
-        resource_group_name,
-        public_ip_name,
-        public_ip
-    )
-    updated_public_ip = public_ip_poller.result()
-    print(f"NSG '{nsg_name}' associated with public IP '{public_ip_name}' successfully.")
-    return updated_public_ip
 
 
 # All arguments are keyword arguments
@@ -374,7 +359,7 @@ def main(
             )
 
     public_ip = create_public_ip(
-            network_client, resource_group, location, machine_name, nsg.id
+            network_client, resource_group, location, machine_name
             )
 
     print(f"\nWriting public_ip to {resource_group.name}.ip.txt")
@@ -390,7 +375,8 @@ def main(
                 machine_name,
                 subnet_id,
                 ls_ip,
-                public_ip
+                public_ip,
+                nsg.id
             )
 
     print(f"\nCreating {machine_name}...")
