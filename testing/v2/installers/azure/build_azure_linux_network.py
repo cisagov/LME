@@ -113,14 +113,17 @@ def set_network_rules(
         print(f"Network rule '{nsg_rule.name}' created successfully.")
 
 
-def create_public_ip(network_client, resource_group, location, machine_name):
-    print(f"\nCreating public IP address for {machine_name}...")
+def create_public_ip(network_client, resource_group, location, machine_name, nsg_id):
+    print(f"\nCreating public IP address for {machine_name} with associated NSG...")
     unique_dns_name = f"{machine_name}-{random.randint(1000, 9999)}"
     public_ip_params = {
         "location": location,
         "public_ip_allocation_method": "Static",
         "dns_settings": {
             "domain_name_label": unique_dns_name
+        },
+        "network_security_group": {
+            "id": nsg_id
         }
     }
     public_ip_poller = (
@@ -133,8 +136,8 @@ def create_public_ip(network_client, resource_group, location, machine_name):
     )
     public_ip = public_ip_poller.result()
     print(
-            f"Public IP address '{public_ip.name}' with "
-            f" ip {public_ip.ip_address} created successfully."
+        f"Public IP address '{public_ip.name}' with "
+        f"ip {public_ip.ip_address} and associated NSG created successfully."
     )
     return public_ip
 
@@ -207,6 +210,21 @@ def save_to_parent_directory(filename, content):
     with open(file_path, "w") as file:
         file.write(content)
     print(f"File saved: {file_path}")
+
+def associate_nsg_with_public_ip(network_client, resource_group_name, public_ip_name, nsg_name):
+    print(f"\nAssociating NSG '{nsg_name}' with public IP '{public_ip_name}'...")
+    public_ip = network_client.public_ip_addresses.get(resource_group_name, public_ip_name)
+    nsg = network_client.network_security_groups.get(resource_group_name, nsg_name)
+    
+    public_ip.network_security_group = {'id': nsg.id}
+    public_ip_poller = network_client.public_ip_addresses.begin_create_or_update(
+        resource_group_name,
+        public_ip_name,
+        public_ip
+    )
+    updated_public_ip = public_ip_poller.result()
+    print(f"NSG '{nsg_name}' associated with public IP '{public_ip_name}' successfully.")
+    return updated_public_ip
 
 
 # All arguments are keyword arguments
@@ -336,6 +354,7 @@ def main(
         protocols,
     )
 
+
     # Create the VM
     vm_password = generate_password()
 
@@ -355,7 +374,7 @@ def main(
             )
 
     public_ip = create_public_ip(
-            network_client, resource_group, location, machine_name
+            network_client, resource_group, location, machine_name, nsg.id
             )
 
     print(f"\nWriting public_ip to {resource_group.name}.ip.txt")
