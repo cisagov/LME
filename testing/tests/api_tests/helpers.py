@@ -80,6 +80,7 @@ def insert_winlog_data(es_host, es_port, username, password, filter_query_filena
 
     # You can use this to compare to the update later
     first_response = make_request(f"{url}/winlogbeat-*/_search", username, password, filter_query)
+    time.sleep(5)
     first_response_loaded = first_response.json()
     
     # Get the latest winlogbeat index
@@ -93,11 +94,11 @@ def insert_winlog_data(es_host, es_port, username, password, filter_query_filena
     ans =  post_request(f"{url}/{latest_index}/_doc", username, password, fixture)
 
     # Make sure to sleep for a few seconds to allow the data to be indexed
-    time.sleep(2)
+    time.sleep(5)
 
     # Make the same query again 
     second_response = make_request(f"{url}/winlogbeat-*/_search", username, password, filter_query)
-
+    time.sleep(5)
     second_response_loaded = second_response.json()
 
     return second_response_loaded
