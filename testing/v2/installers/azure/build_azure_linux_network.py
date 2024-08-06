@@ -521,8 +521,8 @@ if __name__ == "__main__":
         "--ports",
         type=int,
         nargs="+",
-        default=[22, 9001],
-        help="Ports to open. Default: [22, 9001]",
+        default=[22, 443],
+        help="Ports to open. Default: [22, 443]",
     )
     parser.add_argument(
         "-pr",
@@ -530,7 +530,7 @@ if __name__ == "__main__":
         type=int,
         nargs="+",
         default=[1001, 1002],
-        help="Priorities for the ports. Default: [1001]",
+        help="Priorities for the ports. Default: [1001, 1002]",
     )
     parser.add_argument(
         "-pt",
