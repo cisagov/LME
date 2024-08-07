@@ -147,3 +147,17 @@ The deploy.sh script should have now created new files on the Linux server at lo
 1. On the domain controller, open Group Policy Management, and delete "LME-WEC-Client" and "LME-WEC-Server". 
 2. Follow Chapter 1 instructions 1.3 and 1.4 to re-download LME, create the GPOs, import the v1.4.0 GPOs, and link them to your OU. Note: You will not need to create a new OU. You may reuse the OU used in prior installation. (https://github.com/cisagov/LME/blob/main/docs/markdown/chapter1/chapter1.md#13-download-lme)
 3. Right click on the OU the v1.4.0 GPOs are linked to and click "Group Policy Update"
+
+## 8. Upgrade to v1.4.0
+To upgrade, you will need to update the LME Group Policy Objects and the Windows Event Collector.
+
+### 8.1 Updating Group Policy Objects
+1. On the domain controller, open Group Policy Management, and delete "LME-WEC-Client" and "LME-WEC-Server". 
+2. Follow Chapter 1 instructions 1.3 and 1.4 to re-download LME, create the GPOs, import the v1.4.0 GPOs, and link them to both your Clients OU and your Domain Controllers OU. Note: You will not need to create a new OU. You may reuse the OU from your prior installation. (https://github.com/cisagov/LME/blob/main/docs/markdown/chapter1/chapter1.md#13-download-lme)
+3. Right click on the OUs the v1.4.0 GPOs are linked to and click "Group Policy Update".
+
+### 8.2 Updating Windows Event Collector
+1. On the domain controller, open Event Viewer, go to Subscriptions, and delete "LME".
+2. Re-download LME.
+3. Follow steps 4-6 in 1.5 in Chapter 1 instructions to create a new subscription using the new lme_wec_config.xml file. 
+4. Open Group Policy Management and right click on the OU the v1.4.0 GPOs are linked to and click "Group Policy Update".
