@@ -28,3 +28,6 @@ lme_update.sh
 testing/tests/assets/style.css
 .history/
 **/get-docker.sh
+**.password.txt
+**.ip.txt
+**.swp
