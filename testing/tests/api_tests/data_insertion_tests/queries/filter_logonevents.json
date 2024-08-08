@@ -1,0 +1,127 @@
+{
+    "aggs": {
+      "2": {
+        "terms": {
+          "field": "user.name",
+          "order": {
+            "_count": "desc"
+          },
+          "size": 12000
+        }
+      }
+    },
+    "size": 100,
+    "script_fields": {},
+    "stored_fields": [
+      "*"
+    ],
+    "_source": {
+      "excludes": []
+    },
+    "query": {
+      "bool": {
+        "must": [],
+        "filter": [
+          {
+            "bool": {
+              "filter": [
+                {
+                  "bool": {
+                    "should": [
+                      {
+                        "term": {
+                          "event.code": {
+                            "value": "4624"
+                          }
+                        }
+                      }
+                    ],
+                    "minimum_should_match": 1
+                  }
+                },
+                {
+                  "bool": {
+                    "must_not": {
+                      "bool": {
+                        "should": [
+                          {
+                            "wildcard": {
+                              "user.name": {
+                                "value": "*$"
+                              }
+                            }
+                          }
+                        ],
+                        "minimum_should_match": 1
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "bool": {
+              "should": [
+                {
+                  "match_phrase": {
+                    "winlog.event_data.LogonType": "2"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "winlog.event_data.LogonType": "10"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "winlog.event_data.LogonType": "11"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "winlog.event_data.LogonType": "7"
+                  }
+                }
+              ],
+              "minimum_should_match": 1
+            }
+          },
+          {
+            "range": {
+              "@timestamp": {
+                "format": "strict_date_optional_time",
+                "gte": "2024-06-05T18:00:00.000Z",
+                "lte": "2024-06-12T18:33:09.566Z"
+              }
+            }
+          }
+        ],
+        "should": [],
+        "must_not": [
+          {
+            "bool": {
+              "should": [
+                {
+                  "match_phrase": {
+                    "user.domain": "NT AUTHORITY"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "user.domain": "Window Manager"
+                  }
+                },
+                {
+                  "match_phrase": {
+                    "user.domain": "Font Driver Host"
+                  }
+                }
+              ],
+              "minimum_should_match": 1
+            }
+          }
+        ]
+      }
+    }
+  }

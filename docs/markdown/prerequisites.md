@@ -29,7 +29,7 @@ Figure 1: High level overview, linking to documentation chapters
 The portions of this package developed by the United States government are distributed under the Creative Commons 0 ("CC0") license. Portions created by government contractors at the behest of CISA are provided with the explicit grant of right to use, modify, and redistribute the code subject to this statement and the existing license structure. All other portions, including new submissions from all others, are subject to the Apache License, Version 2.0.
 This project (scripts, documentation, and so on) is licensed under the [Apache License 2.0 and Creative Commons 0](../../LICENSE).
 
-The design uses free and open software, we will maintain a pledge to ensure that no paid software licenses are needed above standard infrastructure costs (With the exception of Windows Operating system Licensing).
+The design uses open software which comes at no cost to the user, we will maintain a pledge to ensure that no paid software licenses are needed above standard infrastructure costs (With the exception of Windows Operating system Licensing).
 
 You will need to pay for hosting, bandwidth and time; for an estimate of server specs that might be needed see this [blogpost from elasticsearch](https://www.elastic.co/blog/benchmarking-and-sizing-your-elasticsearch-cluster-for-logs-and-metrics). Then use your estimated server specs to determine a price for an on prem or cloud deployment.
 

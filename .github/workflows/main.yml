@@ -5,8 +5,8 @@ on:
         - main
       tags:
         - 'v[0-9]+.[0-9]+.[0-9]+*'  # match basic semver tags
-    pull_request:
-      branches:
+    pull_request:  
+      branches: 
          - main
          - 'release-*'
   
@@ -62,25 +62,4 @@ jobs:
         run: |
           semgrep --config "p/r2c" .
 
-  release:
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [lint, semgrep-scan]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-
-      - name: Set up tag name
-        id: tag
-        run: echo "::set-output name=tag::${GITHUB_REF##*/}"
-
-      - name: Build
-        run: git ls-files | zip release-${{ steps.tag.outputs.tag }}.zip -@
-
-      - name: Release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
-        with:
-          files: release-${{ steps.tag.outputs.tag }}.zip
-          draft: true
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+  

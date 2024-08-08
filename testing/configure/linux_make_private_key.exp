@@ -1,0 +1,16 @@
+#!/usr/bin/expect
+
+spawn ssh-keygen -t rsa -b 4096
+sleep 1
+expect -re {Enter file in which to save the key}
+send "/home/admin.ackbar/.ssh/id_rsa\r"
+sleep 1
+expect -re {empty for no passphrase}
+send "\r"
+sleep 1
+expect -re {Enter same passphrase again}
+send "\r"
+
+set timeout 60
+
+expect eof
