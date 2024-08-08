@@ -123,6 +123,7 @@ function Get-RandomPassword {
 }
 
 function Set-AutoShutdown {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", Scope="Function")]
     param (
         [Parameter(Mandatory)]
         [string]$VMName
@@ -146,7 +147,8 @@ function Set-AutoShutdown {
     }
 }
 
-function Set-NetworkRules {
+function Set-NetworkRule {
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "", Scope="Function")]
     param (
         [Parameter(Mandatory)]
         $AllowedSourcesList
@@ -176,10 +178,11 @@ function Set-NetworkRules {
             "--source-address-prefixes $AllowedSourcesList " +
             "--destination-address-prefixes '*' " +
             "--destination-port-ranges $port " +
-            "--description 'Allow inbound from $sources on $port via $protocol connections.' " 
+            "--description 'Allow inbound from $sources on $port via $protocol connections.'"
 
         Write-Output "Running command: $command"
 
+	# TODO: Avoid using Invoke-Expression; https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.4
         $networkRuleResponse = Invoke-Expression $command
         Write-Output $networkRuleResponse
 
@@ -265,7 +268,7 @@ $createNsgResponse = az network nsg create --name NSG1 `
     --tags project=$Project created=$Today createdBy=$CurrentUser
 Write-Output $createNsgResponse
 
-Set-NetworkRules -AllowedSourcesList $AllowedSourcesList
+Set-NetworkRule -AllowedSourcesList $AllowedSourcesList
 
 ##################
 # Create the VMs #
@@ -432,14 +435,14 @@ if (-Not $LinuxOnly){
     Add-DnsServerResourceRecordA -Name LS1 -ZoneName $DomainName. -AllowUpdateAny -IPv4Address $LsIP -TimeToLive 01:00:00 -AsJob
 }
 `$job = Start-Job -ScriptBlock `$scriptBlock
-`$timeout = 120 
+`$timeout = 120
 if (Wait-Job -Job `$job -Timeout `$timeout) {
     Receive-Job -Job `$job
-    Write-Host 'The script completed within the timeout period.'
+    Write-Output 'The script completed within the timeout period.'
 } else {
     Stop-Job -Job `$job
     Remove-Job -Job `$job
-    Write-Host 'The script timed out after `$timeout seconds.'
+    Write-Output 'The script timed out after `$timeout seconds.'
 }
 "@
 
@@ -473,7 +476,7 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
     --scripts "Add-Content -Path 'C:\windows\system32\drivers\etc\hosts' -Value '$LsIP ls1.$DomainName ls1'"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$writeToHostsFileResponse")
 
-    Write-Host "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."
+    Write-Output "Checking if ls1 resolves. This should resolve to ls1.lme.local->${LsIP}, not another domain..."
     $resolveLs1Response = az vm run-command invoke `
         --command-id RunPowerShellScript `
         --resource-group $ResourceGroup `
@@ -481,7 +484,7 @@ if (Wait-Job -Job `$job -Timeout `$timeout) {
         --scripts "Resolve-DnsName ls1"
     Show-FormattedOutput -FormattedOutput (Format-AzVmRunCommandOutput -JsonResponse "$resolveLs1Response")
 
-    Write-Host "Removing the Dns script. No output expected..."
+    Write-Output "Removing the Dns script. No output expected..."
     $removeDnsRecordScriptResponse = az vm run-command invoke `
         --command-id RunPowerShellScript `
         --name DC1 `
