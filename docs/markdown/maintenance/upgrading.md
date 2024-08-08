@@ -6,8 +6,6 @@ Below you can find the upgrade paths that are currently supported and what steps
 
 Applying these changes is automated for any new installations. But, if you have an existing installation, you need to conduct some extra steps. **Before performing any of these steps it is advised to take a backup of the current installation using the method described [here](/docs/markdown/maintenance/backups.md).**
 
-To upgrade to the latest version from Release 1.2.0 to Release 1.3.0 [go here](#6-upgrade-from-120-to-130).
-
 ## 1. Finding your LME version (and the components versions)
 When reporting an issue or suggesting improvements, it is important to include the versions of all the components, where possible. This ensures that the issue has not already been fixed! 
 
@@ -26,10 +24,10 @@ When reporting an issue or suggesting improvements, it is important to include t
 
 
 ## 2. Upgrade from versions prior to v0.5
-LME does not support upgrading directly from versions prior to 0.5 to 1.0. Prior to switching to CISA's repo, first upgrade to the latest version of LME published by the NCSC (v0.5.1). Then follow the instructions above to upgrade to v1.0.
+LME does not support upgrading directly from versions prior to v0.5 to v1.0. Prior to switching to CISA's repo, first upgrade to the latest version of LME published by the NCSC (v0.5.1). Then follow the instructions above to upgrade to v1.0.
 
 
-## 3. Upgrade from v0.5 to 1.0.0
+## 3. Upgrade from v0.5 to v1.0.0
 
 Since LME's transition from the NCSC to CISA, the location of the LME repository has changed from `https://github.com/ukncsc/lme` to `https://github.com/cisagov/lme`. To obtain any further updates to LME on the ELK server, you will need to transition to the new git repository. Because vital configuration files are stored within the same folder as the git repo, it's simpler to copy the old LME folder to a different location, clone the new repo, copy the files and folders unique to your system, and then optionally delete the old folder. You can do this by running the following commands:
 
@@ -111,55 +109,40 @@ LME v1.0 made a minor change to the file structure used in the SYSVOL folder, so
 3. Is the LME folder inside SYSVOL properly structured? Refer to the checklist listed at the end of chapter 2.
 4. Are the events from all clients visible inside elastic? Refer to [4.1.2 Check you are receiving logs](/docs/markdown/chapter4.md#412-check-you-are-receiving-logs).
 
+## 4. Upgrade to v1.3.1 
 
-## 4. Upgrade from 1.0.0 to 1.1.0
-To fetch the latest changes, on the Linux server, run the following commands as root:
+This is a hotfix to the install script and some additional troubleshooting steps added to documentation on space management. Unless you're encountering problems with your current installation, or if your logs are running out of space, there's no need to upgrade to v1.3.1, as it doesn't offer any additional functionality changes.
+
+## 5. Upgrade to v1.3.2 
+
+This is a hotfix to address dashboards which failed to load on a fresh install of v1.3.1. If you are currently running v1.3.0, you do not need to upgrade at this time.  If you are running versions **before** 1.3.0 or are running v1.3.1, we recommend you upgrade to the latest version.
+
+Please refer to the [Upgrading to latest version](/docs/markdown/maintenance/upgrading.md#upgrading-to-latest-version) to apply the hotfix.
+
+## 6. v1.3.3 - Update on data retention failure during LME install 
+
+This is a hotfix to address an error with data retention failure in the deploy.sh script during a fresh LME install. We recommend you upgrade to the latest version if you require disk sizes of 1TB or greater. 
+
+If you've tried to install LME before, then run the following commands as root: 
 ```
-cd /opt/lme
 git pull
-```
-
-To manually update the dashboards, see [How to update dashboards](/Chapter%204%20Files/dashboards#how-to-update-dashboards).
-
-Additionally, to fix a potential file permission issue present in v1.0.0, run the following command on the Linux server:
-```
-sudo chown -R 1000:1000 /opt/lme/backups
-```
-
-See [Directory permission issues](/docs/markdown/reference/troubleshooting.md#directory-permission-issues) for more details.
-
-
-## 5. Upgrade from 1.1.0 to 1.2.0
-To fetch the latest changes, on the Linux server, run the following commands as root:
-```
+git checkout main
 cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh uninstall
-cd /opt/lme
+sudo docker volume rm lme-esdata
+sudo docker volume rm lme-logstashdata
+sudo ./deploy.sh install 
+```
+
+## 7. Upgrade to latest version 
+To fetch the latest changes, on the Linux server, run the following commands as root:
+```
 git pull
-cd Chapter\ 3\ Files/
+git checkout main
+cd /opt/lme/Chapter\ 3\ Files/
+sudo ./deploy.sh uninstall
 sudo ./deploy.sh install
 ```
 
 The deploy.sh script should have now created new files on the Linux server at location /opt/lme/files_for_windows.zip . This file needs to be copied across and used on the Windows Event Collector server like it was explained in Chapter 3 sections [3.2.4 & 3.3 ](/docs/markdown/chapter3/chapter3.md#324-download-files-for-windows-event-collector). 
-
-Then reboot your Client computers & Windows Event Collector. On Windows Event Collector open services.msc as an administrator and make sure the winlogbeat service is set to start automatically, and is running.
-
-## 6. Upgrade from 1.2.0 to 1.3.0
-To fetch the latest changes, run the following commands as root on the Linux server:
-```
-cd /opt/lme/Chapter\ 3\ Files/
-sudo ./deploy.sh uninstall
-cd /opt/lme
-git pull
-cd Chapter\ 3\ Files/
-sudo ./deploy.sh install
-```
-
-The deploy.sh script should have now created new files on the Linux server at location /opt/lme/files_for_windows.zip . This file needs to be copied across and used on the Windows Event Collector server like it was explained in Chapter 3 sections [3.2.4 & 3.3 ](/docs/markdown/chapter3/chapter3.md#324-download-files-for-windows-event-collector). 
-
-Then reboot your Client computers & Windows Event Collector. On Windows Event Collector open services.msc as an administrator and make sure the winlogbeat service is set to start automatically, and is running.
-
-
-
-
 

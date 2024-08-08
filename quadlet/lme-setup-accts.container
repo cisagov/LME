@@ -1,0 +1,24 @@
+# lme-elasticsearch-security-setup.container
+[Unit] 
+Requires=lme-network.service lme-setup-certs.service
+After=lme-network.service lme-setup-certs.service
+PartOf=lme.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
+
+[Container]
+ContainerName=lme-setup-accts
+EnvironmentFile=/opt/lme/lme-environment.env
+Exec=/bin/bash /usr/share/elasticsearch/config/setup/acct-init.sh
+Image=localhost/elasticsearch:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-setup --health-interval=2s 
+User=0
+Volume=lme_certs:/usr/share/elasticsearch/config/certs
+Volume=/opt/lme/config/setup:/usr/share/elasticsearch/config/setup
+
