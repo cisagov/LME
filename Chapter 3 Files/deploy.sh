@@ -1088,6 +1088,26 @@ function upgrade() {
       info "Updating dashbaords"
       sudo /opt/lme/dashboard_update.sh
 
+    elif [ "$version" == "1.4.0" ]; then
+      info "Copying lme.conf -> lme.conf.bku"
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
+
+      info "Copying dashboard_update.sh -> dashboard_update.sh.bku"
+      sudo cp -rapf /opt/lme/dashboard_update.sh /opt/lme/dashboard_update.sh.bku
+
+      info "Setting up new dashboard_update.sh"
+      sudo cp -rapf /opt/lme/Chapter\ 3\ Files/dashboard_update.sh /opt/lme/dashboard_update.sh
+      old_password=$(grep -P -o "(?<=dashboard_update:)[0-9a-zA-Z]+ " /opt/lme/dashboard_update.sh.bku)
+      sudo sed -i "s/dashboardupdatepassword/$old_password/g" /opt/lme/dashboard_update.sh
+
+      #update VERSION NUMBER
+      info "Updating Version to $latest"
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
+      sudo sed -i -E "s/version=[0-9]+\.[0-9]+\.[0-9]+/version=$latest/g" /opt/lme/lme.conf
+      chmod u+rwx /opt/lme/dashboard_update.sh
+
+      info "Updating dashbaords"
+      sudo /opt/lme/dashboard_update.sh
     elif [ "$version" == $latest ]; then
       info "You're on the latest version!"
     elif [ "$version" > "1.3.0" ]; then
