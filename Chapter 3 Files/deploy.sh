@@ -1088,7 +1088,8 @@ function upgrade() {
       info "Updating dashbaords"
       sudo /opt/lme/dashboard_update.sh
 
-    elif [ "$version" == "1.4.0" ]; then
+    elif [ "$(printf '%s\n' "$version" "1.3.0" | sort -V | head -n1)" = "1.3.0" ] && \
+     [ "$(printf '%s\n' "$version" "1.3.9" | sort -V | tail -n1)" = "$version" ]; then
       info "Copying lme.conf -> lme.conf.bku"
       sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
 
@@ -1110,7 +1111,7 @@ function upgrade() {
       sudo /opt/lme/dashboard_update.sh
     elif [ "$version" == $latest ]; then
       info "You're on the latest version!"
-    elif [ "$(printf '%s\n' "$version" "1.3.0" | sort -V | tail -n1)" == "$version" ]; then
+    elif [ "$(printf '%s\n' "$version" "1.4.0" | sort -V | tail -n1)" == "$version" ]; then
       info "There are no upgrades in this version. Version: $version Latest: $latest"
     else
       error "Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
