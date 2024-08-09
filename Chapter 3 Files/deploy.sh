@@ -1087,9 +1087,8 @@ function upgrade() {
 
       info "Updating dashbaords"
       sudo /opt/lme/dashboard_update.sh
-
     elif [ "$(printf '%s\n' "$version" "1.3.0" | sort -V | head -n1)" = "1.3.0" ] && \
-     [ "$(printf '%s\n' "$version" "1.3.9" | sort -V | tail -n1)" = "$version" ]; then
+       [ "$(printf '%s\n' "$version" "1.3.9" | sort -V | head -n1)" = "$version" ]; then
       info "Copying lme.conf -> lme.conf.bku"
       sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
 
