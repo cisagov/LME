@@ -30,3 +30,4 @@ testing/tests/assets/style.css
 **.password.txt
 **.ip.txt
 **.swp
+*.vim*
