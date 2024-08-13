@@ -1,0 +1,25 @@
+{
+    "process": {
+      "parent": {
+        "name": "powershell.exe",
+        "executable": "powershell.exe",
+        "args": "test"
+      },
+      "command_line": "invoke",
+      "executable" : "powershell.exe",
+      "args" : "test"
+    },
+    "event": {
+        "code": "11",
+        "provider": "Microsoft-Windows-Sysmon",
+        "action": "Download",
+        "outcome": "test"
+    },
+    "user": {
+        "name": "APItestuserid",
+        "domain": "test"
+    },
+    "host": {
+        "name": "C2.lme.local"
+      }  
+  }

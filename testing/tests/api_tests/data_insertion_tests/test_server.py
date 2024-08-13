@@ -60,4 +60,11 @@ def test_file_downloads_insert(es_host, es_port, username, password):
     assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'C:\\Users\\admin.ackbar\\Downloads\\test.txt')    
 
 
+def test_file_suspicious_powershell(es_host, es_port, username, password):
+        
+    second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_suspiciouspowershell.json', 'suspiciouspowershell.json', 1)
+    
+    # Check to make sure the data was inserted
+    assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'powershell.exe')    
+
 
