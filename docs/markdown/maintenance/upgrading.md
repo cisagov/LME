@@ -132,18 +132,34 @@ sudo ./deploy.sh install
 ```
 
 ## 7. Upgrade to latest version 
+#### If you have checked out the repo to /opt/lme
 To fetch the latest changes, on the Linux server, run the following commands as root:
 ```
+sudo su
+cd /opt/lme/
 git pull
 git checkout main
 cd /opt/lme/Chapter\ 3\ Files/
+sudo ./deploy.sh upgrade
+```
+
+#### If you have NOT checked out the repo to /opt/lme
+```
+sudo su
+cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh uninstall
+# Follow directions to remove existing volumes
+cd /opt/
+rm -rf lme 
+git clone https://github.com/cisagov/LME.git
+mv LME lme
+cd /opt/lme/Chapter\ 3\ Files/
 sudo ./deploy.sh install
 ```
 
 The deploy.sh script should have now created new files on the Linux server at location /opt/lme/files_for_windows.zip . This file needs to be copied across and used on the Windows Event Collector server like it was explained in Chapter 3 sections [3.2.4 & 3.3 ](/docs/markdown/chapter3/chapter3.md#324-download-files-for-windows-event-collector).
 
-## 8. Upgrade to v1.4.0
+## 8. Upgrade to v1.4.0 additional steps
 To upgrade, you will need to update the LME Group Policy Objects and the Windows Event Collector.
 
 ### 8.1 Updating Group Policy Objects
