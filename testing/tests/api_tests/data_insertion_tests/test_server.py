@@ -67,4 +67,11 @@ def test_file_suspicious_powershell(es_host, es_port, username, password):
     # Check to make sure the data was inserted
     assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'powershell.exe')    
 
+def test_createRemoteThread(es_host, es_port, username, password):
+        
+    second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_createRemoteThreads.json', 'createRemoteThreads.json', 1)
+    
+    # Check to make sure the data was inserted
+    assert 1==1
+    assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'testsource')    
 
