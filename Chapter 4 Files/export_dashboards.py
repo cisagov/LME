@@ -29,14 +29,20 @@ class Api:
         return base64.b64encode(f"{username}:{password}".encode()).decode()
 
     def get_ids(self):
-        url = f'{self.root_url}/api/kibana/management/saved_objects/_find?perPage=500&page=1&fields=id&type=dashboard&sortField=updated_at&sortOrder=desc'
+        url = f'{self.root_url}/api/kibana/management/saved_objects/_find?perPage=500&page=1&type=dashboard&sortField=updated_at&sortOrder=desc'
 
         try:
             response = requests.get(url, headers={'Authorization': f'Basic {self.basic_auth}'}, verify=False)
 
             if response.status_code == 200:
                 data = response.json()
-                ids = {item['id']: item['meta']['title'] for item in data.get('saved_objects', [])}
+                #ids = {item['id']: item['meta']['title'] for item in data.get('saved_objects', [])}
+                #return ids
+                ids = {
+                    item['id']: item['meta']['title']
+                    for item in data.get('saved_objects', [])
+                    if '[' not in item['meta']['title'] and ']' not in item['meta']['title']
+                }
                 return ids
             else:
                 print(f"HTTP request failed with status code: {response.status_code}")

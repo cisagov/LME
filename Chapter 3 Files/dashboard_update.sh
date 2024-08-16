@@ -9,7 +9,7 @@ if [ -r /opt/lme/lme.conf ]; then
   #reference this file as a source
   . /opt/lme/lme.conf
   #check if the version number is equal to the one we want
-  if [ "$version" == "1.3.0" ] || [ "$FRESH_INSTALL" = "true" ]; then
+  if [ "$version" == "1.3.0" ] || [ "$version" == "1.4.0" ] || [ "$FRESH_INSTALL" = "true" ]; then
     echo -e "\e[32m[X]\e[0m Updating from git repo"
     git -C /opt/lme/ pull
     #make sure the hostname variable is present
@@ -19,8 +19,11 @@ if [ -r /opt/lme/lme.conf ]; then
       echo -e "\e[32m[X]\e[0m Uploading the new dashboards to Kibana"
       for db in ${Dashboards};
       do
-        echo -e "\e[32m[X]\e[0m Uploading ${db%%*.} dashboard\n"
-        curl -X POST -k --user dashboard_update:dashboardupdatepassword -H 'kbn-xsrf: true' --form file="@${dashbaord_dir}/${db}" "https://127.0.0.1/api/saved_objects/_import?overwrite=true"
+        filename=${db##*/}
+        filename_no_ext=${filename%.*}
+        echo -e "\e[32m[X]\e[0m Uploading ${filename_no_ext} dashboard\n"
+        curl -X POST -k --user dashboard_update:dashboardupdatepassword -H 'kbn-xsrf: true' --form file="@${db}" "https://127.0.0.1/api/saved_objects/_import?overwrite=true"
+
         echo
       done
 
