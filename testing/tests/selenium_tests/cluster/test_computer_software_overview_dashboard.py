@@ -22,10 +22,10 @@ class TestComputerSoftwareOverviewDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Application Crashing and Hanging Count", ".tbvChart",".visError")
 
-    @pytest.mark.skip(reason="Skipping this test")
+    #@pytest.mark.skip(reason="Skipping this test")
     def test_create_remote_threat_events(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "CreateRemoteThread events", ".tbvChart",".visError")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "CreateRemoteThread events", ".euiDataGrid",".visError")
 
     def test_filter_hosts(self, setup_login, kibana_url, timeout):
         driver = setup_login
