@@ -7,7 +7,7 @@ ES_PROTOCOL="https"
 
 # Function to get the host IP address
 get_host_ip() {
-    ip route get 1 | awk '{print $7;exit}'
+    hostname -I | awk '{print $1}'
 }
 
 ES_HOST=$(get_host_ip)
@@ -38,18 +38,19 @@ check_es_connection() {
     fi
 }
 
-# Function to import data using Docker and elasticdump
+# Function to import data using Podman and elasticdump
 import_data() {
     local input_file="$1"
+    local import_index="$2"
 
-    echo "Importing data from ${input_file}..."
+    echo "Importing data from ${input_file} into index ${import_index}..."
     
-    gzip -dc "${input_file}" | docker run --rm -i \
+    gzip -dc "${input_file}" | podman run --rm -i \
         --network host \
         -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
-        elasticdump/elasticsearch-dump \
+        docker.io/elasticdump/elasticsearch-dump:latest \
         --input=$ \
-        --output=${ES_PROTOCOL}://${ES_USER}:${ES_PASS}@${ES_HOST}:${ES_PORT}/winlogbeat-imported \
+        --output=${ES_PROTOCOL}://${ES_USER}:${ES_PASS}@${ES_HOST}:${ES_PORT}/${import_index} \
         --type=data \
         --headers='{"Content-Type": "application/json"}' \
         --sslVerification=false
@@ -71,19 +72,14 @@ prompt_password() {
 }
 
 # Main script
-echo "LME Data Import Script for Elasticsearch 8.x"
-echo "============================================"
+echo "LME Data Import Script for Elasticsearch 8.x (using Podman)"
+echo "=========================================================="
 
 echo "Using host IP: ${ES_HOST}"
 
-# Check if Docker is installed and running
-if ! command -v docker &> /dev/null; then
-    echo "Error: Docker is not installed. Please install Docker to proceed."
-    exit 1
-fi
-
-if ! docker info &> /dev/null; then
-    echo "Error: Docker daemon is not running. Please start Docker to proceed."
+# Check if Podman is installed
+if ! command -v podman &> /dev/null; then
+    echo "Error: Podman is not installed. Please install Podman to proceed."
     exit 1
 fi
 
@@ -113,7 +109,11 @@ if [ ! -f "$INPUT_FILE" ]; then
     exit 1
 fi
 
-# Import data
-import_data "$INPUT_FILE"
+# Prompt for import index name
+read -p "Enter the name of the index to import into (default: winlogbeat-imported): " IMPORT_INDEX
+IMPORT_INDEX=${IMPORT_INDEX:-winlogbeat-imported}
 
-echo "Data import completed."
+# Import data
+import_data "$INPUT_FILE" "$IMPORT_INDEX"
+
+echo "Data import completed into index: $IMPORT_INDEX"
