@@ -81,3 +81,4 @@ def test_powershellNetworkConnections(es_host, es_port, username, password):
     # Check to make sure the data was inserted
     assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'APItestuserid')        
 
+
