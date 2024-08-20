@@ -31,9 +31,10 @@
         msg: "lme-environment.env file not found in {{ clone_directory }}/config/. Please copy example.env to lme-environment.env in the config directory and edit it before running this playbook."
       when: not env_file.stat.exists
 
-    - name: Move lme-environment.env to /opt/lme
+    - name: Move lme-environment.env to /opt/lme (only if it doesn't exist)
       command: "mv {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
       become: yes
+      when: not env_file.stat.exists
 
     - name: Set correct permissions for lme-environment.env
       file:
