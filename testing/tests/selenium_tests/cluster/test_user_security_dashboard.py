@@ -112,10 +112,10 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Potentially suspicious powershell", ".euiDataGrid",".euiDataGrid__noResults")  
         
-    @pytest.mark.skip(reason="Skipping this test")
+    #@pytest.mark.skip(reason="Skipping this test")
     def test_powershell_network_connections(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Powershell network connections", ".needarealvaluehere",".euiDataGrid__noResults")  
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Powershell network connections", ".euiDataGrid",".euiDataGrid__noResults")  
  
     
     def test_security_files_title(self, setup_login, kibana_url, timeout):
