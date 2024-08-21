@@ -61,21 +61,31 @@ check_es_connection() {
     fi
 }
 
-# Function to export data using Docker and elasticdump
-export_data() {
+# Function to export data and mappings using Docker and elasticdump
+export_data_and_mappings() {
     local output_dir="$1"
 
-    echo "Exporting winlogbeat-* indices..."
-    
-    docker run --rm -v "${output_dir}:/tmp" \
+    echo "Exporting winlogbeat-* indices data..."
+    docker run --rm -v "${output_dir}:${output_dir}" \
         --network host \
         -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
         elasticdump/elasticsearch-dump \
         --input=${ES_PROTOCOL}://${ES_USER}:${ES_PASS}@${ES_HOST}:${ES_PORT}/winlogbeat-* \
-        --output=/tmp/winlogbeat_data.json \
+        --output=$ \
         --type=data \
         --headers='{"Content-Type": "application/json"}' \
-        --sslVerification=false
+        --sslVerification=false | gzip > "${output_dir}/winlogbeat_data.json.gz"
+
+    echo "Exporting winlogbeat-* indices mappings..."
+    docker run --rm -v "${output_dir}:${output_dir}" \
+        --network host \
+        -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
+        elasticdump/elasticsearch-dump \
+        --input=${ES_PROTOCOL}://${ES_USER}:${ES_PASS}@${ES_HOST}:${ES_PORT}/winlogbeat-* \
+        --output=$ \
+        --type=mapping \
+        --headers='{"Content-Type": "application/json"}' \
+        --sslVerification=false | gzip > "${output_dir}/winlogbeat_mappings.json.gz"
 }
 
 # Function to prompt for password securely
@@ -160,7 +170,10 @@ BACKUP_DIR=$(clean_path "$BACKUP_DIR")
 # Create backup directory if it doesn't exist
 mkdir -p "${BACKUP_DIR}"
 
-# Export data
-export_data "${BACKUP_DIR}"
+# Export data and mappings
+export_data_and_mappings "${BACKUP_DIR}"
 
-echo "Data export completed. Backup stored in: ${BACKUP_DIR}"
+echo "Data and mappings export completed. Backup stored in: ${BACKUP_DIR}"
+echo "Files created:"
+echo "  - ${BACKUP_DIR}/winlogbeat_data.json.gz"
+echo "  - ${BACKUP_DIR}/winlogbeat_mappings.json.gz"

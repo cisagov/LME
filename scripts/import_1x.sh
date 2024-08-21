@@ -38,14 +38,25 @@ check_es_connection() {
     fi
 }
 
-# Function to import data using Podman and elasticdump
-import_data() {
-    local input_file="$1"
-    local import_index="$2"
+# Function to import data and mappings using Podman and elasticdump
+import_data_and_mappings() {
+    local data_file="$1"
+    local mappings_file="$2"
+    local import_index="$3"
 
-    echo "Importing data from ${input_file} into index ${import_index}..."
-    
-    gzip -dc "${input_file}" | podman run --rm -i \
+    echo "Importing mappings from ${mappings_file} into index ${import_index}..."
+    gzip -dc "${mappings_file}" | podman run --rm -i \
+        --network host \
+        -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
+        docker.io/elasticdump/elasticsearch-dump:latest \
+        --input=$ \
+        --output=${ES_PROTOCOL}://${ES_USER}:${ES_PASS}@${ES_HOST}:${ES_PORT}/${import_index} \
+        --type=mapping \
+        --headers='{"Content-Type": "application/json"}' \
+        --sslVerification=false
+
+    echo "Importing data from ${data_file} into index ${import_index}..."
+    gzip -dc "${data_file}" | podman run --rm -i \
         --network host \
         -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
         docker.io/elasticdump/elasticsearch-dump:latest \
@@ -101,11 +112,12 @@ while true; do
     fi
 done
 
-# Prompt for input file
-read -p "Enter the path to the compressed data file (.json.gz): " INPUT_FILE
+# Prompt for input files
+read -p "Enter the path to the compressed data file (winlogbeat_data.json.gz): " DATA_FILE
+read -p "Enter the path to the compressed mappings file (winlogbeat_mappings.json.gz): " MAPPINGS_FILE
 
-if [ ! -f "$INPUT_FILE" ]; then
-    echo "Error: File not found: $INPUT_FILE"
+if [ ! -f "$DATA_FILE" ] || [ ! -f "$MAPPINGS_FILE" ]; then
+    echo "Error: One or both files not found."
     exit 1
 fi
 
@@ -113,7 +125,7 @@ fi
 read -p "Enter the name of the index to import into (default: winlogbeat-imported): " IMPORT_INDEX
 IMPORT_INDEX=${IMPORT_INDEX:-winlogbeat-imported}
 
-# Import data
-import_data "$INPUT_FILE" "$IMPORT_INDEX"
+# Import data and mappings
+import_data_and_mappings "$DATA_FILE" "$MAPPINGS_FILE" "$IMPORT_INDEX"
 
-echo "Data import completed into index: $IMPORT_INDEX"
+echo "Data and mappings import completed into index: $IMPORT_INDEX"
