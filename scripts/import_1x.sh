@@ -38,11 +38,33 @@ check_es_connection() {
     fi
 }
 
+# Function to increase field limit
+increase_field_limit() {
+    local index_name="$1"
+    local new_limit="$2"
+
+    echo "Increasing field limit for index ${index_name} to ${new_limit}..."
+    curl -X PUT -k -H 'Content-Type: application/json' \
+         -u "${ES_USER}:${ES_PASS}" \
+         "${ES_PROTOCOL}://${ES_HOST}:${ES_PORT}/${index_name}/_settings" \
+         -d "{\"index.mapping.total_fields.limit\": ${new_limit}}"
+    echo
+}
+
 # Function to import data and mappings using Podman and elasticdump
 import_data_and_mappings() {
     local data_file="$1"
     local mappings_file="$2"
     local import_index="$3"
+    local field_limit="$4"
+
+    # Create the index with increased field limit
+    echo "Creating index ${import_index} with increased field limit..."
+    curl -X PUT -k -H 'Content-Type: application/json' \
+         -u "${ES_USER}:${ES_PASS}" \
+         "${ES_PROTOCOL}://${ES_HOST}:${ES_PORT}/${import_index}" \
+         -d "{\"settings\": {\"index.mapping.total_fields.limit\": ${field_limit}}}"
+    echo
 
     echo "Importing mappings from ${mappings_file} into index ${import_index}..."
     gzip -dc "${mappings_file}" | podman run --rm -i \
@@ -125,7 +147,11 @@ fi
 read -p "Enter the name of the index to import into (default: winlogbeat-imported): " IMPORT_INDEX
 IMPORT_INDEX=${IMPORT_INDEX:-winlogbeat-imported}
 
-# Import data and mappings
-import_data_and_mappings "$DATA_FILE" "$MAPPINGS_FILE" "$IMPORT_INDEX"
+# Prompt for field limit
+read -p "Enter the new field limit (default: 2000): " FIELD_LIMIT
+FIELD_LIMIT=${FIELD_LIMIT:-2000}
+
+# Import data and mappings with increased field limit
+import_data_and_mappings "$DATA_FILE" "$MAPPINGS_FILE" "$IMPORT_INDEX" "$FIELD_LIMIT"
 
 echo "Data and mappings import completed into index: $IMPORT_INDEX"
