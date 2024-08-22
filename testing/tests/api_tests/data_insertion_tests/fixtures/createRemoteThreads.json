@@ -1,0 +1,31 @@
+{
+    "winlog": {
+      "computer_name": "testing.lme.local",
+      "event_id": "4625",
+      "task": "Logon",
+      "keywords": [
+        "Audit Failure"
+      ],
+      "provider_name": "Microsoft-Windows-Sysmon",
+      "event_data": {
+        "LogonType": "3",
+        "IpAddress": "194.165.16.73",
+        "TargetUserName": "Administrator",
+        "TargetDomainName": "testserver.LME.LOCAL",
+        "LogonProcessName": "NtLmSsp ",
+        "AuthenticationPackageName": "NTLM",
+        "SourceImage": "testsource",
+        "TargetImage": "testtarget"
+      }
+    },
+    "@timestamp": "2024-05-08T08:40:18.252Z",
+    "host": {
+      "name": "testing.lme.local"
+    },
+    "event": {
+      "code": "8",
+      "provider": "Microsoft-Windows-Sysmon",
+      "action": "Logon",
+      "outcome": "failure"
+    }
+  }
