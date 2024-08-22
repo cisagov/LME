@@ -11,6 +11,7 @@ WantedBy=default.target lme.service
 [Service]
 Restart=always
 TimeoutStartSec=900 #5 minutes, kibana can be slow
+User=lmed
 
 [Container]
 ContainerName=lme-kibana

@@ -10,6 +10,7 @@ WantedBy=default.target lme.service
 
 [Service]
 Restart=always
+User=lmed
 
 [Container]
 ContainerName=lme-caddy

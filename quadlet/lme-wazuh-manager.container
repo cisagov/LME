@@ -8,6 +8,7 @@ PartOf=lme.service
 [Service]
 Restart=always
 LimitNOFILE=655360
+User=lmed
 
 
 [Install]

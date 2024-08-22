@@ -1,4 +1,6 @@
 # lme.network
+[Service]
+User=lmed
 [Network]
 Driver=bridge
 Gateway=10.89.4.1
