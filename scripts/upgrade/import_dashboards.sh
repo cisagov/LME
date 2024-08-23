@@ -2,11 +2,11 @@
 
 # Function to display usage information
 usage() {
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: $0 -d DIRECTORY [OPTIONS]"
     echo "Options:"
+    echo "  -d, --directory PATH      Path to the dashboards directory (required)"
     echo "  -u, --user USERNAME       Elasticsearch username (default: elastic)"
-    echo "  -d, --directory PATH       Path to the dashboards directory"
-    echo "  -h, --help                 Display this help message"
+    echo "  -h, --help                Display this help message"
     echo "Note: The script will prompt for the password if ELASTIC_PASSWORD is not set."
     exit 1
 }
@@ -48,6 +48,12 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Check if dashboards directory is provided
+if [ -z "$DASHBOARDS_DIR" ]; then
+    echo "Error: Dashboards directory (-d) is required."
+    usage
+fi
+
 # Check for password
 if [ -z "$ELASTIC_PASSWORD" ]; then
     echo "ELASTIC_PASSWORD is not set. Please enter the password."
@@ -55,13 +61,6 @@ if [ -z "$ELASTIC_PASSWORD" ]; then
 else
     echo "Using password from ELASTIC_PASSWORD environment variable."
     PASSWORD="$ELASTIC_PASSWORD"
-fi
-
-# Check if dashboards directory is provided
-if [ -z "$DASHBOARDS_DIR" ]; then
-    # If not provided, use the default relative path
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-    DASHBOARDS_DIR="${SCRIPT_DIR}/../OLD_CHAPTERS/Chapter 4 Files/dashboards/"
 fi
 
 # Check if the dashboards directory exists
