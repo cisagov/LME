@@ -1,6 +1,73 @@
+# Upgrading from 1x to 2x
+1. Checkout the latest version of the LME repository to your home directory
+    ```bash
+    cd ~
+    git clone https://github.com/cisagov/LME.git
+    ```
 1. Export indices
+    ```bash
+    cd ~/LME/scripts/upgrade
+    ./export_1x.sh
+    ```
 1. Either export the dashboards or use the existing ones
+    - If you have custom dashboards, you will need to export them:
+        ```bash
+        # Export all of the dashboards, it is the last option
+        cd ~/LME/scripts/upgrade/
+        pip install -r requirements.txt
+        export_dashboards.py -u elastic -p yourpassword
+        ```
+        - Your path to use for the importer will be:
+        ```bash
+        /yourhomedirectory/LME/scripts/upgrade/exported/
+        ```
+    - If you don't have custom dashboards, you can use the path to the existing ones
+        ```bash
+        /opt/lme/Chapter 4 Files/dashboards/
+        ```
 1. Uninstall LME
-    - Remove existing volumes
-    - Uninstall Docker  
-    - Rename the lme directory `sudo mv /opt/lme /opt/lme-old`
+    ```bash
+    sudo su
+    cd "/opt/lme/Chapter 3 Files/"
+    ./deploy.sh uninstall
+
+    # If you are using docker for more than lme 
+    sudo docker volume rm lme_esdata
+    sudo docker volume rm lme_logstashdata
+
+    exit # Go back to your user
+    cd ~/LME/scripts/upgrade
+    sudo su # Become root in the right directory
+
+    # If you are only using docker for lme 
+    # Remove existing volumes
+    ./remove_volumes.sh
+    # Uninstall Docker  
+    ./uninstall_docker.sh
+
+    # Rename the directory to make room for the new install
+    mv /opt/lme /opt/lme-old
+    ```
+1. Install LME
+    ```bash
+    # Make sure you are running as normal user
+    sudo apt-get update && sudo apt-get -y install ansible
+
+    # Copy the environment file 
+    cp ~/LME/config/example.env ~/LME/config/lme-environment.env
+    # Edit the lme-environment.env and change all the passwords
+
+    # Change to the script directory
+    cd ~/LME/scripts/
+
+    ansible-playbook install_lme_local.yml
+
+    # Load podman into your enviornment
+    . ~/.bashrc 
+
+    # Have the full paths of the winlogbeat files that you exported earlier ready
+    ./upgrade/import_1x.sh
+
+    # Use the path from above dashboard update or original dashboards
+    sudo ./upgrade/import_dashboards.sh -d /opt/lme-old/Chapter\ 4\ Files/dashboards/
+    ```
