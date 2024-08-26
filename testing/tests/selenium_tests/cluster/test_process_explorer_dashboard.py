@@ -20,11 +20,11 @@ class TestProcessExplorerDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Files created (in Downloads)", ".needarealvaluehere",".euiFlexGroup")
         
-    @pytest.mark.skip(reason="Skipping this test")
+    #@pytest.mark.skip(reason="Skipping this test")
     def test_files_created_in_downloads(self, setup_login, kibana_url, timeout):
-        #This dashboard panel is not working corectly. Shows no data even when there is data. Create issue LME#294
+        #This dashboard panel is not working corectly. Shows no data even when there is data on DC instance downloads folder. Create issue LME#294
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Files created (in Downloads)", ".euiFlexGroup", ".euiDataGrid__noResults",)
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Files created (in Downloads)", ".euiDataGrid", ".euiDataGrid__noResults",)
 
     def test_hosts(self, setup_login, kibana_url, timeout):
         driver = setup_login
