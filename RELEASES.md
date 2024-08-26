@@ -1,42 +1,54 @@
-# Release Workflow:
+# Release Workflow
+Here you can find information around our release versioning scheme, Gitflow branching model, and steps to undergo when creating a new release. 
 
-## SEMVER Number Decisions
+## SEMVER Numbering
 
-Our versioning scheme for LME adheres to [SEMVER 2.0](https://semver.org/):  X.Y.Z (Major.Minor.Patch). 
+Our versioning scheme for LME adheres to [SEMVER 2.0](https://semver.org/):  `x.y.z (major.minor.patch)`. 
 The patch versions will generally adhere to the following guidelines:
-1. Major SEMVER: Denotes a major release, e.g., a new capability, or LME architecture change.
-2. Minor SEMVER: Denotes updates which are less than major but introduces noticeable changes.
-3. Patch SEMVER: Fix bug issues or vulnerability issues but do not introduce new features or updates.
+- **Major versions (`x.0.0`)**: Denotes a major release, e.g., a new capability, or LME architecture change.
+- **Minor versions (`x.y.0`)**: Denotes updates which are less than major but introduces noticeable changes.
+- **Patch versions (`x.y.z`)**: Fix bug issues or vulnerability issues but do not introduce new features or updates.
 
-### Timelines
+## Gitflow Branching Model 
+The Gitflow model helps standardize how we handle our development workflow. The purpose of branch types are clearly defined which helps to improve collaboration and to simplify release management.
 
-Development lifecycle timelines will vary depending on project goals, tasking, community contributions, and vision.
+- **Main (`main`)**: Represents the latest production-ready code. Each commit here corresponds to a version release, and it is tagged accordingly.
+- **Develop (`develop`)**: An integration branch for new development work. All feature branches branch off from develop and are merged back into it when completed. The `develop` branch represents the code that will be included in the next major or minor release.
+- **Feature branches (`427-descriptive-name-xyz`)**: Created from `develop` for new features, new changes are merged back into `develop` upon completion. The feature branch should include a corresponding issue number along with a short description of the work being done.
 
+  ```
+  git fetch
+  git checkout develop
+  git checkout -b 427-descriptive-name-xyz
+  ```
 
-## Current Release Branch:
-To determine the current release branch, it will either be clearly documented in our wiki or on our public [project](https://github.com/orgs/cisagov/projects/68) board. The below example can also be used to determine our current release branch.
+  When the feature is complete, open a pull request back into `develop`. In some cases, your feature     branch may be outdated with the current state of `develop`. Rebase the latest changes from `develop`   into your feature branch to maintain a clean commit history.
 
-- For example, if the current latest release (as seen on the main [README](/README.md)) version `1.1.0`, and the `release-*` branches are: `release-1.1.1` and `release-1.2.0` then the `1.2.0` branch would be the branch where submit the PR, since it is the closest release that is a Major or Minor release, while 1.1.1 is a patch release.
+  ```
+  # From your feature branch, run:
+  git pull --rebase origin develop
+  ```
 
-- All `release-*` have various branch protections enabled, and will require review by the development team before being merged.
-The team requests a brief description if one submits a fix for a current issue on the public project, that context will allow us to help determine if it warrants inclusion. If the PR is well documented following our processes in our CONTRIBUTING.md, it will most likely be worked into LME. We value inclusion and recognize the importance of the open-source community.
+- **Release branches (`release-1.4.0`)**: Created from `develop`, the release branch represents the upcoming version and is where continuous integration picks up any remaining bug fixes. Once the release is finalized, the release branch is merged into `main`.
+- **Hotfix (`hotfix-1.4.1`)**: Created from `main` to address urgent production issues. These are merged into both `main` and `develop` upon completion.
 
-## Content: 
+<img src="https://github.com/user-attachments/assets/9c5e959b-5187-4cdc-92a1-66b18bc65068" alt="git-model" width="500"/>
 
-Each release generally notes the Additions, Changes, and Fixes addressed in the release and the contributors that provided code for the release. Additionally, relevant builds of the release will be attached with the release. Tagging the release will correspond with its originating branch's SEMVER number.
+## Release Content: 
 
-## Update Process:
-Developments and changes will accrue in a release-X.Y.Z branch according to the level of the release as documented in [Pull Requests](#pull-requests). The process of merging all changes into a release branch and preparing it for release is documented below.
+When a release is merged into `main`, it is given a tag corresponding to the release's SEMVER number, i.e. `v1.4.0`. Each release contains Additions, Changes, and Fixes addressed in the release notes. A zip file is attached which is available to download after a release is published. 
+
+![Screenshot (183)](https://github.com/user-attachments/assets/7bd771ca-ef41-48a8-a482-de4582b584db)
 
 ### Code Freeze:
 Each code freeze will have an announced end date/time in accordance with our public [project](https://github.com/orgs/cisagov/projects/68). Any PRs with new content will need to be in by the announced time in order to be included into the release.
 
 ### Steps:
 
-1. Goals/changes/updates to LME will be tracked in LME's public [project](https://github.com/orgs/cisagov/projects/68). These updates to LME will be tracked by pull requests (and may be backed by corresponding issues for documentation purposes for documentation purposes) to a specific `release-X.Y.Z` branch.
-2. As commits are pushed to the PRs set to pull into a release branch, we will determine a time to cease developments. When its determined the features developed in a `release` branch meet a goal or publish point, we will merge all the release's PR's into one combined state onto the `release-.X.Y.Z` branch. This will make sure all testing happens from a unified branch state, and will minimize the number of merge conflicts that occur, easing coordination of merge conflicts. 
-3. Once all work has been merged into an initial release, we will mark the pull request for the release with a `code freeze` label to denote that the release is no longer excepting new features/developments/etc...., all PRs that commit to the release branch should only be to fix breaking changes or failed tests. We’ll also invite the community to pull the frozen `release` branch to test and validate if the new changes cause issues in their environment.
-4. Finally, when all testing and community feedback is complete we'll merge into main with a new tag denoting the `release-X.Y.Z` SEMVER value `X.Y.Z`.
+1. Goals/changes/updates to LME will be tracked in LME's public [project](https://github.com/orgs/cisagov/projects/68).
+2. Feature branches will be created based on the work allocated for a given sprint. When work is complete on a given feature branch, a pull request is opened back into `develop`.
+3. Once `develop` is in a state that is release ready, we will create a release branch off of `develop`, denoted by the release's SEMVER value, `release-x.y.z`. For any bugfixes found when testing a release, these updates can be merged back into the `develop` branch. The community is also welcome to pull the frozen `release-x.y.z` branch to test and validate if the new changes cause issues in their environment.
+5. Once testing and community feedback is complete, we'll merge the release branch into `main` with a new tag denoting the `release-x.y.z` SEMVER value, `vx.y.z`.
 
 ### Caveats:
 Major or Minor SEMVER LME versions will only be pushed to `main` with testing and validation of code to ensure stability and compatibility. However, new major changes will not always be backwards compatible.
