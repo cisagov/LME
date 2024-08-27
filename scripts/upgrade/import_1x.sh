@@ -148,8 +148,8 @@ read -p "Enter the name of the index to import into (default: winlogbeat-importe
 IMPORT_INDEX=${IMPORT_INDEX:-winlogbeat-imported}
 
 # Prompt for field limit
-read -p "Enter the new field limit (default: 2000): " FIELD_LIMIT
-FIELD_LIMIT=${FIELD_LIMIT:-2000}
+read -p "Enter the new field limit (default: 3000): " FIELD_LIMIT
+FIELD_LIMIT=${FIELD_LIMIT:-3000}
 
 # Import data and mappings with increased field limit
 import_data_and_mappings "$DATA_FILE" "$MAPPINGS_FILE" "$IMPORT_INDEX" "$FIELD_LIMIT"

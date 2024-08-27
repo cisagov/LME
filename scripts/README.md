@@ -7,7 +7,7 @@
 1. Export indices
     ```bash
     cd ~/LME/scripts/upgrade
-    ./export_1x.sh
+    sudo ./export_1x.sh
     ```
 1. Either export the dashboards or use the existing ones
     - If you have custom dashboards, you will need to export them:
@@ -30,17 +30,17 @@
     sudo su
     cd "/opt/lme/Chapter 3 Files/"
     ./deploy.sh uninstall
+    exit # Go back to your user
 
     # If you are using docker for more than lme 
     sudo docker volume rm lme_esdata
     sudo docker volume rm lme_logstashdata
 
-    exit # Go back to your user
-    cd ~/LME/scripts/upgrade
-    sudo su # Become root in the right directory
 
     # If you are only using docker for lme 
     # Remove existing volumes
+    cd ~/LME/scripts/upgrade
+    sudo su # Become root in the right directory
     ./remove_volumes.sh
     # Uninstall Docker  
     ./uninstall_docker.sh
@@ -50,12 +50,14 @@
     ```
 1. Install LME
     ```bash
-    # Make sure you are running as normal user
+    #***** Make sure you are running as normal user *****#
     sudo apt-get update && sudo apt-get -y install ansible
 
     # Copy the environment file 
     cp ~/LME/config/example.env ~/LME/config/lme-environment.env
+
     # Edit the lme-environment.env and change all the passwords
+    # vim ~/LME/config/lme-environment.env 
 
     # Change to the script directory
     cd ~/LME/scripts/
