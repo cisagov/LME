@@ -25,5 +25,5 @@ fi
 
 echo "Setting file permissions..."
 chown -R root:root "${CERTS_DIR}"
-find "${CERTS_DIR}" -type d -exec chmod 750 {} \;
-find "${CERTS_DIR}" -type f -exec chmod 640 {} \;
+find "${CERTS_DIR}" -type d -exec chmod 754 {} \;
+find "${CERTS_DIR}" -type f -exec chmod 644 {} \;
