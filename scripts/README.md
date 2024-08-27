@@ -4,7 +4,18 @@
     cd ~
     git clone https://github.com/cisagov/LME.git
     ```
-1. Export indices
+1. Export indices:
+
+    Note: *This may take some time witout feedback. Make sure it finishes successfully*
+
+    A successful completion looks like this:
+    ```bash
+    Data and mappings export completed. Backup stored in: /lme_backup
+    Files created:
+    - /lme_backup/winlogbeat_data.json.gz
+    - /lme_backup/winlogbeat_mappings.json.gz
+    ```
+    Run this command to export the indices: 
     ```bash
     cd ~/LME/scripts/upgrade
     sudo ./export_1x.sh
@@ -30,12 +41,13 @@
     sudo su
     cd "/opt/lme/Chapter 3 Files/"
     ./deploy.sh uninstall
-    exit # Go back to your user
 
-    # If you are using docker for more than lme 
+    # Go back to your user
+    exit 
+
+    # If you are using docker for more than lme (You want to keep docker)
     sudo docker volume rm lme_esdata
     sudo docker volume rm lme_logstashdata
-
 
     # If you are only using docker for lme 
     # Remove existing volumes
@@ -47,6 +59,7 @@
 
     # Rename the directory to make room for the new install
     mv /opt/lme /opt/lme-old
+    exit # Go back to regular user
     ```
 1. Install LME
     ```bash

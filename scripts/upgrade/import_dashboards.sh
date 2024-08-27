@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Get the directory of the current script
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 # Function to display usage information
 usage() {
     echo "Usage: $0 -d DIRECTORY [OPTIONS]"
@@ -69,9 +72,32 @@ if [ ! -d "$DASHBOARDS_DIR" ]; then
     exit 1
 fi
 
+# Convert DASHBOARDS_DIR to absolute path
+DASHBOARDS_DIR=$(realpath "$DASHBOARDS_DIR")
+
+# Check if fix_dashboard_titles.sh exists in the same directory as this script
+FIX_SCRIPT="${SCRIPT_DIR}/fix_dashboard_titles.sh"
+if [ ! -f "$FIX_SCRIPT" ]; then
+    echo "Error: fix_dashboard_titles.sh not found in the script directory: $SCRIPT_DIR"
+    exit 1
+fi
+
+# Make fix_dashboard_titles.sh executable
+chmod +x "$FIX_SCRIPT"
+
+# Run fix_dashboard_titles.sh with the DASHBOARDS_DIR
+echo "Fixing dashboard titles in $DASHBOARDS_DIR..."
+"$FIX_SCRIPT" "$DASHBOARDS_DIR"
+
+# Check the exit status of fix_dashboard_titles.sh
+if [ $? -ne 0 ]; then
+    echo "Error: fix_dashboard_titles.sh failed. Exiting."
+    exit 1
+fi
+
 # Get list of dashboard files
 IFS=$'\n'
-DASHBOARDS=($(ls -1 "${DASHBOARDS_DIR}"*.ndjson))
+DASHBOARDS=($(ls -1 "${DASHBOARDS_DIR}"/*.ndjson))
 
 # Check if any dashboard files were found
 if [ ${#DASHBOARDS[@]} -eq 0 ]; then
