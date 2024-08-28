@@ -21,7 +21,11 @@
     sudo ./export_1x.sh
     ```
 1. Either export the dashboards or use the existing ones
-    - If you have custom dashboards, you will need to export them:
+    - If you don't have custom dashboards, you can use the path to the existing ones in the following steps
+        ```bash
+        /opt/lme/Chapter 4 Files/dashboards/
+        ```
+    - If you have custom dashboards, you will need to export them and use that path:
         ```bash
         # Export all of the dashboards, it is the last option
         cd ~/LME/scripts/upgrade/
@@ -32,11 +36,7 @@
         ```bash
         /yourhomedirectory/LME/scripts/upgrade/exported/
         ```
-    - If you don't have custom dashboards, you can use the path to the existing ones
-        ```bash
-        /opt/lme/Chapter 4 Files/dashboards/
-        ```
-1. Uninstall LME
+1. Uninstall old LME version 
     ```bash
     sudo su
     cd "/opt/lme/Chapter 3 Files/"
@@ -61,7 +61,7 @@
     mv /opt/lme /opt/lme-old
     exit # Go back to regular user
     ```
-1. Install LME
+1. Install LME version 2x
     ```bash
     #***** Make sure you are running as normal user *****#
     sudo apt-get update && sudo apt-get -y install ansible
