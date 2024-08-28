@@ -657,12 +657,20 @@ function auto_os_updates() {
   fi
 }
 
-function configelasticsearch() {
-  echo -e "\n\e[32m[X]\e[0m Configuring elasticsearch Replica settings"
+function config_replicas() {
+  echo -e "\n\e[32m[X]\e[0m Configuring elasticsearch replica settings"
 
-  #set future index to always have no replicas
-  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_template/number_of_replicas" -H 'Content-Type: application/json' -d' {  "template": "*",  "settings": {    "number_of_replicas": 0  }}'
-  #set all current indices to have 0 replicas
+  # set future index to always have no replicas
+  curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_index_template/number_of_replicas" -H 'Content-Type: application/json' -d'{
+  "index_patterns": ["*"],
+  "template": {
+    "settings": {
+      "number_of_replicas": 0
+    }
+  },
+  "priority": 1
+}'
+  # set all current indices to have 0 replicas
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_all/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
 }
 
@@ -858,7 +866,6 @@ function install() {
   pulllme
   deploylme
   setpasswords
-  configelasticsearch
   zipfiles
 
   #pipelines
@@ -872,6 +879,9 @@ function install() {
 
   #bootstrap
   bootstrapindex
+
+  #config replicas
+  config_replicas
 
   #create config file
   writeconfig
@@ -1077,11 +1087,31 @@ function upgrade() {
 
       info "Updating dashbaords"
       sudo /opt/lme/dashboard_update.sh
+    elif [ "$(printf '%s\n' "$version" "1.3.0" | sort -V | head -n1)" = "1.3.0" ] && \
+       [ "$(printf '%s\n' "$version" "1.3.9" | sort -V | head -n1)" = "$version" ]; then
+      info "Copying lme.conf -> lme.conf.bku"
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
 
+      info "Copying dashboard_update.sh -> dashboard_update.sh.bku"
+      sudo cp -rapf /opt/lme/dashboard_update.sh /opt/lme/dashboard_update.sh.bku
+
+      info "Setting up new dashboard_update.sh"
+      sudo cp -rapf /opt/lme/Chapter\ 3\ Files/dashboard_update.sh /opt/lme/dashboard_update.sh
+      old_password=$(grep -P -o "(?<=dashboard_update:)[0-9a-zA-Z]+ " /opt/lme/dashboard_update.sh.bku)
+      sudo sed -i "s/dashboardupdatepassword/$old_password/g" /opt/lme/dashboard_update.sh
+
+      #update VERSION NUMBER
+      info "Updating Version to $latest"
+      sudo cp -rapf /opt/lme/lme.conf /opt/lme/lme.conf.bku
+      sudo sed -i -E "s/version=[0-9]+\.[0-9]+\.[0-9]+/version=$latest/g" /opt/lme/lme.conf
+      chmod u+rwx /opt/lme/dashboard_update.sh
+
+      info "Updating dashbaords"
+      sudo /opt/lme/dashboard_update.sh
     elif [ "$version" == $latest ]; then
       info "You're on the latest version!"
-    elif [ "$version" > "1.3.0" ]; then
-      info "There are no upgrades in this version. $latest"
+    elif [ "$(printf '%s\n' "$version" "1.4.0" | sort -V | tail -n1)" == "$version" ]; then
+      info "There are no upgrades in this version. Version: $version Latest: $latest"
     else
       error "Updating directly to LME 1.0 from versions prior to 0.5.1 is not supported. Update to 0.5.1 first."
     fi

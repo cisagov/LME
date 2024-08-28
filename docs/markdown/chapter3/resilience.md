@@ -1,10 +1,10 @@
 # LME Resilience
 
 The Elasticsearch Stack components of LME are installed on a single server using
-Docker for Linux, and this is the only supported installation. However, **if LME
-is installed on a single server and the hard drive fails or the server crashes
-then there is the potential for all of the logs to be lost.** It is therefore
-recommended that LME installers aim to configure a multi-server cluster to help
+Docker for Linux, and this is the only supported installation. However, **if
+a user installs LME on a single server and the hard drive fails or the server crashes,
+then there is the potential for all of the logs to be lost.** We
+recommend that LME users configure a multi-server cluster to
 ensure data resiliency.
 
 The [Elastic website](https://www.elastic.co/) contains documentation about how

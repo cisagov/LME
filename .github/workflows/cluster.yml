@@ -10,8 +10,8 @@ jobs:
   build-and-test-cluster:
     runs-on: self-hosted
     env:
-      UNIQUE_ID: 
-      IP_ADDRESS: 
+      UNIQUE_ID:
+      IP_ADDRESS:
       LS1_IP:
       BRANCH_NAME:
       elastic:
@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.1.1
-    
+
       - name: Setup environment variables
         run: |
           PUBLIC_IP=$(curl -s https://api.ipify.org)
@@ -34,38 +34,38 @@ jobs:
           else
             echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
           fi
-                
+
       - name: Set up Docker Compose
         run: |
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
           -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
-    
-      - name: Set the environment for docker-compose 
+
+      - name: Set the environment for docker-compose
         run: |
           cd testing/development
           # Get the UID and GID of the current user
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
-    
+
       # - name: Run Docker Compose Build to fix a user id issue in a prebuilt container
       #   run: |
       #     cd testing/development
-      #     docker compose -p ${{ env.UNIQUE_ID }} build --no-cache 
-    
+      #     docker compose -p ${{ env.UNIQUE_ID }} build --no-cache
+
       - name: Run Docker Compose
         run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up -d
-    
+
       - name: List docker containers to wait for them to start
         run: |
           docker ps 
-    
+
       - name: List files in home directory
         run: |
           cd testing/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "pwd && ls -la"
-    
-      - name:  Check powershell environment 
+
+      - name:  Check powershell environment
         run: |
           set +e  
           cd testing/development
@@ -80,8 +80,8 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
-    
-      - name:  Build the cluster 
+
+      - name:  Build the cluster
         run: |
           set +e  
           cd testing/development
@@ -107,8 +107,8 @@ jobs:
           . configure/lib/functions.sh
           extract_ls1_ip 'LME-pipe-${{ env.UNIQUE_ID }}.cluster.output.log'
           echo "LS1_IP=$LS1_IP" >> $GITHUB_ENV
-          
-      - name:  Install lme on cluster 
+
+      - name:  Install lme on cluster
         run: |
           set +e  
           cd testing/development
@@ -129,8 +129,8 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
-    
-      - name:  Set the environment passwords for other steps 
+
+      - name:  Set the environment passwords for other steps
         run: |
           cd testing/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
@@ -146,8 +146,8 @@ jobs:
             echo "logstash_system=$logstash_system" >> $GITHUB_ENV
             echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
             echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
-    
-      - name:  Check that the environment variables are set 
+
+      - name:  Check that the environment variables are set
         run: |
           cd testing/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
@@ -158,12 +158,12 @@ jobs:
               echo 'Elastic password is set'
             fi
           "
-      
-      # - name: Run a command on the domain controller 
+
+      # - name: Run a command on the domain controller
       #   run: |
-      #     set +e  
+      #     set +e
       #     cd testing/development
-      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& {
       #       cd /home/admin.ackbar/LME/testing; \
       #       \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
       #       \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
@@ -181,12 +181,12 @@ jobs:
       #     }"
       #     EXIT_CODE=$?
       #     echo "Exit code: $EXIT_CODE"
-      #     set -e  
+      #     set -e
       #     if [ "$EXIT_CODE" -ne 0 ]; then
       #       exit $EXIT_CODE
       #     fi
-    
-      - name: Run a command on the linux machine 
+
+      - name: Run a command on the linux machine
         run: |
           set +e  
           cd testing/development
@@ -212,7 +212,7 @@ jobs:
           if [ "$EXIT_CODE" -ne 0 ]; then
             exit $EXIT_CODE
           fi
-    
+
       # This only passes when you do a full install
       - name: Run api tests in container
         run: |
@@ -245,7 +245,7 @@ jobs:
           && pip install -r requirements.txt \
           && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
           && pytest -v selenium_tests/"
-    
+
       # - name: Run selenium tests in container
       #   run: |
       #     set +e
@@ -258,8 +258,8 @@ jobs:
       #     && pip install -r requirements.txt \
       #     && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
       #     && python selenium_tests.py --domain ${{ env.LS1_IP }} -v"
-    
-      - name: Cleanup environment 
+
+      - name: Cleanup environment
         if: always()
         run: |
           cd testing/development
