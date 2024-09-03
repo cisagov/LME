@@ -1,14 +1,3 @@
-# Docker Compose file for setting up development environment for LME project.
-# 
-# This file defines two services:
-# 1. ubuntu:
-#    - Builds an Ubuntu container with the specified USER_ID and GROUP_ID arguments.
-#    - Mounts the parent directory to /lme in the container, allowing access to the LME project.
-#    - Sets the container name to "v2_ubuntu".
-#    - Sets the user to the specified HOST_UID and HOST_GID.
-#    - Runs the command "sleep infinity" to keep the container running indefinitely.
-# 
-
 version: '3.8'
 
 services:
@@ -19,8 +8,16 @@ services:
         USER_ID: "${HOST_UID:-1001}"
         GROUP_ID: "${HOST_GID:-1001}"
     container_name: v2_ubuntu
-    user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     volumes:
       - ../../../../LME/:/lme
-    command: sleep infinity
-  
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
+    privileged: true
+    stop_signal: SIGRTMIN+3
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
