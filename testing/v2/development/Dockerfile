@@ -1,9 +1,9 @@
-# Use Ubuntu 22.04 with systemd as base image
-FROM jrei/systemd-ubuntu:22.04
+# Use Ubuntu 22.04 as base image
+FROM ubuntu:22.04
 ARG USER_ID=1001
 ARG GROUP_ID=1001
 
-# Set environment variable to avoid interactive dialogues during build
+# Avoid prompts from apt
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set up locale
@@ -14,8 +14,8 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
-# Install necessary APT packages including Python and pip
-RUN apt-get update && apt-get install -y \
+# Install systemd and other necessary packages
+RUN apt-get update && apt-get install -y systemd systemd-sysv \
     lsb-release \
     python3 \
     python3-venv \
@@ -37,28 +37,24 @@ RUN apt-get update && apt-get install -y \
     && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
     && apt-get install -y powershell \
-    && rm -rf /var/lib/apt/lists/* \
     && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
     && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt install -y ./google-chrome-stable_current_amd64.deb \
     && rm -rf google-chrome-stable_current_amd64.deb \
-    && sudo apt-get install -f \
-    && apt-get clean
+    && apt-get install -f \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Ansible
-# RUN python3 -m pip install --upgrade pip \
-#     && python3 -m pip install ansible
+# Create a user and group 'lme-user' with specified GID
+RUN groupadd -g $GROUP_ID lme-user \
+    && useradd -m -u $USER_ID -g lme-user --badnames lme-user \
+    && usermod -aG sudo lme-user
 
-# Create a user and group 'admin.ackbar' with GID 1001
-RUN groupadd -g $GROUP_ID admin.ackbar \
-    && useradd -m -u $USER_ID -g admin.ackbar --badnames admin.ackbar \
-    && usermod -aG sudo admin.ackbar
-
-# Allow 'admin.ackbar' user to run sudo commands without a password
-RUN echo "admin.ackbar ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+# Allow 'lme-user' user to run sudo commands without a password
+RUN echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 # Define the base directory as an environment variable
-ENV BASE_DIR=/home/admin.ackbar
+ENV BASE_DIR=/home/lme-user
 
 # Set work directory
 WORKDIR $BASE_DIR
@@ -66,16 +62,29 @@ WORKDIR $BASE_DIR
 # Set timezone (optional)
 ENV TZ=America/New_York
 
-# Create an entrypoint script
-RUN echo '#!/bin/bash\n\
-if [ "$1" = "systemd.unit=multi-user.target" ]; then\n\
-  exec /lib/systemd/systemd "$@"\n\
-elif [ "$(id -u)" -eq 0 ]; then\n\
-  exec sudo -u admin.ackbar "$@"\n\
-else\n\
-  exec "$@"\n\
-fi' > /entrypoint.sh \
-    && chmod +x /entrypoint.sh
+# Ensure systemd is installed and configured properly
+RUN cd /lib/systemd/system/sysinit.target.wants/ && \
+    ls | grep -v systemd-tmpfiles-setup | xargs rm -f $1 && \
+    rm -f /lib/systemd/system/multi-user.target.wants/* && \
+    rm -f /etc/systemd/system/*.wants/* && \
+    rm -f /lib/systemd/system/local-fs.target.wants/* && \
+    rm -f /lib/systemd/system/sockets.target.wants/*udev* && \
+    rm -f /lib/systemd/system/sockets.target.wants/*initctl* && \
+    rm -f /lib/systemd/system/basic.target.wants/* && \
+    rm -f /lib/systemd/system/anaconda.target.wants/* && \
+    mkdir -p /etc/systemd/system/systemd-logind.service.d && \
+    echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["systemd.unit=multi-user.target"]
+# Create a script to set locale on container start
+RUN echo '#!/bin/bash\n\
+export LANG=en_US.UTF-8\n\
+export LANGUAGE=en_US:en\n\
+export LC_ALL=en_US.UTF-8\n\
+exec "$@"' > /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh
+
+# Use the entrypoint script
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# Use systemd as the init system
+CMD ["/lib/systemd/systemd"]

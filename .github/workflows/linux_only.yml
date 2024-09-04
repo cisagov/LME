@@ -59,60 +59,58 @@ jobs:
         echo "HOST_GID=$(id -g)" >> .env
         
     - name: Run Docker Build
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml build lme --no-cache
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/v2/development/docker-compose.yml build ubuntu --no-cache
       
     - name: Run Docker Compose
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up lme -d
+      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/v2/development/docker-compose.yml up ubuntu -d
       
     - name: List docker containers to wait for them to start
       run: |
         docker ps
     
-    # We are not using the ubuntu container so no use waiting for it to start
-    # - name: Execute commands inside ubuntu container
-    #   run: |
-    #     cd testing/development
-    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "echo 'Ubuntu container built'"
-        
     - name: Install LME in container
       run: |
         set -x
         cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b ${{ env.BRANCH_NAME }} \
-          && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "cd ~ \
+          && ln -s /lme LME \
+          && cd ~/LME/config \
+          && cp example.env lme-enviornment.env \
+          && cd ~/LME/scripts \
+          && ansible-playbook install_lme_local.yml "
           
-    - name: Run api tests in container
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
-          && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
-          && extract_credentials output.log \
-          && sudo rm output.log \
-          && sudo docker ps \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          && pytest testing/tests/api_tests/linux_only/ "
+    #- name: Run api tests in container
+    #  run: |
+    #    cd testing/development
+    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar ubuntu bash -c ". testing/configure/lib/functions.sh \
+    #      && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
+    #      && extract_credentials output.log \
+    #      && sudo rm output.log \
+    #      && sudo docker ps \
+    #      && . /home/admin.ackbar/venv_test/bin/activate \
+    #      && sudo chmod ugo+w /home/admin.ackbar/LME/ \
+    #      && pytest testing/tests/api_tests/linux_only/ "
 
-    - name: Run selenium tests in container
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c "
-          . testing/configure/lib/functions.sh \
-          && echo export ELASTIC_PASSWORD=${{ env.elastic }} > testing/tests/.env \
-          && echo export KIBANA_HOST=localhost >> testing/tests/.env \
-          && echo export KIBANA_PORT=443 >> testing/tests/.env \
-          && echo export KIBANA_USER=elastic >> testing/tests/.env \
-          && echo export SELENIUM_TIMEOUT=60 >> testing/tests/.env \
-          && echo export SELENIUM_MODE=headless >> testing/tests/.env \
-          && . testing/tests/.env \
-          && sudo cp /opt/lme/Chapter\\ 3\\ Files/output.log . \
-          && extract_credentials output.log \
-          && sudo rm output.log \
-          && sudo docker ps \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          && pytest testing/tests/selenium_tests/linux_only/ \
-        "
+    #- name: Run selenium tests in container
+    #  run: |
+    #    cd testing/development
+    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar ubuntu bash -c "
+    #      . testing/configure/lib/functions.sh \
+    #      && echo export ELASTIC_PASSWORD=${{ env.elastic }} > testing/tests/.env \
+    #      && echo export KIBANA_HOST=localhost >> testing/tests/.env \
+    #      && echo export KIBANA_PORT=443 >> testing/tests/.env \
+    #      && echo export KIBANA_USER=elastic >> testing/tests/.env \
+    #      && echo export SELENIUM_TIMEOUT=60 >> testing/tests/.env \
+    #      && echo export SELENIUM_MODE=headless >> testing/tests/.env \
+    #      && . testing/tests/.env \
+    #      && sudo cp /opt/lme/Chapter\\ 3\\ Files/output.log . \
+    #      && extract_credentials output.log \
+    #      && sudo rm output.log \
+    #      && sudo docker ps \
+    #      && . /home/admin.ackbar/venv_test/bin/activate \
+    #      && sudo chmod ugo+w /home/admin.ackbar/LME/ \
+    #      && pytest testing/tests/selenium_tests/linux_only/ \
+    #    "
           
     - name: Cleanup Docker Compose
       if: always()

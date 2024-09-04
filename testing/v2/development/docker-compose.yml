@@ -9,10 +9,12 @@ services:
         GROUP_ID: "${HOST_GID:-1001}"
     container_name: v2_ubuntu
     volumes:
-      - ../../../../LME/:/lme
+      - ../../../../LME:/lme
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
     cap_add:
       - SYS_ADMIN
+      - NET_ADMIN
+      - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
     privileged: true
@@ -21,3 +23,9 @@ services:
       - /tmp
       - /run
       - /run/lock
+    environment:
+      - PODMAN_IGNORE_CGROUPSV1_WARNING=1
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US:en
+      - LC_ALL=en_US.UTF-8
+    command: ["/lib/systemd/systemd"]
