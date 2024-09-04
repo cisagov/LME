@@ -53,7 +53,7 @@ jobs:
         
     - name: Set the environment for docker-compose
       run: |
-        cd testing/development
+        cd testing/v2/development
         # Get the UID and GID of the current user
         echo "HOST_UID=$(id -u)" > .env
         echo "HOST_GID=$(id -g)" >> .env
@@ -67,11 +67,16 @@ jobs:
     - name: List docker containers to wait for them to start
       run: |
         docker ps
-    
+
+    - name: List files in home directory
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "pwd && ls -la"
+
     - name: Install LME in container
       run: |
         set -x
-        cd testing/development
+        cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "cd ~ \
           && ln -s /lme LME \
           && cd ~/LME/config \
