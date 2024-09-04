@@ -71,6 +71,7 @@ jobs:
     - name: List files in home directory
       run: |
         cd testing/v2/development
+        docker compose logs 
         docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "pwd && ls -la"
 
     - name: Install LME in container
@@ -121,6 +122,6 @@ jobs:
       if: always()
       run: |
         cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u root ubuntu bash -c "rm -rf ~/LME/.pytest_cache"
+        # docker compose -p ${{ env.UNIQUE_ID }} exec -T -u root ubuntu bash -c "rm -rf ~/LME/.pytest_cache"
         docker compose -p ${{ env.UNIQUE_ID }} down
         docker system prune -a --force
