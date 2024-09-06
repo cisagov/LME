@@ -2,41 +2,45 @@
 
 # Get the directory of the current script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ENV_FILE="/opt/lme/lme-environment"
 
 # Function to display usage information
 usage() {
     echo "Usage: $0 -d DIRECTORY [OPTIONS]"
     echo "Options:"
     echo "  -d, --directory PATH      Path to the dashboards directory (required)"
-    echo "  -u, --user USERNAME       Elasticsearch username (default: elastic)"
     echo "  -h, --help                Display this help message"
-    echo "Note: The script will prompt for the password if ELASTIC_PASSWORD is not set."
+    echo "Note: The script will use credentials from $ENV_FILE if available,"
+    echo "      or prompt for them if not set."
     exit 1
 }
 
 # Function to read password securely
 read_password() {
-    if [ -t 0 ]; then
-        read -s -p "Enter Elasticsearch password: " PASSWORD
-        echo
-    else
-        read PASSWORD
+    read -s -p "Enter Elasticsearch password: " PASSWORD
+    echo
+}
+
+# Function to source environment file and set credentials
+set_credentials_from_file() {
+    if [ -f "$ENV_FILE" ]; then
+        source "$ENV_FILE"
+        if [ -n "$ELASTIC_USERNAME" ] && [ -n "$ELASTIC_PASSWORD" ]; then
+            USER="$ELASTIC_USERNAME"
+            PASSWORD="$ELASTIC_PASSWORD"
+            return 0
+        fi
     fi
+    return 1
 }
 
 # Initialize variables
-USER="elastic"
-PASSWORD=""
 DASHBOARDS_DIR=""
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        -u|--user)
-            USER="$2"
-            shift 2
-            ;;
         -d|--directory)
             DASHBOARDS_DIR="$2"
             shift 2
@@ -57,13 +61,13 @@ if [ -z "$DASHBOARDS_DIR" ]; then
     usage
 fi
 
-# Check for password
-if [ -z "$ELASTIC_PASSWORD" ]; then
-    echo "ELASTIC_PASSWORD is not set. Please enter the password."
-    read_password
+# Try to set credentials from file
+if set_credentials_from_file; then
+    echo "Using credentials from $ENV_FILE"
 else
-    echo "Using password from ELASTIC_PASSWORD environment variable."
-    PASSWORD="$ELASTIC_PASSWORD"
+    echo "Credentials not found in $ENV_FILE. Please enter them manually."
+    read -p "Enter Elasticsearch username: " USER
+    read_password
 fi
 
 # Check if the dashboards directory exists

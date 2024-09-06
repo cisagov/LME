@@ -4,6 +4,7 @@ set -e
 
 ES_PORT="9200"
 ES_PROTOCOL="https"
+ENV_FILE="/opt/lme/lme-environment"
 
 # Function to get the host IP address
 get_host_ip() {
@@ -11,6 +12,19 @@ get_host_ip() {
 }
 
 ES_HOST=$(get_host_ip)
+
+# Function to source environment file and set credentials
+set_credentials_from_file() {
+    if [ -f "$ENV_FILE" ]; then
+        source "$ENV_FILE"
+        if [ -n "$ELASTIC_USERNAME" ] && [ -n "$ELASTIC_PASSWORD" ]; then
+            ES_USER="$ELASTIC_USERNAME"
+            ES_PASS="$ELASTIC_PASSWORD"
+            return 0
+        fi
+    fi
+    return 1
+}
 
 # Function to check Elasticsearch connection and version
 check_es_connection() {
@@ -116,23 +130,29 @@ if ! command -v podman &> /dev/null; then
     exit 1
 fi
 
-# Prompt for Elasticsearch credentials and verify connection
-while true; do
-    read -p "Enter Elasticsearch username: " ES_USER
-    ES_PASS=$(prompt_password "Enter Elasticsearch password: ")
-    echo  # Move to a new line after password input
+# Try to set credentials from file
+if set_credentials_from_file; then
+    echo "Using credentials from $ENV_FILE"
+else
+    echo "Credentials not found in $ENV_FILE. Please enter them manually."
+    # Prompt for Elasticsearch credentials and verify connection
+    while true; do
+        read -p "Enter Elasticsearch username: " ES_USER
+        ES_PASS=$(prompt_password "Enter Elasticsearch password: ")
+        echo  # Move to a new line after password input
 
-    if check_es_connection; then
-        break
-    else
-        echo "Would you like to try again? (y/n)"
-        read -r retry
-        if [[ ! $retry =~ ^[Yy]$ ]]; then
-            echo "Exiting script."
-            exit 1
+        if check_es_connection; then
+            break
+        else
+            echo "Would you like to try again? (y/n)"
+            read -r retry
+            if [[ ! $retry =~ ^[Yy]$ ]]; then
+                echo "Exiting script."
+                exit 1
+            fi
         fi
-    fi
-done
+    done
+fi
 
 # Prompt for input files
 read -p "Enter the path to the compressed data file (winlogbeat_data.json.gz): " DATA_FILE
