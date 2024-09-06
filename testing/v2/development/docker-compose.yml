@@ -8,8 +8,9 @@ services:
         USER_ID: "${HOST_UID:-1001}"
         GROUP_ID: "${HOST_GID:-1001}"
     container_name: v2_ubuntu
+    working_dir: /root
     volumes:
-      - ../../../../LME:/lme
+      - ../../../../LME:/root/LME
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
     cap_add:
       - SYS_ADMIN
