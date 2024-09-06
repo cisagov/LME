@@ -35,6 +35,22 @@ The Alert Dashboard enables users to define rules that detect complex conditions
 
 The HealthCheck Dashboard gives users the ability to view different processes such as unexpected shutdowns, events by each machine, total hosts and total number of logged in admins with data that is based on a selected date range.  Users can verify the health of their system by observing events such as if there are more admin users than expected or if an unexpected shutdown occurs. 
 
+## Policy Changes and System Activity
+
+The Policy Changes and System Activity dashboard enables users to monitor policy changes and important system activity. Users will be able to monitor the status of their firewall, including when it is turned on, off, its settings are changed, or exception rules are added or modified. This dashboard will also show when firewall, audit, or Kerberos policies are changed on their domain. Users will also be able to monitor when their PCs are turned on, off, and when RPC (Remote Procedure Call) connections are attempted on their domain. 
+
+## Identity Access Management
+
+The Identity Access Management dashboard provides users with a collection of important security events involving identity and critical object access. This includes when registry objects, task scheduler jobs, and when password hashes are accessed. Users will also be able to monitor when passwords are reset, changed, and when users are locked out of their accounts. This dashboard also tracks when the default domain policy is changed which involves the domain password policy. 
+
+## Privileged Activity Log
+
+The Privileged Activity Log dashboard enables users to carry on audits related to non-sensitive and sensitive events by showcasing the number of privileged service attempts, sensitive privilege attempts and non-sensitive privilege attempts made per host name. It also shows the number of processes created and terminated per host name. Such as process creation count, process termination counts as well as assigned token creation count per host.
+
+## Credential Access Log
+
+The Credential Access Log dashboard, focuses on account logon and account logoff audit events. In this dashboard, users will be able to monitor, audit logon attempts per hosts, logon using explicit credential attempts, account lockout attempts per host, special logon attempts per hosts, disconnection attempts, and credential validation attempts per host. Dashboard panels will also showcase Kerberos authentication services per host.
+
 
 
 For more information or to seek additional help, [Click Here](https://github.com/cisagov/LME) 
