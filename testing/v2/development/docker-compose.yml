@@ -30,3 +30,17 @@ services:
       - LANGUAGE=en_US:en
       - LC_ALL=en_US.UTF-8
     command: ["/lib/systemd/systemd"]
+  pipeline:
+    build: 
+      context: .
+      args:
+        USER_ID: "${HOST_UID:-1001}"
+        GROUP_ID: "${HOST_GID:-1001}"
+    container_name: pipeline
+    user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
+    working_dir: /home/lme-user
+    volumes:
+      - ../../../../LME:/home/lme-user/LME
+    environment:
+      - HOME=/home/lme-user
+    command: sleep infinity 
