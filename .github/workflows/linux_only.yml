@@ -66,8 +66,8 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat ${{ env.UNIQUE_ID }}.ip.txt) && \
-          ./install_v2/install.sh lme-user \$IP_ADDRESS  "${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
         "
         
     - name: Run tests
