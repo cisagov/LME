@@ -40,21 +40,26 @@ jobs:
     - name: Run build_azure_linux_network script
       env:
         AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
-        AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
         AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       run: |
         cd testing/v2/development
-        docker compose exec -T pipeline bash -c "
-          cd /home/lme-user/LME/testing/v2/installers/azure && \
-          python3 build_azure_linux_network.py \
-            -g ${{ env.UNIQUE_ID }} \
-            -s 0.0.0.0/0 \
-            -vs Standard_B2s \
-            -l westus \
-            -ast 23:00 \
-            -y
-        "
+        docker compose exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/azure && \
+            python3 build_azure_linux_network.py \
+              -g ${{ env.UNIQUE_ID }} \
+              -s 0.0.0.0/0 \
+              -vs Standard_B2s \
+              -l westus \
+              -ast 23:00 \
+              -y
+          "
         
     - name: Install LME
       run: |
