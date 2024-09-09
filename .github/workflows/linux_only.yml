@@ -51,8 +51,8 @@ jobs:
           -e AZURE_TENANT_ID \
           -e AZURE_SUBSCRIPTION_ID \
           pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers/azure && \
-            python3 build_azure_linux_network.py \
+            cd /home/lme-user/LME/testing/v2/installers && \
+            python3 ./azure/build_azure_linux_network.py \
               -g ${{ env.UNIQUE_ID }} \
               -s 0.0.0.0/0 \
               -vs Standard_B2s \
@@ -66,8 +66,8 @@ jobs:
         cd testing/v2/development
         docker compose exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat azure/${{ env.UNIQUE_ID }}.ip.txt) && \
-          PASSWORD=\$(cat azure/${{ env.UNIQUE_ID }}.password.txt) && \
+          IP_ADDRESS=\$(cat ${{ env.UNIQUE_ID }}.ip.txt) && \
+          PASSWORD=\$(cat ${{ env.UNIQUE_ID }}.password.txt) && \
           cd install_v2 && \
           ./install.sh lme-user \$IP_ADDRESS \$PASSWORD ${{ env.BRANCH_NAME }}
         "
