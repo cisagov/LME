@@ -27,12 +27,12 @@ jobs:
     - name: Start pipeline container
       run: |
         cd testing/v2/development
-        docker compose up -d pipeline
+        docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
         
     - name: Install Python requirements
       run: |
         cd testing/v2/development
-        docker compose exec -T pipeline bash -c "
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers/azure && \
           pip install -r build_azure_linux_network_requirements.txt
         "
@@ -45,7 +45,7 @@ jobs:
         AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       run: |
         cd testing/v2/development
-        docker compose exec -T \
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
           -e AZURE_CLIENT_ID \
           -e AZURE_CLIENT_SECRET \
           -e AZURE_TENANT_ID \
@@ -64,7 +64,7 @@ jobs:
     - name: Install LME
       run: |
         cd testing/v2/development
-        docker compose exec -T pipeline bash -c "
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat ${{ env.UNIQUE_ID }}.ip.txt) && \
           ./install_v2/install.sh lme-user \$IP_ADDRESS  "${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
@@ -73,7 +73,7 @@ jobs:
     - name: Run tests
       run: |
         cd testing/v2/development
-        docker compose exec -T pipeline bash -c "
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/tests && \
           python3 -m venv venv && \
           source venv/bin/activate && \
@@ -90,7 +90,7 @@ jobs:
     #    AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     #  run: |
     #    cd testing/v2/development
-    #    docker compose exec -T pipeline bash -c "
+    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
     #      az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
     #      az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
     #    "
@@ -99,5 +99,5 @@ jobs:
       if: always()
       run: |
         cd testing/v2/development
-        docker compose down
+        docker compose -p ${{ env.UNIQUE_ID }} down
         docker system prune -af
