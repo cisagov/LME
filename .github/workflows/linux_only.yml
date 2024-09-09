@@ -65,8 +65,11 @@ jobs:
       run: |
         cd testing/v2/development
         docker compose exec -T pipeline bash -c "
-          cd /home/lme-user/LME/testing/v2/installers/install_v2 && \
-          ./install.sh lme-user \$(cat ../azure/${{ env.UNIQUE_ID }}.ip.txt) ../azure/${{ env.UNIQUE_ID }}.password.txt ${{ env.BRANCH_NAME }}
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat azure/${{ env.UNIQUE_ID }}.ip.txt) && \
+          PASSWORD=\$(cat azure/${{ env.UNIQUE_ID }}.password.txt) && \
+          cd install_v2 && \
+          ./install.sh lme-user \$IP_ADDRESS \$PASSWORD ${{ env.BRANCH_NAME }}
         "
         
     - name: Run tests
