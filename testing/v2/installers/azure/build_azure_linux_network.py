@@ -25,7 +25,7 @@ def generate_password(length=12):
     password.append(random.choice(uppercase_letters))
     password.append(random.choice(lowercase_letters))
     password.append(random.choice(digits))
-    password.append(random.choice(special_chars))
+    #password.append(random.choice(special_chars))
 
     # Generate the remaining characters
     remaining_length = length - 4
