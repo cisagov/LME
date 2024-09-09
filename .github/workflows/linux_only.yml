@@ -18,13 +18,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4.1.1
       
-    - name: Set up Docker Compose
-      run: |
-        sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
-          -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        
-    - name: Set the environment for docker-compose
+    - name: Set the environment for docker compose
       run: |
         cd testing/v2/development
         echo "HOST_UID=$(id -u)" > .env
@@ -33,7 +27,15 @@ jobs:
     - name: Start pipeline container
       run: |
         cd testing/v2/development
-        docker-compose up -d pipeline
+        docker compose up -d pipeline
+        
+    - name: Install Python requirements
+      run: |
+        cd testing/v2/development
+        docker compose exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers/azure && \
+          pip install -r build_azure_linux_network_requirements.txt
+        "
         
     - name: Run build_azure_linux_network script
       env:
@@ -43,7 +45,7 @@ jobs:
         AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       run: |
         cd testing/v2/development
-        docker-compose exec -T pipeline bash -c "
+        docker compose exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers/azure && \
           python3 build_azure_linux_network.py \
             -g ${{ env.UNIQUE_ID }} \
@@ -57,7 +59,7 @@ jobs:
     - name: Install LME
       run: |
         cd testing/v2/development
-        docker-compose exec -T pipeline bash -c "
+        docker compose exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers/install_v2 && \
           ./install.sh lme-user \$(cat ../azure/${{ env.UNIQUE_ID }}.ip.txt) ../azure/${{ env.UNIQUE_ID }}.password.txt ${{ env.BRANCH_NAME }}
         "
@@ -65,7 +67,7 @@ jobs:
     - name: Run tests
       run: |
         cd testing/v2/development
-        docker-compose exec -T pipeline bash -c "
+        docker compose exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/tests && \
           python3 -m venv venv && \
           source venv/bin/activate && \
@@ -82,7 +84,7 @@ jobs:
         AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       run: |
         cd testing/v2/development
-        docker-compose exec -T pipeline bash -c "
+        docker compose exec -T pipeline bash -c "
           az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
           az group delete --name ${{ env.UNIQUE_ID }} --yes --no-wait
         "
@@ -91,5 +93,5 @@ jobs:
       if: always()
       run: |
         cd testing/v2/development
-        docker-compose down
+        docker compose down
         docker system prune -af
