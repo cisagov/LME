@@ -79,7 +79,10 @@ jobs:
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+          ssh lme-user@\$IP_ADDRESS  'whoami && hostname && \
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+          cd /home/lme-user/LME/testing/tests && \
           python3 -m venv venv && \
           source venv/bin/activate && \
           pip install -r requirements.txt && \
