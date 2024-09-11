@@ -22,8 +22,9 @@ ssh_key_path="$HOME/.ssh/id_rsa"
 
 # Generate an SSH key non-interactively if it doesn't exist
 if [ ! -f "$ssh_key_path" ]; then
-    ssh-keygen -t rsa -N "" -f "$ssh_key_path" <<<y >/dev/null 2>&1
-    sleep 3
+    echo "Generating SSH key..."
+    ssh-keygen -t rsa -N "" -f "$ssh_key_path" <<< y
+    sleep 5
 fi
 echo password_file $password_file ssh_key_path $ssh_key_path
 ls $password_file
