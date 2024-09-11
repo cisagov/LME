@@ -27,7 +27,7 @@ cd "$SCRIPT_DIR/.."
 ./lib/copy_ssh_key.sh $user $hostname $password_file
 
 echo "Installing ansible"
-ssh  -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip git'
+ssh  -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git'
 
 
 # Need to set up so we can checkout a particular branch or pull down a release
