@@ -24,8 +24,8 @@ ssh_key_path="$HOME/.ssh/id_rsa"
 if [ ! -f "$ssh_key_path" ]; then
     echo "Generating SSH key..."
     ssh-keygen -t rsa -N "" -f "$ssh_key_path" <<< y
-    sleep 5
 fi
+
 echo password_file $password_file ssh_key_path $ssh_key_path
 ls $password_file
 ls $ssh_key_path
