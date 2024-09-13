@@ -1,13 +1,12 @@
 # lme-elasticsearch-security-setup.container
 [Unit] 
-Requires=lme-network.service lme-setup-certs.service
-After=lme-network.service lme-setup-certs.service
+Requires=lme-network.service lme-setup-certs.service lme-elasticsearch.service
+After=lme-network.service lme-setup-certs.service lme-elasticsearch.service
 PartOf=lme.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-User=lmed
 
 [Install]
 WantedBy=default.target
@@ -19,7 +18,9 @@ Exec=/bin/bash /usr/share/elasticsearch/config/setup/acct-init.sh
 Image=localhost/elasticsearch:LME_LATEST
 Network=lme
 PodmanArgs=--network-alias lme-setup --health-interval=2s 
-User=0
 Volume=lme_certs:/usr/share/elasticsearch/config/certs
 Volume=/opt/lme/config/setup:/usr/share/elasticsearch/config/setup
+User=0
+#match permissions so we can write to the lme_certs volume
+UserNS=container:lme-elasticsearch
 

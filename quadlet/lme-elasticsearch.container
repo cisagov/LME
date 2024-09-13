@@ -23,8 +23,9 @@ PodmanArgs=--memory 8gb --network-alias lme-elasticsearch --health-interval=2s
 PublishPort=9200:9200
 Ulimit=memlock=-1:-1
 Volume=lme_certs:/usr/share/elasticsearch/config/certs
-Volume=lme_esdata01:/usr/share/elasticsearch/data:U
+Volume=lme_esdata01:/usr/share/elasticsearch/data
 Notify=healthy
 HealthCmd=CMD-SHELL curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'
-UserNS=nomap
 User=elasticsearch
+#TODO: make sure this is predictable each time! UID_start=168584
+UserNS=auto

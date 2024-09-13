@@ -1,6 +1,10 @@
 # lme.network
+[Unit] 
+PartOf=lme.service
+After=lme.service
+
 [Service]
-User=lmed
+
 [Network]
 Driver=bridge
 Gateway=10.89.4.1

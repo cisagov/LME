@@ -7,7 +7,6 @@ PartOf=lme.service
 
 [Service]
 Restart=always
-User=lmed
 
 [Install]
 WantedBy=default.target lme.service
@@ -22,5 +21,6 @@ Network=lme
 HostName=lme-fleet-server
 PodmanArgs=--network-alias lme-fleet-server --requires 'lme-elasticsearch,lme-kibana'
 PublishPort=8220:8220
-User=root
-Volume=lme_certs:/certs:z
+Volume=lme_certs:/certs
+#User=root
+UserNS=auto

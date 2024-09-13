@@ -1,13 +1,12 @@
 # lme-elasticsearch-security-setup.container
 [Unit] 
-Requires=lme-network.service
-After=lme.service lme-network.service
+Requires=lme-network.service lme-esdata01-volume.service lme-kibanadata-volume.service
+After=lme.service lme-network.service lme-esdata01-volume.service lme-kibanadata-volume.service
 PartOf=lme.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-User=lmed
 
 [Install]
 WantedBy=default.target lme.service
@@ -19,7 +18,8 @@ Exec=/bin/bash /usr/share/elasticsearch/config/setup/init-setup.sh
 Image=localhost/elasticsearch:LME_LATEST
 Network=lme
 PodmanArgs=--network-alias lme-setup --health-interval=2s 
-User=0
 Volume=lme_certs:/usr/share/elasticsearch/config/certs
+Volume=lme_esdata01:/usr/share/elasticsearch/data
 Volume=/opt/lme/config/setup:/usr/share/elasticsearch/config/setup
-
+User=0
+UserNS=auto

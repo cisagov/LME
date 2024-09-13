@@ -1,8 +1,8 @@
 # lme-kibana.container
 [Unit]
 Description=Kibana Container Service
-Requires=lme-setup-accts.service lme-elasticsearch.service
-After=lme-setup-accts.service lme-elasticsearch.service
+Requires=lme-setup-accts.service lme-elasticsearch.service lme-kibanadata-volume.service
+After=lme-setup-accts.service lme-elasticsearch.service lme-kibanadata-volume.service
 PartOf=lme.service
 
 [Install]
@@ -11,7 +11,6 @@ WantedBy=default.target lme.service
 [Service]
 Restart=always
 TimeoutStartSec=900 #5 minutes, kibana can be slow
-User=lmed
 
 [Container]
 ContainerName=lme-kibana
@@ -21,10 +20,13 @@ EnvironmentFile=/opt/lme/lme-environment.env
 Image=localhost/kibana:LME_LATEST
 Network=lme
 PodmanArgs=--memory 4gb --network-alias lme-kibana --requires lme-elasticsearch --health-interval=2s
-#PublishPort=5601:5601
-Volume=lme_certs:/usr/share/kibana/config/certs:z
+PublishPort=5601:5601
+Volume=lme_certs:/usr/share/kibana/config/certs
 Volume=lme_kibanadata:/usr/share/kibana/data
-Volume=/opt/lme/config/kibana.yml:/usr/share/kibana/config/kibana.yml:Z
+Volume=/opt/lme/config/kibana.yml:/usr/share/kibana/config/kibana.yml
 Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
 HealthCmd=CMD-SHELL curl -I -s --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/1.1 302 Found'
 Notify=healthy
+#User=root
+#TODO: make sure this is predictable each time! UID_start=168584
+UserNS=auto

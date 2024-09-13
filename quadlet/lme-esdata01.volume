@@ -1,0 +1,11 @@
+[Unit] 
+PartOf=lme.service
+After=lme.service
+
+[Service]
+
+[Volume]
+VolumeName=lme_kibanadata
+User=168584
+Group=168584
+Driver=local
