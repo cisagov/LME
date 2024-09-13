@@ -51,6 +51,7 @@ read_password() {
     echo "$password"
 }
 
+#https://stackoverflow.com/questions/929368/how-to-test-an-internet-connection-with-bash#26820300
 check_connect() {
 website=$1
 
@@ -60,11 +61,12 @@ if [ $? -eq 0 ]; then
     echo "$1 Online"
 else
     echo "$1 Offline"
-    echo "Are you 
+    echo "Are you connected to the internet? we check all passwords against HIBP to ensure NIST compliance"
     exit -1
 fi
 }
 
+set_password_file(){
 # Set Ansible vault password
 ANSIBLE_VAULT_PASSWORD=$(read_password "Enter ANSIBLE_VAULT_PASSWORD: ")
 export ANSIBLE_VAULT_PASSWORD
@@ -80,8 +82,28 @@ echo "$ANSIBLE_VAULT_PASSWORD"
 EOF
 chmod 700 "$USER_CONFIG_DIR/vault-pass.sh"
 
-# Set Ansible vault password file
-export ANSIBLE_VAULT_PASSWORD_FILE="$USER_CONFIG_DIR/vault-pass.sh"
+# Set Ansible vault password file variable
+echo "export ANSIBLE_VAULT_PASSWORD_FILE=\"$USER_CONFIG_DIR/vault-pass.sh\"" > $HOME/.profile
+
+# Clear sensitive environment variables
+unset ANSIBLE_VAULT_PASSWORD
+}
+
+set_podman_config(){
+# Podman secrets configuration
+mkdir -p "$(dirname "$USER_SECRETS_CONF")"
+cat > "$USER_SECRETS_CONF" << EOF
+[secrets]
+driver = "shell"
+
+[secrets.opts]
+list = "ls $USER_VAULT_DIR"
+lookup = "ansible-vault view $USER_VAULT_DIR/\$SECRET_ID"
+store = "cat > $USER_VAULT_DIR/\$SECRET_ID && chmod 700 $USER_VAULT_DIR/\$SECRET_ID && ansible-vault encrypt $USER_VAULT_DIR/\$SECRET_ID"
+delete = "rm $USER_VAULT_DIR/\$SECRET_ID"
+EOF
+chmod 600 "$USER_SECRETS_CONF"
+}
 
 # Function to set and encrypt user password
 set_user_password() {
@@ -100,20 +122,6 @@ set_user_password() {
     echo "Password for $user has been set and encrypted."
     echo "$password"
 }
-
-# Podman secrets configuration
-mkdir -p "$(dirname "$USER_SECRETS_CONF")"
-cat > "$USER_SECRETS_CONF" << EOF
-[secrets]
-driver = "shell"
-
-[secrets.opts]
-list = "ls $USER_VAULT_DIR"
-lookup = "ansible-vault view $USER_VAULT_DIR/\$SECRET_ID"
-store = "cat > $USER_VAULT_DIR/\$SECRET_ID && chmod 700 $USER_VAULT_DIR/\$SECRET_ID && ansible-vault encrypt $USER_VAULT_DIR/\$SECRET_ID"
-delete = "rm $USER_VAULT_DIR/\$SECRET_ID"
-EOF
-chmod 600 "$USER_SECRETS_CONF"
 
 # Function to manage Podman secrets
 manage_podman_secret() {
@@ -140,44 +148,53 @@ manage_podman_secret() {
 }
 
 # Main menu
-while true; do
-    echo "1. Set user password"
-    echo "2. Manage Podman secret"
-    echo "3. List Podman secrets"
-    echo "4. Exit"
-    read -p "Choose an option: " choice
-    
-    case $choice in
-        1)
-            read -p "Enter username: " username
-            password=$(set_user_password "$username")
+man_page(){
+  echo "-i: Initialize all password environment variables and settings"
+  echo "-s: set_user: Set user password"
+  echo "-p: Manage Podman secret"
+  echo "-l: List Podman secrets"
+  echo "-h: print this list"
+}
+
+
+while getopts "isplc:h" opt; do
+  case "$opt" in 
+    i)
+        #check connection
+        check_connect https://api.pwnedpasswords.com
+
+        #set passwords
+        set_password_file
+        set_podman_config
+        ;;
+    s)
+        read -p "Enter username: " username
+        password=$(set_user_password "$username")
+        # Use command substitution to avoid echoing the password
+        manage_podman_secret create "$username" "$(echo "$password")"
+        ;;
+    p)
+        read -p "Enter secret name: " secret_name
+        read -p "Enter action (create/update/delete): " action
+        if [ "$action" != "delete" ]; then
             # Use command substitution to avoid echoing the password
-            manage_podman_secret create "$username" "$(echo "$password")"
-            ;;
-        2)
-            read -p "Enter secret name: " secret_name
-            read -p "Enter action (create/update/delete): " action
-            if [ "$action" != "delete" ]; then
-                # Use command substitution to avoid echoing the password
-                manage_podman_secret "$action" "$secret_name" "$(read_password 'Enter secret value: ')"
-            else
-                manage_podman_secret delete "$secret_name"
-            fi
-            ;;
-        3)
-            manage_podman_secret list
-            ;;
-        4)
-            break
-            ;;
-        *)
-            echo "Invalid option. Please try again."
-            ;;
-    esac
+            manage_podman_secret "$action" "$secret_name" "$(read_password 'Enter secret value: ')"
+        else
+            manage_podman_secret delete "$secret_name"
+        fi
+        ;;
+    l)
+        manage_podman_secret list
+        ;;
+    h)
+        man_page
+        ;;
+    c)
+        check_password $OPTARG
+        ;;
+    *)
+        echo "Invalid option. Please try again."
+        man_page
+        ;;
+esac
 done
-
-# Clear sensitive environment variables
-unset ANSIBLE_VAULT_PASSWORD
-
-# Clear bash history
-history -c
