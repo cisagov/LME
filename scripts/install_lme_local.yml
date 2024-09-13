@@ -5,7 +5,7 @@
   become: no  # Default to no privilege escalation
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
-    install_user: "lmed"
+    install_user: "{{ ansible_user_id }}"
 
   tasks:
     - name: Expand clone_directory path
@@ -63,26 +63,6 @@
     - name: Ensure sudo access
       command: sudo -n true
       changed_when: false
-    #TODO: setup /opt/lme/esdata01/
-    #TODO: chown 167560:167560 /opt/lme/esdata01/ #UID 1000 in container
-    #TODO: ADD NOTE IN README TO TRACK DEVICE/RESOURCE BUSY -> mount + rm -rf
-
-- name: Create lmed user
-  hosts: localhost
-  connection: local
-  become: no  # Default to no privilege escalation
-  vars:
-    clone_directory: "{{ clone_dir | default('~/LME') }}"
-    install_user: "{{ ansible_user_id }}"
-  tasks:
-    - name: Ensure the user lmed exists
-      ansible.builtin.user:
-        name: lmed
-        state: present
-        create_home: yes
-        shell: /bin/bash
-        password: '*'
-      become: yes
 
 - name: Setup Nix
   hosts: localhost
@@ -131,13 +111,6 @@
       set_fact:
         ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
 
-    - name: Update PATH in lmed's bashrc
-      lineinfile:
-        path: "/home/lmed/.bashrc"
-        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
-        create: yes
-      become: yes
-      become_user: lmed
 
     - name: Update PATH in user's bashrc
       lineinfile:
@@ -158,10 +131,10 @@
       environment:
         PATH: "{{ ansible_env.PATH }}"
 
-    - name: Set sysctl limits for lmed
+    - name: Set sysctl limits 
       command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
       environment:
-        NON_ROOT_USER: "lmed"
+        NON_ROOT_USER: "{{ install_user }}"
       become: yes
 
     - name: Link latest podman quadlet
@@ -174,7 +147,7 @@
   become: no  # Default to no privilege escalation
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
-    install_user: "lmed"
+    install_user: "{{ ansible_user_id }}"
   tasks:
     - name: Enable linger for user
       command: "loginctl enable-linger {{ install_user }}"
@@ -221,13 +194,12 @@
         daemon_reload: yes
       become: yes
 
-- name: Setup Containers for lmed
+- name: Setup Containers for root
   hosts: localhost
   connection: local
   become: no  # Default to no privilege escalation
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
-    install_user: "lmed"
   tasks:
 
     - name: Add Container Image policy file
@@ -243,14 +215,12 @@
         dest: /etc/containers/policy.json
       become: yes
 
-    - name: Pull containers for lmed
+    - name: Pull containers
       command: "podman pull {{ item }}"
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
       environment:
         PATH: "{{ ansible_env.PATH }}"
       become: yes
-      #TODO: may need this?
-      #become_user: lmed
 
     - name: Tag containers
       command: "podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST"
@@ -258,8 +228,6 @@
       environment:
         PATH: "{{ ansible_env.PATH }}"
       become: yes
-      #TODO: may need this?
-      #become_user: lmed
 
 
 - name: Start lme.service
