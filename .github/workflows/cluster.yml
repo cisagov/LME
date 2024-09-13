@@ -40,6 +40,12 @@ jobs:
           # Get the UID and GID of the current user
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
+          cat .env
+
+      - name: Build pipeline container
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} build pipeline --no-cache
 
       - name: Start pipeline container
         run: |
