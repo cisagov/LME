@@ -1,11 +1,11 @@
 ---
-- name: Install LME on localhost
+- name: Setup /opt/lme and check sudo
   hosts: localhost
   connection: local
   become: no  # Default to no privilege escalation
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
-    install_user: "{{ ansible_user_id }}"
+    install_user: "lmed"
 
   tasks:
     - name: Expand clone_directory path
@@ -31,10 +31,16 @@
         msg: "lme-environment.env file not found in {{ clone_directory }}/config/. Please copy example.env to lme-environment.env in the config directory and edit it before running this playbook."
       when: not env_file.stat.exists
 
-    - name: Move lme-environment.env to /opt/lme (only if it doesn't exist)
-      command: "mv {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
+    - name: Check if /opt/lme/lme-environment.env exists
+      stat:
+        path: "/opt/lme/lme-environment.env"
+      register: optenv_file 
       become: yes
-      when: not env_file.stat.exists
+
+    - name: Copy lme-environment.env to /opt/lme (only if it doesn't exist)
+      command: "cp {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
+      become: yes
+      when: not optenv_file.stat.exists
 
     - name: Set correct permissions for lme-environment.env
       file:
@@ -57,6 +63,35 @@
     - name: Ensure sudo access
       command: sudo -n true
       changed_when: false
+    #TODO: setup /opt/lme/esdata01/
+    #TODO: chown 167560:167560 /opt/lme/esdata01/ #UID 1000 in container
+    #TODO: ADD NOTE IN README TO TRACK DEVICE/RESOURCE BUSY -> mount + rm -rf
+
+- name: Create lmed user
+  hosts: localhost
+  connection: local
+  become: no  # Default to no privilege escalation
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "{{ ansible_user_id }}"
+  tasks:
+    - name: Ensure the user lmed exists
+      ansible.builtin.user:
+        name: lmed
+        state: present
+        create_home: yes
+        shell: /bin/bash
+        password: '*'
+      become: yes
+
+- name: Setup Nix
+  hosts: localhost
+  connection: local
+  become: no  # Default to no privilege escalation
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "{{ ansible_user_id }}"
+  tasks:
 
     - name: Update apt cache
       apt:
@@ -96,11 +131,13 @@
       set_fact:
         ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
 
-    - name: Install Podman using Nix
-      command: nix-env -iA nixpkgs.podman
+    - name: Update PATH in lmed's bashrc
+      lineinfile:
+        path: "/home/lmed/.bashrc"
+        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+        create: yes
       become: yes
-      environment:
-        PATH: "{{ ansible_env.PATH }}"
+      become_user: lmed
 
     - name: Update PATH in user's bashrc
       lineinfile:
@@ -115,21 +152,35 @@
         create: yes
       become: yes
 
-    - name: Set sysctl limits
+    - name: Install Podman using Nix 
+      command: nix-env -iA nixpkgs.podman
+      become: yes
+      environment:
+        PATH: "{{ ansible_env.PATH }}"
+
+    - name: Set sysctl limits for lmed
       command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
       environment:
-        NON_ROOT_USER: "{{ install_user }}"
+        NON_ROOT_USER: "lmed"
       become: yes
 
     - name: Link latest podman quadlet
       command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
       become: yes
 
+- name: Install Quadlets
+  hosts: localhost
+  connection: local
+  become: no  # Default to no privilege escalation
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "lmed"
+  tasks:
     - name: Enable linger for user
       command: "loginctl enable-linger {{ install_user }}"
       become: yes
 
-    - name: Copy config files
+    - name: Copy config files /opt/lme/config
       copy:
         src: "{{ clone_directory }}/config/"
         dest: /opt/lme/config/
@@ -138,49 +189,48 @@
         mode: '0644'
       become: yes
 
-    - name: Copy quadlet files
+    - name: Create /etc/containers/systemd
+      file:
+        path: /opt/containers/systemd
+        state: directory
+        owner: "root"
+        group: "root"
+        mode: '0744'
+      become: yes
+
+    - name: Copy quadlet files to /etc/containers/systemd 
       copy:
         src: "{{ clone_directory }}/quadlet/"
-        dest: /opt/lme/quadlet/
-        owner: "{{ install_user }}"
-        group: "{{ install_user }}"
+        dest: /etc/containers/systemd/
+        owner: "root"
+        group: "root"
         mode: '0644'
       become: yes
 
-    - name: Create containers config directory
-      file:
-        path: "~/.config/containers"
-        state: directory
-
-    - name: Link quadlet to systemd
-      file:
-        src: /opt/lme/quadlet
-        dest: "~/.config/containers/systemd"
-        state: link
-
-    - name: Create systemd user directory
-      file:
-        path: "~/.config/systemd/user"
-        state: directory
-
-    - name: Link lme.service
-      file:
-        src: /opt/lme/quadlet/lme.service
-        dest: "~/.config/systemd/user/lme.service"
-        state: link
+    - name: copy lme.service to /etc/systemd/system
+      copy:
+        src: "{{ clone_directory }}/quadlet/lme.service"
+        dest: "/etc/systemd/system/lme.service"
+        owner: "root"
+        group: "root"
+        mode: '0644'
+      become: yes
 
     - name: Reload systemd daemon
       systemd:
         daemon_reload: yes
-        scope: user
-
-    - name: Create containers directory
-      file:
-        path: /etc/containers
-        state: directory
       become: yes
 
-    - name: Create policy.json
+- name: Setup Containers for lmed
+  hosts: localhost
+  connection: local
+  become: no  # Default to no privilege escalation
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "lmed"
+  tasks:
+
+    - name: Add Container Image policy file
       copy:
         content: |
           {
@@ -193,25 +243,37 @@
         dest: /etc/containers/policy.json
       become: yes
 
-    - name: Pull containers
+    - name: Pull containers for lmed
       command: "podman pull {{ item }}"
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
       environment:
         PATH: "{{ ansible_env.PATH }}"
+      become: yes
+      #TODO: may need this?
+      #become_user: lmed
 
     - name: Tag containers
       command: "podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST"
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
       environment:
         PATH: "{{ ansible_env.PATH }}"
+      become: yes
+      #TODO: may need this?
+      #become_user: lmed
 
-    - name: Reload systemd daemon (user)
+
+- name: Start lme.service
+  hosts: localhost
+  connection: local
+  become: yes  # Default to no privilege escalation
+  tasks:
+    - name: Reload systemd daemon
       systemd:
         daemon_reload: yes
-        scope: user
+      become: yes
 
     - name: Start LME service
       systemd:
         name: lme.service
         state: started
-        scope: user
+      become: yes
