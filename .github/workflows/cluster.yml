@@ -68,12 +68,15 @@ jobs:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           cd testing/v2/development
+          ls -ln
           docker compose -p ${{ env.UNIQUE_ID }} exec -T \
             -e AZURE_CLIENT_ID \
             -e AZURE_CLIENT_SECRET \
             -e AZURE_TENANT_ID \
             -e AZURE_SUBSCRIPTION_ID \
             pipeline bash -c "
+              whoami
+              cat /etc/passwd
               ls -la /home/lme-user/LME/testing/v2/ && \
               cd /home/lme-user/LME/testing/v2/installers && \
               python3 ./azure/build_azure_linux_network.py \
