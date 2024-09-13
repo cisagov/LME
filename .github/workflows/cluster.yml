@@ -36,7 +36,7 @@ jobs:
                 
       - name: Set the environment for docker-compose 
         run: |
-          cd testing/development
+          cd testing/v2/development
           # Get the UID and GID of the current user
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
