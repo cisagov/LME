@@ -2,18 +2,18 @@ name: Cluster Run - Minimega
 
 on:
   workflow_dispatch:
-  # pull_request:
-  #  branches:
-  #    - '*'
+  pull_request:
+   branches:
+     - '*'
 
 jobs:
   build-and-test-cluster:
     runs-on: self-hosted
     env:
-      UNIQUE_ID: 
+      UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       IP_ADDRESS: 
       LS1_IP:
-      BRANCH_NAME:
       elastic:
 
     steps:
@@ -24,7 +24,6 @@ jobs:
         run: |
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
-          echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
 
       - name: Get branch name
         shell: bash
