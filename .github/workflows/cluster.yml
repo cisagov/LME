@@ -68,6 +68,7 @@ jobs:
             -e AZURE_TENANT_ID \
             -e AZURE_SUBSCRIPTION_ID \
             pipeline bash -c "
+              ls -la /home/lme-user/LME/testing/v2/ && \
               cd /home/lme-user/LME/testing/v2/installers && \
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
