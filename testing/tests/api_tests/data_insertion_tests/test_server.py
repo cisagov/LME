@@ -30,7 +30,7 @@ def suppress_insecure_request_warning():
     warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
-
+@pytest.mark.skip(reason="This test is for reference to use in 2.0")
 def test_filter_hosts_insert(es_host, es_port, username, password):
     
     second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_hosts.json', 'hosts.json', 0)
@@ -44,6 +44,7 @@ def test_filter_hosts_insert(es_host, es_port, username, password):
         
     assert(second_response_loaded['aggregations']['2']['buckets'][i]['key'] == 'testing.lme.local')
 
+@pytest.mark.skip(reason="This test is for reference to use in 2.0")
 def test_user_logon_events_insert(es_host, es_port, username, password):
         
     second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_logonevents.json', 'logonevents.json', 2)
