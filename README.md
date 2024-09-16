@@ -23,37 +23,9 @@ Ports required are as follows:
 
 
 ### Diagram: 
-A real diagram is coming, for now this poor man's flow chart is all that is available: (Created with [asciiflow](https://asciiflow.com/#/))
+**TODO** update the link below before merge to main  
 
-```
-#                                                                       +---------------------------------------------------------------------+
-# #                                                                       |                                                                     |
-# #                                                                       |     LME SERVER                                                      |
-# #                                                                       |                                                                     |
-# #                                                                       |     Podman Containers                                               |
-# #                                                                       |                                                                     |
-# #                                                                       |                    +-----------+                   +-----------+    |
-# #                                                                 ------+------------------->|           |                   |           |    |
-# #                +-----------------------------------+            ^     |                    |  Wazuh    +-------------+     |  Kibana   |    |
-# #                |                                   |            |     |  +---------+       |  Manager  |             |     |           |    |
-# #                |         CLIENT MACHINE            |            |     |  |         |       |           |             |     +----+---^--+    |
-# #                |                                   |            |     |  |  Caddy  |       +-----------+             |          |   |       |
-# #                |                                   |            |     |  |         |                            +----v-----+    |   |       |
-# #                |           WINDOWS                 |            |     |  |         |                            |          |    |   |       |
-# #                |                                   |            |     |  +-----+--^+        +----------+        |  Elastic <----+   |       |
-# #                |        +-----------------+        |            |     |        |  |         |          |        |   search |        |       |
-# #                |        |                 |        |            |     |        |  |         |  Fleet   |        |          +--------+       |
-# #                |        |   Elastic Agent +--------+------------+-----+--------+--+--------->          |        +------^---+                |
-# #                |        +-----------------+        |            |     |        |  |         |  Server  |               |                    |
-# #                |                                   |            |     |      +-v--+-------+ |          +---------------+                    |
-# #                |        +-----------------+        |            |     |      |   LME      | +----------+                                    |
-# #                |        |                 |        |            |     |      |            |                                                 |
-# #                |        |  Wazuh Agent    +--------+------------+     |      |  FrontEnd  |                                                 |
-# #                |        |                 |        |                  |      |            |                                                 |
-# #                |        +-----------------+        |                  |      +------------+                                                 |
-# #                |                                   |                  |                                                                     |
-# # 
-```
+![diagram](https://github.com/cisagov/LME/blob/release-2.0.0/docs/imgs/lme-architecture-v2.jpg)
 
 ### why podman?:
 Podman is more secure (by default) against container escape attacks than Docker. It also is far more debug and programmer friendly for making containers secure. 
@@ -309,6 +281,33 @@ NET START Wazuh
 ### Deploying Elastic-Agent: 
 1. Run the `scripts/set-fleet.sh` file
 2. follow the gui and deploy an agent on your client: https://0.0.0.0:5601/app/fleet/agents
+3. 
+
+# Documentation: 
+
+### Installation:
+ - [Prerequisites - Start deployment here](/docs/markdown/prerequisites.md)  
+ - [Chapter 1 - Set up Windows Event Forwarding](/docs/markdown/chapter1/chapter1.md)  
+ - [Chapter 2 – Sysmon Install](/docs/markdown/chapter2.md)  
+ - [Chapter 3 – Database Install](/docs/markdown/chapter3/chapter3.md)  
+ - [Chapter 4 - Post Install Actions ](/docs/markdown/chapter4.md)  
+
+### Logging Guidance
+ - [Log Retention](/docs/markdown/logging-guidance/retention.md)  
+ - [Additional Log Types](/docs/markdown/logging-guidance/other-logging.md)  
+
+### Reference:
+ - [FAQ](/docs/markdown/reference/faq.md)  
+ - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
+ - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
+ - [Guide to Organizational Units](/docs/markdown/chapter1/guide_to_ous.md)
+ - [Security Model](/docs/markdown/reference/security-model.md)
+
+### Maintenance:
+ - [Backups](/docs/markdown/maintenance/backups.md)  
+ - [Upgrading](/docs/markdown/maintenance/upgrading.md)  
+ - [Certificates](/docs/markdown/maintenance/certificates.md)  
+ 
 # Dev notes:
 Notes to convert compose -> quadlet
 1. start the containers with compose
