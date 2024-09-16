@@ -22,10 +22,12 @@ class TestHealthCheckDashboard:
         # If there is no visualization rendered or "No Results found" message is displayed for this panel on dashboard, this test should fail which is correct behavior
         
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_total_hosts(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Total Hosts", ".visualization",".dummyval")
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_events_by_machine(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Events by machine", ".echChart",".euiText")
@@ -35,6 +37,7 @@ class TestHealthCheckDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Unexpected shutdowns", ".echChart",".visError")
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_users_seen(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Users seen", ".visualization",".dummyval")

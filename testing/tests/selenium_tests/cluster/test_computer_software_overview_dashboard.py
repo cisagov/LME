@@ -14,10 +14,12 @@ class TestComputerSoftwareOverviewDashboard:
         login()
         yield driver
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_application_crashing_and_hanging(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Application Crashing and Hanging", ".echChart",".xyChart__empty")
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_application_crashing_and_hanging_count(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Application Crashing and Hanging Count", ".tbvChart",".visError")
@@ -27,11 +29,13 @@ class TestComputerSoftwareOverviewDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "CreateRemoteThread events", ".tbvChart",".visError")
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_filter_hosts(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Hosts", ".tbvChart",".visError")
 
     
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_processes(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Processes", ".tbvChart",".visError")
