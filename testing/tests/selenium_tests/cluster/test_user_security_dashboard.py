@@ -127,10 +127,10 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "References to temporary files", ".needarealvaluehere",".visError")  
     
-    @pytest.mark.skip(reason="Skipping this test")
+    #@pytest.mark.skip(reason="Skipping this test")
     def test_raw_access_read(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "RawAccessRead (Sysmon Event 9)", ".needarealvaluehere",".euiDataGrid__noResults")  
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "RawAccessRead (Sysmon Event 9)", ".euiDataGrid",".euiDataGrid__noResults")  
     
     def test_windows_defender_title(self, setup_login, kibana_url, timeout):
         driver = setup_login
