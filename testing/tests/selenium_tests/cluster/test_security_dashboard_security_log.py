@@ -14,6 +14,7 @@ class TestSecurityDashboardSecurityLog:
         login()
         yield driver
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_computer_filter_results(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Select a computer to filter the below results.  Leave blank for all", ".euiFlexGroup",".dummyval")
