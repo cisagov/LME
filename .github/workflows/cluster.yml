@@ -122,7 +122,7 @@ jobs:
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt"  && \
-            sudo minimega -e 'vm info'
+            sudo /opt/minimega/bin/minimega -e 'vm info'
           "
           
       - name: Install test requirements on Azure instance
