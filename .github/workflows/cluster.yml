@@ -118,8 +118,7 @@ jobs:
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt"  && \
-            sudo /opt/minimega/bin/minimega -e 'vm info'
+            ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
           
       - name: Check if linux is running in minimega 
