@@ -668,6 +668,7 @@ function config_replicas() {
       "number_of_replicas": 0
     }
   },
+  "data_stream": {},
   "priority": 1
 }'
   # set all current indices to have 0 replicas
