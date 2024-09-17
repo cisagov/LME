@@ -8,7 +8,7 @@ REQUIRED_PACKS=(curl zip net-tools jq)
 
 DATE="$(date '+%Y-%m-%d-%H:%M:%S')"
 
-#TODO: convert all logging messages to the following formats: 
+#TODO: convert all logging messages to the following formats:
 ED=`tput setaf 1`
 GREEN=`tput setaf 2`
 YELLOW=`tput setaf 3`
@@ -34,7 +34,7 @@ ready() {
   check=""
   while ! ([ "${check}" = "n" ] || [ "${check}" = "y" ] );
   do
-  read -e -p " OK [y/n]?" -i "y" check 
+  read -e -p " OK [y/n]?" -i "y" check
   if [ "${check}" == "n" ]; then
     echo -e "\e[33m[!]\e[0m Selected **NO** EXITING"
     exit 1
@@ -75,7 +75,7 @@ prompt() {
   done
 }
 
-#pull latest version from github or 
+#pull latest version from github or
 #SET: FORCE_LATEST_VERSION in environment to force a specific version in testing
 function get_latest_version() {
   if (: "${FORCE_LATEST_VERSION?}") 2>/dev/null;
@@ -117,11 +117,11 @@ function setroles() {
   echo -e "\n\e[32m[X]\e[0m Setting logstash writer role"
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X POST "https://127.0.0.1:9200/_security/role/logstash_writer" -H 'Content-Type: application/json' -d'
 {
-  "cluster": ["manage_index_templates", "monitor", "manage_ilm", "manage_pipeline"], 
+  "cluster": ["manage_index_templates", "monitor", "manage_ilm", "manage_pipeline"],
   "indices": [
     {
-      "names": [ "logstash-*, ecs-logstash-*","winlogbeat-*" ], 
-      "privileges": ["write","create","create_index","manage","manage_ilm"]  
+      "names": [ "logstash-*, ecs-logstash-*","winlogbeat-*" ],
+      "privileges": ["write","create","create_index","manage","manage_ilm"]
     }
   ]
 }
@@ -149,7 +149,7 @@ function setroles() {
 }
 
 function setpasswords() {
-  temp="temp" 
+  temp="temp"
 
   echo -e "\e[32m[X]\e[0m Waiting for Elasticsearch to be ready"
   max_attempts=30
@@ -524,12 +524,12 @@ function pipelineupdate() {
         "ignore_missing": true
       }
     },
-    { 
-      "set": { 
-        "field": "event.ingested", 
+    {
+      "set": {
+        "field": "event.ingested",
         "value": "{{_ingest.timestamp}}",
-        "ignore_failure": true 
-      } 
+        "ignore_failure": true
+      }
     }
   ]
 }
@@ -668,8 +668,10 @@ function config_replicas() {
       "number_of_replicas": 0
     }
   },
+  "data_stream": {},
   "priority": 1
 }'
+
   # set all current indices to have 0 replicas
   curl --cacert certs/root-ca.crt --user "elastic:$elastic_user_pass" -X PUT "https://127.0.0.1:9200/_all/_settings" -H 'Content-Type: application/json' -d '{"index" : {"number_of_replicas" : 0}}'
 }
@@ -759,7 +761,7 @@ function install() {
   #user entered no
   if ! (exit $status);
   then
-    error "Exiting" 
+    error "Exiting"
     return 1
   fi
 
@@ -797,7 +799,7 @@ function install() {
   echo -e "\e[32m[X]\e[0m Configuring winlogbeat config and certificates to use $logstaship as the IP and $logstashcn as the DNS"
 
   read -e -p "This script will use self signed certificates for communication and encryption. Do you want to continue with self signed certificates? ([y]es/[n]o): " -i "y" selfsignedyn
-  read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall 
+  read -e -p "Skip Docker Install? ([y]es/[n]o): " -i "n" skipdinstall
 
   if [ "$selfsignedyn" == "y" ]; then
     #make certs
@@ -1208,7 +1210,7 @@ done
 #download missing packages
 if [ ${#missing_pkgs[@]} -gt 0 ];
 then
-  ready "Will install the following packages: ${missing_pkgs[*]}. These are required for LME." 
+  ready "Will install the following packages: ${missing_pkgs[*]}. These are required for LME."
   sudo apt-get update
   #confirm install
   sudo DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -yq install ${missing_pkgs[*]}
