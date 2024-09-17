@@ -116,13 +116,19 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            sleep 60 &&
-            pwd && \
-            ls -la && \
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt"  && \
             sudo /opt/minimega/bin/minimega -e 'vm info'
+          "
+          
+      - name: Check if linux is running in minimega 
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS 'sudo /opt/minimega/bin/minimega -e vm info'
           "
           
       - name: Install test requirements on Azure instance
