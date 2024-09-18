@@ -64,6 +64,29 @@
       command: sudo -n true
       changed_when: false
 
+
+- name: set service user passwords
+  hosts: localhost
+  connection: local
+  become: no  # Default to no privilege escalation
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+  tasks:
+    #TODO should we put these in a better directory than /opt/lme?
+    - name: Set podman secret passwords
+      shell: |
+        password=$(</dev/urandom tr -dc _A-Z-a-z-0-9 | head -c30)
+        source /root/.profile 
+        echo $password | podman secret create --driver shell --replace "{{ item }}" -
+      args:
+        executable: /bin/bash
+      loop: 
+        - elastic
+        - kibana_system
+        - wazuh_api
+        - wazuh
+      become: yes
+
 - name: Setup Nix
   hosts: localhost
   connection: local
@@ -112,15 +135,15 @@
         ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
 
 
-    - name: Update PATH in user's bashrc
+    - name: Update PATH in user's profile
       lineinfile:
-        path: "~/.bashrc"
+        path: "~/.profile"
         line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
         create: yes
 
-    - name: Update PATH in root's bashrc
+    - name: Update PATH in root's profile 
       lineinfile:
-        path: "/root/.bashrc"
+        path: "/root/.profile"
         line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
         create: yes
       become: yes
@@ -229,7 +252,6 @@
         PATH: "{{ ansible_env.PATH }}"
       become: yes
 
-
 - name: Start lme.service
   hosts: localhost
   connection: local
@@ -244,4 +266,5 @@
       systemd:
         name: lme.service
         state: started
+        enabled: yes
       become: yes
