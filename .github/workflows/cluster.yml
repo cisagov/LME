@@ -100,52 +100,52 @@ jobs:
             ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
           "
           
-      - name: Install minimega on Azure instance
-        run: |
-          cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            sleep 60 &&
-            pwd && \
-            ls -la && \
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
-          "
+      # - name: Install minimega on Azure instance
+      #   run: |
+      #     cd testing/v2/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+      #       sleep 60 &&
+      #       pwd && \
+      #       ls -la && \
+      #       cd /home/lme-user/LME/testing/v2/installers && \
+      #       IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+      #       ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
+      #     "
           
-      - name: Install Linux in minimega 
-        run: |
-          cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
-          "
+      # - name: Install Linux in minimega 
+      #   run: |
+      #     cd testing/v2/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+      #       cd /home/lme-user/LME/testing/v2/installers && \
+      #       IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+      #       ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
+      #     "
           
-      - name: Check if linux is running in minimega 
-        run: |
-          cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ssh lme-user@\$IP_ADDRESS 'sudo /opt/minimega/bin/minimega -e vm info'
-          "
+      # - name: Check if linux is running in minimega 
+      #   run: |
+      #     cd testing/v2/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+      #       cd /home/lme-user/LME/testing/v2/installers && \
+      #       IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+      #       ssh lme-user@\$IP_ADDRESS 'sudo /opt/minimega/bin/minimega -e vm info'
+      #     "
 
-      - name: Get Azure and Minimega IP addresses
-        run: |
-          cd testing/v2/development
-          AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
-          echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
-          MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-              ssh lme-user@$AZURE_IP '
-                sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
-              ' 2>/dev/null
-            ") || { echo "Failed to get Minimega IP" >&2; exit 1; }
-          if [ -z "$MINIMEGA_IP" ]; then
-            echo "Minimega IP is empty" >&2
-            exit 1
-          fi
-          echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
-          echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
+      # - name: Get Azure and Minimega IP addresses
+      #   run: |
+      #     cd testing/v2/development
+      #     AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
+      #     echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
+      #     MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+      #         ssh lme-user@$AZURE_IP '
+      #           sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
+      #         ' 2>/dev/null
+      #       ") || { echo "Failed to get Minimega IP" >&2; exit 1; }
+      #     if [ -z "$MINIMEGA_IP" ]; then
+      #       echo "Minimega IP is empty" >&2
+      #       exit 1
+      #     fi
+      #     echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
+      #     echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
       - name: Install test requirements on Azure instance
         run: |
