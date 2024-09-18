@@ -135,7 +135,15 @@ jobs:
           cd testing/v2/development
           AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
           echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
-          MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP 'sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner'")
+          MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh lme-user@$AZURE_IP '
+                sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
+              ' 2>/dev/null
+            ") || { echo "Failed to get Minimega IP" >&2; exit 1; }
+          if [ -z "$MINIMEGA_IP" ]; then
+            echo "Minimega IP is empty" >&2
+            exit 1
+          fi
           echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
           echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
