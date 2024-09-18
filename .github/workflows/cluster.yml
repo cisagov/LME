@@ -125,7 +125,7 @@ jobs:
           echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
           MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh lme-user@$AZURE_IP '
-                sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
+                sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh ubuntu-runner 
               ' 2>/dev/null
             ") || { echo "Failed to get Minimega IP" >&2; exit 1; }
           if [ -z "$MINIMEGA_IP" ]; then
