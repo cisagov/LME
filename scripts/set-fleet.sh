@@ -6,6 +6,7 @@ HEADERS=(
   -H 'Content-Type: application/json'
 )
 
+#TODO: fix this so it uses vault now
 set_fleet_values() {
   fingerprint=$(podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt  | openssl x509 -nout -fingerprint -sha256 | cut -d "=" -f 2| tr -d : | head -n1)
   printf '{"fleet_server_hosts": ["%s"]}' "https://${IPVAR}:${FLEET_PORT}" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/settings" -d @- | jq
