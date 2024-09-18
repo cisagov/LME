@@ -82,7 +82,7 @@ jobs:
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
                 -s 0.0.0.0/0 \
-                -vs Standard_E4d_v4 \
+                -vs Standard_D8_v4 \
                 -l westus \
                 -ast 23:00 \
                 -y
