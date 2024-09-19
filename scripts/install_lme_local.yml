@@ -1,5 +1,5 @@
 ---
-- name: Setup /opt/lme and check sudo
+- name: Setup /opt/lme, check sudo, and configure other required directories/files
   hosts: localhost
   connection: local
   become: no  # Default to no privilege escalation
@@ -21,21 +21,22 @@
         mode: '0700'
       become: yes
 
-    - name: Check if lme-environment.env exists
-      stat:
-        path: "{{ clone_directory }}/config/lme-environment.env"
-      register: env_file
-
-    - name: Fail if lme-environment.env doesn't exist
-      fail:
-        msg: "lme-environment.env file not found in {{ clone_directory }}/config/. Please copy example.env to lme-environment.env in the config directory and edit it before running this playbook."
-      when: not env_file.stat.exists
-
     - name: Check if /opt/lme/lme-environment.env exists
       stat:
         path: "/opt/lme/lme-environment.env"
       register: optenv_file 
       become: yes
+
+    - name: Check if lme-environment.env exists
+      stat:
+        path: "{{ clone_directory }}/config/lme-environment.env"
+      register: env_file
+
+    - name: Fail if lme-environment.env doesn't exist (either in ./config OR /opt/lme)
+      fail:
+        msg: "lme-environment.env file not found in {{ clone_directory }}/config/. Please copy example.env to lme-environment.env in the config directory and edit it before running this playbook."
+      when: 
+        -  (not optenv_file.stat.exists) and (not env_file.stat.exists)
 
     - name: Copy lme-environment.env to /opt/lme (only if it doesn't exist)
       command: "cp {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
@@ -64,6 +65,20 @@
       command: sudo -n true
       changed_when: false
 
+    - name: Setup /etc/subgid
+      lineinfile:
+        path: "/etc/subuid"
+        line: 'containers:165536:65536'
+        create: yes
+      become: yes
+
+    - name: Setup /etc/subgid
+      lineinfile:
+        path: "/etc/subgid"
+        line: 'containers:165536:65536'
+        create: yes
+      become: yes
+
 
 - name: set service user passwords
   hosts: localhost
@@ -72,12 +87,23 @@
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
   tasks:
-    #TODO should we put these in a better directory than /opt/lme?
+    #maybe check for each in the shell script below?
+    - name: Register a variable, ignore errors and continue
+      shell: |
+        source /root/.profile 
+        podman secret ls | grep -q elastic
+      register: result
+      become: yes
+      args:
+        executable: /bin/bash
+      ignore_errors: true
+
     - name: Set podman secret passwords
       shell: |
-        password=$(</dev/urandom tr -dc _A-Z-a-z-0-9 | head -c30)
         source /root/.profile 
-        echo $password | podman secret create --driver shell --replace "{{ item }}" -
+        password=$(</dev/urandom tr -dc A-Za-z0-9$@#! | head -c30)
+        while ! echo -n $password | grep -Eq '[$@#!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@#! | head -c30); echo $password;done
+        echo -n $password | podman secret create --driver shell --replace "{{ item }}" -
       args:
         executable: /bin/bash
       loop: 
@@ -86,6 +112,7 @@
         - wazuh_api
         - wazuh
       become: yes
+      when: result is failed
 
 - name: Setup Nix
   hosts: localhost

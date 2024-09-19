@@ -17,8 +17,8 @@ Ubuntu 22.04 server running podman containers setup as podman quadlets controlle
 ### Required Ports:
 Ports required are as follows:
  - Elasticsearch: *9200*
- - Caddy: *443*
- - Wazuh: *1514,1515,55000,514*
+ - Kibana: 443
+ - Wazuh: *1514,1515,1516,55000,514*
  - Agent: *8220*
 
 
@@ -31,10 +31,6 @@ Ports required are as follows:
 Podman is more secure (by default) against container escape attacks than Docker. It also is far more debug and programmer friendly for making containers secure. 
 
 ### Containers:
-  - caddy: acts as a reverse proxy for the container architecture:
-    - routes traffic to the backend services
-    - hosts lme-front end
-    - helps access all services behind one pane of glass
   - setup: runs `/config/setup/init-setup.sh` based on the configuration of dns defined in `/config/setup/instances.yml`. The script will create a CA, underlying certs for each service, and intialize the admin accounts for elasticsearch(user:`elastic`) and kibana(user:`kibana_system`). 
   - elasticsearch: runs the database for LME and indexes all logs
   - kibana: the front end for querying logs,  investigating via dashboards, and managing fleet agents...
@@ -61,17 +57,27 @@ After changing those variables, you can run the automated install, or do a manua
 
 Configuration is `/config/`
  in `setup` find the configuration for certificate generation and password setting. `instances.yml` defines the certificates that will get created.  The shellscripts initialize accounts and create certificates, and will run from their respective quadlet definitions `lme-setup-accts` and `lme-setup-certs` respectively.
- in `caddy` is the Caddyfile for the reverse proxy. Find more notes on its syntax and configuraiton here: [CADDY DOCS](https://caddyserver.com/docs/caddyfile)
  
 Quadlet configuration for containers is in: `/quadlet/`. These are mapped to the root's systemd unit files, but will execute as the `lmed` user.
 
 \***TO EDIT**:\*
 The only file that really needs to be touched is creating `/config/lme-environment.env`, which sets up the required environment variables
-To do this follow these steps:
+Get your IP address via the following command: 
+```
+hostname -I | awk '{print $1}'
+```
+
+Setup the config via the following  steps:
 ```
 cp /config/example.env /config/lme-environment.env
 #update the following values:
 IPVAR=127.0.0.1 #your hosts ip 
+```
+
+### setting master password: 
+This password will be used to encrypt all service user passwords and you should make sure to keep track of it (it will also be stored in `/etc/lme/pass.sh`).
+```
+sudo -i ${PWD}/scripts/password_management.sh -i
 ```
 
 ### **Automated Install**
@@ -91,105 +97,62 @@ ansible-playbook ./scripts/install_lme_local.yml -e "clone_dir=/path/to/clone/di
 ```
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
+There is a step that will fail, this is expected, it is checking for podman secrets to see if they exist... on an intial install none will exist :) 
 
 #### Steps performed in automated install: 
 1. Creates `/opt/lme` to store the state of LME configuraiton, and copies quadlets to `/etc/containers/`
 
-2. Logs for lme will be available via podman, systemd, or `/var/log/lme` *TODO: add a logging directory for LME*
+TODO finish adding rest of scripts steps
 
 #### NOTES:
 
 1. `/opt/lme` will be owned by the lmed user, all lme services will run and execute as lmed, and this ensures least privilege in lmed's execution because lmed is a non-admin,unprivileged user.
  
-3. [this script](/scripts/set_sysctl_limits.sh) is executed via ansible AND  will change unprivileged ports to start at 80, to allow caddy to listen on 443 from a user run container. If this is not desired, we will be publishing steps to setup firewall rules using ufw//iptables to manage the firewall on this host at a later time. 
+3. [this script](/scripts/set_sysctl_limits.sh) is executed via ansible AND  will change unprivileged ports to start at 80, to allow kibana to listen on 443 from a user run container. If this is not desired, we will be publishing steps to setup firewall rules using ufw//iptables to manage the firewall on this host at a later time. 
 
-4. the master password will be stored at `/etc/lme/pass.sh` and owned by root, all containers will execute as the `lmed` user.
+4. the master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
 
 
-### After install:
+### Verification post install:
+Make sure to use `-i` to run a login shell with any commands that run as root, so environment varialbes are set proprerly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
 
-Confirm setup: 
-```
+1. Confirm services are installed: 
+```bash
 sudo systemctl  daemon-reload
 sudo systemctl list-unit-files lme\*
 ```
 
-1. Copy the file `example.env` to the running environment file:
+Debug if necessary:
 ```bash
-cp $CLONE_DIRECTORY/example.env /opt/lme/lme-environment.env
-```
-    
-3. Change appropriate variables in `/opt/lme/lme-environment.env` Each variable is documented inside `example.env`. You'll want to change the default passwords!
-
-## Run: 
-
-### pull and tag all containers:
-This will let us maintain the lme container versions using the `LME_LATEST` tag. Whenever we update, we change the local image to point to the newest update, and run `podman auto-update` to update the containers. 
-
-**NOTE TO FUTURE SELVES: NEEDS TO BE `LOCALHOST` TO AVOID REMOTE TAGGING ATTACK**
-
-```bash
-sudo mkdir -p /etc/containers
-sudo tee /etc/containers/policy.json <<EOF
-{
-    "default": [
-        {
-            "type": "insecureAcceptAnything"
-        }
-    ]
-}
-EOF
-```
-
-```bash
-#1:
-# cat $CLONE_DIRECTORY/config/containers.txt | xargs -n1 -P8 podman pull -q
-xargs -a $CLONE_DIRECTORY/config/containers.txt -I {} sh -c 'echo "Pulling {}..."; podman pull {} && echo "Successfully pulled {}" || echo "Failed to pull {}"'
-#2:
-for x in $(cat $CLONE_DIRECTORY/config/containers.txt  | tr '\n' ' ');do short=$(echo $x | awk -F/ '{print $3}'| awk -F: '{print $1}'); if [ "$short" == "" ];then short="caddy";fi;  podman image tag $x ${short}:LME_LATEST; done
-```
-
-### Start all the services
-```bash
-systemctl --user daemon-reload
-systemctl --user start lme.service
-```
-
-### verify running: 
-
-Check systemctl:
-```bash
-systemctl --user list-unit-files lme\*
-
 #if something breaks use this to see what goes on:
-journalctl --user -u lme.service
+sudo -i journalctl -xu lme.service
 #or sub in whatever service you want
 
 #try resetting failed: 
-systemctl --user reset-failed
+sudo -i systemctl  reset-failed lme*
+sudo -i systemctl  restart lme.service
 ```
 
-Check you can connect to elasticsearch
+2. Check you can connect to elasticsearch
 ```bash
 #substitute your password below:
 curl -k -u elastic:password1 https://localhost:9200
 ```
 
-Check conatiners are running:
+3. Check conatiners are running:
 ```bash
-podman ps --format "{{.Names}} {{.Status}}"
+sudo -i podman ps --format "{{.Names}} {{.Status}}"
 ```  
 
 example output: 
 ```shell
 lme-elasticsearch Up 2 hours (healthy)
-lme-kibana Up 2 hours
+lme-kibana Up 2 hours (healthy)
 lme-wazuh-manager Up About an hour
 lme-fleet-server Up 50 minutes
-lme-caddy Up 14 minutes
 ```
 
-Check you can connect to kibana
+4. Check you can connect to kibana
 ```bash
 #connect via ssh
 ssh -L 8080:localhost:443 [YOUR-LINUX-SERVER]
@@ -197,17 +160,37 @@ ssh -L 8080:localhost:443 [YOUR-LINUX-SERVER]
 #https://localhost:8080
 ```
 
-### stop service: 
-```
-systemctl --user stop lme-*.service
+### To Uninstall: 
+
+To uninstall everything: 
+**WARNING THIS WILL DELETE EVERYTHING!!!**
+``` bash
+sudo -i -u root 
+systemctl stop lme* && systemctl reset-failed && podman volume rm -a &&  podman secret rm -a && rm -rf /opt/lme && rm -rf /etc/lme && rm -rf /etc/containers/systemd
 ```
 
-### delete all data: 
-WARNING THIS WILL DELETE EVERYTHING!!!
+To stop/optionally uninstall things:
+**WARNING THIS WILL DELETE EVERYTHING!!!**
+Stop lme services: 
 ```bash
-WARNING THIS WILL DELETE EVERYTHING!!!
-podman volume ls --format "{{.Name}}" | grep lme | xargs podman volume rm
+sudo systemctl stop lme*
+sudo systemctl disable lme.service
+sudo -i podman stop $(sudo -i podman ps -aq)
+sudo -i podman rm $(sudo -i podman ps -aq)
 ```
+**WARNING THIS WILL DELETE EVERYTHING!!!**
+
+To delete only lme volumes:
+```bash
+sudo -i podman volume ls --format "{{.Name}}" | grep lme | xargs podman volume rm
+```
+or
+To delete all volumes: 
+```bash
+sudo -i podman volume rm -a
+```
+**WARNING THIS WILL DELETE EVERYTHING!!!**
+
 
 ## Deploying Agents: 
 
@@ -247,24 +230,42 @@ NET START Wazuh
 ### Deploying Elastic-Agent: 
 1. Run the `scripts/set-fleet.sh` file
 2. follow the gui and deploy an agent on your client: https://0.0.0.0:5601/app/fleet/agents
+3. Then login to kibana, go to fleet, click 'add agent' choose linux or windows depending on what endpoint. I like to perform these lines of code one at a time for testing. The final line where it actually does the install... add --insecure to the end. This is until we figure out how to do this with the certs in the cert store etc.
+
 
 ## Password Encryption:
 Password encryption is enabled using ansible-vault to store all lme user and lme service user passwords at rest.
 We do submit a hash of the password to Have I been pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs)
-
-
 ### where are passwords stored?:
-```
+```bash
 # Define user-specific paths
-USER_CONFIG_DIR="$HOME/.config/lme"
-USER_VAULT_DIR="$HOME/.local/share/lme/vault"
+USER_CONFIG_DIR="/root/.config/lme"
+USER_VAULT_DIR="/opt/lme/vault"
 USER_SECRETS_CONF="$USER_CONFIG_DIR/secrets.conf"
+PASSWORD_FILE="/etc/lme/pass.sh"
 ```
 
-###  `password_management.sh`:
-TODO
+### setting up passwords and accessing passwords:
+Run the password_management.sh script:
+```bash
+lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
+-i: Initialize all password environment variables and settings
+-s: set_user: Set user password
+-p: Manage Podman secret
+-l: List Podman secrets
+-h: print this list
+```
+
+### grabbing passwords: 
+To view the appropriate service user password use ansible-vault, as root: 
+```
+#where wazuh_api is the service user whose password you want:
+sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep wazuh_api | awk '{print $1}')
+```
+
 
 # Documentation: 
+TODO redo docs here
 
 ### Installation:
  - [Prerequisites - Start deployment here](/docs/markdown/prerequisites.md)  
@@ -290,6 +291,8 @@ TODO
  - [Certificates](/docs/markdown/maintenance/certificates.md)  
  
 # Dev notes:
+TODO move dev notes to a documentation file
+
 Notes to convert compose -> quadlet
 1. start the containers with compose
 2. podlet generate from the containers created
@@ -417,4 +420,36 @@ ln -s /opt/lme/quadlet ~/.config/containers/systemd
 #setup service file
 mkdir -p ~/.config/systemd/user
 ln -s /opt/lme/quadlet/lme.service ~/.config/systemd/user/
+```
+
+### pull and tag all containers:
+This will let us maintain the lme container versions using the `LME_LATEST` tag. Whenever we update, we change the local image to point to the newest update, and run `podman auto-update` to update the containers. 
+
+**NOTE TO FUTURE SELVES: NEEDS TO BE `LOCALHOST` TO AVOID REMOTE TAGGING ATTACK**
+
+```bash
+sudo mkdir -p /etc/containers
+sudo tee /etc/containers/policy.json <<EOF
+{
+    "default": [
+        {
+            "type": "insecureAcceptAnything"
+        }
+    ]
+}
+EOF
+```
+
+```bash
+#1:
+# cat $CLONE_DIRECTORY/config/containers.txt | xargs -n1 -P8 podman pull -q
+xargs -a $CLONE_DIRECTORY/config/containers.txt -I {} sh -c 'echo "Pulling {}..."; podman pull {} && echo "Successfully pulled {}" || echo "Failed to pull {}"'
+#2:
+for x in $(cat $CLONE_DIRECTORY/config/containers.txt  | tr '\n' ' ');do short=$(echo $x | awk -F/ '{print $3}'| awk -F: '{print $1}'); if [ "$short" == "" ];then short="caddy";fi;  podman image tag $x ${short}:LME_LATEST; done
+```
+
+### Start all the services
+```bash
+systemctl --user daemon-reload
+systemctl --user start lme.service
 ```
