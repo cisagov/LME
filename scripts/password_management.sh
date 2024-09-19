@@ -5,7 +5,7 @@ set +x  # Disable bash debugging output
 # Define user-specific paths
 USER_CONFIG_DIR="/root/.config/containers"
 USER_SECRETS_CONF="$USER_CONFIG_DIR/containers.conf"
-USER_VAULT_DIR="/opt/lme/vault"
+USER_VAULT_DIR="/etc/lme/vault"
 CONFIG_DIR="/etc/lme"
 PASSWORD_FILE="$CONFIG_DIR/pass.sh"
 
@@ -114,7 +114,7 @@ driver = "shell"
 
 [secrets.opts]
 list = "ls $USER_VAULT_DIR"
-lookup = "ansible-vault view $USER_VAULT_DIR/\$SECRET_ID"
+lookup = "ansible-vault view $USER_VAULT_DIR/\$SECRET_ID | tr -d '\n'"
 store = "cat > $USER_VAULT_DIR/\$SECRET_ID && chmod 700 $USER_VAULT_DIR/\$SECRET_ID && ansible-vault encrypt $USER_VAULT_DIR/\$SECRET_ID"
 delete = "rm $USER_VAULT_DIR/\$SECRET_ID"
 EOF
@@ -190,7 +190,6 @@ while getopts "isplc:h" opt; do
         set_podman_config
         ;;
     s)
-        #TODO: test this
         read -p "Enter username: " username
         password=$(set_user_password "$username")
         # Use command substitution to avoid echoing the password
