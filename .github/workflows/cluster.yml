@@ -124,10 +124,9 @@ jobs:
           AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
           echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
           MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-              ssh lme-user@\$AZURE_IP '
-              sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
-            '
+              ssh lme-user@$AZURE_IP 'sudo ls -l /opt/minimega/bin/'
           ")
+              # sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
           EXIT_CODE=$?
           if [ $EXIT_CODE -ne 0 ]; then
             echo "Failed to get Minimega IP. Exit code: $EXIT_CODE" >&2
