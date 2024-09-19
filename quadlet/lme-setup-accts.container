@@ -7,6 +7,7 @@ PartOf=lme.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 
 [Install]
 WantedBy=default.target
@@ -14,6 +15,8 @@ WantedBy=default.target
 [Container]
 ContainerName=lme-setup-accts
 EnvironmentFile=/opt/lme/lme-environment.env
+Secret=elastic,type=env,target=ELASTIC_PASSWORD
+Secret=kibana_system,type=env,target=KIBANA_PASSWORD
 Exec=/bin/bash /usr/share/elasticsearch/config/setup/acct-init.sh
 Image=localhost/elasticsearch:LME_LATEST
 Network=lme

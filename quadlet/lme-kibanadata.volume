@@ -5,7 +5,7 @@ After=lme.service
 [Service]
 
 [Volume]
-VolumeName=lme_esdata01
-User=165536
-Group=165536
+VolumeName=lme_kibanadata
+User=169584
+Group=169584
 Driver=local
