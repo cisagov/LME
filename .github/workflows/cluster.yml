@@ -125,8 +125,8 @@ jobs:
           echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
           echo "Azure IP:$AZURE_IP"
           MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-              ssh lme-user@$AZURE_IP 'sudo /opt/minimega/bin/minimega -e .json true .filter name=\"linux-runner\" vm info'
-          " | jq -r '.[].Data[].Networks[].IP4)
+              ssh lme-user@$AZURE_IP 'sudo /opt/minimega/bin/minimega -e .json true .filter name=\"linux-runner\" vm info | jq -r \'.[].Data[].Networks[].IP4\''
+          " )
           # sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
           # EXIT_CODE=$?
           # if [ $EXIT_CODE -ne 0 ]; then
