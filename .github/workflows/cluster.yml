@@ -141,6 +141,33 @@ jobs:
           echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
           echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
+      - name: Install LME on Azure instance
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            sleep 60 &&
+            pwd && \
+            ls -la && \
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
+          "
+
+      - name: Install test requirements on Azure instance
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS  'whoami && hostname && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+            cd /home/lme-user/LME/testing/tests && \
+            python3 -m venv venv && \
+            source venv/bin/activate && \
+            pip install -r requirements.txt '
+          "
+
       - name: Retrieve Elastic policy ID and enrollment token
         env:
           KIBANA_URL: "https://localhost" 
@@ -176,32 +203,6 @@ jobs:
           echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
           echo "Policy ID and Enrollment Token retrieved successfully"
 
-      - name: Install LME on Azure instance
-        run: |
-          cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            sleep 60 &&
-            pwd && \
-            ls -la && \
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
-          "
-
-      - name: Install test requirements on Azure instance
-        run: |
-          cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ssh lme-user@\$IP_ADDRESS  'whoami && hostname && \
-            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
-            cd /home/lme-user/LME/testing/tests && \
-            python3 -m venv venv && \
-            source venv/bin/activate && \
-            pip install -r requirements.txt '
-          "
       - name: Run api tests on Azure instance
         run: |
           cd testing/v2/development
@@ -212,6 +213,7 @@ jobs:
             source venv/bin/activate && \
             pytest -v api_tests/'
           "
+          
       - name: Run selenium tests on Azure instance
         run: |
           cd testing/v2/development
