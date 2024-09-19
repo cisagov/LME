@@ -123,6 +123,7 @@ jobs:
           cd testing/v2/development
           AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
           echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
+          echo "Azure IP:$AZURE_IP"
           MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh lme-user@$AZURE_IP 'sudo ls -l /opt/minimega/bin/'
           ")
