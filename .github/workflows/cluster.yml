@@ -15,6 +15,7 @@ jobs:
       IP_ADDRESS: 
       LS1_IP:
       elastic:
+      AZURE_IP:
 
     steps:
       - name: Checkout repository
@@ -128,19 +129,53 @@ jobs:
           MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh lme-user@$AZURE_IP 'sudo /opt/minimega/bin/minimega -e .json true .filter name=\"linux-runner\" vm info | jq -r \".[].Data[].Networks[].IP4\"'
           " )
-          # sudo /home/lme-user/LME/testing/v2/installers/lib/get_ip_of_machine.sh linux-runner
-          # EXIT_CODE=$?
-          # if [ $EXIT_CODE -ne 0 ]; then
-          #   echo "Failed to get Minimega IP. Exit code: $EXIT_CODE" >&2
-          #   exit 1
-          # fi
-          # if [ -z "$MINIMEGA_IP" ]; then
-          #   echo "Minimega IP is empty" >&2
-          #   exit 1
-          # fi
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Failed to get Minimega IP. Exit code: $EXIT_CODE" >&2
+            exit 1
+          fi
+          if [ -z "$MINIMEGA_IP" ]; then
+            echo "Minimega IP is empty" >&2
+            exit 1
+          fi
           echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
           echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
+
+      - name: Retrieve Elastic policy ID and enrollment token
+        env:
+          KIBANA_URL: "https://localhost" 
+          ES_USERNAME: "elastic" 
+          ES_PASSWORD: "password1" 
+        run: |
+          cd testing/v2/development
           
+          # Retrieve policy ID
+          POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" |
+              jq -r '.items[0].id'
+            '
+          ")
+          echo "Retrieved Policy ID: $POLICY_ID"
+          
+          # Retrieve enrollment token using the policy ID
+          ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" \
+                -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
+              jq -r .item.api_key
+            '
+          ")
+          
+          # Mask the enrollment token in logs and set it as an environment variable
+          echo "::add-mask::$ENROLLMENT_TOKEN"
+          echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
+          echo "Policy ID and Enrollment Token retrieved successfully"
+
       - name: Install LME on Azure instance
         run: |
           cd testing/v2/development
