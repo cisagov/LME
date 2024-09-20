@@ -3,6 +3,8 @@
 # Get the directory of the current script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+ENV_FILE="/opt/lme/lme-environment"
+
 # Function to display usage information
 usage() {
     echo "Usage: $0 -d DIRECTORY [OPTIONS]"
@@ -16,6 +18,7 @@ usage() {
 
 # Function to read password securely
 read_password() {
+
     if [ -t 0 ]; then
         read -s -p "Enter Elasticsearch password: " PASSWORD
         echo
@@ -56,6 +59,7 @@ if [ -z "$DASHBOARDS_DIR" ]; then
     echo "Error: Dashboards directory (-d) is required."
     usage
 fi
+
 
 # Check for password
 if [ -z "$ELASTIC_PASSWORD" ]; then

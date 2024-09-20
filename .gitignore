@@ -30,4 +30,5 @@ testing/tests/assets/style.css
 **.password.txt
 **.ip.txt
 **.swp
-**quadlet/output
+**/quadlet/output
+
