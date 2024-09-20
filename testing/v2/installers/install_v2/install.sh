@@ -27,16 +27,48 @@ cd "$SCRIPT_DIR/.."
 ./lib/copy_ssh_key.sh $user $hostname $password_file
 
 echo "Installing ansible"
-ssh  -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git'
+ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git'
 
-
-# Need to set up so we can checkout a particular branch or pull down a release
 echo "Checking out code"
-ssh  -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git && cd LME && git checkout -t origin/${branch}"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git && cd LME && git checkout -t origin/${branch}"
 echo "Code cloned to $HOME/LME"
 
 echo "Running ansible installer"
-ssh  -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && cp config/example.env config/lme-environment.env && ansible-playbook scripts/install_lme_local.yml"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && cp config/example.env config/lme-environment.env && ansible-playbook scripts/install_lme_local.yml"
+
+echo "Waiting for Kibana and Elasticsearch to start..."
+
+# Function to check if a service is up
+check_service() {
+    local url=$1
+    local auth=$2
+    ssh -o StrictHostKeyChecking=no $user@$hostname "curl -k -s -o /dev/null -w '%{http_code}' --insecure -u '${auth}' ${url}" | grep -q '200'
+}
+
+# Wait for services to start
+max_attempts=30
+attempt=0
+while [ $attempt -lt $max_attempts ]; do
+    if ssh -o StrictHostKeyChecking=no $user@$hostname "source /opt/lme/lme-environment.env && \
+        check_service 'https://\${IPVAR}:9200' '\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}' && \
+        check_service '\${LOCAL_KBN_URL}' '\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}'"; then
+        echo "Both Elasticsearch and Kibana are up!"
+        break
+    fi
+    attempt=$((attempt+1))
+    echo "Attempt $attempt/$max_attempts: Services not ready yet. Waiting 10 seconds..."
+    sleep 10
+done
+
+if [ $attempt -eq $max_attempts ]; then
+    echo "Timeout: Services did not start within the expected time."
+    exit 1
+fi
+
+echo "Running set-fleet script"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ./scripts/set-fleet.sh"
+
+echo "Installation and configuration completed successfully."
 
 # Change back to the original directory
 cd "$ORIGINAL_DIR"

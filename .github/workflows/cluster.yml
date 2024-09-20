@@ -213,7 +213,7 @@ jobs:
             source venv/bin/activate && \
             pytest -v api_tests/'
           "
-          
+
       - name: Run selenium tests on Azure instance
         run: |
           cd testing/v2/development
