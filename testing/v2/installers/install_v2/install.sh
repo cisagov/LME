@@ -38,20 +38,21 @@ ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && cp config/example.e
 
 echo "Waiting for Kibana and Elasticsearch to start..."
 
-# Function to check if a service is up
-check_service() {
-    local url=$1
-    local auth=$2
-    ssh -o StrictHostKeyChecking=no $user@$hostname "curl -k -s -o /dev/null -w '%{http_code}' --insecure -u '${auth}' ${url}" | grep -q '200'
-}
-
 # Wait for services to start
 max_attempts=30
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-    if ssh -o StrictHostKeyChecking=no $user@$hostname "source /opt/lme/lme-environment.env && \
-        check_service 'https://\${IPVAR}:9200' '\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}' && \
-        check_service '\${LOCAL_KBN_URL}' '\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}'"; then
+    if ssh -o StrictHostKeyChecking=no $user@$hostname bash << EOF
+        source /opt/lme/lme-environment.env
+        check_service() {
+            local url=\$1
+            local auth=\$2
+            curl -k -s -o /dev/null -w '%{http_code}' --insecure -u "\${auth}" "\${url}" | grep -q '200'
+        }
+        check_service "https://\${IPVAR}:9200" "\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}" && \
+        check_service "\${LOCAL_KBN_URL}" "\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}"
+EOF
+    then
         echo "Both Elasticsearch and Kibana are up!"
         break
     fi
