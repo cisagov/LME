@@ -67,7 +67,7 @@ if [ $attempt -eq $max_attempts ]; then
 fi
 
 echo "Running set-fleet script"
-ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && echo \$PATH && cd ~/LME &&  ./scripts/set-fleet.sh"
+ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && cat ~/.bashrc && cd ~/LME && ./scripts/set-fleet.sh"
 
 echo "Installation and configuration completed successfully."
 
