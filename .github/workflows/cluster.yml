@@ -3,8 +3,8 @@ name: Cluster Run - Minimega
 on:
   workflow_dispatch:
   pull_request:
-   branches:
-     - '*'
+  #  branches:
+  #    - '*'
 
 jobs:
   build-and-test-cluster:
