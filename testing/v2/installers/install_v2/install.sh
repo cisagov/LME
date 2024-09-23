@@ -69,6 +69,9 @@ fi
 echo "Running set-fleet script"
 ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && cd ~/LME && ./scripts/set-fleet.sh"
 
+echo "Running set-fleet script"
+ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh"
+
 echo "Installation and configuration completed successfully."
 
 # Change back to the original directory
