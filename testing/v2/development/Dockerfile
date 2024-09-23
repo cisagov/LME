@@ -84,6 +84,8 @@ FROM base AS pipeline
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
+    python3.10-venv \
+    sudo apt-get install openssh-client \
     curl \
     && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
     && apt-get clean \

@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 HEADERS=(
   -H "kbn-version: 8.12.2"

@@ -58,7 +58,7 @@ jobs:
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd /home/lme-user/LME/testing/v2/installers/azure && \
-            pip install -r build_azure_linux_network_requirements.txt
+            pip install -r requirements.txt
           "
           
       - name: Build an Azure instance 
