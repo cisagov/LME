@@ -7,6 +7,37 @@ HEADERS=(
   -H 'Content-Type: application/json'
 )
 
+# Function to check if Fleet API is ready
+check_fleet_ready() {
+    local response
+    response=$(curl -k -s --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+        "${HEADERS[@]}" \
+        "${LOCAL_KBN_URL}/api/fleet/settings")
+    
+    if [[ "$response" == *"Kibana server is not ready yet"* ]]; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+# Wait for Fleet API to be ready
+wait_for_fleet() {
+    echo "Waiting for Fleet API to be ready..."
+    max_attempts=60
+    attempt=1
+    while ! check_fleet_ready; do
+        if [ $attempt -ge $max_attempts ]; then
+            echo "Fleet API did not become ready after $max_attempts attempts. Exiting."
+            exit 1
+        fi
+        echo "Attempt $attempt: Fleet API not ready. Waiting 10 seconds..."
+        sleep 10
+        attempt=$((attempt + 1))
+    done
+    echo "Fleet API is ready. Proceeding with configuration..."
+}
+
 set_fleet_values() {
   fingerprint=$(/nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt  | openssl x509 -nout -fingerprint -sha256 | cut -d "=" -f 2| tr -d : | head -n1)
   fleet_api_response=$(printf '{"fleet_server_hosts": ["%s"]}' "https://${IPVAR}:${FLEET_PORT}" | curl -k -v --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/settings" -d @-)
@@ -14,7 +45,6 @@ set_fleet_values() {
   echo "Fleet API Response:"
   echo "$fleet_api_response"
 
-  printf '{"fleet_server_hosts": ["%s"]}' "https://${IPVAR}:${FLEET_PORT}" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/settings" -d @- | jq
   printf '{"hosts": ["%s"]}' "https://${IPVAR}:9200" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/outputs/fleet-default-output" -d @- | jq
   printf '{"ca_trusted_fingerprint": "%s"}' "${fingerprint}" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/outputs/fleet-default-output" -d @- | jq
   printf '{"config_yaml": "%s"}' "ssl.verification_mode: certificate" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/outputs/fleet-default-output" -d @- | jq
@@ -25,4 +55,5 @@ set_fleet_values() {
 
 #main:
 source /opt/lme/lme-environment.env
+wait_for_fleet
 set_fleet_values
