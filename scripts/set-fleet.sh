@@ -9,7 +9,11 @@ HEADERS=(
 
 set_fleet_values() {
   fingerprint=$(/nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt  | openssl x509 -nout -fingerprint -sha256 | cut -d "=" -f 2| tr -d : | head -n1)
-  printf '{"fleet_server_hosts": ["%s"]}' "https://${IPVAR}:${FLEET_PORT}" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/settings" -d @-
+  fleet_api_response=$(printf '{"fleet_server_hosts": ["%s"]}' "https://${IPVAR}:${FLEET_PORT}" | curl -k -v --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/settings" -d @-)
+
+  echo "Fleet API Response:"
+  echo "$fleet_api_response"
+
   printf '{"fleet_server_hosts": ["%s"]}' "https://${IPVAR}:${FLEET_PORT}" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/settings" -d @- | jq
   printf '{"hosts": ["%s"]}' "https://${IPVAR}:9200" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/outputs/fleet-default-output" -d @- | jq
   printf '{"ca_trusted_fingerprint": "%s"}' "${fingerprint}" | curl -k --silent --user "${ELASTIC_USERNAME}:${ELASTICSEARCH_PASSWORD}" -XPUT "${HEADERS[@]}" "${LOCAL_KBN_URL}/api/fleet/outputs/fleet-default-output" -d @- | jq
