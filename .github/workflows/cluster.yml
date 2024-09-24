@@ -138,6 +138,13 @@ jobs:
           echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
           echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
+      - name: Run a command in Minimega
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh lme-user@$AZURE_IP 'sudo ssh vmuser@$MINIMEGA_IP ls -la' 
+          "
+
       - name: Install LME on Azure instance
         run: |
           cd testing/v2/development
