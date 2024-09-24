@@ -142,7 +142,7 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -vvvv vmuser@${{ env.MINIMEGA_IP }} ls -la'
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -vvvv -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null vmuser@${{ env.MINIMEGA_IP }} ls -la'
           "
 
       - name: Install LME on Azure instance
