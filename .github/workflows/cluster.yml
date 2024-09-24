@@ -93,9 +93,6 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            sleep 60 &&
-            pwd && \
-            ls -la && \
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
@@ -145,9 +142,6 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            sleep 60 &&
-            pwd && \
-            ls -la && \
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
