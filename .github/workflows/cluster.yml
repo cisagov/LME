@@ -16,6 +16,7 @@ jobs:
       LS1_IP:
       elastic:
       AZURE_IP:
+      MINIMEGA_IP:
 
     steps:
       - name: Checkout repository
@@ -142,7 +143,7 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sudo ls -la'
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.MINIMEGA_IP }} ls -la'
           "
 
       - name: Install LME on Azure instance
