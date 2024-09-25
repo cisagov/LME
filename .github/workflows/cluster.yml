@@ -70,7 +70,6 @@ jobs:
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           cd testing/v2/development
-          ls -ln
           docker compose -p ${{ env.UNIQUE_ID }} exec -T \
             -e AZURE_CLIENT_ID \
             -e AZURE_CLIENT_SECRET \

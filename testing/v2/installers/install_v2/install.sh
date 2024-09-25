@@ -33,8 +33,15 @@ echo "Checking out code"
 ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git && cd LME && git checkout -t origin/${branch}"
 echo "Code cloned to $HOME/LME"
 
+echo "Setting config file"
+ssh -o StrictHostKeyChecking=no $user@$hostname << EOF
+    cd ~/LME
+    cp config/example.env config/lme-environment.env
+    . testing/v2/installers/lib/capture_ip.sh
+EOF
+
 echo "Running ansible installer"
-ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && cp config/example.env config/lme-environment.env && ansible-playbook scripts/install_lme_local.yml"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook scripts/install_lme_local.yml"
 
 echo "Waiting for Kibana and Elasticsearch to start..."
 
