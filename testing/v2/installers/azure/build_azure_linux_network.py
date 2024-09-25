@@ -18,7 +18,7 @@ def generate_password(length=12):
     uppercase_letters = string.ascii_uppercase
     lowercase_letters = string.ascii_lowercase
     digits = string.digits
-    special_chars = string.punctuation
+    # special_chars = string.punctuation
 
     # Generate the password
     password = []
@@ -29,8 +29,7 @@ def generate_password(length=12):
 
     # Generate the remaining characters
     remaining_length = length - 4
-    remaining_chars = uppercase_letters + lowercase_letters + digits \
-        + special_chars
+    remaining_chars = uppercase_letters + lowercase_letters + digits 
     password.extend(random.choices(remaining_chars, k=remaining_length))
 
     # Shuffle the password characters randomly
@@ -401,7 +400,7 @@ def main(
         "os_profile": {
             "computer_name": f"{machine_name}",
             "admin_username": vm_admin,
-            "admin_password": vm_password,
+            "admin_password": f"{vm_password}",
         },
         "network_profile": {
             "network_interfaces": [
