@@ -82,7 +82,7 @@ jobs:
                 -g pipe-${{ env.UNIQUE_ID }} \
                 -s 0.0.0.0/0 \
                 -vs Standard_D8_v4 \
-                -l westus \
+                -l centralus \
                 -ast 23:00 \
                 -y
             "
