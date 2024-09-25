@@ -89,6 +89,7 @@ jobs:
       - name: Install minimega on Azure instance
         run: |
           cd testing/v2/development
+          sleep 30
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
