@@ -77,9 +77,6 @@ jobs:
             -e AZURE_TENANT_ID \
             -e AZURE_SUBSCRIPTION_ID \
             pipeline bash -c "
-              whoami
-              cat /etc/passwd
-              ls -la /home/lme-user/LME/testing/v2/ && \
               cd /home/lme-user/LME/testing/v2/installers && \
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
@@ -181,7 +178,7 @@ jobs:
           # Retrieve policy ID
           POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh lme-user@${{ env.AZURE_IP }} '
-              curl -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+              curl -k -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
                 -H \"kbn-xsrf: true\" \
                 -H \"Content-Type: application/json\" |
               jq -r '.items[0].id'
@@ -192,7 +189,7 @@ jobs:
           # Retrieve enrollment token using the policy ID
           ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh lme-user@${{ env.AZURE_IP }} '
-              curl -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
+              curl -k -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
                 -H \"kbn-xsrf: true\" \
                 -H \"Content-Type: application/json\" \
                 -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
