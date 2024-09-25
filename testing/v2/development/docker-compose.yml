@@ -41,7 +41,6 @@ services:
       args:
         USER_ID: "${HOST_UID:-1001}"
         GROUP_ID: "${HOST_GID:-1001}"
-    container_name: pipeline
     user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
     working_dir: /home/lme-user
     volumes:
