@@ -239,8 +239,8 @@ jobs:
       #    "
           
       - name: Stop and remove containers
-       if: always()
-       run: |
-         cd testing/v2/development
-         docker compose -p ${{ env.UNIQUE_ID }} down
-         docker system prune -af
+        if: always()
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} down
+          docker system prune -af
