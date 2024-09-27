@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+# Default values
+VERSION="8.12.2"
+ARCHITECTURE="linux-x86_64"
+IP="10.1.0.5"
+PORT="8220"
+ENROLLMENT_TOKEN=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --version)
+            VERSION="$2"
+            shift 2
+            ;;
+        --arch)
+            ARCHITECTURE="$2"
+            shift 2
+            ;;
+        --ip)
+            IP="$2"
+            shift 2
+            ;;
+        --port)
+            PORT="$2"
+            shift 2
+            ;;
+        --token)
+            ENROLLMENT_TOKEN="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Download Elastic Agent
+curl -L -O "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
+
+# Extract the archive
+tar xzvf "elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
+
+# Change to the extracted directory
+cd "elastic-agent-${VERSION}-${ARCHITECTURE}"
+
+# Install Elastic Agent
+sudo ./elastic-agent install --insecure --url="https://${IP}:${PORT}" --enrollment-token="${ENROLLMENT_TOKEN}"
+
+# Remove the downloaded archive
+cd ..
+rm -f "elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
