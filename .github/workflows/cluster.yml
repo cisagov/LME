@@ -223,7 +223,7 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.MINIMEGA_IP }} ./install_agent_linux.sh'
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.MINIMEGA_IP }} chmod +x ./install_agent_linux.sh && ./install_agent_linux.sh'
           "
 
       - name: Run api tests on Azure instance
