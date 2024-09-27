@@ -196,6 +196,7 @@ jobs:
               jq -r .item.api_key
             '
           ")
+          echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"
           
           # Mask the enrollment token in logs and set it as an environment variable
           echo "::add-mask::$ENROLLMENT_TOKEN"
