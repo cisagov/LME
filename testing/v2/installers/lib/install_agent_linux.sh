@@ -46,8 +46,9 @@ tar xzvf "elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
 # Change to the extracted directory
 cd "elastic-agent-${VERSION}-${ARCHITECTURE}"
 
-# Install Elastic Agent
-sudo ./elastic-agent install --insecure --url="https://${IP}:${PORT}" --enrollment-token="${ENROLLMENT_TOKEN}"
+# Install Elastic Agent with automatic "yes" response
+sudo ./elastic-agent install --non-interactive --insecure --url="https://${IP}:${PORT}" --enrollment-token="${ENROLLMENT_TOKEN}"
+
 
 # Remove the downloaded archive
 cd ..
