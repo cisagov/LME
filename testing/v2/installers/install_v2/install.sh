@@ -38,6 +38,7 @@ ssh -o StrictHostKeyChecking=no $user@$hostname << EOF
     cd ~/LME
     cp config/example.env config/lme-environment.env
     . testing/v2/installers/lib/capture_ip.sh
+    ./testing/v2/installers/lib/replace_home_in_config.sh
 EOF
 
 echo "Running ansible installer"
