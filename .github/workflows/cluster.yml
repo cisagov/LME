@@ -12,11 +12,11 @@ jobs:
     env:
       UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-      IP_ADDRESS: 
-      LS1_IP:
-      elastic:
-      AZURE_IP:
-      MINIMEGA_IP:
+      IP_ADDRESS: ""
+      LS1_IP: ""
+      elastic: ""
+      AZURE_IP: ""
+      MINIMEGA_IP: ""
 
     steps:
       - name: Checkout repository
