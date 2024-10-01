@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Download Elastic Agent
-curl -L -O "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
+curl -L -s -O "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
 
 # Extract the archive
 tar xzf "elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
