@@ -50,7 +50,11 @@ cd "elastic-agent-${VERSION}-${ARCHITECTURE}"
 # Install Elastic Agent with automatic "yes" response
 sudo ./elastic-agent install --non-interactive --insecure --url="https://${IP}:${PORT}" --enrollment-token="${ENROLLMENT_TOKEN}"
 
-sudo ./elastic-agent enroll --insecure --url=https://${IP}:$PORT --enrollment-token="${ENROLLMENT_TOKEN}"
+# Enroll the Elastic Agent
+sudo /opt/Elastic/Agent/elastic-agent enroll --insecure --url=https://${IP}:$PORT --enrollment-token="${ENROLLMENT_TOKEN}"
+
+# Restart the agent service
+sudo service elastic-agent restart
 
 # Remove the downloaded archive
 cd ..
