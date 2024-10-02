@@ -229,6 +229,7 @@ jobs:
 
       - name: Check if the Elastic agent is reporting 
         run: |
+          sleep 120
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
