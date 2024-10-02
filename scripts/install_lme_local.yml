@@ -162,13 +162,20 @@
         state: directory
         mode: '0700'
 
-    - name: Create vault-pass.sh with secure permissions
+    - name: check if vault-pass.sh is created
+      stat:
+        path: "{{ password_file }}"
+      register: pass_file
+      become: yes
+
+    - name: Create vault-pass.sh with secure permissions (only if it doesn't exist!)
       copy:
         dest: "{{ password_file }}"
         content: |
           #!/bin/bash
           echo "{{ ansible_vault_password }}"
         mode: '0700'
+      when: not pass_file.stat.exists
 
     - name: Ensure ANSIBLE_VAULT_PASSWORD_FILE is set in .profile
       lineinfile:
