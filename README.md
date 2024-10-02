@@ -47,16 +47,18 @@ Wazuh agents will enable EDR capabilities, while Elastic agents will enable logg
  - https://github.com/elastic/elastic-agent  
 
 ## Installation:
+Ensure you follow the IP configuration below.
 
 ### Operating system: **Ubuntu 22.04**:
-Important: Change appropriate variables in `$CLONE_DIRECTORY/example.env`  Each variable is documented inside `example.env`. You'll want to change the default passwords!
-
-After changing those variables, you can run the automated install, or do a manual install. 
+Make sure you run an install on ubuntu 22.04, thats the operating system which has been tested the most. 
+In theory, you can install LME on any nix... but we've only tested and run installs on 22.04.
 
 ### Configuration
 
 Configuration is `/config/`
- in `setup` find the configuration for certificate generation and password setting. `instances.yml` defines the certificates that will get created.  The shellscripts initialize accounts and create certificates, and will run from their respective quadlet definitions `lme-setup-accts` and `lme-setup-certs` respectively.
+in `setup` find the configuration for certificate generation and password setting.  
+`instances.yml` defines the certificates that will get created.    
+The shellscripts initialize accounts and create certificates, and will run from their respective quadlet definitions `lme-setup-accts` and `lme-setup-certs` respectively.
  
 Quadlet configuration for containers is in: `/quadlet/`. These are mapped to the root's systemd unit files, but will execute as the `lmed` user.
 
@@ -74,11 +76,13 @@ cp /config/example.env /config/lme-environment.env
 IPVAR=127.0.0.1 #your hosts ip 
 ```
 
-### setting master password: 
+### OPTIONAL: setting master password
 This password will be used to encrypt all service user passwords and you should make sure to keep track of it (it will also be stored in `/etc/lme/pass.sh`).
 ```
 sudo -i ${PWD}/scripts/password_management.sh -i
 ```
+You can skip this step if you would like to have the script setup the master password for you and you'll never need to touch it :)
+
 
 ### **Automated Install**
 
@@ -100,9 +104,15 @@ This also assumes your user can sudo without a password. If you need to input a 
 There is a step that will fail, this is expected, it is checking for podman secrets to see if they exist... on an intial install none will exist :) 
 
 #### Steps performed in automated install: 
-1. Creates `/opt/lme` to store the state of LME configuraiton, and copies quadlets to `/etc/containers/`
+TODO finalize this with more words 
 
-TODO finish adding rest of scripts steps
+1. Setup /opt/lme, check sudo, and configure other required directories/files
+2. Setup password information
+3. Setup Nix
+4. set service user passwords
+5. Install Quadlets
+6. Setup Containers for root
+7. Start lme.service
 
 #### NOTES:
 
@@ -136,7 +146,7 @@ sudo -i systemctl  restart lme.service
 2. Check you can connect to elasticsearch
 ```bash
 #substitute your password below:
-curl -k -u elastic:password1 https://localhost:9200
+curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
 ```
 
 3. Check conatiners are running:
@@ -245,7 +255,7 @@ USER_SECRETS_CONF="$USER_CONFIG_DIR/secrets.conf"
 PASSWORD_FILE="/etc/lme/pass.sh"
 ```
 
-### setting up passwords and accessing passwords:
+### MANUALLY setting up passwords and accessing passwords:
 Run the password_management.sh script:
 ```bash
 lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
@@ -262,6 +272,7 @@ To view the appropriate service user password use ansible-vault, as root:
 #where wazuh_api is the service user whose password you want:
 sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep wazuh_api | awk '{print $1}')
 ```
+
 
 
 # Documentation: 
