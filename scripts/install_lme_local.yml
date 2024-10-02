@@ -5,7 +5,7 @@
   become: no  # Default to no privilege escalation
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
-    install_user: "{{ ansible_user_id }}"
+    install_user: "root"
 
   tasks:
     - name: Expand clone_directory path
@@ -79,6 +79,116 @@
         create: yes
       become: yes
 
+- name: Setup password information
+  hosts: localhost
+  gather_facts: no
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "root"
+
+    #Requirements, set as variables to enable testing or setting if a user desires
+    ansible_vault_password: ""
+    min_length: 12
+          
+    #directories
+    user_config_dir: "/root/.config/containers"
+    user_secrets_conf: "/root/.config/containers/containers.conf"  # Update with actual path
+    config_dir: "/etc/lme"
+    user_vault_dir: "/etc/lme/vault"  # Update with actual path
+    password_file: "/etc/lme/pass.sh"
+
+  tasks:
+    - name: Create Vault password
+      shell: |
+        password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+        while ! echo -n $password | grep -Eq '[$@!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30);done
+        echo -n $password
+      args:
+        executable: /bin/bash
+      register: vault_password
+
+    - name: Set ANSIBLE_VAULT_PASSWORD
+      set_fact:
+        ansible_vault_password: "{{ vault_password.stdout }}"
+
+    #TODO: make this a bit nicer
+    - name: Check password complexity
+      block:
+        - name: Check password length
+          assert:
+            that:
+              - ansible_vault_password | length >= min_length
+            fail_msg: "Input is too short. It should be at least {{ min_length }} characters long."
+
+        - name: Generate SHA-1 hash of the password
+          shell: "echo -n '{{ ansible_vault_password }}' | openssl sha1 | awk '{print $2}'"
+          args: 
+            executable: /bin/bash
+          register: password_hash
+
+        - name: Set prefix and suffix
+          set_fact:
+            prefix: "{{ password_hash.stdout[0:5] }}"
+            suffix: "{{ password_hash.stdout[5:] }}"
+
+        - name: Check against HIBP API
+          uri:
+            url: "https://api.pwnedpasswords.com/range/{{ prefix }}"
+            method: GET
+            return_content: yes
+          register: hibp_response
+
+        - name: Fail if password is found in breaches
+          fail:
+            msg: "The password has been found in breaches... this should only happen if you provided a password via the cli... choose a different password"
+          when: hibp_response.content | regex_search(suffix)
+
+    - name: Create global config directory
+      file:
+        path: "{{ config_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Create user config directory
+      file:
+        path: "{{ user_config_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Create user vault directory
+      file:
+        path: "{{ user_vault_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Create vault-pass.sh with secure permissions
+      copy:
+        dest: "{{ password_file }}"
+        content: |
+          #!/bin/bash
+          echo "{{ ansible_vault_password }}"
+        mode: '0700'
+
+    - name: Ensure ANSIBLE_VAULT_PASSWORD_FILE is set in .profile
+      lineinfile:
+        path: /root/.profile
+        line: "export ANSIBLE_VAULT_PASSWORD_FILE=\"{{ password_file }}\""
+        state: present
+
+    - name: Setup Podman secrets configuration
+      copy:
+        dest: "{{ user_secrets_conf }}"
+        content: |
+          [secrets]
+          driver = "shell"
+
+          [secrets.opts]
+          list = "ls {{ user_vault_dir }}"
+          lookup = "ansible-vault view {{ user_vault_dir }}/$SECRET_ID | tr -d '\n'"
+          store = "cat > {{ user_vault_dir }}/$SECRET_ID && chmod 700 {{ user_vault_dir }}/$SECRET_ID && ansible-vault encrypt {{ user_vault_dir }}/$SECRET_ID"
+          delete = "rm {{ user_vault_dir }}/$SECRET_ID"
+        mode: '0600'
 
 - name: set service user passwords
   hosts: localhost
@@ -101,8 +211,8 @@
     - name: Set podman secret passwords
       shell: |
         source /root/.profile 
-        password=$(</dev/urandom tr -dc A-Za-z0-9$@#! | head -c30)
-        while ! echo -n $password | grep -Eq '[$@#!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@#! | head -c30); echo $password;done
+        password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+        while ! echo -n $password | grep -Eq '[$@!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30); echo $password;done
         echo -n $password | podman secret create --driver shell --replace "{{ item }}" -
       args:
         executable: /bin/bash
