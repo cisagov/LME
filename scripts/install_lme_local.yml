@@ -190,40 +190,6 @@
           delete = "rm {{ user_vault_dir }}/$SECRET_ID"
         mode: '0600'
 
-- name: set service user passwords
-  hosts: localhost
-  connection: local
-  become: no  # Default to no privilege escalation
-  vars:
-    clone_directory: "{{ clone_dir | default('~/LME') }}"
-  tasks:
-    #maybe check for each in the shell script below?
-    - name: Register a variable, ignore errors and continue
-      shell: |
-        source /root/.profile 
-        podman secret ls | grep -q elastic
-      register: result
-      become: yes
-      args:
-        executable: /bin/bash
-      ignore_errors: true
-
-    - name: Set podman secret passwords
-      shell: |
-        source /root/.profile 
-        password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
-        while ! echo -n $password | grep -Eq '[$@!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30); echo $password;done
-        echo -n $password | podman secret create --driver shell --replace "{{ item }}" -
-      args:
-        executable: /bin/bash
-      loop: 
-        - elastic
-        - kibana_system
-        - wazuh_api
-        - wazuh
-      become: yes
-      when: result is failed
-
 - name: Setup Nix
   hosts: localhost
   connection: local
@@ -300,6 +266,40 @@
     - name: Link latest podman quadlet
       command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
       become: yes
+
+- name: set service user passwords
+  hosts: localhost
+  connection: local
+  become: no  # Default to no privilege escalation
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+  tasks:
+    #maybe check for each in the shell script below?
+    - name: Register a variable, ignore errors and continue
+      shell: |
+        source /root/.profile 
+        podman secret ls | grep -q elastic
+      register: result
+      become: yes
+      args:
+        executable: /bin/bash
+      ignore_errors: true
+
+    - name: Set podman secret passwords
+      shell: |
+        source /root/.profile 
+        password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+        while ! echo -n $password | grep -Eq '[$@!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30); echo $password;done
+        echo -n $password | podman secret create --driver shell --replace "{{ item }}" -
+      args:
+        executable: /bin/bash
+      loop: 
+        - elastic
+        - kibana_system
+        - wazuh_api
+        - wazuh
+      become: yes
+      when: result is failed
 
 - name: Install Quadlets
   hosts: localhost
