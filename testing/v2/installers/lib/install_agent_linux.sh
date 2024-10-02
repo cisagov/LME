@@ -47,7 +47,10 @@ tar xzf "elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
 cd "elastic-agent-${VERSION}-${ARCHITECTURE}"
 
 # Install Elastic Agent with automatic "yes" response
-sudo ./elastic-agent install --non-interactive --insecure --url="https://${IP}:${PORT}" --enrollment-token="${ENROLLMENT_TOKEN}"
+sudo ./elastic-agent install --non-interactive 
+
+# Configure Elastic Agent
+sudo ./elastic-agent config set --url="https://${IP}:${PORT}" 
 
 # Enroll the Elastic Agent. The previous install wasn't setting the variables right. 
 sudo /opt/Elastic/Agent/elastic-agent enroll -f --insecure --url=https://${IP}:$PORT --enrollment-token="${ENROLLMENT_TOKEN}"
