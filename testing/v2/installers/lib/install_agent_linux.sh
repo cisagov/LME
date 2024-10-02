@@ -43,7 +43,6 @@ curl -L -s -O "https://artifacts.elastic.co/downloads/beats/elastic-agent/elasti
 # Extract the archive
 tar xzf "elastic-agent-${VERSION}-${ARCHITECTURE}.tar.gz"
 
-
 # Change to the extracted directory
 cd "elastic-agent-${VERSION}-${ARCHITECTURE}"
 
