@@ -62,7 +62,7 @@ def test_elastic_root(es_host, es_port, username, password):
     validate(instance=response.json(), schema=schema)
 
 
-@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
+#@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
 def test_elastic_indices(es_host, es_port, username, password):
     url = f"https://{es_host}:{es_port}/_cat/indices/"
     response = make_request(url, username, password)
