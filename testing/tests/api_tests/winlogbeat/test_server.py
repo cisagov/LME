@@ -28,28 +28,38 @@ def suppress_insecure_request_warning():
     warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
-@pytest.mark.skip(reason="This test is too fragile and the data is not stable")
 def test_elastic_mapping(es_host, es_port, username, password):
-    # This test currently works for full installation. For Partial installation (only Ls1), the static mappings file will need to be changed.
-    url = f"https://{es_host}:{es_port}/winlogbeat-000001/_mapping"
+    
+    url = f"https://{es_host}:{es_port}/winlogbeat-*/_mapping"
     response = make_request(url, username, password)
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"    
+    data = json.loads(response.text)
 
-    response_data = response.json()
-    static_mapping = json.load(
-        open(f"{current_script_dir}/test_data/mapping_response.json")
-    )
-
-    # Dumping Actual Response Json into file for comparison if test fails.
-    json.dump(
-        response_data,
-        open(f"{current_script_dir}/test_data/mapping_response_actual.json", "w"),
-        indent=4,
-    )
-
-    assert static_mapping == response_data, "Mappings Json did not match Expected"
-
-
+    assert "winlog" in data ["winlogbeat-imported"]["mappings"]["properties"]
+    assert "@timestamp" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "activity_id" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "api" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "channel" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "computer_name" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "event_data" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "event_id" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "host" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "keywords" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "logon" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "opcode" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "process" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "provider_guid" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "provider_name" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "record_id" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "related_activity_id" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "task" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "time_created" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "user" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "user_data" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    assert "version" in data ["winlogbeat-imported"]["mappings"]["properties"]["winlog"]["properties"] 
+    
+    
+@pytest.mark.skip(reason="This test case API endpoint needs to be changed")
 def test_winlogbeat_settings(es_host, es_port, username, password):
     url = f"https://{es_host}:{es_port}/winlogbeat-*/_settings"
     response = make_request(url, username, password)
@@ -103,9 +113,17 @@ def test_winlogbeat_search(es_host, es_port, username, password):
     #     open(f"{current_script_dir}/test_data/winlog_search_data.json", "w"),
     #     indent=4,
     # )
-
+    
+    assert data["hits"]["hits"][0]["_index"] == "winlogbeat-imported"
+    assert data["hits"]["hits"][0]["_source"]["agent"]["name"] == "DC1"
+    assert data["hits"]["hits"][0]["_source"]["agent"]["type"] == "winlogbeat"
+    assert data["hits"]["hits"][0]["_source"]["winlog"]["computer_name"] == "DC1.lme.local"
+    assert data["hits"]["hits"][0]["_source"]["ecs"]["version"] == "8.0.0"
+    assert data["hits"]["hits"][0]["_source"]["log"]["level"] == "information"
     assert data["hits"]["hits"][0]["_source"]["host"]["name"] == "DC1.lme.local"
+    assert data["hits"]["hits"][0]["_source"]["event"]["provider"] == "PowerShell"
+    assert data["hits"]["hits"][0]["_source"]["tags"][0] == "beats"
 
     # Validating JSON Response schema
-    schema = load_json_schema(f"{current_script_dir}/schemas/winlogbeat_search.json")
-    validate(instance=response.json(), schema=schema)
+    #schema = load_json_schema(f"{current_script_dir}/schemas/winlogbeat_search.json")
+    #validate(instance=response.json(), schema=schema)

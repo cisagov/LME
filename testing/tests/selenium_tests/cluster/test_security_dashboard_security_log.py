@@ -68,7 +68,7 @@ class TestSecurityDashboardSecurityLog:
         
     def test_security_log_logon_as_a_service_type_5(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Sercurity log - logon as a service - Logon type 5",".euiDataGrid",".visError")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log - logon as a service - Logon type 5",".euiDataGrid",".visError")
 
     def test_security_log_logon_created_logon_type_2(self, setup_login, kibana_url, timeout):
         driver = setup_login
