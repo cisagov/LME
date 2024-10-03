@@ -130,6 +130,25 @@ if ! command -v podman &> /dev/null; then
     exit 1
 fi
 
+
+# Prompt for Elasticsearch credentials and verify connection
+while true; do
+    read -p "Enter Elasticsearch username: " ES_USER
+    ES_PASS=$(prompt_password "Enter Elasticsearch password: ")
+    echo  # Move to a new line after password input
+
+    if check_es_connection; then
+        break
+    else
+        echo "Would you like to try again? (y/n)"
+        read -r retry
+        if [[ ! $retry =~ ^[Yy]$ ]]; then
+            echo "Exiting script."
+            exit 1
+        fi
+    fi
+done
+
 # Try to set credentials from file
 if set_credentials_from_file; then
     echo "Using credentials from $ENV_FILE"
@@ -153,6 +172,7 @@ else
         fi
     done
 fi
+
 
 # Prompt for input files
 read -p "Enter the path to the compressed data file (winlogbeat_data.json.gz): " DATA_FILE

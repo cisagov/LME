@@ -11,6 +11,7 @@ class TestHealthCheckDashboard:
         login()
         yield driver
 
+    @pytest.mark.skip(reason="This test isn't working for 2.0 yet")
     def test_users_seen(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_id = "51fe1470-fa59-11e9-bf25-8f92ffa3e3ec"

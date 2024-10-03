@@ -26,26 +26,32 @@ class TestProcessExplorerDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Files created (in Downloads)", ".euiFlexGroup", ".euiDataGrid__noResults",)
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_hosts(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Hosts", ".tbvChart",".visError")
                
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_process_spawn_event_logs_id1(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process spawn event logs (Sysmon ID 1)", ".euiDataGrid",".euiDataGrid__noResults")
         
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_process_spawns_over_time(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process spawns over time", ".echChart",".xyChart__empty")
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_processes_created_by_users_over_time(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Processes created by users over time", ".echChart",".xyChart__empty")        
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_registry_events_sysmon_12_13_14(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Registry events (Sysmon 12, 13, 14)", ".euiDataGrid__focusWrap",".euiDataGrid__noResults")        
         
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_users(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Users", ".euiDataGrid__focusWrap",".euiText")

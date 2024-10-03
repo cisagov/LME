@@ -20,7 +20,7 @@ EnvironmentFile=/opt/lme/lme-environment.env
 Image=localhost/kibana:LME_LATEST
 Network=lme
 PodmanArgs=--memory 4gb --network-alias lme-kibana --requires lme-elasticsearch --health-interval=2s
-#PublishPort=5601:5601
+PublishPort=5601:5601
 Volume=lme_certs:/usr/share/kibana/config/certs:z
 Volume=lme_kibanadata:/usr/share/kibana/data
 Volume=/opt/lme/config/kibana.yml:/usr/share/kibana/config/kibana.yml:Z

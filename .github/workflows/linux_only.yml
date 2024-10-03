@@ -8,116 +8,113 @@ on:
 
 jobs:
   build-and-test-linux-only:
-    # runs-on: ubuntu-latest
     runs-on: self-hosted
     
     env:
-      UNIQUE_ID:
-      BRANCH_NAME:
+      UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4.1.1
       
-    - name: Setup environment variables
+    - name: Set the environment for docker compose
       run: |
-        echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
-        
-    - name: Setup environment variables
-      run: |
-        echo "AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "AZURE_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-        echo "AZURE_CLIENT_SECRET=${{ secrets.AZURE_SECRET }}" >> $GITHUB_ENV
-        echo "AZURE_TENANT=${{ secrets.AZURE_TENANT }}" >> $GITHUB_ENV
-        echo "AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-    
-    - name: Set Branch Name
-      shell: bash
-      env:
-        EVENT_NAME: ${{ github.event_name }}
-        HEAD_REF: ${{ github.head_ref }}
-        GITHUB_REF: ${{ github.ref }}
-      run: |
-        if [ "$EVENT_NAME" == "pull_request" ]; then
-          echo "BRANCH_NAME=$HEAD_REF" >> $GITHUB_ENV
-        else
-          BRANCH_REF="${GITHUB_REF##*/}"
-          echo "BRANCH_NAME=$BRANCH_REF" >> $GITHUB_ENV
-        fi
-        
-    - name: Set up Docker Compose
-      run: |
-        sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
-          -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-        
-    - name: Set the environment for docker-compose
-      run: |
-        cd testing/development
-        # Get the UID and GID of the current user
+        cd testing/v2/development
         echo "HOST_UID=$(id -u)" > .env
         echo "HOST_GID=$(id -g)" >> .env
         
-    - name: Run Docker Build
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml build lme --no-cache
-      
-    - name: Run Docker Compose
-      run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up lme -d
-      
-    - name: List docker containers to wait for them to start
+    - name: Start pipeline container
       run: |
-        docker ps
-    
-    # We are not using the ubuntu container so no use waiting for it to start
-    # - name: Execute commands inside ubuntu container
-    #   run: |
-    #     cd testing/development
-    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T ubuntu bash -c "echo 'Ubuntu container built'"
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
         
-    - name: Install LME in container
+    - name: Install Python requirements
       run: |
-        set -x
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "./testing/development/build_docker_lme_install.sh -b ${{ env.BRANCH_NAME }} \
-          && sudo chmod go+r /opt/lme/Chapter\ 3\ Files/output.log"
-          
-    - name: Run api tests in container
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c ". testing/configure/lib/functions.sh \
-          && sudo cp /opt/lme/Chapter\ 3\ Files/output.log . \
-          && extract_credentials output.log \
-          && sudo rm output.log \
-          && sudo docker ps \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          && pytest testing/tests/api_tests/linux_only/ "
-
-    - name: Run selenium tests in container
-      run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c "
-          . testing/configure/lib/functions.sh \
-          && echo export ELASTIC_PASSWORD=${{ env.elastic }} > testing/tests/.env \
-          && echo export KIBANA_HOST=localhost >> testing/tests/.env \
-          && echo export KIBANA_PORT=443 >> testing/tests/.env \
-          && echo export KIBANA_USER=elastic >> testing/tests/.env \
-          && echo export SELENIUM_TIMEOUT=60 >> testing/tests/.env \
-          && echo export SELENIUM_MODE=headless >> testing/tests/.env \
-          && . testing/tests/.env \
-          && sudo cp /opt/lme/Chapter\\ 3\\ Files/output.log . \
-          && extract_credentials output.log \
-          && sudo rm output.log \
-          && sudo docker ps \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ \
-          && pytest testing/tests/selenium_tests/linux_only/ \
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers/azure && \
+          pip install -r requirements.txt
         "
-          
-    - name: Cleanup Docker Compose
+        
+    - name: Build an Azure instance 
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            python3 ./azure/build_azure_linux_network.py \
+              -g pipe-${{ env.UNIQUE_ID }} \
+              -s 0.0.0.0/0 \
+              -vs Standard_E4d_v4 \
+              -l westus \
+              -ast 23:00 \
+              -y
+          "
+        
+    - name: Install LME on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          sleep 60 &&
+          pwd && \
+          ls -la && \
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
+        "
+        
+    - name: Install test requirements on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS  'whoami && hostname && \
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+          cd /home/lme-user/LME/testing/tests && \
+          python3 -m venv venv && \
+          source venv/bin/activate && \
+          pip install -r requirements.txt '
+        "
+    - name: Run tests on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+          source venv/bin/activate && \
+          pytest -v api_tests/linux_only/ selenium_tests/linux_only/'
+        "
+        
+    - name: Cleanup Azure resources
+      if: always()
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
+          az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+        "
+        
+    - name: Stop and remove containers
       if: always()
       run: |
-        cd testing/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T -u root lme bash -c "rm -rf /home/admin.ackbar/LME/.pytest_cache"
+        cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} down
-        docker system prune -a --force
+        docker system prune -af

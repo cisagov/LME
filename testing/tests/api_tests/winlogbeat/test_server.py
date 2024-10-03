@@ -50,6 +50,7 @@ def test_elastic_mapping(es_host, es_port, username, password):
     assert static_mapping == response_data, "Mappings Json did not match Expected"
 
 
+@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
 def test_winlogbeat_settings(es_host, es_port, username, password):
     url = f"https://{es_host}:{es_port}/winlogbeat-*/_settings"
     response = make_request(url, username, password)
@@ -89,7 +90,7 @@ def test_winlogbeat_settings(es_host, es_port, username, password):
             act_data_fields.sort() == data_fields.sort()
     ), "Winlogbeats data fields do not match"
 
-
+@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
 def test_winlogbeat_search(es_host, es_port, username, password):
     # This test requires DC1 instance in cluster set up otherwise it will fail
     url = f"https://{es_host}:{es_port}/winlogbeat-*/_search"

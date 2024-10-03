@@ -64,25 +64,26 @@ If these environment variables are set, the script will use them for authenticat
 
 4. Activate the virtual environment:
 
+   - For macOS and Linux:
+     ```
+     source venv/bin/activate
+     ```
+
    - For Windows:
      ```
      venv\Scripts\activate
      ```
 
-   - For macOS and Linux:
-     ```
-     source venv/bin/activate
-     ```
 
    You should see `(venv)` prefixed to your terminal prompt, indicating that the virtual environment is active.
 
 5. Install the required packages by running the following command:
 
    ```
-   pip install -r build_azure_linux_network_requirements.txt
+   pip install -r requirements.txt
    ```
 
-   This will install all the necessary packages listed in the `build_azure_linux_network_requirements.txt` file.
+   This will install all the necessary packages listed in the `requirements.txt` file.
 
 ## Running the Script
 

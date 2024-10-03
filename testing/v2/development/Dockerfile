@@ -1,13 +1,40 @@
-# Use Ubuntu 22.04 as base image
-FROM ubuntu:22.04
+# Base stage with common dependencies
+FROM ubuntu:22.04 AS base
 ARG USER_ID=1001
 ARG GROUP_ID=1001
 
-# Set environment variable to avoid interactive dialogues during build
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install necessary APT packages including Python and pip
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    locales \
+    ca-certificates \
+    sudo \
+    sshpass \
+    openssh-client \
+    && locale-gen en_US.UTF-8 \
+    && update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
+RUN groupadd -g $GROUP_ID lme-user \
+    && useradd -m -u $USER_ID -g lme-user --badnames lme-user \
+    && usermod -aG sudo lme-user
+
+RUN echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+ENV BASE_DIR=/home/lme-user
+WORKDIR $BASE_DIR
+
+# Ubuntu stage with full dependencies
+FROM base AS ubuntu
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    systemd \
+    systemd-sysv \
     lsb-release \
     python3 \
     python3-venv \
@@ -16,7 +43,6 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     wget \
-    sudo \
     cron \
     freerdp2-x11 \
     pkg-config \
@@ -24,41 +50,46 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-dev \
     distro-info \
     libgirepository1.0-dev \
+    ansible \
     && wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
     && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
     && apt-get install -y powershell \
-    && rm -rf /var/lib/apt/lists/* \
     && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
     && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt install -y ./google-chrome-stable_current_amd64.deb \
     && rm -rf google-chrome-stable_current_amd64.deb \
-    && sudo apt-get install -f \
-    && apt-get clean
+    && apt-get install -f \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Ansible
-RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install ansible
+# Configure systemd
+RUN cd /lib/systemd/system/sysinit.target.wants/ && \
+    ls | grep -v systemd-tmpfiles-setup | xargs rm -f $1 && \
+    rm -f /lib/systemd/system/multi-user.target.wants/* && \
+    rm -f /etc/systemd/system/*.wants/* && \
+    rm -f /lib/systemd/system/local-fs.target.wants/* && \
+    rm -f /lib/systemd/system/sockets.target.wants/*udev* && \
+    rm -f /lib/systemd/system/sockets.target.wants/*initctl* && \
+    rm -f /lib/systemd/system/basic.target.wants/* && \
+    rm -f /lib/systemd/system/anaconda.target.wants/* && \
+    mkdir -p /etc/systemd/system/systemd-logind.service.d && \
+    echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
 
-# Create a user and group 'admin.ackbar' with GID 1001
-RUN groupadd -g $GROUP_ID admin.ackbar \
-    && useradd -m -u $USER_ID -g admin.ackbar --badnames admin.ackbar \
-    && usermod -aG sudo admin.ackbar
+CMD ["/lib/systemd/systemd"]
 
-# Allow 'admin.ackbar' user to run sudo commands without a password
-RUN echo "admin.ackbar ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+# Pipeline stage with minimal dependencies
+FROM base AS pipeline
 
-# Define the base directory as an environment variable
-ENV BASE_DIR=/home/admin.ackbar/LME
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3.10-venv \
+    openssh-client \
+    curl \
+    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set work directory
-WORKDIR $BASE_DIR
-
-# Change to non-root privilege
-# USER admin.ackbar
-
-# Set timezone (optional)
-ENV TZ=America/New_York
-
-# Keep the container running (This can be replaced by your application's main process)
-CMD ["tail", "-f", "/dev/null"]
+USER lme-user
+CMD ["sleep", "infinity"]
