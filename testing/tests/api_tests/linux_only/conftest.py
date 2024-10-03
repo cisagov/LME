@@ -33,5 +33,5 @@ def username():
 def password():
     return os.getenv(
         "elastic",
-        os.getenv("ES_PASSWORD", os.getenv("ELASTIC_PASSWORD", "default_password")),
+        os.getenv("ES_PASSWORD", os.getenv("ELASTIC_PASSWORD", "password1")),
     )

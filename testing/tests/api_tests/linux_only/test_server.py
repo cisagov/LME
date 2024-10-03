@@ -34,13 +34,13 @@ def test_elastic_root(es_host, es_port, username, password):
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
     body = response.json()
 
-    assert body["name"] == "es01", f"Expected 'es01', got {body['name']}"
+    assert body["name"] == "lme-elasticsearch", f"Expected 'lme-elasticsearch', got {body['name']}"
     assert (
-            body["cluster_name"] == "loggingmadeeasy-es"
-    ), f"Expected 'loggingmadeeasy-es', got {body['cluster_name']}"
+            body["cluster_name"] == "LME"
+    ), f"Expected 'LME', got {body['cluster_name']}"
     assert (
-            body["version"]["number"] == "8.11.1"
-    ), f"Expected '8.11.1', got {body['version']['number']}"
+            body["version"]["number"] == "8.12.2"
+    ), f"Expected '8.12.2', got {body['version']['number']}"
     assert (
             body["version"]["build_flavor"] == "default"
     ), f"Expected 'default', got {body['version']['build_flavor']}"
@@ -48,8 +48,8 @@ def test_elastic_root(es_host, es_port, username, password):
             body["version"]["build_type"] == "docker"
     ), f"Expected 'docker', got {body['version']['build_type']}"
     assert (
-            body["version"]["lucene_version"] == "9.8.0"
-    ), f"Expected '9.8.0', got {body['version']['lucene_version']}"
+            body["version"]["lucene_version"] == "9.9.2"
+    ), f"Expected '9.9.2', got {body['version']['lucene_version']}"
     assert (
             body["version"]["minimum_wire_compatibility_version"] == "7.17.0"
     ), f"Expected '7.17.0', got {body['version']['minimum_wire_compatibility_version']}"
@@ -62,6 +62,7 @@ def test_elastic_root(es_host, es_port, username, password):
     validate(instance=response.json(), schema=schema)
 
 
+@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
 def test_elastic_indices(es_host, es_port, username, password):
     url = f"https://{es_host}:{es_port}/_cat/indices/"
     response = make_request(url, username, password)
