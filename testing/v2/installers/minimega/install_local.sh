@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-$user=$(whoami)
 set -e
 
+user=$(whoami)
 sudo ./update_packages.sh
 
 # Fix the DNS settings
@@ -15,7 +15,7 @@ wget -O /tmp/minimega-2.9.deb https://github.com/sandia-minimega/minimega/releas
 
 sudo apt install /tmp/minimega-2.9.deb
 
-echo "export PATH=$PATH:/opt/minimega/bin/" >> /root/.bashrc
+echo 'export PATH=$PATH:/opt/minimega/bin/' >> /etc/environment
 
 # Set up the service and start minimega and miniweb services
 sudo cp minimega.service miniweb.service /etc/systemd/system/  && sudo systemctl daemon-reload 
