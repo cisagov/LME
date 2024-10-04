@@ -17,7 +17,7 @@ Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 ContainerName=lme-kibana
 Environment=SERVER_NAME=lme-kibana ELASTICSEARCH_HOSTS=https://lme-elasticsearch:9200  ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt SERVER_SSL_ENABLED=true SERVER_SSL_CERTIFICATE=config/certs/kibana/kibana.crt SERVER_SSL_KEY=config/certs/kibana/kibana.key SERVER_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt NODE_OPTIONS=--max-old-space-size=4096
 Secret=kibana_system,type=env,target=ELASTICSEARCH_PASSWORD
-EnvironmentFile=/opt/lme/lme-environment.env 
+EnvironmentFile=/opt/lme/lme-environment.env
 Image=localhost/kibana:LME_LATEST
 Network=lme
 PodmanArgs=--memory 4gb --network-alias lme-kibana --requires lme-elasticsearch --health-interval=2s

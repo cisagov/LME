@@ -31,3 +31,5 @@ testing/tests/assets/style.css
 **.ip.txt
 **.swp
 *.vim*
+**/quadlet/output
+
