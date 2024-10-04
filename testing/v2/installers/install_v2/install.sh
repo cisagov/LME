@@ -65,9 +65,6 @@ SUDO_EOF
         source /tmp/lme_env
         set +a
         
-        # Remove the temporary file
-        rm /tmp/lme_env
-
         # Source the secrets
         . ~/LME/scripts/extract_secrets.sh
 
