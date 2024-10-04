@@ -56,8 +56,8 @@ while [ $attempt -lt $max_attempts ]; do
             set -a
             source /opt/lme/lme-environment.env
             set +a
-            echo "IPVAR=\$IPVAR" > /tmp/lme_env
-            echo "LOCAL_KBN_URL=\$LOCAL_KBN_URL" >> /tmp/lme_env
+            echo "export IPVAR=\$IPVAR" > /tmp/lme_env
+            echo "export LOCAL_KBN_URL=\$LOCAL_KBN_URL" >> /tmp/lme_env
 SUDO_EOF
         
         # Read the exported variables

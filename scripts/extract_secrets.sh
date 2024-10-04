@@ -59,8 +59,8 @@ while IFS= read -r line; do
         # Use the name as-is for the variable name
         var_name=$name
         
-        # Set the value as the ID (since we can't access the actual secret)
-        secret_value=$id
+        # Get the real password using ansible-vault
+        secret_value=$(sudo -i ansible-vault view /etc/lme/vault/$id)
         
         # Add export command to the string
         export_commands+="export $var_name='$secret_value'; "
