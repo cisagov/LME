@@ -51,14 +51,33 @@ max_attempts=30
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
     if ssh -o StrictHostKeyChecking=no $user@$hostname bash << EOF
-        source /opt/lme/lme-environment.env
+        # Source the environment file as root to get necessary variables
+        sudo bash << SUDO_EOF
+            set -a
+            source /opt/lme/lme-environment.env
+            set +a
+            echo "IPVAR=\$IPVAR" > /tmp/lme_env
+            echo "LOCAL_KBN_URL=\$LOCAL_KBN_URL" >> /tmp/lme_env
+SUDO_EOF
+        
+        # Read the exported variables
+        set -a
+        source /tmp/lme_env
+        set +a
+        
+        # Remove the temporary file
+        rm /tmp/lme_env
+
+        # Source the secrets
+        . ~/LME/scripts/extract_secrets.sh
+
         check_service() {
             local url=\$1
             local auth=\$2
             curl -k -s -o /dev/null -w '%{http_code}' --insecure -u "\${auth}" "\${url}" | grep -q '200'
         }
-        check_service "https://\${IPVAR}:9200" "\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}" && \
-        check_service "\${LOCAL_KBN_URL}" "\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}"
+        check_service "https://\${IPVAR}:9200" "elastic:\${elastic}" && \
+        check_service "\${LOCAL_KBN_URL}" "elastic:\${elastic}"
 EOF
     then
         echo "Both Elasticsearch and Kibana are up!"
@@ -75,11 +94,10 @@ if [ $attempt -eq $max_attempts ]; then
 fi
 
 echo "Running check-fleet script"
-ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh"
+ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh\"'"
 
 echo "Running set-fleet script"
-ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && cd ~/LME && ./scripts/set-fleet.sh"
-
+ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./scripts/set-fleet.sh\"'"
 
 echo "Installation and configuration completed successfully."
 
