@@ -54,15 +54,17 @@ while [ $attempt -lt $max_attempts ]; do
         # Source the environment file as root to get necessary variables
         sudo bash << SUDO_EOF
             set -a
+            set -x
             source /opt/lme/lme-environment.env
-            set +a
             echo "export IPVAR=\$IPVAR" > /tmp/lme_env
             echo "export LOCAL_KBN_URL=\$LOCAL_KBN_URL" >> /tmp/lme_env
+            set +a
 SUDO_EOF
         
         # Read the exported variables
         set -a
         . /tmp/lme_env
+        echo "Exported variables:"
         cat /tmp/lme_env
         set +a
         
