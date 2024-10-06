@@ -62,13 +62,15 @@ SUDO_EOF
         
         # Read the exported variables
         set -a
-        source /tmp/lme_env
+        . /tmp/lme_env
+        cat /tmp/lme_env
         set +a
         
         # Source the secrets
-        . ~/LME/scripts/extract_secrets.sh
+        . ~/LME/scripts/extract_secrets.sh -p
 
         check_service() {
+            set -x
             local url=\$1
             local auth=\$2
             curl -k -s -o /dev/null -w '%{http_code}' --insecure -u "\${auth}" "\${url}" | grep -q '200'
