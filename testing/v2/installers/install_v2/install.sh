@@ -56,8 +56,8 @@ while [ $attempt -lt $max_attempts ]; do
             set -a
             set -x
             source /opt/lme/lme-environment.env
-            echo "export IPVAR=\$IPVAR" > /tmp/lme_env
-            echo "export LOCAL_KBN_URL=\$LOCAL_KBN_URL" >> /tmp/lme_env
+            echo "export IPVAR=$IPVAR" > /tmp/lme_env
+            echo "export LOCAL_KBN_URL=$LOCAL_KBN_URL" >> /tmp/lme_env
             set +a
 SUDO_EOF
         
@@ -66,7 +66,6 @@ SUDO_EOF
         . /tmp/lme_env
         echo "Exported variables:"
         cat /tmp/lme_env
-        set +a
         
         # Source the secrets
         . ~/LME/scripts/extract_secrets.sh -p
