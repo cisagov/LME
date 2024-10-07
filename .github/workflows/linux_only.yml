@@ -13,7 +13,8 @@ jobs:
     env:
       UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-      ES_PASSWORD:
+      ES_PASSWORD: ""
+      AZURE_IP: ""
 
     steps:
     - name: Checkout repository
@@ -76,13 +77,16 @@ jobs:
 
     - name: Retrieve Elastic password 
       run: |
+        cd /home/lme-user/LME/testing/v2/installers && \
+        AZURE_IP=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
         ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh lme-user@${{ env.AZURE_IP }} '. /home/lme-user/LME/scripts/extract_secrets.sh && echo \$elastic'
+          ssh lme-user@\$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh && echo \$elastic'
         ")
         echo "Elastic password: $ES_PASSWORD"
-        echo "::add-mask::$ES_PASSWORD"
+        #echo "::add-mask::$ES_PASSWORD"
         echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
         echo "Elastic password retrieved successfully"
+        echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
 
         
     - name: Install test requirements on Azure instance
