@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 get_script_path() {
     local source="${BASH_SOURCE[0]}"
