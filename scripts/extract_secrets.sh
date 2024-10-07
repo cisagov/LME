@@ -36,7 +36,7 @@ echo_if_not_quiet() {
 
 # Source the profile to ensure podman is available in the current shell
 if [ -f ~/.profile ]; then
-    . ~/.profile 2>/dev/null
+    . ~/.profile 
 else
     echo "~/.profile not found. Make sure podman is in your PATH."
     return 1
