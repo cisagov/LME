@@ -36,9 +36,9 @@ echo_if_not_quiet() {
 
 # Source the profile to ensure podman is available in the current shell
 if [ -f ~/.profile ]; then
-    . ~/.profile
+    . ~/.profile 2>/dev/null
 else
-    echo_if_not_quiet "~/.profile not found. Make sure podman is in your PATH."
+    echo "~/.profile not found. Make sure podman is in your PATH."
     return 1
 fi
 
@@ -46,7 +46,7 @@ fi
 PODMAN_PATH=$(which podman)
 
 if [ -z "$PODMAN_PATH" ]; then
-    echo_if_not_quiet "podman command not found. Please ensure it's installed and in your PATH."
+    echo "podman command not found. Please ensure it's installed and in your PATH."
     return 1
 fi
 
@@ -57,7 +57,7 @@ output=$(sudo "$PODMAN_PATH" secret ls)
 
 # Check if the command was successful
 if [ $? -ne 0 ]; then
-    echo_if_not_quiet "Failed to run 'sudo $PODMAN_PATH secret ls'. Check your permissions and podman installation."
+    echo "Failed to run 'sudo $PODMAN_PATH secret ls'. Check your permissions and podman installation."
     return 1
 fi
 
@@ -77,7 +77,7 @@ while IFS= read -r line; do
         # Add export command to the string
         export_commands+="export $var_name='$secret_value'; "
         
-        if $PRINT_SECRETS && ! $QUIET_MODE; then
+        if $PRINT_SECRETS; then
             echo "Exported $var_name: $secret_value"
         elif ! $QUIET_MODE; then
             echo "Exported $var_name"
@@ -88,7 +88,7 @@ done <<< "$output"
 # Execute the export commands
 eval "$export_commands"
 
-if $PRINT_SECRETS && ! $QUIET_MODE; then
+if $PRINT_SECRETS; then
     echo "Exported variables with values:"
     env | grep -E "^(wazuh|wazuh_api|kibana_system|elastic)="
 elif ! $QUIET_MODE; then
