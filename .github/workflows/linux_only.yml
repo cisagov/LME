@@ -81,7 +81,7 @@ jobs:
         AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
         echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
         echo "Azure IP:$AZURE_IP"
-        ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh && echo \$elastic'" | tail -n 1 | tr -d '\n')
+        ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
         echo "Elastic password: $ES_PASSWORD"
         #echo "::add-mask::$ES_PASSWORD"
         echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
@@ -104,12 +104,17 @@ jobs:
           pip install -r requirements.txt '
         "
     - name: Run tests on Azure instance
+      env:
+        ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        AZURE_IP: ${{ env.AZURE_IP }}
       run: |
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+          echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+          cat .env && \
           source venv/bin/activate && \
           pytest -v api_tests/linux_only/ selenium_tests/linux_only/'
         "
