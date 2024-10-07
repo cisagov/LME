@@ -69,9 +69,9 @@ set_fleet_values() {
 #main:
 source /opt/lme/lme-environment.env
 
-# Set the secrets values 
+# Set the secrets values and export them (source instead of execute)
 set -a
-$SCRIPT_DIR/extract_secrets.sh -p
+. $SCRIPT_DIR/extract_secrets.sh -p
 
 wait_for_fleet
 
