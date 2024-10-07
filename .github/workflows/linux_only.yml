@@ -84,7 +84,6 @@ jobs:
         echo "Azure IP retrieved successfully"
 
         ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
-        echo "Elastic password: $ES_PASSWORD"
         echo "::add-mask::$ES_PASSWORD"
         echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
         echo "Elastic password retrieved successfully"
