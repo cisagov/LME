@@ -27,7 +27,7 @@ cd "$SCRIPT_DIR/.."
 ./lib/copy_ssh_key.sh $user $hostname $password_file
 
 echo "Installing ansible"
-ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git'
+ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git && sudo locale-gen en_US.UTF-8 && sudo update-locale'
 
 echo "Checking out code"
 ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git && cd LME && git checkout -t origin/${branch}"
@@ -56,10 +56,8 @@ while [ $attempt -lt $max_attempts ]; do
             set -a
             set -x
             source /opt/lme/lme-environment.env
-            echo "Two backslashes: IPVAR=\\${IPVAR}" 
-            echo "Three backslashes: IPVAR=\\\${IPVAR}" 
-            echo "export IPVAR=\\${IPVAR}" > /tmp/lme_env
-            echo "export LOCAL_KBN_URL=\\${LOCAL_KBN_URL}" >> /tmp/lme_env
+            echo "export IPVAR=\\\${IPVAR}" > /tmp/lme_env
+            echo "export LOCAL_KBN_URL=\\\${LOCAL_KBN_URL}" >> /tmp/lme_env
             set +a
 SUDO_EOF
         
