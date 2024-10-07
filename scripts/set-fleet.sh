@@ -70,7 +70,7 @@ source /opt/lme/lme-environment.env
 
 # Set the secrets values 
 set -a
-$SCRIPT_DIR/extract_secrets.sh
+$SCRIPT_DIR/extract_secrets.sh -p
 
 wait_for_fleet
 
