@@ -54,7 +54,6 @@ while [ $attempt -lt $max_attempts ]; do
         # Source the environment file as root to get necessary variables
         sudo bash << SUDO_EOF
             set -a
-            set -x
             source /opt/lme/lme-environment.env
             echo "export IPVAR=\\\${IPVAR}" > /tmp/lme_env
             echo "export LOCAL_KBN_URL=\\\${LOCAL_KBN_URL}" >> /tmp/lme_env
@@ -68,10 +67,9 @@ SUDO_EOF
         cat /tmp/lme_env
         
         # Source the secrets
-        . ~/LME/scripts/extract_secrets.sh -p
+        . ~/LME/scripts/extract_secrets.sh 
 
         check_service() {
-            set -x
             local url=\$1
             local auth=\$2
             curl -k -s -o /dev/null -w '%{http_code}' --insecure -u "\${auth}" "\${url}" | grep -q '200'

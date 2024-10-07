@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#set -x
+set -x
 
 HEADERS=(
   -H "kbn-version: 8.12.2"
