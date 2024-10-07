@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -x
 
 get_script_path() {
     local source="${BASH_SOURCE[0]}"
@@ -71,7 +70,7 @@ source /opt/lme/lme-environment.env
 
 # Set the secrets values and export them (source instead of execute)
 set -a
-. $SCRIPT_DIR/extract_secrets.sh -p
+. $SCRIPT_DIR/extract_secrets.sh 
 
 wait_for_fleet
 
