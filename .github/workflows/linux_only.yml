@@ -14,6 +14,7 @@ jobs:
       UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       ES_PASSWORD: ""
+      KIBANA_PASSWORD: ""
       AZURE_IP: ""
 
     steps:
@@ -109,6 +110,8 @@ jobs:
     - name: Run tests on Azure instance
       env:
         ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        elastic: ${{ env.ES_PASSWORD }}
+        KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
         AZURE_IP: ${{ env.AZURE_IP }}
       run: |
         cd testing/v2/development
@@ -117,6 +120,8 @@ jobs:
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
           echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+          echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+          echo elastic=\"$ES_PASSWORD\" >> .env && \
           cat .env && \
           source venv/bin/activate && \
           pytest -v api_tests/linux_only/ selenium_tests/linux_only/'
