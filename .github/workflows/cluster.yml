@@ -248,12 +248,14 @@ jobs:
           "
 
       - name: Check if the Elastic agent is reporting 
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
           sleep 120
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
-              '/home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh'
+              'export ELASTIC_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh'
           "
 
       - name: Run api tests on Azure instance
