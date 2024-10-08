@@ -8,11 +8,11 @@
 This will eventually be merged with the Readme file at [LME-README](https://github.com/cisagov/LME). 
 
 ## Table of Contents:
--   [Architecture:](#architecture){#toc-architecture}
--   [Installation:](#installation){#toc-installation}
--   [Deploying Agents:](#deploying-agents){#toc-deploying-agents}
--   [Password Encryption:](#password-encryption){#toc-password-encryption}
--   [Further Documentation:](#documentation){#toc-documentation}
+-   [Architecture:](#architecture)
+-   [Installation:](#installation)
+-   [Deploying Agents:](#deploying-agents)
+-   [Password Encryption:](#password-encryption)
+-   [Further Documentation:](#documentation)
 
 ## Architecture:
 Ubuntu 22.04 server running podman containers setup as podman quadlets controlled via systemd.
@@ -26,9 +26,8 @@ Ports required are as follows:
 
 
 ### Diagram: 
-**TODO** update the link below before merge to main  
 
-![diagram](https://github.com/cisagov/LME/blob/release-2.0.0/docs/imgs/lme-architecture-v2.jpg)
+![diagram](/docs/imgs/lme-architecture-v2.jpg)
 
 ### why podman?:
 Podman is more secure (by default) against container escape attacks than Docker. It also is far more debug and programmer friendly for making containers secure. 
