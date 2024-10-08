@@ -118,7 +118,7 @@ jobs:
             ssh lme-user@\$IP_ADDRESS 'sudo /opt/minimega/bin/minimega -e vm info'
           "
 
-      - name: Get Azure and Minimega IP addresses and secrets
+      - name: Get Azure and Minimega IP addresses
         run: |
           cd testing/v2/development
           AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
@@ -163,11 +163,11 @@ jobs:
         run: |
           cd testing/v2/development
           ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
-          echo "::add-mask::$ES_PASSWORD"
+          #echo "::add-mask::$ES_PASSWORD"
           echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
           echo "Elastic password retrieved successfully: $ES_PASSWORD"
           KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
-          echo "::add-mask::$KIBANA_PASSWORD"
+          #echo "::add-mask::$KIBANA_PASSWORD"
           echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
           echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
 
@@ -190,7 +190,7 @@ jobs:
 
       - name: Retrieve Elastic policy ID and enrollment token
         env:
-          KIBANA_URL: "https://localhost" 
+          KIBANA_URL: "https://localhost:5601" 
           ES_USERNAME: "elastic" 
           ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
