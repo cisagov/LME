@@ -28,7 +28,7 @@ def suppress_insecure_request_warning():
     warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
-#@pytest.mark.skip(reason="This test is too fragile and the data is not stable")
+@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
 def test_elastic_mapping(es_host, es_port, username, password):
     
     url = f"https://{es_host}:{es_port}/winlogbeat-*/_mapping"
@@ -100,7 +100,7 @@ def test_winlogbeat_settings(es_host, es_port, username, password):
             act_data_fields.sort() == data_fields.sort()
     ), "Winlogbeats data fields do not match"
 
-#@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
+@pytest.mark.skip(reason="We no longer use winlogbeat. Keeping the test for reference")
 def test_winlogbeat_search(es_host, es_port, username, password):
     # This test requires DC1 instance in cluster set up otherwise it will fail
     url = f"https://{es_host}:{es_port}/winlogbeat-*/_search"
