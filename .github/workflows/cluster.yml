@@ -139,13 +139,6 @@ jobs:
           echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
           echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
-          ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
-          echo "::add-mask::$ES_PASSWORD"
-          echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
-          KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
-          #echo "::add-mask::$KIBANA_PASSWORD"
-          echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
-          echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
 
       - name: Run a command in Minimega
         run: |
@@ -162,6 +155,22 @@ jobs:
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
           "
+
+
+      - name: Retrieve Elastic password 
+        env:
+          AZURE_IP: ${{ env.AZURE_IP }}
+        run: |
+          cd testing/v2/development
+          ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$ES_PASSWORD"
+          echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
+          KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$KIBANA_PASSWORD"
+          echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
+          echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
+
+
 
       - name: Install test requirements on Azure instance
         run: |
