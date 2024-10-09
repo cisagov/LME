@@ -163,11 +163,11 @@ jobs:
         run: |
           cd testing/v2/development
           ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
-          #echo "::add-mask::$ES_PASSWORD"
+          echo "::add-mask::$ES_PASSWORD"
           echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
           echo "Elastic password retrieved successfully: $ES_PASSWORD"
           KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
-          #echo "::add-mask::$KIBANA_PASSWORD"
+          echo "::add-mask::$KIBANA_PASSWORD"
           echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
           echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
 

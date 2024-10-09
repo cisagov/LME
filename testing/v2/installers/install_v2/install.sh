@@ -67,7 +67,7 @@ SUDO_EOF
         cat /tmp/lme_env
         
         # Source the secrets
-        . ~/LME/scripts/extract_secrets.sh 
+        . ~/LME/scripts/extract_secrets.sh -q
 
         check_service() {
             local url=\$1
