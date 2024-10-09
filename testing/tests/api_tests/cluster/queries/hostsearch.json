@@ -1,0 +1,31 @@
+{
+    "query": {
+      "bool": {
+        "must": [
+          {
+            "term": {
+              "host.name": "ubuntu-vm"
+            }
+          },
+          {
+            "term": {
+              "event.module": "system"
+            }
+          },
+          {
+            "term": {
+              "event.dataset": "system.cpu"
+            }
+          }
+        ]
+      }
+    },
+    "sort": [
+      {
+        "@timestamp": {
+          "order": "desc"
+        }
+      }
+    ],
+    "size": 1
+  }
