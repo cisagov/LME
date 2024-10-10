@@ -292,7 +292,7 @@ jobs:
             pytest -v  selenium_tests/'
           "
     
-      - name: Cleanup Azure resources
+     # - name: Cleanup Azure resources
         if: always()
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -304,7 +304,7 @@ jobs:
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
             az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
-          "
+       #   "
           
       - name: Stop and remove containers
         if: always()
