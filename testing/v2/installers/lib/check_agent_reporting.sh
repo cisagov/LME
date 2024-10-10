@@ -6,11 +6,16 @@ handle_error() {
     exit 1
 }
 
+# Check if ES_PASSWORD is set
+if [ -z "$ES_PASSWORD" ]; then
+    handle_error "ES_PASSWORD environment variable is not set"
+fi
+
 # Run the curl command and capture the output
 output=$(curl -k -s -X GET "https://localhost:9200/.ds-metrics-system.cpu-default-*/_search" \
      -H 'Content-Type: application/json' \
      -H "kbn-xsrf: true" \
-     -u elastic:password1 \
+     -u "elastic:$ES_PASSWORD" \
      -d '{
   "query": {
     "bool": {
