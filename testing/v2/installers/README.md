@@ -12,4 +12,5 @@ Quick Start
 ./install_v2/install.sh lme-user $(cat your-group-name.ip.txt) your-group-name.password.txt branch 
 ```
 
+#reminder activiate venv first: `source ~/LME/venv/bin/activate`
 ./azure/build_azure_linux_network.py -g lme-cbaxley-m1 -s 0.0.0.0 -vs Standard_D8_v4 -l westus -ast 00:00   -pub Canonical  -io 0001-com-ubuntu-server-noble-daily  -is 24_04-daily-lts-gen2
