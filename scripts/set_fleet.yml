@@ -93,7 +93,10 @@
           include_tasks: "{{ playbook_dir }}/scripts/set_fleet.yml"
           when: attempt_counter | int < 60
 
-      until: fleet_status.status is defined and fleet_status.status == 200
+    - name: Confirm Fleet API is ready
+      debug:
+        msg: "Fleet API is ready"
+      when: fleet_status.status is defined and fleet_status.status == 200
 
     - name: Get CA fingerprint
       command: >
