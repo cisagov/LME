@@ -49,11 +49,24 @@
         validate_certs: no
         headers: "{{ headers }}"
         status_code: 200
+        return_content: yes
       register: fleet_status
       until: fleet_status.status == 200
       retries: 60
       delay: 10
-      no_log: true
+      no_log: false
+      
+    - name: Display Fleet API call details
+      debug:
+        msg:
+          - "Attempt: {{ ansible_loop.index }}"
+          - "URL: {{ fleet_status.url }}"
+          - "Status: {{ fleet_status.status }}"
+          - "Status Message: {{ fleet_status.msg }}"
+          - "Response Headers: {{ fleet_status.headers | to_nice_json }}"
+          - "Response Content: {{ fleet_status.content | to_nice_json }}"
+      when: fleet_status.changed
+      no_log: false
 
     - name: Get CA fingerprint
       command: >
