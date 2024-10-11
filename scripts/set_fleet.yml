@@ -9,6 +9,8 @@
       kbn-version: "8.12.2"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
+    max_retries: 60
+    delay_seconds: 10
 
   tasks:
     - name: Source environment file, extract secrets, and set variables
@@ -40,10 +42,6 @@
           - "elastic_password is set: {{ elastic_password | length > 0 }}"
       when: debug_mode | default(false) | bool
 
-    - name: Initialize counter
-      set_fact:
-        attempt_counter: 0
-
     - name: Wait for Fleet API to be ready
       block:
         - name: Attempt Fleet API call
@@ -57,41 +55,25 @@
             status_code: 200
             return_content: yes
           register: fleet_status
+          retries: "{{ max_retries }}"
+          delay: "{{ delay_seconds }}"
+          until: fleet_status.status == 200
           ignore_errors: yes
 
         - name: Display Fleet API call details
           debug:
             msg:
-              - "Attempt: {{ attempt_counter }}"
+              - "Attempt: {{ fleet_status.attempts }}"
               - "URL: {{ fleet_status.url }}"
               - "Status: {{ fleet_status.status | default('N/A') }}"
               - "Status Message: {{ fleet_status.msg | default('N/A') }}"
               - "Response Headers: {{ fleet_status.headers | default({}) | to_nice_json }}"
               - "Response Content: {{ fleet_status.content | default('N/A') | to_nice_json }}"
 
-        - name: Increment counter
-          set_fact:
-            attempt_counter: "{{ attempt_counter | int + 1 }}"
-
-        - name: Check if max retries reached
+        - name: Fail if Fleet API is not ready
           fail:
-            msg: "Max retries reached. Fleet API is not ready."
-          when: attempt_counter | int >= 60
-
-        - name: Fail to force retry if not successful
-          fail:
-            msg: "Fleet API not ready, retrying..."
+            msg: "Fleet API is not ready after {{ max_retries }} attempts."
           when: fleet_status.status is not defined or fleet_status.status != 200
-
-      rescue:
-        - name: Retry after delay
-          wait_for:
-            timeout: 10
-          when: attempt_counter | int < 60
-
-        - name: Retry Fleet API call
-          include_tasks: "{{ playbook_dir }}/scripts/set_fleet.yml"
-          when: attempt_counter | int < 60
 
     - name: Confirm Fleet API is ready
       debug:
