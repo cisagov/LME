@@ -11,30 +11,34 @@
       Content-Type: "application/json"
 
   tasks:
-    - name: Source environment file and extract secrets
+    - name: Source environment file, extract secrets, and set variables
       shell: |
         source /opt/lme/lme-environment.env
         set -a
         . {{ playbook_dir }}/extract_secrets.sh -q
+        echo "{\"elastic_password\": \"$elastic\", \"local_kbn_url\": \"$LOCAL_KBN_URL\", \"ipvar\": \"$IPVAR\", \"fleet_port\": \"$FLEET_PORT\"}"
       args:
         executable: /bin/bash
+      register: env_vars
       changed_when: false
+      no_log: true
 
     - name: Set variables from environment
       set_fact:
-        elastic_password: "{{ lookup('env', 'elastic') }}"
-        local_kbn_url: "{{ lookup('env', 'LOCAL_KBN_URL') }}"
-        ipvar: "{{ lookup('env', 'IPVAR') }}"
-        fleet_port: "{{ lookup('env', 'FLEET_PORT') }}"
-      no_log: false
+        elastic_password: "{{ (env_vars.stdout | from_json).elastic_password }}"
+        local_kbn_url: "{{ (env_vars.stdout | from_json).local_kbn_url }}"
+        ipvar: "{{ (env_vars.stdout | from_json).ipvar }}"
+        fleet_port: "{{ (env_vars.stdout | from_json).fleet_port }}"
+      no_log: true
 
-    - name: Debug - Display set variables
+    - name: Debug - Display set variables (comment out in production)
       debug:
         msg: 
           - "local_kbn_url: {{ local_kbn_url }}"
           - "ipvar: {{ ipvar }}"
           - "fleet_port: {{ fleet_port }}"
           - "elastic_password is set: {{ elastic_password | length > 0 }}"
+      when: debug_mode | default(false) | bool
 
     - name: Wait for Fleet API to be ready
       uri:
@@ -49,7 +53,7 @@
       until: fleet_status.status == 200
       retries: 60
       delay: 10
-      no_log: false
+      no_log: true
 
     - name: Get CA fingerprint
       command: >

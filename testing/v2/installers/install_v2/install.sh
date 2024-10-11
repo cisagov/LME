@@ -96,7 +96,7 @@ ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lm
 
 echo "Running set-fleet script"
 #ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME && ./scripts/set-fleet.sh'"
-ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/scripts && ansible-playbook set_fleet.yml'"
+ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/scripts && ansible-playbook set_fleet.yml -e \"debug_mode=true\"'"
 
 echo "Installation and configuration completed successfully."
 
