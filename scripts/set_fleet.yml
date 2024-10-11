@@ -42,20 +42,19 @@
           - "elastic_password is set: {{ elastic_password | length > 0 }}"
       when: debug_mode | default(false) | bool
 
-    - name: Initialize attempt counter
+    - name: Initialize attempt counter and success flag
       set_fact:
         attempt_counter: 1
+        api_success: false
 
     - name: Wait for Fleet API to be ready
       block:
         - name: Include Fleet API check tasks
           include_tasks: check_fleet_api.yml
-        - name: Retry Fleet API check
-          include_tasks: check_fleet_api.yml
-          when: fleet_status.status is not defined or fleet_status.status != 200
-          loop: "{{ range(2, max_retries + 1)|list }}"
+          loop: "{{ range(1, max_retries + 1)|list }}"
           loop_control:
             loop_var: attempt_counter
+          when: not api_success
       rescue:
         - name: Handle any unexpected errors
           debug:
@@ -64,7 +63,7 @@
     - name: Confirm Fleet API is ready
       debug:
         msg: "Fleet API is ready"
-      when: fleet_status.status is defined and fleet_status.status == 200
+      when: api_success
 
     - name: Get CA fingerprint
       command: >

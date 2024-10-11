@@ -3,7 +3,6 @@
     msg:
       - "User: elastic"
       - "Password is set: {{ elastic_password | default('') | length > 0 }}"
-      - "Password is set: {{ elastic_password }}"
       - "URL: {{ local_kbn_url }}"
   no_log: true
 
@@ -31,16 +30,16 @@
       - "Response Headers: {{ fleet_status.headers | default({}) | to_nice_json }}"
       - "Response Content: {{ fleet_status.content | default('N/A') | to_nice_json }}"
 
-- name: Increment attempt counter
+- name: Set success flag if API call succeeded
   set_fact:
-    attempt_counter: "{{ attempt_counter | int + 1 }}"
+    api_success: true
+  when: fleet_status.status is defined and fleet_status.status == 200
 
-- name: Check if max retries reached
-  fail:
-    msg: "Max retries reached. Fleet API is not ready."
-  when: attempt_counter | int > max_retries
+- name: Exit loop if API call succeeded
+  meta: end_play
+  when: api_success
 
 - name: Wait before next attempt
   wait_for:
     timeout: "{{ delay_seconds }}"
-  when: fleet_status.status is not defined or fleet_status.status != 200
+  when: not api_success
