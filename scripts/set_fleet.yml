@@ -1,0 +1,179 @@
+---
+- name: Set up Fleet
+  hosts: localhost
+  become: yes
+  gather_facts: no
+
+  vars:
+    headers:
+      kbn-version: "8.12.2"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+
+  tasks:
+    - name: Source environment file and extract secrets
+      shell: |
+        source /opt/lme/lme-environment.env
+        set -a
+        . {{ playbook_dir }}/extract_secrets.sh -q
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Set variables from environment
+      set_fact:
+        elastic_password: "{{ lookup('env', 'elastic') }}"
+        local_kbn_url: "{{ lookup('env', 'LOCAL_KBN_URL') }}"
+        ipvar: "{{ lookup('env', 'IPVAR') }}"
+        fleet_port: "{{ lookup('env', 'FLEET_PORT') }}"
+      no_log: true
+
+    - name: Wait for Fleet API to be ready
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/settings"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+        status_code: 200
+      register: fleet_status
+      until: fleet_status.status == 200
+      retries: 60
+      delay: 10
+      no_log: true
+
+    - name: Get CA fingerprint
+      command: >
+        /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca 
+        lme-elasticsearch cat ca.crt | openssl x509 -nout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
+      register: ca_fingerprint
+      changed_when: false
+
+    - name: Set Fleet server hosts
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/settings"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+        body_format: json
+        body:
+          fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
+      register: fleet_server_hosts_result
+      no_log: true
+
+    - name: Set Fleet default output hosts
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/outputs/fleet-default-output"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+        body_format: json
+        body:
+          hosts: ["https://{{ ipvar }}:9200"]
+      register: fleet_output_hosts_result
+      no_log: true
+
+    - name: Set Fleet default output CA trusted fingerprint
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/outputs/fleet-default-output"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+        body_format: json
+        body:
+          ca_trusted_fingerprint: "{{ ca_fingerprint.stdout }}"
+      register: fleet_output_fingerprint_result
+      no_log: true
+
+    - name: Set Fleet default output SSL verification mode
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/outputs/fleet-default-output"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+        body_format: json
+        body:
+          config_yaml: "ssl.verification_mode: certificate"
+      register: fleet_output_ssl_result
+      no_log: true
+
+    - name: Create Endpoint Policy
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agent_policies?sys_monitoring=true"
+        method: POST
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+        body_format: json
+        body:
+          name: "Endpoint Policy"
+          description: ""
+          namespace: "default"
+          monitoring_enabled: ["logs", "metrics"]
+          inactivity_timeout: 1209600
+      register: endpoint_policy_result
+      no_log: true
+
+    - name: Get Endpoint package version
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/epm/packages/endpoint"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+      register: endpoint_package_result
+      no_log: true
+
+    - name: Create Elastic Defend package policy
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/package_policies"
+        method: POST
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        headers: "{{ headers }}"
+        body_format: json
+        body:
+          name: "Elastic Defend"
+          description: ""
+          namespace: "default"
+          policy_id: "{{ endpoint_policy_result.json.item.id }}"
+          enabled: true
+          inputs:
+            - enabled: true
+              streams: []
+              type: "ENDPOINT_INTEGRATION_CONFIG"
+              config:
+                _config:
+                  value:
+                    type: "endpoint"
+                    endpointConfig:
+                      preset: "EDRComplete"
+          package:
+            name: "endpoint"
+            title: "Elastic Defend"
+            version: "{{ endpoint_package_result.json.item.version }}"
+      register: elastic_defend_policy_result
+      no_log: true
+
+    - name: Display results
+      debug:
+        var: "{{ item }}"
+      loop:
+        - fleet_server_hosts_result
+        - fleet_output_hosts_result
+        - fleet_output_fingerprint_result
+        - fleet_output_ssl_result
+        - endpoint_policy_result
+        - elastic_defend_policy_result
