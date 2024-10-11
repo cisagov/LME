@@ -28,6 +28,14 @@
         fleet_port: "{{ lookup('env', 'FLEET_PORT') }}"
       no_log: false
 
+    - name: Debug - Display set variables
+      debug:
+        msg: 
+          - "local_kbn_url: {{ local_kbn_url }}"
+          - "ipvar: {{ ipvar }}"
+          - "fleet_port: {{ fleet_port }}"
+          - "elastic_password is set: {{ elastic_password | length > 0 }}"
+
     - name: Wait for Fleet API to be ready
       uri:
         url: "{{ local_kbn_url }}/api/fleet/settings"
@@ -41,7 +49,7 @@
       until: fleet_status.status == 200
       retries: 60
       delay: 10
-      no_log: true
+      no_log: false
 
     - name: Get CA fingerprint
       command: >
