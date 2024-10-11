@@ -26,7 +26,7 @@
         local_kbn_url: "{{ lookup('env', 'LOCAL_KBN_URL') }}"
         ipvar: "{{ lookup('env', 'IPVAR') }}"
         fleet_port: "{{ lookup('env', 'FLEET_PORT') }}"
-      no_log: true
+      no_log: false
 
     - name: Wait for Fleet API to be ready
       uri:
@@ -62,7 +62,7 @@
         body:
           fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
       register: fleet_server_hosts_result
-      no_log: true
+      no_log: false
 
     - name: Set Fleet default output hosts
       uri:
@@ -76,7 +76,7 @@
         body:
           hosts: ["https://{{ ipvar }}:9200"]
       register: fleet_output_hosts_result
-      no_log: true
+      no_log: false
 
     - name: Set Fleet default output CA trusted fingerprint
       uri:
