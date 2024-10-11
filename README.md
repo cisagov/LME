@@ -237,6 +237,8 @@ systemctl enable wazuh-agent
 systemctl start wazuh-agent
 ```
 
+If your linux wazuh agent doesn't start because your "MANAGER_IP" is invalid, set it to the same IP address as your wazuh manager. Or edit the server address manually at /var/ossec/etc/ossec.conf.
+
 ### Deploy Wazuh Agent On client Machine (Windows)
 
 From PowerShell with admin capabilities run the following command
