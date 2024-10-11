@@ -40,33 +40,60 @@
           - "elastic_password is set: {{ elastic_password | length > 0 }}"
       when: debug_mode | default(false) | bool
 
+    - name: Initialize counter
+      set_fact:
+        attempt_counter: 0
+
     - name: Wait for Fleet API to be ready
-      uri:
-        url: "{{ local_kbn_url }}/api/fleet/settings"
-        method: GET
-        user: elastic
-        password: "{{ elastic_password }}"
-        validate_certs: no
-        headers: "{{ headers }}"
-        status_code: 200
-        return_content: yes
-      register: fleet_status
-      until: fleet_status.status == 200
-      retries: 60
-      delay: 10
-      no_log: false
-      
-    - name: Display Fleet API call details
-      debug:
-        msg:
-          - "Attempt: {{ ansible_loop.index }}"
-          - "URL: {{ fleet_status.url }}"
-          - "Status: {{ fleet_status.status }}"
-          - "Status Message: {{ fleet_status.msg }}"
-          - "Response Headers: {{ fleet_status.headers | to_nice_json }}"
-          - "Response Content: {{ fleet_status.content | to_nice_json }}"
-      when: fleet_status.changed
-      no_log: false
+      block:
+        - name: Attempt Fleet API call
+          uri:
+            url: "{{ local_kbn_url }}/api/fleet/settings"
+            method: GET
+            user: elastic
+            password: "{{ elastic_password }}"
+            validate_certs: no
+            headers: "{{ headers }}"
+            status_code: 200
+            return_content: yes
+          register: fleet_status
+          ignore_errors: yes
+
+        - name: Display Fleet API call details
+          debug:
+            msg:
+              - "Attempt: {{ attempt_counter }}"
+              - "URL: {{ fleet_status.url }}"
+              - "Status: {{ fleet_status.status | default('N/A') }}"
+              - "Status Message: {{ fleet_status.msg | default('N/A') }}"
+              - "Response Headers: {{ fleet_status.headers | default({}) | to_nice_json }}"
+              - "Response Content: {{ fleet_status.content | default('N/A') | to_nice_json }}"
+
+        - name: Increment counter
+          set_fact:
+            attempt_counter: "{{ attempt_counter | int + 1 }}"
+
+        - name: Check if max retries reached
+          fail:
+            msg: "Max retries reached. Fleet API is not ready."
+          when: attempt_counter | int >= 60
+
+        - name: Fail to force retry if not successful
+          fail:
+            msg: "Fleet API not ready, retrying..."
+          when: fleet_status.status is not defined or fleet_status.status != 200
+
+      rescue:
+        - name: Retry after delay
+          wait_for:
+            timeout: 10
+          when: attempt_counter | int < 60
+
+        - name: Retry Fleet API call
+          include_tasks: "{{ playbook_dir }}/scripts/set_fleet.yml"
+          when: attempt_counter | int < 60
+
+      until: fleet_status.status is defined and fleet_status.status == 200
 
     - name: Get CA fingerprint
       command: >
