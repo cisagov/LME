@@ -69,6 +69,10 @@
               - "Status Message: {{ fleet_status.msg | default('N/A') }}"
               - "Response Headers: {{ fleet_status.headers | default({}) | to_nice_json }}"
               - "Response Content: {{ fleet_status.content | default('N/A') | to_nice_json }}"
+          when: fleet_status is changed
+          loop: "{{ range(1, fleet_status.attempts|int + 1)|list }}"
+          loop_control:
+            label: "Attempt {{ item }}"
 
         - name: Fail if Fleet API is not ready
           fail:
