@@ -63,7 +63,7 @@ Install Requirements
 ```
 sudo apt update && sudo apt install curl jq unzip -y
 ```
-Download and Unzip the latest version of LME
+Download and Unzip the latest version of LME. This will add a path to ~/LME with all requires files.
 ```
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
