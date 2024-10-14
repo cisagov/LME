@@ -109,6 +109,18 @@ wazuh-alerts-4.x-2024.03.15                                             50      
 
 This will give you a good idea of what indexes are taking up the most space allowing you to make decisions on index management. (I.E. deleting, hot/cold rotation, etc)
 
+Or you can view index sizes from Kibana doing the following:
+
+1. Login to Kibana
+2. Click the "hamburger" menu button top left.
+3. Scroll down to Stack Management
+4. Click "Index Management"
+5. Check the option to "Include Hidden Indices"
+
+You should now see all your indexes and their sizes:
+
+![image](https://github.com/user-attachments/assets/f32741af-e77c-4bec-9e3d-268c25d65323)
+
 ### Editing Files in Podman Volumes and Bind Mounts
 
 When you edit files that are made available to containers through Podman volumes or bind mounts, these changes are immediately reflected in the running containers. This creates a direct link between files on the host system and within the container's filesystem. In the LME setup, many configuration files use this principle. For example, the Wazuh manager configuration file (ossec.conf) is actually located at `/opt/lme/config/wazuh_cluster/wazuh_manager.conf` on the host and is bind-mounted into the container. 
