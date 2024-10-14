@@ -29,7 +29,7 @@ Data moves through these phases based on what is called the Index Lifecycle Poli
 
 1. Login to Kibana and go to Menu -> Dev Tools
 
-2. Create an ILM policy by copying and pasting the following code and then pressing the 'play' button:
+2. Create an ILM policy by copying and pasting the following code and then pressing the run button that looks like a 'play' symbol:
 
 ```bash
 PUT _ilm/policy/wazuh_alerts_cleanup_policy
