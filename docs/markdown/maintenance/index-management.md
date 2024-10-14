@@ -95,5 +95,5 @@ Your Elastic agent logs are managed by a policy called "logs"
 
 5. After you turn on "Cold Phase" you will most likely have to hit the trash can switch to turn on the delete phase. 
 
-6. After you apply these changes to your policy please allow it some time 
+6. After you apply these changes to your policy please allow it some time to actually take effect on all indices.
 
