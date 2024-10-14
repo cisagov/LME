@@ -86,30 +86,8 @@ Remember to always backup important data before performing any cleanup operation
 ### Viewing Elasticsearch Index Sizes
 
 As discussed earlier lme_esdata01 will store all your logs in indexes. 
-To view all your Elasticsearch indexes and their sizes in megabytes (MB), you can use this curl command:
 
-```bash
-curl -s -k -u elastic:${ELASTIC_PASSWORD} \
-  "https://localhost:9200/_cat/indices?v=true&s=store.size:desc&h=index,docs.count,store.size&bytes=mb"
-```
-
-Before running this command:
-
-1. Replace `${ELASTIC_PASSWORD}` with your actual Elasticsearch password, or use the environment variable if it's set.
-2. Ensure you have `curl` installed on your system.
-
-Example Output:
-
-```
-index                                                                docs.count store.size
-.ds-logs-endpoint.events.process-default-2024.09.26-000001              36149       22
-wazuh-alerts-4.x-2024.03.15                                             50           5
-...
-```
-
-This will give you a good idea of what indexes are taking up the most space allowing you to make decisions on index management. (I.E. deleting, hot/cold rotation, etc)
-
-Or you can view index sizes from Kibana doing the following:
+To view all your Elasticsearch indexes and their sizes in Kibana:
 
 1. Login to Kibana
 2. Click the "hamburger" menu button top left.
