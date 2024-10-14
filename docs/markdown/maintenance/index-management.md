@@ -97,3 +97,4 @@ Your Elastic agent logs are managed by a policy called "logs"
 
 6. After you apply these changes to your policy please allow it some time to actually take effect on all indices.
 
+**NOTE: By default your rollover policy is set for 30 days. Do not set your 'delete' phase to be shorter than your rollover phase. You need your active indices to rollover into inactive indices before you delete them.
