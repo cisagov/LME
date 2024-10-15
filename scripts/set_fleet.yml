@@ -88,6 +88,16 @@
         msg: "Failed to retrieve CA fingerprint. Please check the Elasticsearch container and certificates."
       when: ca_fingerprint is undefined or ca_fingerprint.rc != 0
 
+    - name: Debug authentication variables
+      debug:
+        msg:
+          - "local_kbn_url: {{ local_kbn_url }}"
+          - "ipvar: {{ ipvar }}"
+          - "fleet_port: {{ fleet_port }}"
+          - "elastic_password is set: {{ elastic_password | length > 0 }}"
+          - "headers: {{ headers }}"
+      no_log: true
+
     - name: Set Fleet server hosts
       uri:
         url: "{{ local_kbn_url }}/api/fleet/settings"
@@ -107,14 +117,6 @@
       debug:
         var: fleet_server_hosts_result
       when: fleet_server_hosts_result is defined
-
-    - name: Debug authentication variables
-      debug:
-        msg:
-          - "local_kbn_url: {{ local_kbn_url }}"
-          - "elastic_password is set: {{ elastic_password | length > 0 }}"
-          - "headers: {{ headers }}"
-      no_log: true
 
     - name: Set Fleet default output hosts
       uri:
