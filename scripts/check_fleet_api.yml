@@ -23,7 +23,7 @@
 - name: Display Fleet API call details
   debug:
     msg:
-      - "Attempt: {{ attempt_counter }}"
+      - "Attempt: {{ current_attempt }}"
       - "URL: {{ fleet_status.url }}"
       - "Status: {{ fleet_status.status | default('N/A') }}"
       - "Status Message: {{ fleet_status.msg | default('N/A') }}"
