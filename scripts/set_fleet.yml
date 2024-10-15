@@ -71,11 +71,22 @@
       when: fleet_api_check.rc != 0
 
     - name: Get CA fingerprint
-      command: >
+      shell: >
         /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca 
-        lme-elasticsearch cat ca.crt | openssl x509 -nout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
+        lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
       register: ca_fingerprint
       changed_when: false
+      ignore_errors: true
+
+    - name: Display CA fingerprint
+      debug:
+        var: ca_fingerprint
+      when: ca_fingerprint is defined
+
+    - name: Fail if CA fingerprint retrieval failed
+      fail:
+        msg: "Failed to retrieve CA fingerprint. Please check the Elasticsearch container and certificates."
+      when: ca_fingerprint is undefined or ca_fingerprint.rc != 0
 
     - name: Set Fleet server hosts
       uri:
