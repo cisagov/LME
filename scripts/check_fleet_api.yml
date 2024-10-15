@@ -1,3 +1,7 @@
+- name: Wait before attempt
+  wait_for:
+    timeout: 5
+
 - name: Debug credentials
   debug:
     msg:
@@ -32,12 +36,7 @@
 
 - name: Set success flag if API call succeeded
   set_fact:
-    api_success: true
-  when: fleet_status.status is defined and fleet_status.status == 200
-
-- name: Exit loop if API call succeeded
-  meta: end_play
-  when: api_success
+    api_success: "{{ fleet_status.status is defined and fleet_status.status == 200 }}"
 
 - name: Wait before next attempt
   wait_for:

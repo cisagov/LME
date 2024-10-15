@@ -42,22 +42,25 @@
           - "elastic_password is set: {{ elastic_password | length > 0 }}"
       when: debug_mode | default(false) | bool
 
+    - name: Wait for Kibana port to be available
+      wait_for:
+        host: "{{ ipvar }}"
+        port: 5601
+        timeout: 300
+      register: kibana_port_check
+
     - name: Initialize attempt counter and success flag
       set_fact:
         api_success: false
 
     - name: Wait for Fleet API to be ready
-      block:
-        - name: Include Fleet API check tasks
-          include_tasks: check_fleet_api.yml
-          loop: "{{ range(1, max_retries + 1)|list }}"
-          loop_control:
-            loop_var: current_attempt
-          when: not api_success
-      rescue:
-        - name: Handle any unexpected errors
-          debug:
-            msg: "An unexpected error occurred during Fleet API check."
+      include_tasks: check_fleet_api.yml
+      loop: "{{ range(1, max_retries + 1)|list }}"
+      loop_control:
+        loop_var: current_attempt
+      until: api_success | default(false) | bool
+      retries: "{{ max_retries }}"
+      delay: "{{ delay_seconds }}"
 
     - name: Confirm Fleet API is ready
       debug:
