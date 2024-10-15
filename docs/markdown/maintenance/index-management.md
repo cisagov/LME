@@ -63,8 +63,7 @@ PUT _index_template/wazuh_alerts_template
   "index_patterns": ["wazuh-alerts-4.x-*"],
   "template": {
     "settings": {
-      "index.lifecycle.name": "wazuh_alerts_cleanup_policy",
-      "index.lifecycle.rollover_alias": "wazuh-alerts"
+      "index.lifecycle.name": "wazuh_alerts_cleanup_policy"
     }
   }
 }
