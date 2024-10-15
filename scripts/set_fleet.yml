@@ -66,19 +66,20 @@
         - name: Check if max retries reached
           fail:
             msg: "Max retries reached. Fleet API is not ready."
-          when: current_attempt | int > max_retries
-
-        - name: Retry Fleet API check
-          wait_for:
-            timeout: "{{ delay_seconds }}"
-          when: not api_success
+          when: current_attempt | int > max_retries and not api_success
       rescue:
         - name: Handle any unexpected errors
           debug:
             msg: "An unexpected error occurred during Fleet API check."
-      until: api_success | default(false) | bool
-      retries: "{{ max_retries }}"
-      delay: "{{ delay_seconds }}"
+      always:
+        - name: Retry Fleet API check
+          wait_for:
+            timeout: "{{ delay_seconds }}"
+          when: not api_success
+      when: not api_success
+      loop: "{{ range(1, max_retries + 1)|list }}"
+      loop_control:
+        loop_var: outer_attempt
 
     - name: Confirm Fleet API is ready
       debug:
