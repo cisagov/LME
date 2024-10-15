@@ -101,6 +101,20 @@
           fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
       register: fleet_server_hosts_result
       no_log: false
+      ignore_errors: yes
+
+    - name: Debug Fleet server hosts result
+      debug:
+        var: fleet_server_hosts_result
+      when: fleet_server_hosts_result is defined
+
+    - name: Debug authentication variables
+      debug:
+        msg:
+          - "local_kbn_url: {{ local_kbn_url }}"
+          - "elastic_password is set: {{ elastic_password | length > 0 }}"
+          - "headers: {{ headers }}"
+      no_log: true
 
     - name: Set Fleet default output hosts
       uri:
