@@ -35,7 +35,7 @@
 
     - name: Debug - Display set variables (comment out in production)
       debug:
-        msg: 
+        msg:
           - "local_kbn_url: {{ local_kbn_url }}"
           - "ipvar: {{ ipvar }}"
           - "fleet_port: {{ fleet_port }}"
@@ -51,35 +51,21 @@
 
     - name: Initialize attempt counter and success flag
       set_fact:
+        attempt_counter: 1
         api_success: false
-        current_attempt: 1
 
     - name: Wait for Fleet API to be ready
       block:
         - name: Include Fleet API check tasks
           include_tasks: check_fleet_api.yml
-
-        - name: Increment attempt counter
-          set_fact:
-            current_attempt: "{{ current_attempt | int + 1 }}"
-
-        - name: Check if max retries reached
-          fail:
-            msg: "Max retries reached. Fleet API is not ready."
-          when: current_attempt | int > max_retries and not api_success
+          loop: "{{ range(1, max_retries + 1)|list }}"
+          loop_control:
+            loop_var: attempt_counter
+          when: not api_success
       rescue:
         - name: Handle any unexpected errors
           debug:
             msg: "An unexpected error occurred during Fleet API check."
-      always:
-        - name: Retry Fleet API check
-          wait_for:
-            timeout: "{{ delay_seconds }}"
-          when: not api_success
-      when: not api_success
-      loop: "{{ range(1, max_retries + 1)|list }}"
-      loop_control:
-        loop_var: outer_attempt
 
     - name: Confirm Fleet API is ready
       debug:

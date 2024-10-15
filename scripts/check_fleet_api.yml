@@ -1,12 +1,9 @@
-- name: Wait before attempt
-  wait_for:
-    timeout: 5
-
 - name: Debug credentials
   debug:
     msg:
       - "User: elastic"
       - "Password is set: {{ elastic_password | default('') | length > 0 }}"
+      - "Password is set: {{ elastic_password }}"
       - "URL: {{ local_kbn_url }}"
   no_log: true
 
@@ -27,13 +24,23 @@
 - name: Display Fleet API call details
   debug:
     msg:
-      - "Attempt: {{ current_attempt }}"
+      - "Attempt: {{ attempt_counter }}"
       - "URL: {{ fleet_status.url }}"
       - "Status: {{ fleet_status.status | default('N/A') }}"
       - "Status Message: {{ fleet_status.msg | default('N/A') }}"
       - "Response Headers: {{ fleet_status.headers | default({}) | to_nice_json }}"
       - "Response Content: {{ fleet_status.content | default('N/A') | to_nice_json }}"
 
-- name: Set success flag if API call succeeded
+- name: Increment attempt counter
   set_fact:
-    api_success: "{{ fleet_status.status is defined and fleet_status.status == 200 }}"
+    attempt_counter: "{{ attempt_counter | int + 1 }}"
+
+- name: Check if max retries reached
+  fail:
+    msg: "Max retries reached. Fleet API is not ready."
+  when: attempt_counter | int > max_retries
+
+- name: Wait before next attempt
+  wait_for:
+    timeout: "{{ delay_seconds }}"
+  when: fleet_status.status is not defined or fleet_status.status != 200
