@@ -95,8 +95,7 @@ echo "Running check-fleet script"
 ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh\"'"
 
 echo "Running set-fleet script"
-#ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME && ./scripts/set-fleet.sh'"
-ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/scripts && ansible-playbook set_fleet.yml -e \"debug_mode=true\"'"
+#ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/scripts && ansible-playbook set_fleet.yml -e \"debug_mode=true\"'"
 
 echo "Installation and configuration completed successfully."
 
