@@ -53,7 +53,7 @@ PUT _ilm/policy/wazuh_alerts_cleanup_policy
 
 It will look like so:
 
-![alt text](image.png)
+![image](https://github.com/user-attachments/assets/962c3f8e-4a7b-4037-beaf-ea2e597fbe2d)
 
 3. Perform the same steps for the following snippets of code:
 
