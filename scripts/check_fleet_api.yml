@@ -37,8 +37,3 @@
 - name: Set success flag if API call succeeded
   set_fact:
     api_success: "{{ fleet_status.status is defined and fleet_status.status == 200 }}"
-
-- name: Wait before next attempt
-  wait_for:
-    timeout: "{{ delay_seconds }}"
-  when: not api_success

@@ -52,12 +52,30 @@
     - name: Initialize attempt counter and success flag
       set_fact:
         api_success: false
+        current_attempt: 1
 
     - name: Wait for Fleet API to be ready
-      include_tasks: check_fleet_api.yml
-      loop: "{{ range(1, max_retries + 1)|list }}"
-      loop_control:
-        loop_var: current_attempt
+      block:
+        - name: Include Fleet API check tasks
+          include_tasks: check_fleet_api.yml
+
+        - name: Increment attempt counter
+          set_fact:
+            current_attempt: "{{ current_attempt | int + 1 }}"
+
+        - name: Check if max retries reached
+          fail:
+            msg: "Max retries reached. Fleet API is not ready."
+          when: current_attempt | int > max_retries
+
+        - name: Retry Fleet API check
+          wait_for:
+            timeout: "{{ delay_seconds }}"
+          when: not api_success
+      rescue:
+        - name: Handle any unexpected errors
+          debug:
+            msg: "An unexpected error occurred during Fleet API check."
       until: api_success | default(false) | bool
       retries: "{{ max_retries }}"
       delay: "{{ delay_seconds }}"
