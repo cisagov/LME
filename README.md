@@ -58,10 +58,14 @@ Please ensure you follow all the configuration steps required below.
 **All steps will assume you start in your cloned directory of LME on your ubuntu 22.04 server**
 
 We suggest you install the latest release version of Logging made easy using the following commands: 
+
+Install Requirements
 ```
 sudo apt update && sudo apt install curl jq unzip -y
-
-curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})"'
+```
+Download and Unzip the latest version of LME. This will add a path to ~/LME with all requires files.
+```
+curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
 
 ### Operating system: **Ubuntu 22.04**:
