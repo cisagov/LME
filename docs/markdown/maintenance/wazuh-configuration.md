@@ -2,7 +2,7 @@
 
 ## Managing Wazuh Configuration File
 
-The Wazuh manager configuration file in the LME (Lightweight Monitoring Environment) setup is located at:
+The Wazuh manager configuration file in the LME setup is located at:
 
 ```
 /opt/lme/config/wazuh_cluster/wazuh_manager.conf
