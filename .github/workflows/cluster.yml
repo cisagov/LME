@@ -82,7 +82,7 @@ jobs:
               cd /home/lme-user/LME/testing/v2/installers && \
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
-                -s ${{ env.AZURE_IP }}/32 \
+                -s ${{ env.IP_ADDRESS }}/32 \
                 -vs Standard_D8_v4 \
                 -l centralus \
                 -ast 23:00 \
