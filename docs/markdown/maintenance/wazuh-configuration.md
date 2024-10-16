@@ -66,7 +66,7 @@ Remember to consult the [official Wazuh documentation](https://documentation.waz
 
 # Verifying Wazuh Agent Status
 
-This guide provides steps to check the status of Wazuh agents in the LME (Lightweight Monitoring Environment) setup. These commands can be run from the host system without needing to execute into the container.
+This guide provides steps to check the status of Wazuh agents in the LME setup. These commands can be run from the host system without needing to execute into the container.
 
 ## Listing All Agents and Their Status
 
