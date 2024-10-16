@@ -251,7 +251,7 @@
           namespace: "default"
           monitoring_enabled: ["logs", "metrics"]
           inactivity_timeout: 1209600
-        timeout: 120
+        timeout: 600
       register: endpoint_policy_result
       no_log: false
 
