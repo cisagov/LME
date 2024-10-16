@@ -86,7 +86,7 @@ sudo dnf install audit
 
 To update the audit rules in the future:
 
-1. Download the latest `audit.rules` file from the Neo23x0 GitHub repository.
+1. Download the latest `audit.rules` file from the Neo23x0 GitHub repository (or somewhere else).
 2. Replace the existing file:
    ```bash
    sudo curl -o /etc/audit/rules.d/audit.rules https://raw.githubusercontent.com/Neo23x0/auditd/master/audit.rules
@@ -98,3 +98,5 @@ To update the audit rules in the future:
    ```
 
 Adjust rules as needed to meet compliance requirements.
+
+You can now install the auditd elastic integration to collect auditd logs.
