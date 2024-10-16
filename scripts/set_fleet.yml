@@ -11,6 +11,7 @@
       Content-Type: "application/json"
     max_retries: 60
     delay_seconds: 10
+    debug_mode: false
 
   tasks:
     - name: Read lme-environment.env file
@@ -41,13 +42,13 @@
       args:
         executable: /bin/bash
       register: extract_secrets_vars
-      no_log: true
+      no_log: "{{ not debug_mode }}"
 
     - name: Set secret variables
       ansible.builtin.set_fact:
         env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
       loop: "{{ extract_secrets_vars.stdout_lines }}"
-      no_log: true
+      no_log: "{{ not debug_mode }}"
 
     - name: Set playbook variables
       ansible.builtin.set_fact:
@@ -77,9 +78,9 @@
           - "ipvar: {{ ipvar }}"
           - "local_kbn_url: {{ local_kbn_url }}"
           - "local_es_url: {{ local_es_url }}"
+          - "elastic_username: {{ elastic_username }}"
           - "stack_version: {{ stack_version }}"
           - "cluster_name: {{ cluster_name }}"
-          - "elastic_username: {{ elastic_username }}"
           - "elasticsearch_username: {{ elasticsearch_username }}"
           - "kibana_fleet_username: {{ kibana_fleet_username }}"
           - "indexer_username: {{ indexer_username }}"
@@ -93,6 +94,7 @@
           - "wazuh password is set: {{ wazuh_password | length > 0 }}"
           - "kibana_system password is set: {{ kibana_system_password | length > 0 }}"
           - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
+      when: debug_mode | bool
 
     - name: Wait for Kibana port to be available
       wait_for:
@@ -120,7 +122,7 @@
         exit 1
       register: fleet_api_check
       changed_when: false
-      no_log: true
+      no_log: "{{ not debug_mode }}"
 
     - name: Display Fleet API check result
       debug:
@@ -148,12 +150,15 @@
       changed_when: false
       become: yes
       become_method: sudo
-      no_log: false  
+      no_log: "{{ not debug_mode }}"
 
     - name: Display CA fingerprint
       debug:
         var: ca_fingerprint.stdout
-      when: ca_fingerprint is defined and ca_fingerprint.stdout is defined
+      when:
+        - ca_fingerprint is defined
+        - ca_fingerprint.stdout is defined
+        - debug_mode | bool
 
     - name: Set Fleet server hosts
       uri:
@@ -168,21 +173,13 @@
         body:
           fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
       register: fleet_server_hosts_result
-      no_log: false  # Set to true in production
+      no_log: "{{ not debug_mode }}"
       ignore_errors: yes
 
     - name: Debug Fleet server hosts result
       debug:
         var: fleet_server_hosts_result
-      when: fleet_server_hosts_result is defined
-
-    - name: Debug - Display authentication variables
-      debug:
-        msg:
-          - "elastic_username: {{ elastic_username }}"
-          - "elastic_password is set: {{ elastic_password | length > 0 }}"
-          - "local_kbn_url: {{ local_kbn_url }}"
-      no_log: false  
+      when: fleet_server_hosts_result is defined and debug_mode | bool
 
     - name: Set Fleet default output hosts
       uri:
@@ -197,7 +194,7 @@
         body:
           hosts: ["https://{{ ipvar }}:9200"]
       register: fleet_output_hosts_result
-      no_log: false  
+      no_log: "{{ not debug_mode }}"
       ignore_errors: yes
 
     - name: Debug Fleet default output hosts result
@@ -218,7 +215,7 @@
         body:
           ca_trusted_fingerprint: "{{ ca_fingerprint.stdout }}"
       register: fleet_output_fingerprint_result
-      no_log: false
+      no_log: "{{ not debug_mode }}"
 
     - name: Set Fleet default output SSL verification mode
       uri:
@@ -233,7 +230,7 @@
         body:
           config_yaml: "ssl.verification_mode: certificate"
       register: fleet_output_ssl_result
-      no_log: false
+      no_log: "{{ not debug_mode }}"
 
     - name: Create Endpoint Policy
       uri:
@@ -253,7 +250,7 @@
           inactivity_timeout: 1209600
         timeout: 600
       register: endpoint_policy_result
-      no_log: false
+      no_log: "{{ not debug_mode }}"
 
     - name: Get Endpoint package version
       uri:
@@ -265,7 +262,7 @@
         validate_certs: no
         headers: "{{ headers }}"
       register: endpoint_package_result
-      no_log: false
+      no_log: "{{ not debug_mode }}"
 
     - name: Create Elastic Defend package policy
       uri:
@@ -299,7 +296,7 @@
             title: "Elastic Defend"
             version: "{{ endpoint_package_result.json.item.version }}"
       register: elastic_defend_policy_result
-      no_log: false
+      no_log: "{{ not debug_mode }}"
 
     - name: Display results
       debug:
