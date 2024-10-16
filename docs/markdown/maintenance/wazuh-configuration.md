@@ -62,33 +62,3 @@ This command will validate your configuration and report any errors.
 4. Regularly review and update your Wazuh configuration to ensure it aligns with your current security needs and policies.
 
 Remember to consult the [official Wazuh documentation](https://documentation.wazuh.com/current/user-manual/reference/ossec-conf/index.html) for detailed information on all available configuration options.
-
-
-# Verifying Wazuh Agent Status
-
-This guide provides steps to check the status of Wazuh agents in the LME setup. These commands can be run from the host system without needing to execute into the container.
-
-## Listing All Agents and Their Status
-
-To get an overview of all registered agents and their current status:
-
-```bash
-podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
-```
-
-This command will display a list of all agents, including their ID, name, IP address, and current status (active, disconnected, never connected, etc.).
-
-## Checking Status of a Specific Agent
-
-To check the detailed status of a specific agent:
-
-```bash
-podman exec lme-wazuh-manager /var/ossec/bin/agent_control -i [agent_id]
-```
-
-Replace `[agent_id]` with the ID of the agent you want to check. This will provide more detailed information about the agent, including its last keep alive time, version, and operating system.
-
-
-This command gives you a quick overview of how many agents are active, disconnected, or never connected.
-
-See official Wazuh documentation for more steps on [agent_control](https://documentation.wazuh.com/current/user-manual/reference/tools/agent-control.html)
