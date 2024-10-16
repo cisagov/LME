@@ -39,10 +39,6 @@ Throughout this guide, we'll use the following variables. Replace these with you
    - You can verify the service status in the Windows Services manager.
 
 
-# LME Wazuh Agent Enrollment Guide for Debian-based Systems
-
-This guide will walk you through the process of enrolling a Wazuh agent on a Debian-based Linux system (such as Ubuntu or Debian) in the LME (Logging Made Easy) environment.
-
 ## Steps to Enroll a Wazuh Agent (Debian-based Systems)
 
 1. **Add Wazuh GPG key**
