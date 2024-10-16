@@ -33,7 +33,6 @@ update_sysctl() {
 }
 
 # Update sysctl settings
-update_sysctl "net.ipv4.ip_unprivileged_port_start" "80"
 update_sysctl "vm.max_map_count" "262144"
 update_sysctl "net.core.rmem_max" "7500000"
 update_sysctl "net.core.wmem_max" "7500000"
