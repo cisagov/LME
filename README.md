@@ -20,10 +20,11 @@ Ubuntu 22.04 server running podman containers setup as podman quadlets controlle
 ### Required Ports:
 Ports required are as follows:
  - Elasticsearch: *9200*
- - Kibana: 443
+ - Kibana: 443,5601 
  - Wazuh: *1514,1515,1516,55000,514*
  - Agent: *8220*
 
+**Kibana NOTE**: 5601 is the default port, and we've set kibana to listen on 443 as well
 
 ### Diagram: 
 
@@ -106,7 +107,7 @@ You can run this installer to run the total install in ansible.
 ```bash
 sudo apt update && sudo apt install -y ansible
 # cd ~/LME-PRIV/lme-2-arch # Or path to your clone of this repo
-ansible-playbook install_lme_local.yml
+ansible-playbook ./scripts/install_lme_local.yml
 ```
 This assumes that you have the repo in `~/LME/`. 
 
@@ -116,7 +117,6 @@ ansible-playbook ./scripts/install_lme_local.yml -e "clone_dir=/path/to/clone/di
 ```
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
-There is a step that will fail, this is expected, it is checking for podman secrets to see if they exist... on an intial install none will exist :) 
 
 #### Steps performed in automated install: 
 TODO finalize this with more words 
@@ -133,9 +133,7 @@ TODO finalize this with more words
 
 1. `/opt/lme` will be owned by the lmed user, all lme services will run and execute as lmed, and this ensures least privilege in lmed's execution because lmed is a non-admin,unprivileged user.
  
-3. [this script](/scripts/set_sysctl_limits.sh) is executed via ansible AND  will change unprivileged ports to start at 80, to allow kibana to listen on 443 from a user run container. If this is not desired, we will be publishing steps to setup firewall rules using ufw//iptables to manage the firewall on this host at a later time. 
-
-4. the master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
+2. the master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
 
 
 ### Verification post install:
@@ -156,15 +154,13 @@ sudo -i journalctl -xu lme.service
 #try resetting failed: 
 sudo -i systemctl  reset-failed lme*
 sudo -i systemctl  restart lme.service
+
+#also try inspecting container logs: 
+#CONTAINER_NAME=lme-elasticsearch
+sudo -i podman logs -f $CONTAINER_NAME
 ```
 
-2. Check you can connect to elasticsearch
-```bash
-#substitute your password below:
-curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
-```
-
-3. Check conatiners are running:
+2. Check conatiners are running and healthy:
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
 ```  
@@ -176,11 +172,19 @@ lme-kibana Up 2 hours (healthy)
 lme-wazuh-manager Up About an hour
 lme-fleet-server Up 50 minutes
 ```
+We are working on getting health check commands for wazuh and fleet, currently they are not integrated
+
+3. Check you can connect to elasticsearch
+```bash
+#substitute your password below:
+curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
+```
 
 4. Check you can connect to kibana
+You can use an ssh proxy to forward a local port to the remote linux host
 ```bash
-#connect via ssh
-ssh -L 8080:localhost:443 [YOUR-LINUX-SERVER]
+#connect via ssh if you need to 
+ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
 #go to browser:
 #https://localhost:8080
 ```
