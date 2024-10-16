@@ -28,7 +28,7 @@ This guide will walk you through the process of enrolling an agent in the LME sy
    - You will be presented with an installation command for the selected platform
    - Note: If you haven't added the LME certificates to your trusted store, you'll need to modify the command
 
-7. **Modify the Command (if necessary)**
+7. **Modify the Command (If necessary. You will need to do this if you haven't add certificates to the trusted store)**
    - Add `--insecure` at the end of the `./elastic-agent install` command
    - This is similar to clicking "continue to website" in a browser when you get a certificate warning
    - Example:
