@@ -277,6 +277,7 @@
         validate_certs: no
         headers: "{{ headers }}"
         body_format: json
+        timeout: 600
         body:
           name: "Elastic Defend"
           description: ""
