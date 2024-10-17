@@ -639,23 +639,23 @@ if __name__ == "__main__":
         "--ports",
         type=int,
         nargs="+",
-        default=[22, 443],
-        help="Ports to open. Default: [22, 443]",
+        default=[22, 443, 5601, 9200],
+        help="Ports to open. Default: [22, 443, 5601, 9200]",
     )
     parser.add_argument(
         "-pr",
         "--priorities",
         type=int,
         nargs="+",
-        default=[1001, 1002],
-        help="Priorities for the ports. Default: [1001, 1002]",
+        default=[1001, 1002, 1003, 1004],
+        help="Priorities for the ports. Default: [1001, 1002, 1003, 1004]",
     )
     parser.add_argument(
         "-pt",
         "--protocols",
         nargs="+",
-        default=["Tcp", "Tcp"],
-        help="Protocols for the ports. Default: ['Tcp']",
+        default=["Tcp", "Tcp", "Tcp", "Tcp"],
+        help="Protocols for the ports. Default: ['Tcp', 'Tcp', 'Tcp', 'Tcp']",
     )
     parser.add_argument(
         "-vs",

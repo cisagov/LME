@@ -244,7 +244,6 @@
       set_fact:
         ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
 
-
     - name: Update PATH in user's profile
       lineinfile:
         path: "~/.profile"
@@ -291,7 +290,9 @@
       args:
         executable: /bin/bash
       ignore_errors: true
-
+      #only fail on a real error
+      failed_when: result.rc != 0 and (result.rc == 1 and result.changed == false)
+      
     - name: Set podman secret passwords
       shell: |
         source /root/.profile 
@@ -306,7 +307,8 @@
         - wazuh_api
         - wazuh
       become: yes
-      when: result is failed
+      ## only run this when
+      when: result.rc == 1 
 
 - name: Install Quadlets
   hosts: localhost
