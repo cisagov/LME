@@ -31,10 +31,10 @@
       loop: "{{ env_dict | dict2items }}"
       when: item.value | length > 0
 
-    - name: Source extract_secrets.sh
+    - name: Source extract_secrets
       ansible.builtin.shell: |
         set -a
-        . {{ playbook_dir }}/extract_secrets.sh -q
+        . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
         echo "elastic=$elastic"
         echo "wazuh=$wazuh"
         echo "kibana_system=$kibana_system"
@@ -142,7 +142,7 @@
       ansible.builtin.shell: |
         sudo bash -c '
           set -a
-          . /home/lme-user/LME/scripts/extract_secrets.sh -q
+          . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
           set +a
           /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
         '

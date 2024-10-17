@@ -2,9 +2,9 @@ name: Linux Only
 
 on:
   workflow_dispatch:
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   build-and-test-linux-only:
@@ -16,6 +16,7 @@ jobs:
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
       AZURE_IP: ""
+      IP_ADDRESS: ""
 
     steps:
     - name: Checkout repository
@@ -26,6 +27,9 @@ jobs:
         cd testing/v2/development
         echo "HOST_UID=$(id -u)" > .env
         echo "HOST_GID=$(id -g)" >> .env
+        PUBLIC_IP=$(curl -s https://api.ipify.org)
+        echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
+
         
     - name: Start pipeline container
       run: |
@@ -57,7 +61,7 @@ jobs:
             cd /home/lme-user/LME/testing/v2/installers && \
             python3 ./azure/build_azure_linux_network.py \
               -g pipe-${{ env.UNIQUE_ID }} \
-              -s 0.0.0.0/0 \
+              -s ${{ env.IP_ADDRESS }}/32 \
               -vs Standard_E4d_v4 \
               -l westus \
               -ast 23:00 \

@@ -42,7 +42,7 @@ ssh -o StrictHostKeyChecking=no $user@$hostname << EOF
 EOF
 
 echo "Running ansible installer"
-ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook scripts/install_lme_local.yml"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook ansible/install_lme_local.yml"
 
 echo "Waiting for Kibana and Elasticsearch to start..."
 
@@ -95,7 +95,7 @@ echo "Running check-fleet script"
 ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh\"'"
 
 echo "Running set-fleet script"
-ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/scripts && ansible-playbook set_fleet.yml -e \"debug_mode=true\"'"
+ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/ansible && ansible-playbook set_fleet.yml -e \"debug_mode=true\"'"
 
 echo "Installation and configuration completed successfully."
 
