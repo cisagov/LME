@@ -15,13 +15,10 @@ When reporting an issue or suggesting improvements, it is important to include t
 * Sysmon executable: Either run sysmon.exe or look at the status dashboard
 
 
-
 ### Linux Server
-* Docker: on the Linux server type ```docker --version```
+* Podman: on the Linux server type ```podman --version```
 * Linux: on the Linux server type ```cat /etc/os-release```
-* Logstash config: on the Linux server type ```sudo docker config inspect logstash.conf --pretty```
-
-
+* LME: show the contents of ```/opt/lme/config```, please redact private data
 
 
 ## Reporting a bug
