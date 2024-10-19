@@ -1,5 +1,11 @@
 # Folder for all the dashboards
 
+## Wazuh Dashboards: 
+For more info on these dashboards see wazuh's documentation: [LINK](https://documentation.wazuh.com/current/integrations-guide/elastic-stack/index.html)
+This is the dashboard URL: 
+```bash
+https://packages.wazuh.com/integrations/elastic/4.x-8.x/dashboards/wz-es-4.x-8.x-dashboards.ndjson
+```
 
 ## How to update dashboards 
 Currently you need to run `ansible-playbook post_install_local.yml` to upload the current LME dashboards.
