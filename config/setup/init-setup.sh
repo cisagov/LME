@@ -5,8 +5,8 @@ if [[ -z "${ELASTIC_PASSWORD:-}" || -z "${KIBANA_PASSWORD:-}" ]]; then
   echo "ERROR: ELASTIC_PASSWORD and/or KIBANA_PASSWORD are missing."
   exit 1
 fi
-echo $ELASTIC_PASSWORD
-echo $KIBANA_PASSWORD
+#echo $ELASTIC_PASSWORD
+#echo $KIBANA_PASSWORD
 
 CONFIG_DIR="/usr/share/elasticsearch/config"
 CERTS_DIR="${CONFIG_DIR}/certs"
