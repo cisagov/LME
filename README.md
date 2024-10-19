@@ -147,13 +147,13 @@ You can run this installer to run the total install in ansible.
 ```bash
 sudo apt update && sudo apt install -y ansible
 # cd ~/LME-PRIV/lme-2-arch # Or path to your clone of this repo
-ansible-playbook ./scripts/install_lme_local.yml
+ansible-playbook ./ansible/install_lme_local.yml
 ```
 This assumes that you have the repo in `~/LME/`. 
 
 If you don't, you can pass the `CLONE_DIRECTORY` variable to the playbook. 
 ```
-ansible-playbook ./scripts/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
+ansible-playbook ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
 ```
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
@@ -267,6 +267,27 @@ sudo -i podman volume rm -a
 ```
 **WARNING THIS WILL DELETE EVERYTHING!!!**
 
+
+### Other Post install setup: 
+A few other things are needed and you're all set to go. 
+1. setting up fleet
+2. fixing a few issues with wazuh (in a future release this won't be necessary)
+3. setting up custom LME dashboards
+4. setting up wazuh's dashboards
+
+Luckily we've packed this in a script for you. Before running it we want to make sure our podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
+```bash
+lme-user@ubuntu:~/LME-TEST$ sudo -i podman ps --format "{{.Names}} {{.Status}}"
+lme-elasticsearch Up 49 minutes (healthy)
+lme-wazuh-manager Up 48 minutes
+lme-kibana Up 36 minutes (healthy)
+lme-fleet-server Up 35 minutes
+```
+
+If you see something like the above you're good to go to run the command:
+```
+ansible-playbook ./ansible/post_install_local.yml
+```
 
 ## Deploying Agents: 
 
