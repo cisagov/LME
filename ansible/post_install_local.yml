@@ -1,4 +1,5 @@
 ---
+
 - name: Set up Fleet
   hosts: localhost
   become: yes
@@ -12,8 +13,24 @@
     max_retries: 60
     delay_seconds: 10
     debug_mode: false
+    installed_file: "/opt/lme/FLEET_SETUP_FINISHED"
 
   tasks:
+    - name: Check if INSTALLED file exists
+      stat:
+        path: "{{ installed_file }}"
+      register: installed_file_check
+
+    - name: Exit cleanly if INSTALLED file exists
+      debug:
+        msg: "The INSTALLED file exists. Exiting the play cleanly."
+      when: installed_file_check.stat.exists
+
+    - name: End play if INSTALLED file exists
+      meta: end_play
+      when: installed_file_check.stat.exists
+
+    #SETUP
     - name: Read lme-environment.env file
       ansible.builtin.slurp:
         src: /opt/lme/lme-environment.env
@@ -29,7 +46,7 @@
       debug:
         msg: "Set {{ item.key }}"
       loop: "{{ env_dict | dict2items }}"
-      when: item.value | length > 0
+      when: item.value | length > 0 and (not debug_mode)
 
     - name: Source extract_secrets
       ansible.builtin.shell: |
@@ -95,6 +112,7 @@
           - "kibana_system password is set: {{ kibana_system_password | length > 0 }}"
           - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
       when: debug_mode | bool
+    #SETUP
 
     - name: Wait for Kibana port to be available
       wait_for:
@@ -309,7 +327,13 @@
         - endpoint_policy_result
         - elastic_defend_policy_result
 
-- name: Install LME Dashboards *TODO*
+    - name: Create INSTALLED file
+      file:
+        path: "{{ installed_file }}"
+        state: touch
+      when: not installed_file_check.stat.exists
+
+- name: Install LME Dashboards 
   hosts: localhost
   become: yes
   gather_facts: no
@@ -322,9 +346,26 @@
     dashboards_path: "/opt/lme/dashboards/elastic/*.ndjson"
     kibana_url: "https://127.0.0.1:5601/api/saved_objects/_import?overwrite=true"
     install_user: "root"
+    installed_file: "/opt/lme/dashboards/elastic/INSTALLED"
+
 
   #TODO: have a task that creates dashboard_update user for later dashboard runs
   tasks:
+    - name: Check if INSTALLED file exists
+      stat:
+        path: "{{ installed_file }}"
+      register: installed_file_check
+
+    - name: Exit cleanly if INSTALLED file exists
+      debug:
+        msg: "The INSTALLED file exists. Exiting the play cleanly."
+      when: installed_file_check.stat.exists
+
+    - name: End play if INSTALLED file exists
+      meta: end_play
+      when: installed_file_check.stat.exists
+
+    #SETUP
     - name: Read lme-environment.env file
       ansible.builtin.slurp:
         src: /opt/lme/lme-environment.env
@@ -335,20 +376,21 @@
         env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
       loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
       when: item != '' and not item.startswith('#')
-      no_log: "{{ not debug_mode }}"
 
     - name: Display set environment variables
       debug:
         msg: "Set {{ item.key }}"
       loop: "{{ env_dict | dict2items }}"
-      when: item.value | length > 0
-      no_log: "{{ not debug_mode }}"
+      when: item.value | length > 0 and (not debug_mode)
 
     - name: Source extract_secrets
       ansible.builtin.shell: |
         set -a
         . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
         echo "elastic=$elastic"
+        echo "wazuh=$wazuh"
+        echo "kibana_system=$kibana_system"
+        echo "wazuh_api=$wazuh_api"
       args:
         executable: /bin/bash
       register: extract_secrets_vars
@@ -362,8 +404,51 @@
 
     - name: Set playbook variables
       ansible.builtin.set_fact:
+        ipvar: "{{ env_dict.IPVAR | default('') }}"
+        local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
+        stack_version: "{{ env_dict.STACK_VERSION | default('') }}"
+        cluster_name: "{{ env_dict.CLUSTER_NAME | default('') }}"
         elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+        elasticsearch_username: "{{ env_dict.ELASTICSEARCH_USERNAME | default('') }}"
+        kibana_fleet_username: "{{ env_dict.KIBANA_FLEET_USERNAME | default('') }}"
+        indexer_username: "{{ env_dict.INDEXER_USERNAME | default('') }}"
+        api_username: "{{ env_dict.API_USERNAME | default('') }}"
+        license: "{{ env_dict.LICENSE | default('') }}"
+        es_port: "{{ env_dict.ES_PORT | default('') }}"
+        kibana_port: "{{ env_dict.KIBANA_PORT | default('') }}"
+        fleet_port: "{{ env_dict.FLEET_PORT | default('') }}"
+        mem_limit: "{{ env_dict.MEM_LIMIT | default('') }}"
         elastic_password: "{{ env_dict.elastic | default('') }}"
+        wazuh_password: "{{ env_dict.wazuh | default('') }}"
+        kibana_system_password: "{{ env_dict.kibana_system | default('') }}"
+        wazuh_api_password: "{{ env_dict.wazuh_api | default('') }}"
+
+    - name: Debug - Display set variables (sensitive information redacted)
+      debug:
+        msg:
+          - "ipvar: {{ ipvar }}"
+          - "local_kbn_url: {{ local_kbn_url }}"
+          - "local_es_url: {{ local_es_url }}"
+          - "elastic_username: {{ elastic_username }}"
+          - "stack_version: {{ stack_version }}"
+          - "cluster_name: {{ cluster_name }}"
+          - "elasticsearch_username: {{ elasticsearch_username }}"
+          - "kibana_fleet_username: {{ kibana_fleet_username }}"
+          - "indexer_username: {{ indexer_username }}"
+          - "api_username: {{ api_username }}"
+          - "license: {{ license }}"
+          - "es_port: {{ es_port }}"
+          - "kibana_port: {{ kibana_port }}"
+          - "fleet_port: {{ fleet_port }}"
+          - "mem_limit: {{ mem_limit }}"
+          - "elastic password is set: {{ elastic_password | length > 0 }}"
+          - "wazuh password is set: {{ wazuh_password | length > 0 }}"
+          - "kibana_system password is set: {{ kibana_system_password | length > 0 }}"
+          - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
+      when: debug_mode | bool
+    #SETUP
+
 
     - name: Copy dashbaords files /opt/lme/dashboards
       copy:
@@ -382,12 +467,17 @@
 
     - name: Upload dashboards to Kibana
       shell: 'curl -X POST -k --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
-      no_log: "{{ not debug_mode }}"
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
       args:
         warn: false
 
-- name: Install Wazuh Dashboards *TODO*
+    - name: Create INSTALLED file
+      file:
+        path: "{{ installed_file }}"
+        state: touch
+      when: not installed_file_check.stat.exists
+
+- name: Install Wazuh Dashboards 
   hosts: localhost
   become: yes
   gather_facts: no
@@ -398,10 +488,27 @@
     debug_mode: false
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     dashboards_path: "/opt/lme/dashboards/wazuh/*.ndjson"
+    check_path: "/opt/lme/dashboards/wazuh/"
     kibana_url: "https://127.0.0.1:5601/api/saved_objects/_import?overwrite=true"
     install_user: "root"
+    installed_file: "/opt/lme/dashboards/wazuh/INSTALLED"
 
   tasks:
+    - name: Check if INSTALLED file exists
+      stat:
+        path: "{{ installed_file }}"
+      register: installed_file_check
+
+    - name: Exit cleanly if INSTALLED file exists
+      debug:
+        msg: "The INSTALLED file exists. Exiting the playbook cleanly."
+      when: installed_file_check.stat.exists
+
+    - name: End play if INSTALLED file exists
+      meta: end_play
+      when: installed_file_check.stat.exists
+
+    #SETUP
     - name: Read lme-environment.env file
       ansible.builtin.slurp:
         src: /opt/lme/lme-environment.env
@@ -417,13 +524,16 @@
       debug:
         msg: "Set {{ item.key }}"
       loop: "{{ env_dict | dict2items }}"
-      when: item.value | length > 0
+      when: item.value | length > 0 and ( not debug_mode )
 
     - name: Source extract_secrets
       ansible.builtin.shell: |
         set -a
         . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
         echo "elastic=$elastic"
+        echo "wazuh=$wazuh"
+        echo "kibana_system=$kibana_system"
+        echo "wazuh_api=$wazuh_api"
       args:
         executable: /bin/bash
       register: extract_secrets_vars
@@ -437,17 +547,62 @@
 
     - name: Set playbook variables
       ansible.builtin.set_fact:
+        ipvar: "{{ env_dict.IPVAR | default('') }}"
+        local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
+        stack_version: "{{ env_dict.STACK_VERSION | default('') }}"
+        cluster_name: "{{ env_dict.CLUSTER_NAME | default('') }}"
         elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+        elasticsearch_username: "{{ env_dict.ELASTICSEARCH_USERNAME | default('') }}"
+        kibana_fleet_username: "{{ env_dict.KIBANA_FLEET_USERNAME | default('') }}"
+        indexer_username: "{{ env_dict.INDEXER_USERNAME | default('') }}"
+        api_username: "{{ env_dict.API_USERNAME | default('') }}"
+        license: "{{ env_dict.LICENSE | default('') }}"
+        es_port: "{{ env_dict.ES_PORT | default('') }}"
+        kibana_port: "{{ env_dict.KIBANA_PORT | default('') }}"
+        fleet_port: "{{ env_dict.FLEET_PORT | default('') }}"
+        mem_limit: "{{ env_dict.MEM_LIMIT | default('') }}"
         elastic_password: "{{ env_dict.elastic | default('') }}"
+        wazuh_password: "{{ env_dict.wazuh | default('') }}"
+        kibana_system_password: "{{ env_dict.kibana_system | default('') }}"
+        wazuh_api_password: "{{ env_dict.wazuh_api | default('') }}"
 
-    - name: Copy dashbaords files /opt/lme/dashboards
-      copy:
-        src: "{{ clone_directory }}/dashboards/"
-        dest: /opt/lme/dashboards/
-        owner: "{{ install_user }}"
-        group: "{{ install_user }}"
-        mode: '0644'
-      become: yes
+    - name: Debug - Display set variables (sensitive information redacted)
+      debug:
+        msg:
+          - "ipvar: {{ ipvar }}"
+          - "local_kbn_url: {{ local_kbn_url }}"
+          - "local_es_url: {{ local_es_url }}"
+          - "elastic_username: {{ elastic_username }}"
+          - "stack_version: {{ stack_version }}"
+          - "cluster_name: {{ cluster_name }}"
+          - "elasticsearch_username: {{ elasticsearch_username }}"
+          - "kibana_fleet_username: {{ kibana_fleet_username }}"
+          - "indexer_username: {{ indexer_username }}"
+          - "api_username: {{ api_username }}"
+          - "license: {{ license }}"
+          - "es_port: {{ es_port }}"
+          - "kibana_port: {{ kibana_port }}"
+          - "fleet_port: {{ fleet_port }}"
+          - "mem_limit: {{ mem_limit }}"
+          - "elastic password is set: {{ elastic_password | length > 0 }}"
+          - "wazuh password is set: {{ wazuh_password | length > 0 }}"
+          - "kibana_system password is set: {{ kibana_system_password | length > 0 }}"
+          - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
+      when: debug_mode | bool
+    #SETUP
+
+
+    - name: Check if dashboards_path exists
+      stat:
+        path: "{{ check_path }}"
+      register: path
+
+    - name: Fail if dashboards_path doesn't exist 
+      fail:
+        msg: "Dashboards path {{ check_path  }} doesn't exist, theres been an error"
+      when: 
+        -  not path.stat.exists
 
     - name: Get list of dashboards
       find:
@@ -455,15 +610,310 @@
         patterns: "*.ndjson"
       register: dashboards
 
-    - name: Display set environment variables
-      debug:
-        msg: "Set {{ dashboards }}"
-
     - name: Upload dashboards to Kibana
       shell: 'curl -X POST -k --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
       args:
         warn: false
-      no_log: "{{ not debug_mode }}"
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
 
-#- name: Set Wazuh Passwords *TODO*
+    - name: Create INSTALLED file
+      file:
+        path: "{{ installed_file }}"
+        state: touch
+      when: not installed_file_check.stat.exists
+
+- name: Fix Wazuh Post Install Issues
+  hosts: localhost
+  become: yes
+  gather_facts: no
+
+  vars:
+    max_retries: 60
+    delay_seconds: 10
+    debug_mode: false
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "root"
+
+  tasks:
+    #SETUP
+    - name: Read lme-environment.env file
+      ansible.builtin.slurp:
+        src: /opt/lme/lme-environment.env
+      register: lme_env_content
+
+    - name: Set environment variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+      when: item != '' and not item.startswith('#')
+
+    - name: Display set environment variables
+      debug:
+        msg: "Set {{ item.key }}"
+      loop: "{{ env_dict | dict2items }}"
+      when: item.value | length > 0 and (not debug_mode)
+
+    - name: Source extract_secrets
+      ansible.builtin.shell: |
+        set -a
+        . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+        echo "wazuh=$wazuh"
+        echo "kibana_system=$kibana_system"
+        echo "wazuh_api=$wazuh_api"
+      args:
+        executable: /bin/bash
+      register: extract_secrets_vars
+      no_log: "{{ not debug_mode }}"
+
+    - name: Set secret variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ extract_secrets_vars.stdout_lines }}"
+      no_log: "{{ not debug_mode }}"
+
+    - name: Set playbook variables
+      ansible.builtin.set_fact:
+        ipvar: "{{ env_dict.IPVAR | default('') }}"
+        local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
+        stack_version: "{{ env_dict.STACK_VERSION | default('') }}"
+        cluster_name: "{{ env_dict.CLUSTER_NAME | default('') }}"
+        elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+        elasticsearch_username: "{{ env_dict.ELASTICSEARCH_USERNAME | default('') }}"
+        kibana_fleet_username: "{{ env_dict.KIBANA_FLEET_USERNAME | default('') }}"
+        indexer_username: "{{ env_dict.INDEXER_USERNAME | default('') }}"
+        api_username: "{{ env_dict.API_USERNAME | default('') }}"
+        license: "{{ env_dict.LICENSE | default('') }}"
+        es_port: "{{ env_dict.ES_PORT | default('') }}"
+        kibana_port: "{{ env_dict.KIBANA_PORT | default('') }}"
+        fleet_port: "{{ env_dict.FLEET_PORT | default('') }}"
+        mem_limit: "{{ env_dict.MEM_LIMIT | default('') }}"
+        elastic_password: "{{ env_dict.elastic | default('') }}"
+        wazuh_password: "{{ env_dict.wazuh | default('') }}"
+        kibana_system_password: "{{ env_dict.kibana_system | default('') }}"
+        wazuh_api_password: "{{ env_dict.wazuh_api | default('') }}"
+
+    - name: Debug - Display set variables (sensitive information redacted)
+      debug:
+        msg:
+          - "ipvar: {{ ipvar }}"
+          - "local_kbn_url: {{ local_kbn_url }}"
+          - "local_es_url: {{ local_es_url }}"
+          - "elastic_username: {{ elastic_username }}"
+          - "stack_version: {{ stack_version }}"
+          - "cluster_name: {{ cluster_name }}"
+          - "elasticsearch_username: {{ elasticsearch_username }}"
+          - "kibana_fleet_username: {{ kibana_fleet_username }}"
+          - "indexer_username: {{ indexer_username }}"
+          - "api_username: {{ api_username }}"
+          - "license: {{ license }}"
+          - "es_port: {{ es_port }}"
+          - "kibana_port: {{ kibana_port }}"
+          - "fleet_port: {{ fleet_port }}"
+          - "mem_limit: {{ mem_limit }}"
+          - "elastic password is set: {{ elastic_password | length > 0 }}"
+          - "wazuh password is set: {{ wazuh_password | length > 0 }}"
+          - "kibana_system password is set: {{ kibana_system_password | length > 0 }}"
+          - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
+      when: debug_mode | bool
+    #SETUP
+    
+    - name: fix wazuh password 
+      ansible.builtin.expect:
+        #source + podman exec
+        command: "{{ clone_directory }}/scripts/wazuh_rbac.sh"
+        responses:
+          ".*'wazuh'.*":
+            - "{{ wazuh_password }}"
+          ".*'wazuh-wui'.*":
+            - "{{ wazuh_api_password }}"
+        timeout: 30
+
+- name: Create Read Only User
+  hosts: localhost
+  become: yes
+  gather_facts: no
+
+  vars:
+    max_retries: 60
+    delay_seconds: 10
+    debug_mode: false
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "root"
+
+  tasks:
+    #SETUP
+    - name: Read lme-environment.env file
+      ansible.builtin.slurp:
+        src: /opt/lme/lme-environment.env
+      register: lme_env_content
+
+    - name: Set environment variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+      when: item != '' and not item.startswith('#')
+
+    - name: Display set environment variables
+      debug:
+        msg: "Set {{ item.key }}"
+      loop: "{{ env_dict | dict2items }}"
+      when: item.value | length > 0 and (not debug_mode)
+
+    - name: Source extract_secrets
+      ansible.builtin.shell: |
+        set -a
+        . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+        echo "wazuh=$wazuh"
+        echo "kibana_system=$kibana_system"
+        echo "wazuh_api=$wazuh_api"
+      args:
+        executable: /bin/bash
+      register: extract_secrets_vars
+      no_log: "{{ not debug_mode }}"
+
+    - name: Set secret variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ extract_secrets_vars.stdout_lines }}"
+      no_log: "{{ not debug_mode }}"
+
+    - name: Set playbook variables
+      ansible.builtin.set_fact:
+        ipvar: "{{ env_dict.IPVAR | default('') }}"
+        local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
+        stack_version: "{{ env_dict.STACK_VERSION | default('') }}"
+        cluster_name: "{{ env_dict.CLUSTER_NAME | default('') }}"
+        elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+        elasticsearch_username: "{{ env_dict.ELASTICSEARCH_USERNAME | default('') }}"
+        kibana_fleet_username: "{{ env_dict.KIBANA_FLEET_USERNAME | default('') }}"
+        indexer_username: "{{ env_dict.INDEXER_USERNAME | default('') }}"
+        api_username: "{{ env_dict.API_USERNAME | default('') }}"
+        license: "{{ env_dict.LICENSE | default('') }}"
+        es_port: "{{ env_dict.ES_PORT | default('') }}"
+        kibana_port: "{{ env_dict.KIBANA_PORT | default('') }}"
+        fleet_port: "{{ env_dict.FLEET_PORT | default('') }}"
+        mem_limit: "{{ env_dict.MEM_LIMIT | default('') }}"
+        elastic_password: "{{ env_dict.elastic | default('') }}"
+        wazuh_password: "{{ env_dict.wazuh | default('') }}"
+        kibana_system_password: "{{ env_dict.kibana_system | default('') }}"
+        wazuh_api_password: "{{ env_dict.wazuh_api | default('') }}"
+
+    - name: Debug - Display set variables (sensitive information redacted)
+      debug:
+        msg:
+          - "ipvar: {{ ipvar }}"
+          - "local_kbn_url: {{ local_kbn_url }}"
+          - "local_es_url: {{ local_es_url }}"
+          - "elastic_username: {{ elastic_username }}"
+          - "stack_version: {{ stack_version }}"
+          - "cluster_name: {{ cluster_name }}"
+          - "elasticsearch_username: {{ elasticsearch_username }}"
+          - "kibana_fleet_username: {{ kibana_fleet_username }}"
+          - "indexer_username: {{ indexer_username }}"
+          - "api_username: {{ api_username }}"
+          - "license: {{ license }}"
+          - "es_port: {{ es_port }}"
+          - "kibana_port: {{ kibana_port }}"
+          - "fleet_port: {{ fleet_port }}"
+          - "mem_limit: {{ mem_limit }}"
+          - "elastic password is set: {{ elastic_password | length > 0 }}"
+          - "wazuh password is set: {{ wazuh_password | length > 0 }}"
+          - "kibana_system password is set: {{ kibana_system_password | length > 0 }}"
+          - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
+      when: debug_mode | bool
+    #SETUP
+
+    - name: Wait for Elasticsearch to be ready
+      uri:
+        url: "{{ local_es_url }}"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: result
+      until: result.status is defined and result.status == 200
+      retries: 60
+      delay: 10
+      ignore_errors: yes
+
+    - name: Check if Elasticsearch is ready
+      fail:
+        msg: "Elasticsearch is not ready after 10 minutes. Please check the LME service and Elasticsearch logs."
+      when: result.status is not defined or result.status != 200
+
+    #TODO: --cacert "{{ ansible_env.HOME }}/.local/share/containers/storage/volumes/lme_certs/_data/ca/ca.crt"
+    - name: Create readonly role using curl
+      shell: >
+        curl -X POST "{{ local_es_url }}/_security/role/readonly_role"
+        -u "{{ elastic_username }}:{{ elastic_password }}"
+        -k
+        -H "Content-Type: application/json"
+        -d '{
+              "indices": [
+                {
+                  "names": ["*"],
+                  "privileges": ["read", "view_index_metadata"]
+                }
+              ],
+              "cluster": ["monitor"],
+              "applications": [
+                {
+                  "application": "kibana-.kibana",
+                  "privileges": ["read"],
+                  "resources": ["*"]
+                }
+              ]
+            }'
+      args:
+        warn: false
+      register: role_creation_result
+      when: result.status is defined and result.status == 200
+
+    - name: Display role creation result
+      debug:
+        msg: "Role creation output: {{ role_creation_result.stdout | default('Role creation skipped') }}"
+
+    #maybe check for each in the shell script below?
+    - name: Register a variable, ignore errors and continue
+      shell: |
+        source /root/.profile 
+        password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+        echo -n $password
+      register: read_only_password
+      become: yes
+      args:
+        executable: /bin/bash
+      ignore_errors: true
+
+
+    #TODO: --cacert "{{ ansible_env.HOME }}/.local/share/containers/storage/volumes/lme_certs/_data/ca/ca.crt"
+    - name: Create readonly user using curl
+      shell: >
+        curl -X POST "{{ local_es_url }}/_security/user/readonly_user"
+        -u "{{ elastic_username }}:{{ elastic_password }}"
+        -k
+        -H "Content-Type: application/json"
+        -d '{
+              "password": "{{ read_only_password.stdout }}",
+              "roles": ["readonly_role"],
+              "full_name": "Read Only User"
+            }'
+      args:
+        warn: false
+      register: user_creation_result
+      when: result.status is defined and result.status == 200
+
+    - name: Display user creation result
+      debug:
+        msg: "User creation output: {{ user_creation_result.stdout | default('User creation skipped') }}"
+
+    - name: DISPLAY NEW READONLY USER PASSWORD
+      debug:
+        msg: "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: {{ read_only_password.stdout }}"
+
