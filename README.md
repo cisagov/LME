@@ -132,12 +132,6 @@ cp ./config/example.env ./config/lme-environment.env
 IPVAR=127.0.0.1 #your hosts ip 
 ```
 
-### OPTIONAL: setting master password
-This password will be used to encrypt all service user passwords and you should make sure to keep track of it (it will also be stored in `/etc/lme/pass.sh`).
-```
-sudo -i ${PWD}/scripts/password_management.sh -i
-```
-You can skip this step if you would like to have the script setup the master password for you and you'll never need to touch it :)
 
 
 ### **Automated Install**
@@ -274,6 +268,7 @@ A few other things are needed and you're all set to go.
 2. fixing a few issues with wazuh (in a future release this won't be necessary)
 3. setting up custom LME dashboards
 4. setting up wazuh's dashboards
+5. setting up a read only user for analysts to connect and query LME's data
 
 Luckily we've packed this in a script for you. Before running it we want to make sure our podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
 ```bash
@@ -287,6 +282,11 @@ lme-fleet-server Up 35 minutes
 If you see something like the above you're good to go to run the command:
 ```
 ansible-playbook ./ansible/post_install_local.yml
+```
+
+You'll see the following in the `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
+```bash
+
 ```
 
 ## Deploying Agents: 
@@ -352,6 +352,7 @@ lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
 -l: List Podman secrets
 -h: print this list
 ```
+These steps are not fully supported and are left if others would like to suppor this in their environment
 
 ### grabbing passwords: 
 To view the appropriate service user password use ansible-vault, as root: 
