@@ -450,7 +450,7 @@
     #SETUP
 
 
-    - name: Copy dashbaords files /opt/lme/dashboards
+    - name: Copy dashboards files /opt/lme/dashboards
       copy:
         src: "{{ clone_directory }}/dashboards/"
         dest: /opt/lme/dashboards/
@@ -632,7 +632,7 @@
     delay_seconds: 10
     debug_mode: false
     clone_directory: "{{ clone_dir | default('~/LME') }}"
-    install_user: "root"
+    install_user: "{{ ansible_user_id }}"
 
   tasks:
     #SETUP
@@ -718,7 +718,10 @@
           - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
       when: debug_mode | bool
     #SETUP
-    
+    - name: expand path
+      set_fact:
+        clone_directory: "{{clone_directory | expanduser }}"
+
     - name: fix wazuh password 
       ansible.builtin.expect:
         #source + podman exec
@@ -729,6 +732,7 @@
           ".*'wazuh-wui'.*":
             - "{{ wazuh_api_password }}"
         timeout: 30
+      become: yes
 
 - name: Create Read Only User
   hosts: localhost
