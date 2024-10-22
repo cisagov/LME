@@ -316,13 +316,16 @@ You'll see the following in the `/opt/lme/dashboards/elastic/` and `/opt/lme/das
 
 ### Deploy Wazuh Agent on client machine (Linux)
 
+[Wazuh Documentation](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/wazuh-agent-package-linux.html)
+
+Commands are assumed to be run as root. Change `IP ADDRESS OF WAZUH HOST MACHINE` to the IP of the host LME is installed on.
+
+```
 curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
-
 echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee -a /etc/apt/sources.list.d/wazuh.list
-
 apt-get update
-
-WAZUH_MANAGER="CHANGE ME TO DOCKER HOST IP ADDRESS" apt-get install wazuh-agent
+WAZUH_MANAGER="IP ADDRESS OF WAZUH HOST MACHINE" apt-get install wazuh-agent
+```
 
 Start the service: 
 
@@ -334,7 +337,9 @@ systemctl start wazuh-agent
 
 ### Deploy Wazuh Agent On client Machine (Windows)
 
-From PowerShell with admin capabilities run the following command
+[Wazuh Documentation](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/wazuh-agent-package-windows.html)
+
+From PowerShell with admin capabilities run the following command. Change `IP ADDRESS OF WAZUH HOST MACHINE` to the IP of the host LME is installed on.
 
 ```
 Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi;`
