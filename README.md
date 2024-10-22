@@ -1,27 +1,33 @@
 
+[![BANNER](/docs/imgs/REPLACEME)]()
+
 [![Downloads](https://img.shields.io/github/downloads/cisagov/lme/total.svg)]()
 
 
 
 # Logging Made Easy: 
 
-CISA's Logging Made Easy has a self-install tutorial for organizations to gain a basic level of centralized security logging for Windows clients and provide functionality to detect attacks. LME is the integration of multiple open software platforms which come at no cost to users. LME helps users integrate software platforms together to produce an end-to-end logging capability. LME also provides some pre-made configuration files and scripts, although there is the option to do this on your own.
+Logging Made Easy (LME) is a free, open-source platform developed by CISA to centralize log collection, enhance threat detection, and enable real-time alerting, helping organizations of all sizes secure their infrastructure. LME offers a seamless user experience, integrating Wazuh and Elastic tools to improve detection accuracy and enable endpoint security. 
 
-Logging Made Easy can:
+Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security with a range of advanced features:
+• Enhanced Threat Detection and Response: Integrates Wazuh’s open-source tools and Elastic Fleet for improved detection accuracy and faster response times.
+• Security by Design: Utilizes containerization and encryption to meet the highest security standards.
+• Simplified Installation: Ansible scripts automate deployment for faster setup and easier maintenance.
+• Custom Data Visualization: Create personalized dashboards for tailored monitoring.
+• Comprehensive Testing: Expanded unit testing and threat emulation ensure system stability and reliability.
 
-- Show where administrative commands are being run on enrolled devices
-- See who is using which machine
-- In conjunction with threat reports, it is possible to query for the presence of an attacker in the form of Tactics, Techniques and Procedures (TTPs) 
 
-## Disclaimer: 
+## Updates: 
 
-LME is still in development, and version 2.1 will address scaling out the deployment.
+With our LME 2.0 release, we’re introducing several new features and architectural components:
+  - LME now provides organizations with SIEM capabilities to enhance event management, threat detection, and alerting.
+  - The LME team simplified the installation process and created clear instructions on what to download and which configurations to use.
+  - Ansible scripts to automate the install and also provide detailed steps for users that want to manually install.
 
-While LME offers SEIM like capabilities, it should be consider a small simple SIEM.
+LME 2.0 is still in development, and version 2.1 will address scaling out the deployment.
 
-The LME team simplified the process and created clear instruction on what to download and which configugrations to use, and created convinent scripts to auto configure when possible.
-
-LME is not able to comment on or troubleshoot individual installations. If you believe you have have found an issue with the LME code or documentation please submit a GitHub issue. If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
+## Questions or Feedback:
+LME is not able to comment on or troubleshoot individual installations. If you believe you have found an issue with the LME code or documentation, please submit a GitHub issue. If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
 
 For general questions about LME and suggestions, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
 
@@ -31,16 +37,14 @@ From single IT administrators with a handful of devices in their network to larg
 
 LME is suited for for:
 
-- Organizations without [SOC](https://en.wikipedia.org/wiki/Information_security_operations_center), SIEM or any monitoring in place at the moment.
+- Organizations without Security OPerations Center ([SOC](https://en.wikipedia.org/wiki/Information_security_operations_center)), Security Information and Event Management (SIEM), or any monitoring in place at the moment.
 - Organizations that lack the budget, time or understanding to set up a logging system.
 - Organizations that that require gathering logs and monitoring IT
--	Organizations that understand LMEs limitiation
-
 
 ## Table of Contents:
 -   [Pre-Requisites:](#architecture)
 -   [Architecture:](#architecture)
--   [Installation:](#installation)
+-   [Installation:](#installing-lme)
 -   [Deploying Agents:](#deploying-agents)
 -   [Password Encryption:](#password-encryption)
 -   [Further Documentation & Upgrading:](#documentation)
@@ -50,8 +54,29 @@ If you are unsure you meet the pre-requisites to installing LME, please read our
 The biggest Pre-requisite is setting up hardware for your ubuntu server with a minimum of `2 processors`, `16gb ram`, and `128gb` of dedicated storage for LME's Elasticsearch database.
 
 ## Architecture:
-Ubuntu 22.04 server running podman containers setup as podman quadlets controlled via systemd.
+LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh’s Manager and Agent with Elastic to provide comprehensive log collection, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and will enable seamless scaling to meet your organization’s evolving security and logging requirements.
 
+
+
+### Diagram: 
+
+![diagram](/docs/imgs/lme-architecture-v2.jpg)
+
+### why Podman?:
+We chose Podman as LME’s container engine because it is more secure (by default) against container escape attacks than other engines like Docker. It also is far more debug and programmer friendly. We’re making use of Podman’s unique features, such as Quadlets (Podman's systemd integration) and User Namespacing,  to increase system security and operational efficiency. 
+
+### Containers:
+Containerization allows each component of LME to run independently, increasing system security, improving performance, and making troubleshooting easier. Below are the containers we’re using for LME:
+
+  - **Setup**: runs `/config/setup/init-setup.sh` based on the configuration of DNS defined in `/config/setup/instances.yml`. The script will create a CA, underlying certs for each service, and intialize the admin accounts for elasticsearch(user:`elastic`) and kibana(user:`kibana_system`). 
+  - **Elasticsearch**: runs the database for LME and indexes all logs.
+  - **Kibana**: the front end for querying logs,  investigating via dashboards, and managing fleet agents.
+  - **Elastic Fleet-Server**: [executes](executes) a [elastic agent ](https://github.com/elastic/elastic-agent) in fleet-server mode. It coordinates elastic agents to  gather logs and status from clients. Configuration is inspired by the [elastic-container](https://github.com/peasead/elastic-container) project.
+    - Elastic agents provide integrations, have more features than winlogbeat.
+  - **Wazuh-Manager**: runs the wazuh manager so we can deploy and manage wazuh agents.
+    -  Wazuh (open source) gives EDR (Endpoint Detection Response) with security dashboards to cover the security of all of the machines.
+  - **LME-Frontend** (*coming in a future release*): will host an api and gui that unifies the architecture behind one interface
+   
 ### Required Ports:
 Ports required are as follows:
  - Elasticsearch: *9200*
@@ -61,30 +86,28 @@ Ports required are as follows:
 
 **Kibana NOTE**: 5601 is the default port, and we've set kibana to listen on 443 as well
 
-### Diagram: 
+### Agents and Agent Management: 
+LME leverages both Wazuh and Elastic agents providing more comprehensive logging and security monitoring across various log sources. The agents gather critical data from endpoints and send it back to the LME server for analysis, offering organizations deeper visibility into their security posture. We also make use of the Wazuh Manager and Elastic Fleet for agent orchestration and management.
 
-![diagram](/docs/imgs/lme-architecture-v2.jpg)
+- **Wazuh Agents**: Enables Endpoint Detection and Response (EDR) on client systems, providing advanced security features like intrusion detection and anomaly detection. https://github.com/wazuh/wazuh-agent 
+- **Wazuh Manager**: Responsible for managing Wazuh Agents across endpoints, and overseeing agent registration, configuration, and data collection, providing centralized control for monitoring security events and analyzing data. 
+- **Elastic Agents**: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications https://github.com/elastic/elastic-agent
+- **Elastic Fleet**: Responsible for managing Elastic Agents across your infrastructure, providing centralized control over agent deployment, configuration, and monitoring. It simplifies the process of adding and managing agents on various endpoints. ElasticFleet also supports centralized updates and policy management.
 
-### why podman?:
-Podman is more secure (by default) against container escape attacks than Docker. It also is far more debug and programmer friendly for making containers secure. 
 
-### Containers:
-  - setup: runs `/config/setup/init-setup.sh` based on the configuration of dns defined in `/config/setup/instances.yml`. The script will create a CA, underlying certs for each service, and intialize the admin accounts for elasticsearch(user:`elastic`) and kibana(user:`kibana_system`). 
-  - elasticsearch: runs the database for LME and indexes all logs
-  - kibana: the front end for querying logs,  investigating via dashboards, and managing fleet agents...
-  - fleet-server: executes a [elastic agent ](https://github.com/elastic/elastic-agent) in fleet-server mode. It coordinates elastic agents to  gather logs and status from clients. Configuration is inspired by the [elastic-container](https://github.com/peasead/elastic-container) project.
-    - Elastic agents provide integrations, have more features than winlogbeat.
-  - wazuh-manager: runs the wazuh manager so we can deploy and manage wazuh agents.
-    -  Wazuh (open source) gives EDR (Endpoint Detection Response) with security dashboards to cover the security of all of the machines.
-  - lme-frontend (*coming in a future release*): will host an api and gui that unifies the architecture behind one interface
+### Alerting:
+We’re using [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html), an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
 
-### Agents: 
-Wazuh agents will enable EDR capabilities, while Elastic agents will enable logging capabilities.
+### Log Storage and Search:
 
- - https://github.com/wazuh/wazuh-agent   
- - https://github.com/elastic/elastic-agent  
+[Elasticsearch](https://www.elastic.co/elasticsearch) is the core component for log storage and search in LME. It indexes and stores logs and detections collected from Elastic and Wazuh Agents, allowing for fast, real-time querying of security events. Elasticsearch enables users to search and filter large datasets efficiently, providing a powerful backend for data analysis and visualization in Kibana. Its scalability and flexibility make it essential for handling the high-volume log data generated across different endpoints within LME's architecture.
 
-## Installation:
+### Data Visualization and Querying:
+[Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
+
+## Installing LME:
+LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. You can follow our [installation video](TODO LINK HERE) for further guidance. 
+
 Please ensure you follow all the configuration steps required below.
 
 **Upgrading**:
