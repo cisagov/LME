@@ -342,7 +342,9 @@ USER_VAULT_DIR="/etc/lme/vault"
 PASSWORD_FILE="/etc/lme/pass.sh"
 ```
 
-### MANUALLY setting up passwords and accessing passwords:
+### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
+**These steps are not fully supported and are left if others would like to suppor this in their environment**
+
 Run the password_management.sh script:
 ```bash
 lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
@@ -352,7 +354,6 @@ lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
 -l: List Podman secrets
 -h: print this list
 ```
-These steps are not fully supported and are left if others would like to suppor this in their environment
 
 ### grabbing passwords: 
 To view the appropriate service user password use ansible-vault, as root: 
@@ -364,10 +365,10 @@ $CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
 source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
 source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
 
-## manually:
+```
+#### manually getting passwords:
 #where wazuh_api is the service user whose password you want:
 sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep wazuh_api | awk '{print $1}')
-```
 
 # Documentation: 
 
