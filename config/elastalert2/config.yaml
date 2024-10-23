@@ -13,7 +13,6 @@ es_host: lme-elasticsearch
 es_port: 9200
 use_ssl: true
 verify_certs: false
-es_username: elastic
-es_password: password1
 
-rules_folder: /opt/lme/elastalert/rules
+#exists in the container
+rules_folder: /opt/elastalert/rules
