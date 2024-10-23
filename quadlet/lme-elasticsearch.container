@@ -22,7 +22,7 @@ Secret=kibana_system,type=env,target=KIBANA_PASSWORD
 EnvironmentFile=/opt/lme/lme-environment.env
 Image=localhost/elasticsearch:LME_LATEST
 Network=lme
-PodmanArgs=--memory 8gb --network-alias lme-elasticsearch --health-interval=2s
+PodmanArgs= --network-alias lme-elasticsearch --health-interval=2s
 PublishPort=9200:9200
 Ulimit=memlock=-1:-1
 Volume=lme_certs:/usr/share/elasticsearch/config/certs
