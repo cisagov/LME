@@ -1,6 +1,38 @@
 # Troubleshooting LME Install
 
-## Containers restarting/not running: 
+## Troubleshooting Diagram TODO redo the chart for troubleshooting steps
+
+Below is a diagram of the LME architecture with labels referring to possible issues at that specific location. Refer to the chart below for protocol information, process information, log file locations, and common issues at each point in LME.
+
+You can also find more detailed troubleshooting steps for each chapter after the chart.
+
+![Troubleshooting overview](/docs/imgs/troubleshooting-overview.jpg) TODO we should remake this
+<p align="center">  
+Figure 1: Troubleshooting overview diagram
+</p>
+
+
+| Diagram Ref| Protocol information | Process Information | Log file location | Common issues |
+| :---: |-------------| -----| ---- | ---------------- |
+| a | Outbound WinRM using TCP 5985 Link is HTTP, underlying data is authenticated and encrypted with Kerberos. </br></br> See [this Microsoft article](https://docs.microsoft.com/en-us/windows/security/threat-protection/use-windows-event-forwarding-to-assist-in-intrusion-detection) for more information | On the Windows client, Press Windows key + R. Then type 'services.msc' to access services on this machine. You should have: </br></br> ‘Windows Remote Management (WS-Management)’ </br> and </br> ‘Windows Event Log’ </br></br> Both of these should be set to automatically start and be running. WinRM is started via the GPO that is applied to clients. | Open Event viewer on Windows Client. Expand ‘Applications and Services Log’->’Microsoft’->’Windows’->’Eventlog-ForwardingPlugin’->Operational | “The WinRM client cannot process the request because the server name cannot be resolved.” </br> This is due to network issues (VPN not up, not on local LAN) between client and the Event Collector.|
+| b | Inbound WinRM TCP 5985 | On the Windows Event Collector, Press Windows key + R. Then type 'services.msc' to access services on this machine. You should have:  </br></br> ‘Windows Event Collector’ </br></br> This should be set to automatic start and running. It is enabled with the GPO for the Windows Event Collector. | Open Event viewer on Windows Event Collector. </br></br> Expand ‘Applications and Services Log’->’Microsoft’->’Windows’->’EventCollector’->Operational </br></br> Also, in Event Viewer check the subscription is active and clients are sending in logs. Click on ‘Subscriptions’, then right click on ‘lme’ and ‘Runtime Status’. This will show total and active computers connected. | Restarting the Windows Event Collector machine can sometimes get clients to connect. |
+| c | Outbound TCP 5044. </br></br> Lumberjack protocol using TLS mutual authentication. Certificates generated as part of the install, and downloaded as a ZIP from the Linux server. | On the Windows Event Collector, Press Windows key + R. Then type 'services.msc' to access services on this machine. You should have: </br></br> ‘winlogbeat’. </br></br> It should be set to automatically start and is running. | %programdata%\winlogbeat\logs\winlogbeat | TBC |
+| d | Inbound TCP 5044. </br> </br> Lumberjack protocol using TLS mutual authentication. Certificates generated as part of the install. | On the Linux server type ‘sudo docker stack ps lme’, and check that lme_logstash, lme_kibana and lme_elasticsearch all have a **current status** of running.  | On the Linux server type: </br> </br> ‘sudo docker service logs -f lme_logstash’ | TBC |
+
+
+## Logging Issues
+
+### Space issues during install: 
+If there are size constraints on your system and your system doesn't meet our expected requirements, you could run into issues like this [ISSUE](https://github.com/cisagov/LME/issues/19).
+
+You can try this:  [DISK-SPACE-20.04](https://askubuntu.com/questions/1269493/ubuntu-server-20-04-1-lts-not-all-disk-space-was-allocated-during-installation)
+```
+root@util:# vgdisplay
+root@util:# lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
+root@util:~# resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
+```
+
+### Containers restarting/not running: 
 Usually if you have issues with containers restarting there is probably something wrong with your host or the container itself. Like in the above sample, a wrong password could be preventing the Elastic Stack from operating properly. You can check the container logs like so: 
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
@@ -11,29 +43,6 @@ sudo -i podman ps --format "{{.Names}} {{.Status}}"
 sudo -i podman logs -f $CONTAINER_NAME
 ```
 Hopefully that is enough to determine the issue, but below we have some common issues you could encounter: 
-
-#### Directory Permission issues TODO redo this for podman
-If you encounter errors like [this](https://github.com/cisagov/LME/issues/15) in the container logs, probably your host ownership or permissions for mounted files, don't match what the container expects them to be. In this case the `/usr/share/elasticsearch/backups` which is mapped from `/opt/lme/backups` on the host. 
-You can see this in the [docker-compose-stack.yml](https://github.com/cisagov/LME/blob/main/Chapter%203%20Files/docker-compose-stack.yml) file: 
-```
-╰─$ cat Chapter\ 3\ Files/docker-compose-stack.yml | grep -i volume -A 5
-    volumes:
-      - type: volume
-        source: esdata
-        target: /usr/share/elasticsearch/data
-      - type: bind
-        source: /opt/lme/backups
-        target: /usr/share/elasticsearch/backups
-```
-
-To fix this you can change the permissions to what the container expects: 
-```
-sudo chown -R 1000:1000 /opt/lme/backups
-```
-The user id in the container is 1000, so by setting the proper owner we fix the directory permission issue.   
-We know this by investigating the backing docker container image for elasticsearch [LINK](https://github.com/elastic/elasticsearch/blob/61d59b31a27448e3d7d28907717b1b8c23f52f3e/distribution/docker/src/docker/Dockerfile#L185) [GITHUB](https://github.com/elastic/elasticsearch/blob/main/distribution/docker/src/docker/Dockerfile)
-
-
 
 ## Container Troubleshooting:
 
@@ -117,6 +126,7 @@ systemctl --user daemon-reload
 systemctl --user restart lme.service
 ```
 
+
 ## Elastic troubleshooting steps
 
 ### Manual Dashboard Install
@@ -192,7 +202,46 @@ PUT _settings
 Further information on this and general advice on troubleshooting an unhealthy cluster status can be found [here](https://www.elastic.co/guide/en/elasticsearch/reference/master/red-yellow-cluster-status.html), if the above solution was unable to resolve your issue.
 
 ## Start/Stop LME:
-LME currently runs using the docker stack deployment architecture. 
+
+### Re-Indexing Errors
+
+For errors encountered when re-indexing existing data as part of an an LME version upgrade please review the Elastic re-indexing documentation for help, available [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-reindex.html).
+
+### Illegal Argument Exception While Re-Indexing 
+
+With the correct mapping in place it is not possible to store a string value in any of the fields which represent IP addresses, for example ```source.ip``` or ```destination.ip```. If any of these values are represented in your current data as strings, such as ```LOCAL``` it will not be possible to successfully re-index with the correct mapping. In this instance the simplest fix is to modify your existing data to store the relevant fields as valid IP representations using the update_by_query method, documented [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update-by-query.html).
+
+An example of this is shown below, which may need to be modified for the particular field that is causing problems:
+
+```
+POST winlogbeat-11.06.2021/_update_by_query
+{
+  "script": {
+    "source": "ctx._source.source.ip = '127.0.0.1'",
+    "lang": "painless"
+  },
+  "query": {
+    "match": {
+      "source.ip": "LOCAL"
+    }
+  }
+}
+```
+Note that this will need to be run for each index that contains problematic data before re-indexing can be completed.
+
+### TLS Certificates Expired
+
+For security the self-signed certificates generated for use by LME at install time will only remain valid for a period of two years, which will cause LME to stop functioning once these certificates expire. In this case the certificates can be recreated by following the instructions detailed [here](/docs/markdown/maintenance/certificates.md#regenerating-self-signed-certificates).
+
+
+## Other Common Errors
+
+### Windows Log with Error Code #2150859027
+
+If you are on Windows 2016 or higher and are getting error code 2150859027, or messages about HTTP URLs not being available in your Windows logs, we suggest looking at [this guide.](https://support.microsoft.com/en-in/help/4494462/events-not-forwarded-if-the-collector-runs-windows-server-2019-or-2016)
+
+*
+### Start/Stop LME:
 
 To Stop LME: 
 ```
@@ -202,6 +251,22 @@ sudo systemctl stop lme.service
 To Start LME:
 ```
 sudo systemctl restart lme.service
+```
+
+## Using API
+
+### Changing elastic Username Password
+
+After doing an install if you wish to change the password to the elastic username you can use the following command: 
+
+NOTE: You will need to run this command with an account that can access /opt/lme. If you can't sudo the user account will at least need to be able to access the certs located in the command. 
+
+```
+sudo curl -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H "Content-Type: application/json" -d'
+{
+  "password" : "newpassword"
+}' --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:currentpassword
+>>>>>>> release-2.0.0
 ```
 
 ## Issues installing Elastic Agent

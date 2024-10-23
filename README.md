@@ -305,14 +305,13 @@ lme-fleet-server Up 35 minutes
 
 If you see something like the above you're good to go to run the command:
 ```
-ansible-playbook ./ansible/post_install_local.yml -e "clone_dir=/full/path/to/clone/directory"
+ansible-playbook ./ansible/post_install_local.yml
 ```
 
 You'll see the following in the `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
 ```bash
 
 ```
-
 
 ## Deploying Agents: 
 We have seperate guides on deploying Wazuh and Elastic in seperate docs, please see links below:
