@@ -59,7 +59,6 @@ If you really want to try to run with less than 16gb ram or at a minimum amount 
 ## Architecture:
 LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh’s Manager and Agent with Elastic to provide comprehensive log collection, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and will enable seamless scaling to meet your organization’s evolving security and logging requirements.
 
-
 ### Diagram: 
 
 ![diagram](/docs/imgs/lme-architecture-v2.jpg)
