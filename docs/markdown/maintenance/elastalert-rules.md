@@ -153,7 +153,13 @@ timestamp_field: "@timestamp"
 
 This specifies that the rule should use the "@timestamp" field to determine the time of events.
 
+### Using Email and SMTP
+
+
+
 Using email might look something like this:
+
+NOTE: You will need an smtp server capable of sending automated emails setup. 
 
 ```
 name: Windows Event Logs Cleared
