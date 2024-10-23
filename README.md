@@ -267,6 +267,15 @@ sudo -i podman volume rm -a
 ```
 **WARNING THIS WILL DELETE EVERYTHING!!!**
 
+## Installing Sysmon on Windows Clients:
+
+Sysmon provides valuable logs for windows computers. For each of your windows client machines, install Sysmon like so:
+
+1. Download Logging Made Easy and unzip the folder. 
+2. From inside the unzipped folder, run the following command in Administrator Powershell:
+```
+.\scripts\install_sysmon.ps1
+```
 
 ## Deploying Agents: 
 
