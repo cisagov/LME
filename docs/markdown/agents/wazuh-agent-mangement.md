@@ -14,8 +14,32 @@ Throughout this guide, we'll use the following variables. Replace these with you
 
 - `{WAZUH_AGENT_VERSION}`: The version of the Wazuh agent you're installing (e.g., 4.9.0-1)
 - `{WAZUH_MANAGER_IP}`: The IP address of your Wazuh manager (e.g., 10.0.0.2)
+ 
+You can get your wazuh version that you are running via the following command:
+```bash
+sudo -i podman exec -it lme-wazuh-manager /var/ossec/bin/wazuh-control -j info | jq
+```
 
-## Steps to Enroll a Wazuh Agent (Windows)
+Output should look similar to this:
+```json
+{
+  "error": 0,
+  "data": [
+    {
+      "WAZUH_VERSION": "v4.7.5"
+    },
+    {
+      "WAZUH_REVISION": "40720"
+    },
+    {
+      "WAZUH_TYPE": "server"
+    }
+  ]
+}
+```
+drop the v, and use `4.7.5`
+
+## Steps to Enroll a Wazuh Agent (***Windows***)
 
 1. **Download the Wazuh Agent**
    - Download the Wazuh agent MSI installer from the following URL:
@@ -23,12 +47,20 @@ Throughout this guide, we'll use the following variables. Replace these with you
      https://packages.wazuh.com/4.x/windows/wazuh-agent-{WAZUH_AGENT_VERSION}.msi
      ```
    - Replace `{WAZUH_AGENT_VERSION}` with the appropriate version number.
+   - You can also use the below powershell command: 
+```powershell
+# Replace the values with the values you have above
+# where {WAZUH_AGENT_VERSION}=4.7.5
+# where {WAZUH_MANAGER_IP}=10.1.0.5
+Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi;`
+Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER="10.1.0.5"' -Wait -NoNewWindow`
+```
 
 2. **Install the Wazuh Agent**
    - Open a command prompt with administrator privileges.
    - Navigate to the directory containing the downloaded MSI file.
    - Run the following command to install the agent:
-     ```
+     ```powershell
      wazuh-agent-{WAZUH_AGENT_VERSION}.msi /q WAZUH_MANAGER="{WAZUH_MANAGER_IP}"
      ```
    - Replace `{WAZUH_AGENT_VERSION}` with the version you downloaded.
@@ -37,9 +69,13 @@ Throughout this guide, we'll use the following variables. Replace these with you
 3. **Verify Installation**
    - After installation, the Wazuh agent service should start automatically.
    - You can verify the service status in the Windows Services manager.
+   - ensure the service starts if it doesn't start automatically. Run this in a powershell terminal:
+   ```powershell
+   NET START Wazuh
+   ```
 
 
-## Steps to Enroll a Wazuh Agent (Debian-based Systems)
+## Steps to Enroll a Wazuh Agent (***Debian-based Systems***)
 
 1. **Add Wazuh GPG key**
    ```bash
@@ -70,6 +106,13 @@ systemctl status wazuh-agent
 ```
 
 ## Troubleshooting
+
+If it doesn't start attempt the following: 
+```bash
+systemctl daemon-reload
+systemctl enable wazuh-agent
+systemctl start wazuh-agent
+```
 
 - If the agent fails to connect, check your firewall settings to ensure the necessary ports are open. [Wazuh Ports Documentation](https://documentation.wazuh.com/current/getting-started/architecture.html)
 - Verify that the Wazuh manager IP address is correct and reachable from the agent. This is the IP address of your LME server running the containers.

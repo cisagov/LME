@@ -10,11 +10,12 @@
 Logging Made Easy (LME) is a free, open-source platform developed by CISA to centralize log collection, enhance threat detection, and enable real-time alerting, helping organizations of all sizes secure their infrastructure. LME offers a seamless user experience, integrating Wazuh and Elastic tools to improve detection accuracy and enable endpoint security. 
 
 Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security with a range of advanced features:
-• Enhanced Threat Detection and Response: Integrates Wazuh’s open-source tools and Elastic Fleet for improved detection accuracy and faster response times.
-• Security by Design: Utilizes containerization and encryption to meet the highest security standards.
-• Simplified Installation: Ansible scripts automate deployment for faster setup and easier maintenance.
-• Custom Data Visualization: Create personalized dashboards for tailored monitoring.
-• Comprehensive Testing: Expanded unit testing and threat emulation ensure system stability and reliability.
+
+- Enhanced Threat Detection and Response: Integrates Wazuh’s open-source tools and Elastic Fleet for improved detection accuracy and faster response times.
+- Security by Design: Utilizes containerization and encryption to meet the highest security standards.
+- Simplified Installation: Ansible scripts automate deployment for faster setup and easier maintenance.
+- Custom Data Visualization: Create personalized dashboards for tailored monitoring.
+- Comprehensive Testing: Expanded unit testing and threat emulation ensure system stability and reliability.
 
 
 ## Updates: 
@@ -27,7 +28,7 @@ With our LME 2.0 release, we’re introducing several new features and architect
 LME 2.0 is still in development, and version 2.1 will address scaling out the deployment.
 
 ## Questions or Feedback:
-LME is not able to comment on or troubleshoot individual installations. If you believe you have found an issue with the LME code or documentation, please submit a GitHub issue. If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
+The LME team is not able to comment on or troubleshoot individual installations. If you believe you have found an issue with the LME code or documentation, please submit a GitHub issue. If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
 
 For general questions about LME and suggestions, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
 
@@ -53,9 +54,10 @@ LME is suited for for:
 If you are unsure you meet the pre-requisites to installing LME, please read our [prerequisites documentation](/docs/markdown/prerequisites.md).
 The biggest Pre-requisite is setting up hardware for your ubuntu server with a minimum of `2 processors`, `16gb ram`, and `128gb` of dedicated storage for LME's Elasticsearch database.
 
+If you really want to try to run with less than 16gb ram or at a minimum amount of hardware  you can follow the troubleshooting guide to setup the podman quadlets to run with a limited amount of ram. We suggest setting elasticsearch to a limit of `8gb` and kibana to a limit of `4gb`. See the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage)
+
 ## Architecture:
 LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh’s Manager and Agent with Elastic to provide comprehensive log collection, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and will enable seamless scaling to meet your organization’s evolving security and logging requirements.
-
 
 
 ### Diagram: 
@@ -96,7 +98,7 @@ LME leverages both Wazuh and Elastic agents providing more comprehensive logging
 
 
 ### Alerting:
-We’re using [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html), an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
+LME has setup [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html), an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
 
 ### Log Storage and Search:
 
@@ -106,16 +108,17 @@ We’re using [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.ht
 [Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
 
 ## Installing LME:
-LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. You can follow our [installation video](TODO LINK HERE) for further guidance. 
+LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. You can follow our [installation video](TODO LINK HERE) for further guidance.
+These steps will guide you through setting up LME on your Ubuntu 22.04 server, ensuring a smooth and secure deployment.
 
-Please ensure you follow all the configuration steps required below.
+**Please ensure you follow all the configuration steps required below.**
 
-**Upgrading**:
+#####**Upgrading**:
 If you are a previous user of LME and wish to upgrade from 1.4 -> 2.0, please see our [upgrade documentation](/docs/markdown/maintenance/upgrading.md).
 
 
 ### Downloading LME:
-**All steps will assume you start in your cloned directory of LME on your ubuntu 22.04 server**
+**All steps will assume you start the downloaded or cloned directory of LME on your Ubuntu 22.04 server**
 
 We suggest you install the latest release version of Logging made easy using the following commands: 
 
@@ -127,6 +130,7 @@ Download and Unzip the latest version of LME. This will add a path to ~/LME with
 ```
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
+***Developer Note: if you're looking to develop LME, its suggested you `git clone` rather than downloading, please see our [DEV docs](#developer-notes)***
 
 ### Operating system: **Ubuntu 22.04**:
 Make sure you run an install on ubuntu 22.04, thats the operating system which has been tested the most. 
@@ -155,8 +159,6 @@ cp ./config/example.env ./config/lme-environment.env
 IPVAR=127.0.0.1 #your hosts ip 
 ```
 
-
-
 ### **Automated Install**
 
 You can run this installer to run the total install in ansible. 
@@ -176,15 +178,14 @@ ansible-playbook ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/di
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
 
 #### Steps performed in automated install: 
-TODO finalize this with more words 
 
-1. Setup /opt/lme, check sudo, and configure other required directories/files
-2. Setup password information
-3. Setup Nix
-4. set service user passwords
-5. Install Quadlets
+1. Setup /opt/lme, check for sudo access, and configure other required directories/files
+2. Setup password information: configures the password vault and other configuration for the service user passwords  
+3. Setup [Nix](https://nixos.org/): nix is the opensource package manager we use to install the latest version of podman
+4. set service user passwords: actually sets the service user passwords that are encrypted according to the [security model](/docs/markdown/reference/security-model.md)
+5. Install Quadlets: the quadlet files are setup in the directories described below to be setup as systemd services
 6. Setup Containers for root: The contianers listed in `$clone_directory/config/containers.txt` will be pulled and tagged
-7. Start lme.service
+7. Start lme.service: kicks of the start of LME service containers
 
 #### NOTES:
 
@@ -220,7 +221,7 @@ sudo -i systemctl  reset-failed lme*
 sudo -i systemctl  restart lme.service
 
 #also try inspecting container logs: 
-#CONTAINER_NAME=lme-elasticsearch
+$CONTAINER_NAME=lme-elasticsearch #change this to your container name you want to monitor lme-kibana, etc...
 sudo -i podman logs -f $CONTAINER_NAME
 ```
 
@@ -245,7 +246,7 @@ curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman 
 ```
 
 4. Check you can connect to kibana
-You can use an ssh proxy to forward a local port to the remote linux host
+You can use an ssh proxy to forward a local port to the remote linux host. To login as the elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
 ```bash
 #connect via ssh if you need to 
 ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
@@ -304,7 +305,7 @@ lme-fleet-server Up 35 minutes
 
 If you see something like the above you're good to go to run the command:
 ```
-ansible-playbook ./ansible/post_install_local.yml
+ansible-playbook ./ansible/post_install_local.yml -e "clone_dir=/full/path/to/clone/directory"
 ```
 
 You'll see the following in the `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
@@ -312,52 +313,13 @@ You'll see the following in the `/opt/lme/dashboards/elastic/` and `/opt/lme/das
 
 ```
 
+
 ## Deploying Agents: 
+We have seperate guides on deploying Wazuh and Elastic in seperate docs, please see links below:
+Eventually these steps will be more automated in a future release. 
 
-### Deploy Wazuh Agent on client machine (Linux)
-
-[Wazuh Documentation](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/wazuh-agent-package-linux.html)
-
-Commands are assumed to be run as root. Change `IP ADDRESS OF WAZUH HOST MACHINE` to the IP of the host LME is installed on.
-
-```
-curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
-echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee -a /etc/apt/sources.list.d/wazuh.list
-apt-get update
-WAZUH_MANAGER="IP ADDRESS OF WAZUH HOST MACHINE" apt-get install wazuh-agent
-```
-
-Start the service: 
-
-```
-systemctl daemon-reload
-systemctl enable wazuh-agent
-systemctl start wazuh-agent
-```
-
-### Deploy Wazuh Agent On client Machine (Windows)
-
-[Wazuh Documentation](https://documentation.wazuh.com/current/installation-guide/wazuh-agent/wazuh-agent-package-windows.html)
-
-From PowerShell with admin capabilities run the following command. Change `IP ADDRESS OF WAZUH HOST MACHINE` to the IP of the host LME is installed on.
-
-```
-Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi;`
-Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER="IPADDRESS OF WAZUH HOST MACHINE"' -Wait -NoNewWindow`
-```
-
-Start the service: 
-
-```
-NET START Wazuh
-```
-
-
-### Deploying Elastic-Agent: 
-1. Run the `scripts/set-fleet.sh` file
-2. follow the gui and deploy an agent on your client: https://0.0.0.0:5601/app/fleet/agents
-3. Then login to kibana, go to fleet, click 'add agent' choose linux or windows depending on what endpoint. I like to perform these lines of code one at a time for testing. The final line where it actually does the install... add --insecure to the end. This is until we figure out how to do this with the certs in the cert store etc.
-
+##### - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
+##### - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
 
 ## Password Encryption:
 Password encryption is enabled using ansible-vault to store all lme user and lme service user passwords at rest.
@@ -370,8 +332,26 @@ USER_VAULT_DIR="/etc/lme/vault"
 PASSWORD_FILE="/etc/lme/pass.sh"
 ```
 
+### grabbing passwords: 
+To view the appropriate service user password run the following commands:
+```
+#script:
+$CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
+
+#add them as variables to your current shell
+source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
+source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
+```
+
+#### manually getting passwords:
+```bash
+#where wazuh_api is the service user whose password you want:
+USER_NAME=wazuh_api
+sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USER_NAME | awk '{print $1}')
+```
+
 ### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
-**These steps are not fully supported and are left if others would like to suppor this in their environment**
+**These steps are not fully supported and are left if others would like to support this in their environment**
 
 Run the password_management.sh script:
 ```bash
@@ -383,39 +363,53 @@ lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
 -h: print this list
 ```
 
-### grabbing passwords: 
-To view the appropriate service user password use ansible-vault, as root: 
-```
-#script:
-$CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
-
-#add them as variables to your current shell
-source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
-source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
-
-```
-#### manually getting passwords:
-#where wazuh_api is the service user whose password you want:
-sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep wazuh_api | awk '{print $1}')
-
 # Documentation: 
 
-### Logging Guidance
+## Logging Guidance
  - [LME in the CLOUD](/docs/markdown/logging-guidance/cloud.md)
- - [Log Retention](/docs/markdown/logging-guidance/retention.md)  *TODO*: change link to new documentation
- - [Additional Log Types](/docs/markdown/logging-guidance/other-logging.md)  
+ - [Log Retention](/docs/markdown/logging-guidance/retention.md)
+ - [Filtering](/docs/markdown/logging-guidance/filtering.md)
 
 ## Reference: 
- - [FAQ](/docs/markdown/reference/faq.md)  *TODO*
- - [Troubleshooting](/docs/markdown/reference/troubleshooting.md) *TODO*
- - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
- - [Guide to Organizational Units](/docs/markdown/chapter1/guide_to_ous.md)
+ - [FAQ](/docs/markdown/reference/faq.md) 
+ - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
+ - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md) *TODO*: update with new 2.0 dashboard descriptions
  - [Security Model](/docs/markdown/reference/security-model.md)
 
 ## Maintenance:
- - [Backups](/docs/markdown/maintenance/backups.md)  *TODO* change link to new documentation
- - [Upgrading 1x -> 2x](/scripts/upgrade/README.md) 
- - [Certificates](/docs/markdown/maintenance/certificates.md) *TODO* 
+ - [Backups](/docs/markdown/maintenance/backups.md)  *TODO:* update with new directions for how to backup
+ - [Certificates](/docs/markdown/maintenance/certificates.md) 
+ - [Encryption at rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
+ - Data management:
+   - [Index Management](/docs/markdown/maintenance/index-management.md)
+   - [Volume Management](/docs/markdown/maintenance/volume-management.md)
+ - Upgrading:
+   - [Upgrading 1x -> 2x](/scripts/upgrade/README.md) 
+   - [Upgrading future 2.X](/docs/markdown/maintenance/upgrading.md)
 
 ## Agents: 
-*TODO* add in docs in new documentation
+This is documentatino on agent configuration and management
+ - [Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
+ - Wazuh:
+   - [Wazuh Configuration](/docs/markdown/maintenance/wazuh-configuration.md)
+   - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
+   - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
+    
+## endpoint tools:
+In order to make best use of the agents, they need to be complemented by utilities to generate forensically relevant data to analyze and support detections.
+Look at adding them to Windows/Linux
+
+### Windows:
+ - [Sysmon](/docs/markdown/endpoint-tools/install-sysmon.md)
+### Linux:
+ - [Sysmon](/docs/markdown/endpoint-tools/install-auditd.md)
+
+# Developer notes:
+ 
+Git clone and git checkout your development branch on the server:
+```bash
+git clone https://github.com/cisagov/LME.git
+cd LME
+git checkout YOUR_BRANCH_NAME_HERE
+```
+

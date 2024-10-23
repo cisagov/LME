@@ -22,7 +22,7 @@ This guide will walk you through the process of enrolling an agent in the LME sy
    - Select the appropriate option based on your endpoint:
      - Linux Tar
      - Mac
-     - Windows
+     - Windows (ensure you run this in a powershell prompt with administrator privileges)
 
 6. **Installation Command**
    - You will be presented with an installation command for the selected platform
@@ -33,8 +33,11 @@ This guide will walk you through the process of enrolling an agent in the LME sy
    - This is similar to clicking "continue to website" in a browser when you get a certificate warning
    - Example:
      ```
-     ./elastic-agent install -other-flags-youll-see --insecure
+     ./elastic-agent install [-other-flags-youll-see] --insecure
      ```
+     
+   - it should look like this screenshot:
+![example-screenshot](/docs/imgs/insecure-powershell.png)
 
 8. **Execute the Command**
    - Recommend running each line individually so you can see a clear picture of the status of each command ran. The entire process will download an agent, unzip it, and install it.

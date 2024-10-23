@@ -71,23 +71,27 @@ systemctl restart lme.service
 
 
 ### Memory in containers (need more ram//less ram usage)
-If you're on a resource constrained host and need to limit/edit the memory used by the containers add the following into the quadlet file. The following is a git diff showing adding memory into the elasticsearch container. This can be done for any other quadlet as well. 
+If you're on a resource constrained host and need to limit/edit the memory used by the containers add the following into the quadlet file. 
+
+You don't need to run the commands, but simply change the quadlet file you want to update. If this is before you've installed LME, you can edit the quadlet in the directory you've cloned: `~/LME/quadlet/lme-elasticsearch.container`
+
+If this is after installation you can edit the quadlet file in `/etc/containers/systemd/lme-elasticsearch.container`
+
+`quadlet/lme-elasticsearch.container` and add the line `--memory Xgb`, with the nubmer of Gigabytes you want to limit for the container.
 
 ```bash
-diff --git a/quadlet/lme-elasticsearch.container b/quadlet/lme-elasticsearch.container
-index da3091a..fad3e8b 100644
---- a/quadlet/lme-elasticsearch.container
-+++ b/quadlet/lme-elasticsearch.container
-@@ -22,7 +22,7 @@ Secret=kibana_system,type=env,target=KIBANA_PASSWORD
+....
  EnvironmentFile=/opt/lme/lme-environment.env
  Image=localhost/elasticsearch:LME_LATEST
  Network=lme
--PodmanArgs=--memory 8gb --network-alias lme-elasticsearch --health-interval=2s
-+PodmanArgs= --network-alias lme-elasticsearch --health-interval=2s
+ PodmanArgs=--memory 8gb --network-alias lme-elasticsearch --health-interval=2s
  PublishPort=9200:9200
  Ulimit=memlock=-1:-1
  Volume=lme_certs:/usr/share/elasticsearch/config/certs
+ ....
 ```
+
+You can repeat this for any containers you for which you want to limit the memory.
 
 ### JVM heap size
 It may be that you have alot of ram to work with and want your container to consume that RAM (especially in the case of elasticsearch running under the Java Virtual Machine. Elasticsearch is written in Java). 
