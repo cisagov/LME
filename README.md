@@ -132,12 +132,6 @@ cp ./config/example.env ./config/lme-environment.env
 IPVAR=127.0.0.1 #your hosts ip 
 ```
 
-### OPTIONAL: setting master password
-This password will be used to encrypt all service user passwords and you should make sure to keep track of it (it will also be stored in `/etc/lme/pass.sh`).
-```
-sudo -i ${PWD}/scripts/password_management.sh -i
-```
-You can skip this step if you would like to have the script setup the master password for you and you'll never need to touch it :)
 
 
 ### **Automated Install**
@@ -147,13 +141,13 @@ You can run this installer to run the total install in ansible.
 ```bash
 sudo apt update && sudo apt install -y ansible
 # cd ~/LME-PRIV/lme-2-arch # Or path to your clone of this repo
-ansible-playbook ./scripts/install_lme_local.yml
+ansible-playbook ./ansible/install_lme_local.yml
 ```
 This assumes that you have the repo in `~/LME/`. 
 
 If you don't, you can pass the `CLONE_DIRECTORY` variable to the playbook. 
 ```
-ansible-playbook ./scripts/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
+ansible-playbook ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
 ```
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
@@ -277,6 +271,33 @@ Sysmon provides valuable logs for windows computers. For each of your windows cl
 .\scripts\install_sysmon.ps1
 ```
 
+### Other Post install setup: 
+A few other things are needed and you're all set to go. 
+1. setting up fleet
+2. fixing a few issues with wazuh (in a future release this won't be necessary)
+3. setting up custom LME dashboards
+4. setting up wazuh's dashboards
+5. setting up a read only user for analysts to connect and query LME's data
+
+Luckily we've packed this in a script for you. Before running it we want to make sure our podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
+```bash
+lme-user@ubuntu:~/LME-TEST$ sudo -i podman ps --format "{{.Names}} {{.Status}}"
+lme-elasticsearch Up 49 minutes (healthy)
+lme-wazuh-manager Up 48 minutes
+lme-kibana Up 36 minutes (healthy)
+lme-fleet-server Up 35 minutes
+```
+
+If you see something like the above you're good to go to run the command:
+```
+ansible-playbook ./ansible/post_install_local.yml
+```
+
+You'll see the following in the `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
+```bash
+
+```
+
 ## Deploying Agents: 
 
 ### Deploy Wazuh Agent on client machine (Linux)
@@ -330,7 +351,9 @@ USER_VAULT_DIR="/etc/lme/vault"
 PASSWORD_FILE="/etc/lme/pass.sh"
 ```
 
-### MANUALLY setting up passwords and accessing passwords:
+### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
+**These steps are not fully supported and are left if others would like to suppor this in their environment**
+
 Run the password_management.sh script:
 ```bash
 lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
@@ -351,10 +374,10 @@ $CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
 source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
 source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
 
-## manually:
+```
+#### manually getting passwords:
 #where wazuh_api is the service user whose password you want:
 sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep wazuh_api | awk '{print $1}')
-```
 
 # Documentation: 
 

@@ -1,12 +1,12 @@
 # Troubleshooting LME Install
 
-## Troubleshooting Diagram
+## Troubleshooting Diagram TODO redo the chart for troubleshooting steps
 
 Below is a diagram of the LME architecture with labels referring to possible issues at that specific location. Refer to the chart below for protocol information, process information, log file locations, and common issues at each point in LME.
 
 You can also find more detailed troubleshooting steps for each chapter after the chart.
 
-![Troubleshooting overview](/docs/imgs/troubleshooting-overview.jpg)
+![Troubleshooting overview](/docs/imgs/troubleshooting-overview.jpg) TODO we should remake this
 <p align="center">  
 Figure 1: Troubleshooting overview diagram
 </p>
@@ -19,39 +19,11 @@ Figure 1: Troubleshooting overview diagram
 | c | Outbound TCP 5044. </br></br> Lumberjack protocol using TLS mutual authentication. Certificates generated as part of the install, and downloaded as a ZIP from the Linux server. | On the Windows Event Collector, Press Windows key + R. Then type 'services.msc' to access services on this machine. You should have: </br></br> ‘winlogbeat’. </br></br> It should be set to automatically start and is running. | %programdata%\winlogbeat\logs\winlogbeat | TBC |
 | d | Inbound TCP 5044. </br> </br> Lumberjack protocol using TLS mutual authentication. Certificates generated as part of the install. | On the Linux server type ‘sudo docker stack ps lme’, and check that lme_logstash, lme_kibana and lme_elasticsearch all have a **current status** of running.  | On the Linux server type: </br> </br> ‘sudo docker service logs -f lme_logstash’ | TBC |
 
-## Chapter 1 - Setting up Windows Event Forwarding
-
-### Installing Group Policy Management Tools
-
-If you receive the error `Windows cannot find 'gpmc.msc'`, you need to install the optional feature `Group Policy Management Tools`.
-
-  - For Windows Server, follow Microsoft's instructions [here](https://learn.microsoft.com/en-us/azure/active-directory-domain-services/manage-group-policy#install-group-policy-management-tools). In short, you need to add the "Group Policy Management" Feature from the "Add Roles and Features" menu in Server Manager.
-  - For Windows 10/11, open the "Run" dialog box by pressing Windows key + R. Run the command `ms-settings:optionalfeatures` to open Windows Optional Features in Settings. Select "Add a Feature," then scroll down until you find `RSAT: Group Policy Management Tools`. Check the box next to it and select install.
-
-    ![add optional feature](/docs/imgs/gpo_pics/optional_features.png)
-    <p align="center">
-    Figure 2: Add a feature
-    </p>
-
-    ![install gpmc.msc](/docs/imgs/gpo_pics/rsat_gpmc_optional_features.png)
-    <p align="center">
-    Figure 3: Install RSAT: Group Policy Management Tools
-    </p>
-
-- Note: You only need `gpmc.msc` installed on one machine to manage the others. For example, you can install it only on the Domain Controller and modify the Group Policy from that machine.
-
-### Installing Active Directory Domain Services
-
-If you receive the error `dsa.msc` cannot be found, you will need to install `Active Directoy Domain Services`. The process is nearly identical to the above section [Installing Group Policy Management Tools](#installing-group-policy-management-tools), save for the following exceptions:
-
-  - For Windows Server, the feature is located under "Remote Server Administration Tools". Expand by pressing the arrow on the left and check the box next to `Role Administration Tools`. The other nested features should be selected as well.
-  - For Windows 10/11, the Optional Feature to install is called `RSAT: Active Directory Domain Services and Lightweight Directory Services Tools`.
-
-## Chapter 2 - Installing Sysmon
+##  Sysmon/Auditd installation:
 
 If you are having trouble not seeing Sysmon logs in the client's Event Viewer or not seeing forwarded logs on the WEC, first try restarting all of your systems and running `gpupdate /force` on the domain controller and clients.
 
-### No Logs Forwarded from Clients
+### No Logs Forwarded from Clients TODO update for new sysmon instructions
 
 When diagnosing issues in installing Sysmon on the clients using Group Policy, the first place to check is `Task Scheduler` on one of the clients. Look for `LME-Sysmon-Task` listed under "Active Tasks." Based on whether or not the task is listed, different troubleshooting steps will prove useful:
 
@@ -70,27 +42,9 @@ Windows Tasks are a fickle beast. In order for a task to trigger for the first t
 
 #### 3. The task runs, but Sysmon is not installed
 
-If you don't see `sysmon64` listed in `services.msc`, it's likely the install script failed somehow. Double check that the files are organized correctly according to the diagram in the [Chapter 2 checklist](/docs/markdown/chapter2.md#chapter-2---checklist). 
+If you don't see `sysmon64` listed in `services.msc`, it's likely the install script failed somehow.
 
-## Chapter 3 - Installing the ELK Stack and Retrieving Logs
-
-### Events not forwarded to Kibana
-The `winlogbeat` service installed in [section 3.3](/docs/markdown/chapter3/chapter3.md#33-configuring-winlogbeat-on-windows-event-collector-server) is responsible for sending events from the collector to Kibana.  Confirm the `winlogbeat` service is running and check the log file (`C:\ProgramData\winlogbeat\logs`) for errors.
-
-By default the `ForwardedEvents` maximum log size is around 20MB so events will be lost if the `winlogbeat` service stops.  Consider increasing the size of the `ForwardedEvents` log file to help reduce log loss in this scenario.  Historical logs are sent once the `winlogbeat` service starts.
-
-* Open Microsoft Event View (`eventvwr`)
-* Expand _Windows Logs_ and right click _Forwarded Events_
-* Click _properties_
-* Adjust \_Maximum log size (KB)_ to a higher value.  Note that the system will automatically adjust the size to the nearest multiple of 64KB.
-
-![Adjusting the log size](/docs/imgs/AdjustForwardedEventsLogSize.png)
-
-### Events not forwarding from Domain Controllers
-Please be aware that Logging Made Easy does not currently support logging Domain Controllers, and the log volumes may be significant from servers with this role.  If you wish to proceed forwarding logs from your Domain Controllers please be aware you do this at your own risk!  Monitoring such servers has not been tested and may have unintended side effects.
-
-
-
+## Logging Issues
 
 ### Space issues during install: 
 If there are size constraints on your system and your system doesn't meet our expected requirements, you could run into issues like this [ISSUE](https://github.com/cisagov/LME/issues/19).
@@ -104,16 +58,17 @@ root@util:~# resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 
 ### Containers restarting/not running: 
 Usually if you have issues with containers restarting there is probably something wrong with your host or the container itself. Like in the above sample, a wrong password could be preventing the Elastic Stack from operating properly. You can check the container logs like so: 
-```
-#TO list the name of the container
-sudo docker ps --format "{{.Names}}"
+```bash
+sudo -i podman ps --format "{{.Names}} {{.Status}}"
+```  
 
+```bash
 #Using the above name you found, check its logs here. 
-sudo docker logs -f [CONTAINER_NAME]
+sudo -i podman logs -f $CONTAINER_NAME
 ```
 Hopefully that is enough to determine the issue, but below we have some common issues you could encounter: 
 
-#### Directory Permission issues
+#### Directory Permission issues TODO redo this for podman
 If you encounter errors like [this](https://github.com/cisagov/LME/issues/15) in the container logs, probably your host ownership or permissions for mounted files, don't match what the container expects them to be. In this case the `/usr/share/elasticsearch/backups` which is mapped from `/opt/lme/backups` on the host. 
 You can see this in the [docker-compose-stack.yml](https://github.com/cisagov/LME/blob/main/Chapter%203%20Files/docker-compose-stack.yml) file: 
 ```
@@ -135,55 +90,76 @@ The user id in the container is 1000, so by setting the proper owner we fix the 
 We know this by investigating the backing docker container image for elasticsearch [LINK](https://github.com/elastic/elasticsearch/blob/61d59b31a27448e3d7d28907717b1b8c23f52f3e/distribution/docker/src/docker/Dockerfile#L185) [GITHUB](https://github.com/elastic/elasticsearch/blob/main/distribution/docker/src/docker/Dockerfile)
 
 
-####  deploy.sh stalls on: waiting for elasticsearch to connect
-This was a bug that was fixed in the current iteration of deploy.sh. This occurs if the `elastic` user password was already set in a previous deployment of LME. The easiest fix for this is to delete your old LME volumes as that will clear out any old settings that would be preventing install.
-```
-#DONT RUN THIS IF YOU HAVE DATA YOU WANT TO PRESERVE!!
-sudo docker volume rm lme_esdata
-sudo docker volume rm lme_logstashdata
+
+## Container Troubleshooting:
+
+### "dependent containers which must be removed"
+sometimes podman doesn't kill containers properly when you stop and start `lme.service`
+
+If you get the below error after inspecting the logs in systemd: 
+```bash
+#journal: 
+journalctl -xeu lme-elasticsearch.service
+#OR systemctl
+systemctl status lme*
 ```
 
-However most users will probably want to preserve their data, so using the following method you can reset the user password for the built-in elastic user.  
-Run the following commands to reset your user password to a known password  
+ERROR:
+```bash
+ubuntu lme-elasticsearch[43436]: Error: container bf9cb322d092c13126bd0341a1b9c5e03b475599e6371e82d4d866fb088fc3c4 has dependent containers which must be removed before it: ff7a6b654913838050360a2cea14fa1fdf5be1d542e5420354ddf03b88a1d2c9: container already exists
 ```
-#grab the name:
-sudo docker ps --format "{{.Names}}" | grep -i elastic
-#go into elasticsearch container
-sudo docker exec -it  ${NAME_HERE} /bin/bash
-#ignore cert issues with our self signed cert:
-echo "xpack.security.http.ssl.verification_mode: certificate" >> config/elasticsearch.yml
-#reset in the container:
-#add a -f if needed
-elasticsearch-reset-password -v -u elastic -i --url https://localhost:9200
-```
-If the elasticsearch-reset-password is not available in your version of elasticsearch, you may be able to try recreating the container with a newer version of LME and running the same above steps. We have not tested this last suggestion, so attempting this last step won't be supported, but is worth a try if none of the above works.
 
-### Elasticsearch fails to boot on Linux server
-Sometimes environmental differences can make the installation process get screwed up [ISSUE](https://github.com/cisagov/LME/issues/21). If you have the luxury, you could perform a full reinstall: 
-
-If you are unable to access https://<LINUX_SERVER_IP/HOSTNAME>, this is most likely because the elasticsearch service fails to run on the Linux server. To perform a full reinstall: 
+Then you'll need to do the following: 
+1. kill the other containers it lists manually
 ```
-cd /opt/lme/Chapter\ 3\ Files/
-sudo ./deploy.sh uninstall
-#delete everything:
-rm -r /opt/lme
-#Reclone the LME repository into /opt/lme/: 
-git clone git@github.com:cisagov/LME.git /opt/lme/
-#Navigate back to Chapter 3 Files: 
-cd /opt/lme/Chapter\ 3\ Files/
-sudo ./deploy.sh install
-#Save credentials, then continue with Chapter 3 installation
+sudo -i podman rm  ff7a6b654913838050360a2cea14fa1fdf5be1d542e5420354ddf03b88a1d2c9
+sudo -i podman rm  bf9cb322d092c13126bd0341a1b9c5e03b475599e6371e82d4d866fb088fc3c4
 ```
-Optionally you could uninstall docker entirely and reinstall it from the deploy.sh script. If you do end up removing Docker this link could be helpful: https://askubuntu.com/a/1021506.
+2. remove other containers that are dead: 
+```
+sudo -i podman ps -a
+sudo podman rm $CONTAINER_ID
+```
+4. restart the `lme.service`
+```
+systemctl restart lme.service
+```
 
-## Chapter 4 and Beyond
+
+### Memory in containers (need more ram//less ram usage)
+If you're on a resource constrained host and need to limit/edit the memory used by the containers add the following into the quadlet file. The following is a git diff showing adding memory into the elasticsearch container. This can be done for any other quadlet as well. 
+
+```bash
+diff --git a/quadlet/lme-elasticsearch.container b/quadlet/lme-elasticsearch.container
+index da3091a..fad3e8b 100644
+--- a/quadlet/lme-elasticsearch.container
++++ b/quadlet/lme-elasticsearch.container
+@@ -22,7 +22,7 @@ Secret=kibana_system,type=env,target=KIBANA_PASSWORD
+ EnvironmentFile=/opt/lme/lme-environment.env
+ Image=localhost/elasticsearch:LME_LATEST
+ Network=lme
+-PodmanArgs=--memory 8gb --network-alias lme-elasticsearch --health-interval=2s
++PodmanArgs= --network-alias lme-elasticsearch --health-interval=2s
+ PublishPort=9200:9200
+ Ulimit=memlock=-1:-1
+ Volume=lme_certs:/usr/share/elasticsearch/config/certs
+```
+
+### JVM heap size TODO finish
+It may be that you have alot of ram to work with and want your container to consume that RAM (especially in the case of elasticsearch running under the Java Virtual Machine. Elasticsearch is written in Java). 
+
+So you'll want to edit the JVM options: [ELASTIC_DOCS_JVM](https://www.elastic.co/guide/en/elasticsearch/reference/current/advanced-configuration.html)
+To do that in the container, you'll want to....
+
+
+## Elastic troubleshooting steps
 
 ### Manual Dashboard Install
 This step should not be required by default, and should only be used if the installer has failed to automatically populate the expected dashboards or if you wish to make use of your own modified version of the supplied visualizations.
 
 Each dashboard and its visualization objects is contained within a NDJSON file (previously JSON) and can be easily imported
 
-You can now import the dashboards by clicking ‘Management’ -> ‘Stack Management’ -> ‘Saved Objects’. Please follow the steps in Figure 4, and the NDJSON files are located in [Chapter 4 Files\dashboards](/Chapter%204%20Files/dashboards).
+You can now import the dashboards by clicking ‘Management’ -> ‘Stack Management’ -> ‘Saved Objects’. Please follow the steps in Figure 4, and the NDJSON files are located in [dashboards/](/dashboards).
 
 
 ![Importing Objects](/docs/imgs/import.png)
@@ -215,11 +191,11 @@ Select "Index Patterns" under Kibana Stack Management:
 
 ![Check Default Index](/docs/imgs/index-patterns.png)
 
-Verify that the "Default" label is set next to the ```winlogbeat-*``` Index pattern:
+Verify that the "Default" label is set next to the ```INDEX_NAME-*``` Index pattern:
 
 ![Check Default Index](/docs/imgs/default-winlogbeat.png)
 
-If this Index pattern is not selected as the default, this can be re-done by clicking on the ```winlogbeat-*``` pattern and then selecting the following option in the subsequent page:
+If this Index pattern is not selected as the default, this can be re-done by clicking on the ```INDEX_NAME-*``` pattern and then selecting the following option in the subsequent page:
 
 ![Set Default Index](/docs/imgs/default-index-pattern.png)
 
@@ -280,15 +256,6 @@ Note that this will need to be run for each index that contains problematic data
 
 For security the self-signed certificates generated for use by LME at install time will only remain valid for a period of two years, which will cause LME to stop functioning once these certificates expire. In this case the certificates can be recreated by following the instructions detailed [here](/docs/markdown/maintenance/certificates.md#regenerating-self-signed-certificates).
 
-### Dashboard Update Script Failing
-
-If you encounter an error when the dashboards are updated using the dashboard update script, either manually or as part of automatic updates, this may mean that your current version of Elastic is too old to support the minimum functionality required for the new dashboard versions. Ensure that the latest supported version of the Elastic stack is in use with the following command:
-```
-cd /opt/lme/Chapter\ 1\ Files/
-sudo ./deploy.sh update
-```
-Then upload the latest dashboards by following one of the methods described [here](/docs/markdown/chapter4.md#411-import-initial-dashboards).
-
 
 ## Other Common Errors
 
@@ -302,13 +269,14 @@ LME currently runs using the docker stack deployment architecture.
 
 To Stop LME: 
 ```
-sudo docker stack rm lme
+sudo systemctl stop lme.service
 ```
 
 To Start LME:
 ```
-sudo docker stack deploy lme --compose-file /opt/lme/Chapter\ 3\ Files/docker-compose-stack-live.yml
+sudo systemctl restart lme.service
 ```
+
 ## Using API
 
 ### Changing elastic Username Password
