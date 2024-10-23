@@ -153,6 +153,51 @@ timestamp_field: "@timestamp"
 
 This specifies that the rule should use the "@timestamp" field to determine the time of events.
 
+Using email might look something like this:
+
+```
+name: Windows Event Logs Cleared
+type: any
+index: logs-*
+filter:
+  - query:
+      bool:
+        must:
+          - terms:
+              event.action: ["audit-log-cleared", "Log clear"]
+          - term:
+              winlog.api: "wineventlog"
+        must_not:
+          - term:
+              winlog.provider_name: "AD FS Auditing"
+alert:
+  - "email"
+# Email alert details
+email:
+  - "recipient@example.com"  # Can add multiple email addresses
+from_addr: "alerting@yourdomain.com"
+smtp_host: "smtp.yourdomain.com"
+smtp_port: 587
+smtp_ssl: true
+smtp_auth_file: '/etc/elastalert/smtp_auth_file.yaml'  # Contains username and password
+# Alert message format
+alert_subject: "Windows Event Logs Cleared Detected!"
+alert_text: |
+  Windows Event Logs Cleared Detected!
+  Host: {0}
+  Event Action: {1}
+  Winlog Provider Name: {2}
+  Timestamp: {3}
+alert_text_args:
+  - host.name
+  - event.action
+  - winlog.provider_name
+  - "@timestamp"
+alert_text_type: alert_text_only
+realert:
+  minutes: 5
+timestamp_field: "@timestamp"
+```
 Again see elast alert 2 documentation to tailor more specific alerts to your needs:
 
 https://elastalert2.readthedocs.io/en/latest/index.html
