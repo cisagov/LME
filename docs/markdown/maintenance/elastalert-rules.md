@@ -8,7 +8,7 @@ name: Windows Event Logs Cleared
 # Type of rule
 type: any
 
-# Index pattern to search
+# Index pattern to search another example could be wazuh-*
 index: logs-*
 
 # Elasticsearch query in DSL format
