@@ -181,12 +181,16 @@ ansible-playbook ./ansible/install_lme_local.yml
 This assumes that you have the repo in `~/LME/`. 
 
 If you don't, you can pass the `CLONE_DIRECTORY` variable to the playbook. 
-```
+```bash
 ansible-playbook ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
 ```
-**PLEASE NOTE KEY DIRECTORIES AND FILE PERMISSIONS HERE: [LINK](#notes-on-folders-permissions-and-service)**
+**If you have issues accessing a file or directory, please not permissions and notes on folder structure here [LINK](#notes-on-folders-permissions-and-service)**
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
+```bash
+ansible-playbook -K ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
+```
+In the `BECOME password` prompt enter the password for your user you would normally give `sudo`, so the playbook is able to sudo as expected.
 
 #### Steps performed in automated install: 
 
