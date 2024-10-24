@@ -28,6 +28,17 @@ def dashboard_test_function (driver, kibana_url, timeout, dashboard_id, panel_ti
     expected_cond = EC.presence_of_element_located((By.CSS_SELECTOR, f"{panel_content_selector}, {no_results_selector}"))
     WebDriverWait(driver, timeout).until(expected_cond)
     
+    errorbuttonxpath = f'//div[@data-title="{panel_title}"]//*/button[@class="euiButton lnsWorkspaceWarning__button css-bfgexf-euiButtonDisplay-m-base-danger"]'
+    
+    #Check if red panel error button is present
+    try:
+        error_button = driver.find_element(By.XPATH, errorbuttonxpath)
+        val = error_button.is_displayed()
+        if (val):
+            assert 1==0 ,"Red panel error button is present"
+    except NoSuchElementException:
+        assert 1==1 , "Red Panel error button is not present"
+                                
 
     # Check if the panel content is present
     try:

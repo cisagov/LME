@@ -17,7 +17,7 @@ class TestBasicLoading:
     #     driver.quit()  # Clean up the browser (driver) here
 
 
-    @pytest.mark.skip(reason="This test isn't working for 2.0 yet")
+    #@pytest.mark.skip(reason="This test isn't working for 2.0 yet")
     def test_title(self, setup_login, kibana_url, timeout):
         driver = setup_login
         driver.get(f"{kibana_url}/app/dashboards")
@@ -26,10 +26,10 @@ class TestBasicLoading:
         WebDriverWait(driver, timeout).until(expected_cond)
         assert driver.title == "Dashboards - Elastic"
 
-    @pytest.mark.skip(reason="This test isn't working for 2.0 yet")
+    #@pytest.mark.skip(reason="This test isn't working for 2.0 yet")
     def test_dashboard_menu(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
+        dashboard_id = "614a8392-17b5-49c4-9397-bc3cac526c61"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
         WebDriverWait(driver, timeout).until(expected_cond)
