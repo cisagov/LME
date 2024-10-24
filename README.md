@@ -9,21 +9,18 @@
 
 Logging Made Easy (LME) is a free, open-source platform developed by CISA to centralize log collection, enhance threat detection, and enable real-time alerting, helping organizations of all sizes secure their infrastructure. LME offers a seamless user experience, integrating Wazuh and Elastic tools to improve detection accuracy and enable endpoint security. 
 
-Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security with a range of advanced features:
-
-- **Enhanced Threat Detection and Response**: Integrates Wazuh’s open-source tools and Elastic Fleet for improved detection accuracy and faster response times. We have also introduced ElastAlert into our stack to support to provide real-time alerting capabilities
-- **Security by Design**: Utilizes containerization and encryption to meet the highest security standards.
-- **Simplified Installation**: Ansible scripts automate deployment for faster setup and easier maintenance.
-- **Custom Data Visualization**: Create personalized dashboards for tailored monitoring.
-- **Comprehensive Testing**: Expanded unit testing and threat emulation ensure system stability and reliability.
-
+Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security.
 
 ## Updates: 
 
-With our LME 2.0 release, we’re introducing several new features and architectural components:
-  - LME now provides organizations with SIEM capabilities to enhance event management, threat detection, and alerting.
-  - The LME team simplified the installation process and created clear instructions on what to download and which configurations to use.
-  - Ansible scripts to automate the install and also provide detailed steps for users that want to manually install.
+With our 2.0 release, we’re introducing several new features and architectural components to improve Security Information and Event Management (SIEM) capabilities while simplifying overall use of LME:
+
+- **Enhanced Threat Detection and Response**: We've integrated Wazuh’s and Elastic's open-source tools, along with ElastAlert, for improved detection accuracy and real-time alerting. 
+- **Security by Design**: Introduced Podman containerization and encryption to meet the highest security standards.
+- **Simplified Installation**: Added Ansible scripts to automate deployment for faster setup and easier maintenance.
+- **Custom Data Visualization**: Design and customize dashboards with Kibana to meet specific monitoring needs.
+- **Comprehensive Testing**: Expanded unit testing and threat emulation ensure system stability and reliability.
+
 
 LME 2.0 is still in development, and version 2.1 will address scaling out the deployment.
 
