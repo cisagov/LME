@@ -28,7 +28,11 @@ This guide will walk you through the process of installing Sysmon (System Monito
    ```
 3. Run the following command to install Sysmon with the SwiftOnSecurity configuration:
    ```
+<<<<<<< HEAD
    sysmon -accepteula -i sysmonconfig-export.xml
+=======
+   sysmon64.exe -accepteula -i sysmonconfig-export.xml
+>>>>>>> release-2.0.0
    ```
 
 ## Step 4: Verify Installation
@@ -46,7 +50,11 @@ To update the Sysmon configuration in the future:
 3. Navigate to the Sysmon folder.
 4. Run the following command:
    ```
+<<<<<<< HEAD
    sysmon -c sysmonconfig-export.xml
+=======
+   sysmon64.exe -c sysmonconfig-export.xml
+>>>>>>> release-2.0.0
    ```
 
 ## Uninstalling Sysmon
@@ -57,10 +65,18 @@ If you need to uninstall Sysmon:
 2. Navigate to the Sysmon folder.
 3. Run the following command:
    ```
+<<<<<<< HEAD
    sysmon -u
+=======
+   sysmon64.exe -u
+>>>>>>> release-2.0.0
    ```
 
 ## Additional Notes
 
 - You can now enable sysmon log collection from the Windows elastic agent integration.
+<<<<<<< HEAD
 - Use a shared folder, SCCM, GPO's, or other tools to install are large quantities of machines.
+=======
+- Use a shared folder, SCCM, GPO's, or other tools to install are large quantities of machines.
+>>>>>>> release-2.0.0

@@ -49,6 +49,7 @@ LME is suited for for:
 -   [Deploying Agents:](#deploying-agents)
 -   [Password Encryption:](#password-encryption)
 -   [Further Documentation & Upgrading:](#documentation)
+-   [Uninstall (if you want to remove LME):](#uninstall)
 
 ## Pre-Requisites
 If you are unsure you meet the pre-requisites to installing LME, please read our [prerequisites documentation](/docs/markdown/prerequisites.md).
@@ -199,6 +200,22 @@ This also assumes your user can sudo without a password. If you need to input a 
  
 3. the master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
 
+4. lme.service is a KICK START systemd service. It will always succeed and is designed so that the other lme services can be stopped and restarted by stopping/restarting lme.service.
+For example, to stop all of lme: 
+```bash
+sudo -i systemctl stop lme.service
+```
+
+To restart all of lme: 
+```bash
+sudo -i systemctl restart lme.service
+```
+
+To start all of lme:
+```bash
+sudo -i systemctl start lme.service
+```
+
 
 ### Verification post install:
 Make sure to use `-i` to run a login shell with any commands that run as root, so environment variables are set properly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
@@ -209,34 +226,41 @@ sudo systemctl  daemon-reload
 sudo systemctl list-unit-files lme\*
 ```
 
-Debug if necessary:
+Debug if necessary. The first step is to check the status of individual services listed above:
 ```bash
 #if something breaks use this to see what goes on:
-sudo -i journalctl -xu lme.service
-#or sub in whatever service you want
+SERVICE_NAME=lme-elasticsearch.service
+sudo -i journalctl -xu $SERVICE_NAME
+```
 
+If somehting is broken try restarting the services and making sure failed services reset before starting:
+```bash
 #try resetting failed: 
 sudo -i systemctl  reset-failed lme*
 sudo -i systemctl  restart lme.service
-
-#also try inspecting container logs: 
-$CONTAINER_NAME=lme-elasticsearch #change this to your container name you want to monitor lme-kibana, etc...
-sudo -i podman logs -f $CONTAINER_NAME
 ```
 
-2. Check conatiners are running and healthy:
+2. Check conatiners are running and healthy. this is also how to print out the container names!
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
 ```  
 
 example output: 
 ```shell
-lme-elasticsearch Up 2 hours (healthy)
-lme-kibana Up 2 hours (healthy)
-lme-wazuh-manager Up About an hour
-lme-fleet-server Up 50 minutes
+lme-elasticsearch Up 19 hours (healthy)
+lme-wazuh-manager Up 19 hours
+lme-kibana Up 19 hours (healthy)
+lme-fleet-server Up 19 hours
+lme-elastalert2 Up 17 hours
 ```
-We are working on getting health check commands for wazuh and fleet, currently they are not integrated
+This also prints the names of the containers in the first column of text on the left. You'll want the container names
+
+If a container is missing you can check its logs here: 
+```bash
+#also try inspecting container logs: 
+$CONTAINER_NAME=lme-elasticsearch #change this to your container name you want to monitor lme-kibana, etc...
+sudo -i podman logs -f $CONTAINER_NAME
+```
 
 3. Check you can connect to elasticsearch
 ```bash
@@ -253,8 +277,169 @@ ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
 #https://localhost:8080
 ```
 
-### To Uninstall: 
 
+### Other Post install setup: 
+A few other things are needed and you're all set to go. 
+1. setting up fleet
+2. fixing a few issues with wazuh (in a future release this won't be necessary)
+3. setting up custom LME dashboards
+4. setting up wazuh's dashboards
+5. setting up a read only user for analysts to connect and query LME's data
+
+Luckily we've packed this in a script for you. Before running it we want to make sure our podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
+```bash
+lme-user@ubuntu:~/LME-TEST$ sudo -i podman ps --format "{{.Names}} {{.Status}}"
+lme-elasticsearch Up 49 minutes (healthy)
+lme-wazuh-manager Up 48 minutes
+lme-kibana Up 36 minutes (healthy)
+lme-fleet-server Up 35 minutes
+```
+
+If you see something like the above you're good to go to run the command. The services need to be running when you execute this playbook, it makes api calls to the kibana, fleet, and wazuh services.
+```
+ansible-playbook ./ansible/post_install_local.yml
+```
+
+**IMPORTANT**: the post install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in elasticsearch, but don't need access to administrator functionality.
+The end of the script will output the password of hte read only user... be sure to save that somewhere.
+
+Heres an example where the password is `oz9vLny0fB3HA8S2hH!FLZ06TvpaCq`. Every time this script is run that password for the readonly user will be changed, so be careful to make sure you only run this when you need to, ideally one time.
+```bash
+TASK [DISPLAY NEW READONLY USER PASSWORD] ***************************************************************************************************************************************
+ok: [localhost] => {
+    "msg": "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: oz9vLny0fB3HA8S2hH!FLZ06TvpaCq"
+    }
+    
+    PLAY RECAP **********************************************************************************************************************************************************************
+    localhost                  : ok=27   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0
+    
+```
+
+#### Verify post install: 
+
+Run the following commands to check `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
+```bash
+sudo -i 
+ls -al /opt/lme/FLEET_SETUP_FINISHED
+ls -al /opt/lme/dashboards/elastic/INSTALLED
+ls -al /opt/lme/dashboards/wazuh/INSTALLED
+```
+
+which should look like the following: 
+```bash
+root@ubuntu:~# ls -al /opt/lme/FLEET_SETUP_FINISHED
+-rw-r--r-- 1 root root 0 Oct 21 18:41 /opt/lme/FLEET_SETUP_FINISHED
+root@ubuntu:~# ls -al /opt/lme/dashboards/elastic/INSTALLED
+-rw-r--r-- 1 root root 0 Oct 21 18:44 /opt/lme/dashboards/elastic/INSTALLED
+root@ubuntu:~# ls -al /opt/lme/dashboards/wazuh/INSTALLED
+-rw-r--r-- 1 root root 0 Oct 21 19:01 /opt/lme/dashboards/wazuh/INSTALLED
+```
+
+## Deploying Agents: 
+We have seperate guides on deploying Wazuh and Elastic in seperate docs, please see links below:
+Eventually these steps will be more automated in a future release. 
+
+##### - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
+##### - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
+
+### Installing Sysmon on Windows Clients:
+
+Sysmon provides valuable logs for windows computers. For each of your windows client machines, install Sysmon like so:
+
+1. Download Logging Made Easy and unzip the folder. 
+2. From inside the unzipped folder, run the following command in Administrator Powershell:
+```
+.\scripts\install_sysmon.ps1
+```
+
+## Password Encryption:
+Password encryption is enabled using ansible-vault to store all lme user and lme service user passwords at rest.
+We do submit a hash of the password to Have I been pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs), but since they're all randomly generated this should be RARE.
+
+### where are passwords stored?:
+```bash
+# Define user-specific paths
+USER_VAULT_DIR="/etc/lme/vault"
+PASSWORD_FILE="/etc/lme/pass.sh"
+```
+
+### grabbing passwords: 
+To view the appropriate service user password run the following commands:
+```
+#script:
+$CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
+
+#add them as variables to your current shell
+source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
+source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
+```
+
+### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
+**These steps are not fully supported and are left if others would like to support this in their environment**
+
+Run the password_management.sh script:
+```bash
+lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
+-i: Initialize all password environment variables and settings
+-s: set_user: Set user password
+-p: Manage Podman secret
+-l: List Podman secrets
+-h: print this list
+```
+
+A cli oneliner to grab passwords (this also demonstrates how we're using ansible-vault in extract_secrets.sh):
+```bash
+#where wazuh_api is the service user whose password you want:
+USER_NAME=wazuh_api
+sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USER_NAME | awk '{print $1}')
+```
+
+# Documentation: 
+
+## Logging Guidance
+ - [LME in the CLOUD](/docs/markdown/logging-guidance/cloud.md)
+ - [Log Retention](/docs/markdown/logging-guidance/retention.md)
+ - [Filtering](/docs/markdown/logging-guidance/filtering.md)
+
+## Reference: 
+ - [FAQ](/docs/markdown/reference/faq.md) 
+ - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
+ - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md) *TODO*: update with new 2.0 dashboard descriptions
+ - [Security Model](/docs/markdown/reference/security-model.md)
+
+## Maintenance:
+ - [Backups](/docs/markdown/maintenance/backups.md)  
+ - [Certificates](/docs/markdown/maintenance/certificates.md) 
+ - [Encryption at rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
+ - Data management:
+   - [Index Management](/docs/markdown/maintenance/index-management.md)
+   - [Volume Management](/docs/markdown/maintenance/volume-management.md)
+ - Upgrading:
+   - [Upgrading 1x -> 2x](/scripts/upgrade/README.md) 
+   - [Upgrading future 2.X](/docs/markdown/maintenance/upgrading.md)
+
+## Agents: 
+This is documentatino on agent configuration and management
+ - [Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
+ - Wazuh:
+   - [Wazuh Configuration](/docs/markdown/maintenance/wazuh-configuration.md)
+   - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
+   - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
+    
+## endpoint tools:
+In order to make best use of the agents, they need to be complemented by utilities to generate forensically relevant data to analyze and support detections.
+Look at adding them to Windows/Linux
+
+### Windows:
+ - [Sysmon (manual install)](/docs/markdown/endpoint-tools/install-sysmon.md)
+### Linux:
+ - [Auditd](/docs/markdown/endpoint-tools/install-auditd.md)
+
+# Uninstall
+This walks through how to completely uninstall LME's services and data. 
+
+The dependencies will not be removed this way, if desired we can add that to the documentation, and you can consult the ansible scripts to see what was installed, and remove the created directories.
+ 
 To uninstall everything: 
 **WARNING THIS WILL DELETE EVERYTHING!!!**
 ``` bash
@@ -283,140 +468,15 @@ To delete all volumes:
 sudo -i podman volume rm -a
 ```
 **WARNING THIS WILL DELETE EVERYTHING!!!**
-
-## Installing Sysmon on Windows Clients:
-
-Sysmon provides valuable logs for windows computers. For each of your windows client machines, install Sysmon like so:
-
-1. Download Logging Made Easy and unzip the folder. 
-2. From inside the unzipped folder, run the following command in Administrator Powershell:
-```
-.\scripts\install_sysmon.ps1
-```
-
-### Other Post install setup: 
-A few other things are needed and you're all set to go. 
-1. setting up fleet
-2. fixing a few issues with wazuh (in a future release this won't be necessary)
-3. setting up custom LME dashboards
-4. setting up wazuh's dashboards
-5. setting up a read only user for analysts to connect and query LME's data
-
-Luckily we've packed this in a script for you. Before running it we want to make sure our podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
-```bash
-lme-user@ubuntu:~/LME-TEST$ sudo -i podman ps --format "{{.Names}} {{.Status}}"
-lme-elasticsearch Up 49 minutes (healthy)
-lme-wazuh-manager Up 48 minutes
-lme-kibana Up 36 minutes (healthy)
-lme-fleet-server Up 35 minutes
-```
-
-If you see something like the above you're good to go to run the command:
-```
-ansible-playbook ./ansible/post_install_local.yml
-```
-
-You'll see the following in the `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
-```bash
-
-```
-
-## Deploying Agents: 
-We have seperate guides on deploying Wazuh and Elastic in seperate docs, please see links below:
-Eventually these steps will be more automated in a future release. 
-
-##### - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
-##### - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
-
-## Password Encryption:
-Password encryption is enabled using ansible-vault to store all lme user and lme service user passwords at rest.
-We do submit a hash of the password to Have I been pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs)
-
-### where are passwords stored?:
-```bash
-# Define user-specific paths
-USER_VAULT_DIR="/etc/lme/vault"
-PASSWORD_FILE="/etc/lme/pass.sh"
-```
-
-### grabbing passwords: 
-To view the appropriate service user password run the following commands:
-```
-#script:
-$CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
-
-#add them as variables to your current shell
-source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
-source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
-```
-
-#### manually getting passwords:
-```bash
-#where wazuh_api is the service user whose password you want:
-USER_NAME=wazuh_api
-sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USER_NAME | awk '{print $1}')
-```
-
-### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
-**These steps are not fully supported and are left if others would like to support this in their environment**
-
-Run the password_management.sh script:
-```bash
-lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
--i: Initialize all password environment variables and settings
--s: set_user: Set user password
--p: Manage Podman secret
--l: List Podman secrets
--h: print this list
-```
-
-# Documentation: 
-
-## Logging Guidance
- - [LME in the CLOUD](/docs/markdown/logging-guidance/cloud.md)
- - [Log Retention](/docs/markdown/logging-guidance/retention.md)
- - [Filtering](/docs/markdown/logging-guidance/filtering.md)
-
-## Reference: 
- - [FAQ](/docs/markdown/reference/faq.md) 
- - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
- - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md) *TODO*: update with new 2.0 dashboard descriptions
- - [Security Model](/docs/markdown/reference/security-model.md)
-
-## Maintenance:
- - [Backups](/docs/markdown/maintenance/backups.md)  *TODO:* update with new directions for how to backup
- - [Certificates](/docs/markdown/maintenance/certificates.md) 
- - [Encryption at rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
- - Data management:
-   - [Index Management](/docs/markdown/maintenance/index-management.md)
-   - [Volume Management](/docs/markdown/maintenance/volume-management.md)
- - Upgrading:
-   - [Upgrading 1x -> 2x](/scripts/upgrade/README.md) 
-   - [Upgrading future 2.X](/docs/markdown/maintenance/upgrading.md)
-
-## Agents: 
-This is documentation on agent configuration and management
- - [Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
- - Wazuh:
-   - [Wazuh Configuration](/docs/markdown/maintenance/wazuh-configuration.md)
-   - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
-   - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
-    
-## endpoint tools:
-In order to make best use of the agents, they need to be complemented by utilities to generate forensically relevant data to analyze and support detections.
-Look at adding them to Windows/Linux
-
-### Windows:
- - [Sysmon](/docs/markdown/endpoint-tools/install-sysmon.md)
-### Linux:
- - [Sysmon](/docs/markdown/endpoint-tools/install-auditd.md)
-
-# Developer notes:
  
+# Developer notes:
 Git clone and git checkout your development branch on the server:
+
 ```bash
 git clone https://github.com/cisagov/LME.git
 cd LME
 git checkout YOUR_BRANCH_NAME_HERE
 ```
+
+Once you've gotten your changes/updates added, please submit a pull request following our  [guidelines](/CONTRIBUTING.md)
 

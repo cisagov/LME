@@ -266,6 +266,7 @@ sudo curl -X POST "https://127.0.0.1:9200/_security/user/elastic/_password" -H "
 {
   "password" : "newpassword"
 }' --cacert /opt/lme/Chapter\ 3\ Files/certs/root-ca.crt -u elastic:currentpassword
+>>>>>>> release-2.0.0
 ```
 
 ## Issues installing Elastic Agent
