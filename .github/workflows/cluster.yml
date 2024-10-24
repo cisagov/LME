@@ -82,7 +82,7 @@ jobs:
               cd /home/lme-user/LME/testing/v2/installers && \
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
-                -s 0.0.0.0/0 \
+                -s ${{ env.IP_ADDRESS }}/32 \
                 -vs Standard_D8_v4 \
                 -l centralus \
                 -ast 23:00 \
@@ -251,7 +251,7 @@ jobs:
         env:
           ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
-          sleep 120
+          sleep 360
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
@@ -265,9 +265,7 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
             echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
             echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
             echo elastic=\"$ES_PASSWORD\" >> .env && \
@@ -282,14 +280,12 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
             echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
             echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
             echo elastic=\"$ES_PASSWORD\" >> .env && \
             source venv/bin/activate && \
-            pytest -v  selenium_tests/'
+            pytest -v selenium_tests/'
           "
     
       - name: Cleanup Azure resources
