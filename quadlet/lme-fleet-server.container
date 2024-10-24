@@ -1,51 +1,29 @@
-# lme-wazuh-manager.container
+# lme-fleet-server.container
 [Unit]
-Description=Wazuh Container Service
-After=lme-elasticsearch.service
+Description=Fleet Container Service
 Requires=lme-elasticsearch.service
+After=lme-elasticsearch.service lme-kibana.service
 PartOf=lme.service
 
 [Service]
 Restart=always
-LimitNOFILE=655360
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 
 [Install]
 WantedBy=default.target lme.service
 
 [Container]
-ContainerName=lme-wazuh-manager
-Environment=INDEXER_URL=https://lme-elasticsearch:9200  FILEBEAT_SSL_VERIFICATION_MODE=full SSL_CERTIFICATE_AUTHORITIES=/etc/wazuh-manager/certs/ca/ca.crt SSL_CERTIFICATE=/etc/wazuh-manager/certs/wazuh-manager/wazuh-manager.crt SSL_KEY=/etc/wazuh-manager/certs/wazuh-manager/wazuh-manager.key
+ContainerName=lme-fleet-server
+Environment=FLEET_ENROLL=1 FLEET_SERVER_POLICY_ID=fleet-server-policy FLEET_SERVER_ENABLE=1 KIBANA_FLEET_SETUP=1 KIBANA_HOST=https://lme-kibana:5601 FLEET_URL=https://lme-fleet-server:8220 FLEET_SERVER_ELASTICSEARCH_HOST=https://lme-elasticsearch:9200 FLEET_CA=/certs/ca/ca.crt  FLEET_SERVER_CERT=/certs/fleet-server/fleet-server.crt FLEET_SERVER_CERT_KEY=/certs/fleet-server/fleet-server.key FLEET_SERVER_ELASTICSEARCH_CA=/certs/ca/ca.crt KIBANA_FLEET_CA=/certs/ca/ca.crt NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 EnvironmentFile=/opt/lme/lme-environment.env
-Secret=wazuh,type=env,target=WAZUH_PASSWORD
-Secret=wazuh_api,type=env,target=API_PASSWORD
-Secret=elastic,type=env,target=INDEXER_PASSWORD
-HostName=wazuh-manager
-Image=localhost/wazuh-manager:LME_LATEST
+Secret=elastic,type=env,target=KIBANA_FLEET_PASSWORD
+Image=localhost/elastic-agent:LME_LATEST
 Network=lme
-PodmanArgs=--network-alias lme-wazuh-manager --health-interval=30s --health-timeout=10s --health-retries=5 --health-start-period=120s
-PublishPort=1514:1514
-PublishPort=1515:1515
-PublishPort=514:514/udp
-PublishPort=55000:55000
-Ulimit=memlock=-1:-1
-#Set above, leaving here for posterity, systemctl doesn't allow containers to set ulimits
-#Ulimit=nofile=655360:655360
-Volume=lme_wazuh_api_configuration:/var/ossec/api/configuration
-Volume=lme_wazuh_etc:/var/ossec/etc
-Volume=lme_wazuh_logs:/var/ossec/logs
-Volume=lme_wazuh_queue:/var/ossec/queue
-Volume=lme_wazuh_logs:/var/ossec/logs
-Volume=lme_wazuh_var_multigroups:/var/ossec/var/multigroups
-Volume=lme_wazuh_integrations:/var/ossec/integrations
-Volume=lme_wazuh_active_response:/var/ossec/active-response/bin
-Volume=lme_wazuh_agentless:/var/ossec/agentless
-Volume=lme_wazuh_wodles:/var/ossec/wodles
-Volume=lme_filebeat_etc:/etc/filebeat
-Volume=lme_filebeat_var:/var/lib/filebeat
-Volume=/opt/lme/config/wazuh_cluster/wazuh_manager.conf:/wazuh-config-mount/etc/ossec.conf
-Volume=lme_certs:/etc/wazuh-manager/certs:ro
-Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
-UserNS=auto:uidmapping=0:174680:3048,gidmapping=0:174680:3048
-HealthCmd=CMD-SHELL curl -k -s -o /dev/null -w "%{http_code}" https://localhost:55000 | grep 401
-Notify=healhy
+HostName=lme-fleet-server
+PodmanArgs=--network-alias lme-fleet-server --requires 'lme-elasticsearch,lme-kibana'
+PublishPort=8220:8220
+Volume=lme_certs:/certs:ro
+Volume=lme_fleet_data:/usr/share/elastic-agent
+UserNS=auto:uidmapping=0:171632:3048,gidmapping=0:171632:3048
+HealthCmd=CMD-SHELL curl -s --cacert /certs/ca/ca.crt https://localhost:8220/api/status | grep '"status":"HEALTHY"'
+Notify=healthy
