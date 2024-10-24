@@ -49,7 +49,7 @@ LME is suited for for:
 -   [Deploying Agents:](#deploying-agents)
 -   [Password Encryption:](#password-encryption)
 -   [Further Documentation & Upgrading:](#documentation)
--   [Uninstall (if desired):](#uninstall)
+-   [Uninstall (if you want to remove LME):](#uninstall)
 
 ## Pre-Requisites
 If you are unsure you meet the pre-requisites to installing LME, please read our [prerequisites documentation](/docs/markdown/prerequisites.md).
@@ -279,7 +279,6 @@ ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
 ```
 
 
-
 ### Other Post install setup: 
 A few other things are needed and you're all set to go. 
 1. setting up fleet
@@ -344,6 +343,16 @@ Eventually these steps will be more automated in a future release.
 ##### - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
 ##### - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
 
+### Installing Sysmon on Windows Clients:
+
+Sysmon provides valuable logs for windows computers. For each of your windows client machines, install Sysmon like so:
+
+1. Download Logging Made Easy and unzip the folder. 
+2. From inside the unzipped folder, run the following command in Administrator Powershell:
+```
+.\scripts\install_sysmon.ps1
+```
+
 ## Password Encryption:
 Password encryption is enabled using ansible-vault to store all lme user and lme service user passwords at rest.
 We do submit a hash of the password to Have I been pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs), but since they're all randomly generated this should be RARE.
@@ -366,13 +375,6 @@ source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
 source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
 ```
 
-#### manually getting passwords:
-```bash
-#where wazuh_api is the service user whose password you want:
-USER_NAME=wazuh_api
-sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USER_NAME | awk '{print $1}')
-```
-
 ### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
 **These steps are not fully supported and are left if others would like to support this in their environment**
 
@@ -384,6 +386,13 @@ lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
 -p: Manage Podman secret
 -l: List Podman secrets
 -h: print this list
+```
+
+A cli oneliner to grab passwords (this also demonstrates how we're using ansible-vault in extract_secrets.sh):
+```bash
+#where wazuh_api is the service user whose password you want:
+USER_NAME=wazuh_api
+sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USER_NAME | awk '{print $1}')
 ```
 
 # Documentation: 
@@ -423,11 +432,14 @@ In order to make best use of the agents, they need to be complemented by utiliti
 Look at adding them to Windows/Linux
 
 ### Windows:
- - [Sysmon](/docs/markdown/endpoint-tools/install-sysmon.md)
+ - [Sysmon (manual install)](/docs/markdown/endpoint-tools/install-sysmon.md)
 ### Linux:
- - [Sysmon](/docs/markdown/endpoint-tools/install-auditd.md)
+ - [Auditd](/docs/markdown/endpoint-tools/install-auditd.md)
 
 # Uninstall
+This walks through how to completely uninstall LME's services and data. 
+
+The dependencies will not be removed this way, if desired we can add that to the documentation, and you can consult the ansible scripts to see what was installed, and remove the created directories.
  
 To uninstall everything: 
 **WARNING THIS WILL DELETE EVERYTHING!!!**
@@ -459,11 +471,13 @@ sudo -i podman volume rm -a
 **WARNING THIS WILL DELETE EVERYTHING!!!**
  
 # Developer notes:
- 
 Git clone and git checkout your development branch on the server:
+
 ```bash
 git clone https://github.com/cisagov/LME.git
 cd LME
 git checkout YOUR_BRANCH_NAME_HERE
 ```
+
+Once you've gotten your changes/updates added, please submit a pull request following our  [guidelines](/CONTRIBUTING.md)
 
