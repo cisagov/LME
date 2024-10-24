@@ -59,7 +59,6 @@ If you really want to try to run with less than 16gb ram or at a minimum amount 
 ## Architecture:
 LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh’s Manager and Agent with Elastic to provide comprehensive log collection, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and will enable seamless scaling to meet your organization’s evolving security and logging requirements.
 
-
 ### Diagram: 
 
 ![diagram](/docs/imgs/lme-architecture-v2.jpg)
@@ -133,7 +132,7 @@ curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.asset
 ***Developer Note: if you're looking to develop LME, its suggested you `git clone` rather than downloading, please see our [DEV docs](#developer-notes)***
 
 ### Operating system: **Ubuntu 22.04**:
-Make sure you run an install on ubuntu 22.04, thats the operating system which has been tested the most. 
+Make sure you run an install on ubuntu 22.04, that's the operating system which has been tested the most. 
 In theory, you can install LME on any nix... but we've only tested and run installs on 22.04.
 
 ### Configuration
@@ -184,7 +183,7 @@ This also assumes your user can sudo without a password. If you need to input a 
 3. Setup [Nix](https://nixos.org/): nix is the opensource package manager we use to install the latest version of podman
 4. set service user passwords: actually sets the service user passwords that are encrypted according to the [security model](/docs/markdown/reference/security-model.md)
 5. Install Quadlets: the quadlet files are setup in the directories described below to be setup as systemd services
-6. Setup Containers for root: The contianers listed in `$clone_directory/config/containers.txt` will be pulled and tagged
+6. Setup Containers for root: The containers listed in `$clone_directory/config/containers.txt` will be pulled and tagged
 7. Start lme.service: kicks of the start of LME service containers
 
 #### NOTES:
@@ -202,7 +201,7 @@ This also assumes your user can sudo without a password. If you need to input a 
 
 
 ### Verification post install:
-Make sure to use `-i` to run a login shell with any commands that run as root, so environment varialbes are set proprerly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
+Make sure to use `-i` to run a login shell with any commands that run as root, so environment variables are set properly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
 
 1. Confirm services are installed: 
 ```bash
@@ -396,7 +395,7 @@ lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
    - [Upgrading future 2.X](/docs/markdown/maintenance/upgrading.md)
 
 ## Agents: 
-This is documentatino on agent configuration and management
+This is documentation on agent configuration and management
  - [Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
  - Wazuh:
    - [Wazuh Configuration](/docs/markdown/maintenance/wazuh-configuration.md)
