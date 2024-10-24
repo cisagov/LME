@@ -114,7 +114,7 @@ LME has setup [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.ht
 [Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
 
 ## Installing LME:
-LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. You can follow our [installation video](TODO LINK HERE) for further guidance.
+LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. Our installation guide video is coming soon. When the video is released, you will find the link to it here. 
 These steps will guide you through setting up LME on your Ubuntu 22.04 server, ensuring a smooth and secure deployment.
 
 **Please ensure you follow all the configuration steps required below.**
