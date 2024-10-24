@@ -5,6 +5,11 @@ CONFIG_DIR="/usr/share/elasticsearch/config"
 CERTS_DIR="${CONFIG_DIR}/certs"
 INSTANCES_PATH="${CONFIG_DIR}/setup/instances.yml"
 
+if [[ -z "${ELASTIC_PASSWORD:-}" || -z "${KIBANA_PASSWORD:-}" ]]; then
+  echo "ERROR: ELASTIC_PASSWORD and/or KIBANA_PASSWORD are missing."
+  exit 1
+fi
+
 if [ ! -f "${CERTS_DIR}/ACCOUNTS_CREATED" ]; then
   echo "Waiting for Elasticsearch availability";
   until curl -s --cacert config/certs/ca/ca.crt https://lme-elasticsearch:9200 | grep -q "missing authentication credentials"; do echo "WAITING"; sleep 30; done;

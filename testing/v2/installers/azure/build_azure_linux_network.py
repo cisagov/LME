@@ -3,6 +3,7 @@ import argparse
 import os
 import string
 import random
+import re
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.devtestlabs import DevTestLabsClient
@@ -50,6 +51,7 @@ def get_default_subscription_id(credential=None):
 
     # Use the first subscription in the list
     return subscription_list[0].subscription_id
+
 
 
 def create_clients(subscription_id):
@@ -112,9 +114,17 @@ def set_network_rules(
         print(f"Network rule '{nsg_rule.name}' created successfully.")
 
 
+
 def create_public_ip(network_client, resource_group, location, machine_name):
     print(f"\nCreating public IP address for {machine_name}")
-    unique_dns_name = f"{machine_name}-{random.randint(1000, 9999)}"
+    
+    # Generate a valid domain name label
+    base_name = re.sub(r'[^a-z0-9-]', '', machine_name.lower())
+    if not base_name[0].isalpha():
+        base_name = 'ip-' + base_name
+    unique_dns_name = f"{base_name}-{random.randint(1000, 9999)}"
+    unique_dns_name = unique_dns_name[:63]  # Ensure it's not longer than 63 characters
+    
     public_ip_params = {
         "location": location,
         "public_ip_allocation_method": "Static",
@@ -211,6 +221,91 @@ def save_to_parent_directory(filename, content):
     print(f"File saved: {file_path}")
 
 
+def create_windows_server(
+    compute_client,
+    network_client,
+    resource_group,
+    location,
+    vm_admin,
+    vm_password,
+    vnet_name,
+    subnet_name,
+    nsg_name,
+    project,
+    today,
+    current_user,
+    subscription_id  
+):
+    server_name = "ws1"  
+    print(f"\nCreating Windows Server {server_name}...")
+
+    # Create public IP address using the existing function
+    public_ip = create_public_ip(network_client, resource_group, location, server_name)
+
+    # Create NIC using the existing function
+    subnet_id = (
+        f"/subscriptions/{subscription_id}/"
+        f"resourceGroups/{resource_group.name}/"
+        f"providers/Microsoft.Network/"
+        f"virtualNetworks/{vnet_name}/"
+        f"subnets/{subnet_name}"
+    )
+    nsg = network_client.network_security_groups.get(resource_group.name, nsg_name)
+    nic = create_network_interface(
+        network_client,
+        resource_group,
+        location,
+        server_name,
+        subnet_id,
+        "10.1.0.4",  
+        public_ip,
+        nsg.id
+    )
+
+    # Create VM
+    vm_params = {
+        'location': location,
+        'os_profile': {
+            'computer_name': server_name,
+            'admin_username': vm_admin,
+            'admin_password': vm_password
+        },
+        'hardware_profile': {
+            'vm_size': 'Standard_DS1_v2'  # Default size, change if needed
+        },
+        'storage_profile': {
+            'image_reference': {
+                'publisher': 'MicrosoftWindowsServer',
+                'offer': 'WindowsServer',
+                'sku': '2019-Datacenter',
+                'version': 'latest'
+            },
+        },
+        'network_profile': {
+            'network_interfaces': [{
+                'id': nic.id,
+            }]
+        },
+        'tags': {
+            'project': project,
+            'created': today,
+            'createdBy': current_user
+        }
+    }
+
+    try:
+        vm_result = compute_client.virtual_machines.begin_create_or_update(
+            resource_group.name,
+            server_name,
+            vm_params
+        ).result()
+        print(f"Windows Server {server_name} created successfully.")
+        return server_name
+    except Exception as e:
+        print(f"Error creating Windows Server: {str(e)}")
+        return None
+
+
 # All arguments are keyword arguments
 def main(
     *,
@@ -237,6 +332,7 @@ def main(
     os_disk_size_gb: int,
     auto_shutdown_time: str = None,
     auto_shutdown_email: str = None,
+    add_windows_server: bool = False,
 ):
     (
         resource_client,
@@ -442,6 +538,29 @@ def main(
     print(f"Password: {vm_password}")
     print("SAVE THE ABOVE INFO\n")
 
+    # Add Windows server if the flag is set
+    if add_windows_server:
+        print("\nAdding Windows server...")
+        windows_server = create_windows_server(
+            compute_client,
+            network_client,
+            resource_group,
+            location,
+            vm_admin,
+            vm_password,
+            vnet_name,
+            subnet_name,
+            "NSG1",  # nsg_name
+            project,
+            today,
+            current_user,
+            subscription_id  
+        )
+        if windows_server:
+            print(f"Windows Server {windows_server} created successfully.")
+        else:
+            print("Failed to create Windows Server.")
+
     print("Done.")
 
 
@@ -520,23 +639,23 @@ if __name__ == "__main__":
         "--ports",
         type=int,
         nargs="+",
-        default=[22, 443],
-        help="Ports to open. Default: [22, 443]",
+        default=[22, 443, 5601, 9200],
+        help="Ports to open. Default: [22, 443, 5601, 9200]",
     )
     parser.add_argument(
         "-pr",
         "--priorities",
         type=int,
         nargs="+",
-        default=[1001, 1002],
-        help="Priorities for the ports. Default: [1001, 1002]",
+        default=[1001, 1002, 1003, 1004],
+        help="Priorities for the ports. Default: [1001, 1002, 1003, 1004]",
     )
     parser.add_argument(
         "-pt",
         "--protocols",
         nargs="+",
-        default=["Tcp", "Tcp"],
-        help="Protocols for the ports. Default: ['Tcp']",
+        default=["Tcp", "Tcp", "Tcp", "Tcp"],
+        help="Protocols for the ports. Default: ['Tcp', 'Tcp', 'Tcp', 'Tcp']",
     )
     parser.add_argument(
         "-vs",
@@ -590,6 +709,12 @@ if __name__ == "__main__":
         "--auto-shutdown-email",
         help="Auto-shutdown notification email",
     )
+    parser.add_argument(
+        "-w",
+        "--add-windows-server",
+        action="store_true",
+        help="Add a Windows server with default settings",
+    )
 
     args = parser.parse_args()
     check_ports_protocals_and_priorities(
@@ -620,4 +745,5 @@ if __name__ == "__main__":
         os_disk_size_gb=args.os_disk_size_gb,
         auto_shutdown_time=args.auto_shutdown_time,
         auto_shutdown_email=args.auto_shutdown_email,
+        add_windows_server=args.add_windows_server,
     )

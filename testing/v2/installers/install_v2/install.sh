@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
@@ -27,7 +27,7 @@ cd "$SCRIPT_DIR/.."
 ./lib/copy_ssh_key.sh $user $hostname $password_file
 
 echo "Installing ansible"
-ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git'
+ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git && sudo locale-gen en_US.UTF-8 && sudo update-locale'
 
 echo "Checking out code"
 ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git && cd LME && git checkout -t origin/${branch}"
@@ -42,7 +42,7 @@ ssh -o StrictHostKeyChecking=no $user@$hostname << EOF
 EOF
 
 echo "Running ansible installer"
-ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook scripts/install_lme_local.yml"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook ansible/install_lme_local.yml"
 
 echo "Waiting for Kibana and Elasticsearch to start..."
 
@@ -51,14 +51,31 @@ max_attempts=30
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
     if ssh -o StrictHostKeyChecking=no $user@$hostname bash << EOF
-        source /opt/lme/lme-environment.env
+        # Source the environment file as root to get necessary variables
+        sudo bash << SUDO_EOF
+            set -a
+            source /opt/lme/lme-environment.env
+            echo "export IPVAR=\\\${IPVAR}" > /tmp/lme_env
+            echo "export LOCAL_KBN_URL=\\\${LOCAL_KBN_URL}" >> /tmp/lme_env
+            set +a
+SUDO_EOF
+        
+        # Read the exported variables
+        set -a
+        . /tmp/lme_env
+        echo "Exported variables:"
+        cat /tmp/lme_env
+        
+        # Source the secrets
+        . ~/LME/scripts/extract_secrets.sh -q
+
         check_service() {
             local url=\$1
             local auth=\$2
             curl -k -s -o /dev/null -w '%{http_code}' --insecure -u "\${auth}" "\${url}" | grep -q '200'
         }
-        check_service "https://\${IPVAR}:9200" "\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}" && \
-        check_service "\${LOCAL_KBN_URL}" "\${ELASTIC_USERNAME}:\${ELASTICSEARCH_PASSWORD}"
+        check_service "https://\${IPVAR}:9200" "elastic:\${elastic}" && \
+        check_service "\${LOCAL_KBN_URL}" "elastic:\${elastic}"
 EOF
     then
         echo "Both Elasticsearch and Kibana are up!"
@@ -75,11 +92,13 @@ if [ $attempt -eq $max_attempts ]; then
 fi
 
 echo "Running check-fleet script"
-ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh"
+ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh\"'"
 
-echo "Running set-fleet script"
-ssh -o StrictHostKeyChecking=no $user@$hostname ". ~/.bashrc && cd ~/LME && ./scripts/set-fleet.sh"
+#echo "Running set-fleet script"
+#ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/ansible && ansible-playbook set_fleet.yml -e \"debug_mode=true\"'"
 
+echo "Running post install script"
+ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/ansible && ansible-playbook post_install_local.yml -e \"debug_mode=true\"'"
 
 echo "Installation and configuration completed successfully."
 

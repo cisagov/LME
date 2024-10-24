@@ -1,0 +1,53 @@
+name: Windows Event Logs Cleared
+
+# Type of rule
+type: any
+
+# Index pattern to search
+index: logs-*
+
+# Elasticsearch query in DSL format
+filter:
+  - query:
+      bool:
+        must:
+          - terms:
+              event.action: ["audit-log-cleared", "Log clear"]
+          - term:
+              winlog.api: "wineventlog"
+        must_not:
+          - term:
+              winlog.provider_name: "AD FS Auditing"
+
+# Alert when conditions are met
+alert:
+  - "slack"
+
+# Slack alert details
+slack_webhook_url: "https://hooks.slack.com/services/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"
+slack_username_override: "Windows Security Alert"
+slack_msg_color: "danger"
+slack_emoji_override: ":rotating_light:"
+
+# Alert message format
+alert_text: |
+  Windows Event Logs Cleared Detected!
+  Host: {0}
+  Event Action: {1}
+  Winlog Provider Name: {2}
+  Timestamp: {3}
+alert_text_args:
+  - host.name
+  - event.action
+  - winlog.provider_name
+  - "@timestamp"
+
+# Alert text only, without additional metadata
+alert_text_type: alert_text_only
+
+# Frequency for querying Elasticsearch
+realert:
+  minutes: 5
+
+# Optional timestamp field to use for events
+timestamp_field: "@timestamp"
