@@ -46,7 +46,7 @@ To update the Sysmon configuration in the future:
 3. Navigate to the Sysmon folder.
 4. Run the following command:
    ```
-   sysmon64.exe -c sysmonconfig-export.xml
+   sysmon -c sysmonconfig-export.xml
    ```
 
 ## Uninstalling Sysmon
@@ -57,7 +57,7 @@ If you need to uninstall Sysmon:
 2. Navigate to the Sysmon folder.
 3. Run the following command:
    ```
-   sysmon64.exe -u
+   sysmon -u
    ```
 
 ## Additional Notes
