@@ -23,7 +23,7 @@ Secret=elastic,type=env,target=INDEXER_PASSWORD
 HostName=wazuh-manager
 Image=localhost/wazuh-manager:LME_LATEST
 Network=lme
-PodmanArgs=--network-alias lme-wazuh-manager
+PodmanArgs=--network-alias lme-wazuh-manager --health-interval=30s --health-timeout=10s --health-retries=5 --health-start-period=120s
 PublishPort=1514:1514
 PublishPort=1515:1515
 PublishPort=514:514/udp
@@ -47,6 +47,6 @@ Volume=/opt/lme/config/wazuh_cluster/wazuh_manager.conf:/wazuh-config-mount/etc/
 Volume=lme_certs:/etc/wazuh-manager/certs:ro
 Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
 UserNS=auto:uidmapping=0:174680:3048,gidmapping=0:174680:3048
-#TODO: add a health check command
-#HealthCmd=CMD-SHELL curl -I -s --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/1.1 302 Found'
+HealthCmd=CMD-SHELL curl -k -s -o /dev/null -w "%{http_code}" https://localhost:55000 | grep 401
+Notify=healhy
 

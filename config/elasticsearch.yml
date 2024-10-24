@@ -1,0 +1,7 @@
+cluster.name: "docker-cluster"
+network.host: 0.0.0.0
+path:
+  repo:
+    - /usr/share/elasticsearch
+    - /usr/share/elasticsearch/backups
+

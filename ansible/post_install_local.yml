@@ -449,7 +449,6 @@
       when: debug_mode | bool
     #SETUP
 
-
     - name: Copy dashboards files /opt/lme/dashboards
       copy:
         src: "{{ clone_directory }}/dashboards/"
@@ -718,6 +717,7 @@
           - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
       when: debug_mode | bool
     #SETUP
+    #
     - name: expand path
       set_fact:
         clone_directory: "{{clone_directory | expanduser }}"
