@@ -37,7 +37,8 @@ Output should look similar to this:
   ]
 }
 ```
-drop the v, and use `4.7.5`
+drop the v, and use `4.7.5-1`. You need to add a "-1" like wazuh expects.
+You can confirm the version is accurate with a list from wazuh's versions [HERE](https://documentation.wazuh.com/current/installation-guide/packages-list.html)
 
 ## Steps to Enroll a Wazuh Agent (***Windows***)
 
@@ -96,6 +97,11 @@ Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MAN
    ```bash
    WAZUH_MANAGER="{WAZUH_MANAGER_IP}" apt-get install wazuh-agent={WAZUH_AGENT_VERSION}
    ```
+   
+   For example: 
+   ```bash
+   WAZUH_MANAGER="10.1.0.5" apt-get install wazuh-agent=4.7.5-1
+   ```
 
 ## Verifying Installation
 
@@ -129,7 +135,7 @@ This guide provides steps to check the status of Wazuh agents in the LME setup. 
 To get an overview of all registered agents and their current status:
 
 ```bash
-podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
+sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
 ```
 
 This command will display a list of all agents, including their ID, name, IP address, and current status (active, disconnected, never connected, etc.).
@@ -139,7 +145,7 @@ This command will display a list of all agents, including their ID, name, IP add
 To check the detailed status of a specific agent:
 
 ```bash
-podman exec lme-wazuh-manager /var/ossec/bin/agent_control -i [agent_id]
+sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -i [agent_id]
 ```
 
 Replace `[agent_id]` with the ID of the agent you want to check. This will provide more detailed information about the agent, including its last keep alive time, version, and operating system.
