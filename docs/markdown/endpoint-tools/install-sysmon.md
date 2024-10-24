@@ -28,7 +28,7 @@ This guide will walk you through the process of installing Sysmon (System Monito
    ```
 3. Run the following command to install Sysmon with the SwiftOnSecurity configuration:
    ```
-   sysmon64.exe -accepteula -i sysmonconfig-export.xml
+   sysmon -accepteula -i sysmonconfig-export.xml
    ```
 
 ## Step 4: Verify Installation
