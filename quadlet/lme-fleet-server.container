@@ -1,7 +1,7 @@
 # lme-fleet-server.container
-[Unit] 
+[Unit]
 Description=Fleet Container Service
-Requires=lme-elasticsearch.service 
+Requires=lme-elasticsearch.service
 After=lme-elasticsearch.service lme-kibana.service
 PartOf=lme.service
 
@@ -14,7 +14,7 @@ WantedBy=default.target lme.service
 
 [Container]
 ContainerName=lme-fleet-server
-Environment=FLEET_ENROLL=1 FLEET_SERVER_POLICY_ID=fleet-server-policy FLEET_SERVER_ENABLE=1 KIBANA_FLEET_SETUP=1 KIBANA_HOST=https://lme-kibana:5601 FLEET_URL=https://lme-fleet-server:8220 FLEET_SERVER_ELASTICSEARCH_HOST=https://lme-elasticsearch:9200 FLEET_CA=/certs/ca/ca.crt  FLEET_SERVER_CERT=/certs/fleet-server/fleet-server.crt FLEET_SERVER_CERT_KEY=/certs/fleet-server/fleet-server.key FLEET_SERVER_ELASTICSEARCH_CA=/certs/ca/ca.crt KIBANA_FLEET_CA=/certs/ca/ca.crt NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt 
+Environment=FLEET_ENROLL=1 FLEET_SERVER_POLICY_ID=fleet-server-policy FLEET_SERVER_ENABLE=1 KIBANA_FLEET_SETUP=1 KIBANA_HOST=https://lme-kibana:5601 FLEET_URL=https://lme-fleet-server:8220 FLEET_SERVER_ELASTICSEARCH_HOST=https://lme-elasticsearch:9200 FLEET_CA=/certs/ca/ca.crt  FLEET_SERVER_CERT=/certs/fleet-server/fleet-server.crt FLEET_SERVER_CERT_KEY=/certs/fleet-server/fleet-server.key FLEET_SERVER_ELASTICSEARCH_CA=/certs/ca/ca.crt KIBANA_FLEET_CA=/certs/ca/ca.crt NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 EnvironmentFile=/opt/lme/lme-environment.env
 Secret=elastic,type=env,target=KIBANA_FLEET_PASSWORD
 Image=localhost/elastic-agent:LME_LATEST
@@ -25,5 +25,5 @@ PublishPort=8220:8220
 Volume=lme_certs:/certs:ro
 Volume=lme_fleet_data:/usr/share/elastic-agent
 UserNS=auto:uidmapping=0:171632:3048,gidmapping=0:171632:3048
-#TODO: add a healthcheck
-#HealthCmd=CMD-SHELL curl -I -s --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/1.1 302 Found'
+HealthCmd=CMD-SHELL curl -s --cacert /certs/ca/ca.crt https://localhost:8220/api/status | grep '"status":"HEALTHY"'
+Notify=healthy
