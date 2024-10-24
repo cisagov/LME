@@ -154,7 +154,6 @@ The configuration files are located in /config/. These steps will guide you thro
 **3. Environment Variables** \***TO EDIT**:\*
 - You only need to edit the /config/lme-environment.env file to set required environment variables.
 
-
 \***TO EDIT**:\*
 The only file that really needs to be touched is creating `/config/lme-environment.env`, which sets up the required environment variables.
 Get your IP address via the following command: 
@@ -185,6 +184,7 @@ If you don't, you can pass the `CLONE_DIRECTORY` variable to the playbook.
 ```
 ansible-playbook ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
 ```
+**PLEASE NOTE KEY DIRECTORIES AND FILE PERMISSIONS HERE: [LINK](#notes-on-folders-permissions-and-service)**
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
 
@@ -198,9 +198,10 @@ This also assumes your user can sudo without a password. If you need to input a 
 6. **Setup Containers for root**: The containers listed in `$clone_directory/config/containers.txt` will be pulled and tagged.
 7. **Start lme.service**: Kicks off the start of LME service containers.
 
-**Notes**:
+####Notes on folders, permissions, and service:
 
-1. `/opt/lme` will be owned by root, all lme services will run and execute as unprivileged users. The active lme configuration is stored in `/opt/lme/config`.
+1. `/opt/lme` will be owned by root, all lme services will run and execute as unprivileged users. The active lme configuration is stored in `/opt/lme/config`. 
+   To access any file at `/opt/lme/` you'll need to make sure you're in a root shell (e.g. `sudo -i su`) or you run whatever command you're wanting to access in that directory as root (e.g. `sudo ls /opt/lme/config`)
  
 2. Other relevant directories are listed here: 
 - `/root/.config/containers/containers.conf`: LME will setup a custom podman configuration for secrets management via [ansible vault](https://docs.ansible.com/ansible/latest/cli/ansible-vault.html).
@@ -306,9 +307,13 @@ lme-kibana Up 36 minutes (healthy)
 lme-fleet-server Up 35 minutes
 ```
 
-If you see something like the above you're good to go to run the command. The services need to be running when you execute this playbook, it makes api calls to the kibana, fleet, and wazuh services.
+If you see something like the above you're good to go to run the command. 
+The services need to be running when you execute this playbook, it makes api calls to the kibana, fleet, and wazuh services.
+As before, this script needs to be run from 
 ```
-ansible-playbook ./ansible/post_install_local.yml
+CLONE_DIRECTORY=~/LME #or whatever directory you cloned it to
+cd $CLONE_DIRECTORY
+[ansible playbook](ansible-playbook) ./ansible/post_install_local.yml
 ```
 
 **IMPORTANT**: the post install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in elasticsearch, but don't need access to administrator functionality.
