@@ -201,7 +201,7 @@ This also assumes your user can sudo without a password. If you need to input a 
 ####Notes on folders, permissions, and service:
 
 1. `/opt/lme` will be owned by root, all lme services will run and execute as unprivileged users. The active lme configuration is stored in `/opt/lme/config`. 
-   To access any file at `/opt/lme/` you'll need to make sure you're in a root shell (e.g. `sudo -i su`) or you run whatever command you're wanting to access in that directory as root (e.g. `sudo ls /opt/lme/config`)
+     To access any file at `/opt/lme/` you'll need to make sure you're in a root shell (e.g. `sudo -i su`) or you run whatever command you're wanting to access in that directory as root (e.g. `sudo ls /opt/lme/config`)
  
 2. Other relevant directories are listed here: 
 - `/root/.config/containers/containers.conf`: LME will setup a custom podman configuration for secrets management via [ansible vault](https://docs.ansible.com/ansible/latest/cli/ansible-vault.html).
