@@ -32,4 +32,5 @@ testing/tests/assets/style.css
 **.swp
 *.vim*
 **/quadlet/output
+**/lme-environment.env
 
