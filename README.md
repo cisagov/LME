@@ -7,9 +7,7 @@
 
 # Logging Made Easy: 
 
-Logging Made Easy (LME) is a free, open-source platform developed by CISA to centralize log collection, enhance threat detection, and enable real-time alerting, helping organizations of all sizes secure their infrastructure. LME offers a seamless user experience, integrating Wazuh and Elastic tools to improve detection accuracy and enable endpoint security. 
-
-Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security.
+Logging Made Easy (LME) is a free, open source platform developed by CISA to centralize log collection, enhance threat detection, and enable real-time alerting, helping organizations of all sizes secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security.
 
 ## Updates: 
 
@@ -40,7 +38,7 @@ LME is suited for:
 - Organizations with limited budget, time, or expertise to set up and manage a logging and threat detection system.
 
 ## Table of Contents:
--   [Pre-Requisites:](#architecture)
+-   [Prerequisites:](#architecture)
 -   [Architecture:](#architecture)
 -   [Installation:](#installing-lme)
 -   [Deploying Agents:](#deploying-agents)
@@ -48,14 +46,15 @@ LME is suited for:
 -   [Further Documentation & Upgrading:](#documentation)
 -   [Uninstall (if you want to remove LME):](#uninstall)
 
-## Pre-Requisites
+## Prerequisites
 If you're unsure whether you meet the prerequisites for installing LME, please refer to our [prerequisites documentation](/docs/markdown/prerequisites.md).
 
 The main prerequisite is setting up hardware for your Ubuntu server, which should have at least:
 
-2 processors
-16GB RAM
-128GB of dedicated storage for LME’s Elasticsearch database.
+- 2 processors
+- 16GB RAM
+- 128GB of dedicated storage for LME’s Elasticsearch database.
+
 If you need to run LME with less than 16GB of RAM or minimal hardware, follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage).
 
 
@@ -181,7 +180,7 @@ If you don't, you can pass the `CLONE_DIRECTORY` variable to the playbook.
 ```bash
 ansible-playbook ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
 ```
-**If you have issues accessing a file or directory, please not permissions and notes on folder structure here [LINK](#notes-on-folders-permissions-and-service)**
+**If you have issues accessing a file or directory, please note permissions and notes on folder structure [here](#notes-on-folders-permissions-and-service)**
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
 ```bash
@@ -199,8 +198,7 @@ In the `BECOME password` prompt enter the password for your user you would norma
 6. **Setup Containers for root**: The containers listed in `$clone_directory/config/containers.txt` will be pulled and tagged.
 7. **Start lme.service**: Kicks off the start of LME service containers.
 
-####Notes on folders, permissions, and service:
-
+**Notes on folders, permissions, and service:**
 1. `/opt/lme` will be owned by root, all lme services will run and execute as unprivileged users. The active lme configuration is stored in `/opt/lme/config`. 
      To access any file at `/opt/lme/` you'll need to make sure you're in a root shell (e.g. `sudo -i su`) or you run whatever command you're wanting to access in that directory as root (e.g. `sudo ls /opt/lme/config`)
  
@@ -211,7 +209,7 @@ In the `BECOME password` prompt enter the password for your user you would norma
 - `/etc/containers/systemd`: directory where LME installs its quadlet service files
 - `/etc/systemd/system`: directory where lme.service is installed
  
-3. the master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
+3. The master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
 
 4. lme.service is a KICK START systemd service. It will always succeed and is designed so that the other lme services can be stopped and restarted by stopping/restarting lme.service.
 For example, to stop all of lme: 
@@ -219,12 +217,12 @@ For example, to stop all of lme:
 sudo -i systemctl stop lme.service
 ```
 
-To restart all of lme: 
+To restart all of LME: 
 ```bash
 sudo -i systemctl restart lme.service
 ```
 
-To start all of lme:
+To start all of LME:
 ```bash
 sudo -i systemctl start lme.service
 ```
@@ -246,19 +244,19 @@ SERVICE_NAME=lme-elasticsearch.service
 sudo -i journalctl -xu $SERVICE_NAME
 ```
 
-If somehting is broken try restarting the services and making sure failed services reset before starting:
+If something is broken try restarting the services and making sure failed services reset before starting:
 ```bash
 #try resetting failed: 
 sudo -i systemctl  reset-failed lme*
 sudo -i systemctl  restart lme.service
 ```
 
-2. Check conatiners are running and healthy. this is also how to print out the container names!
+2. Check containers are running and healthy. This is also how to print out the container names!
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
 ```  
 
-example output: 
+Example output: 
 ```shell
 lme-elasticsearch Up 19 hours (healthy)
 lme-wazuh-manager Up 19 hours
@@ -275,14 +273,14 @@ $CONTAINER_NAME=lme-elasticsearch #change this to your container name you want t
 sudo -i podman logs -f $CONTAINER_NAME
 ```
 
-3. Check you can connect to elasticsearch
+3. Check you can connect to Elasticsearch
 ```bash
 #substitute your password below:
 curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
 ```
 
-4. Check you can connect to kibana
-You can use an ssh proxy to forward a local port to the remote linux host. To login as the elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
+4. Check you can connect to Kibana
+You can use a ssh proxy to forward a local port to the remote linux host. To login as the Elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
 ```bash
 #connect via ssh if you need to 
 ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
@@ -293,13 +291,13 @@ ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
 
 ### Other Post install setup: 
 A few other things are needed and you're all set to go. 
-1. setting up fleet
-2. fixing a few issues with wazuh (in a future release this won't be necessary)
-3. setting up custom LME dashboards
-4. setting up wazuh's dashboards
-5. setting up a read only user for analysts to connect and query LME's data
+1. Setting up Elasticfleet
+2. Fixing a few issues with Wazuh (in a future release this won't be necessary)
+3. Setting up custom LME dashboards
+4. Setting up Wazuh's dashboards
+5. Setting up a read only user for analysts to connect and query LME's data
 
-Luckily we've packed this in a script for you. Before running it we want to make sure our podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
+Luckily we've packed this in a script for you. Before running it we want to make sure our Podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
 ```bash
 lme-user@ubuntu:~/LME-TEST$ sudo -i podman ps --format "{{.Names}} {{.Status}}"
 lme-elasticsearch Up 49 minutes (healthy)
@@ -309,7 +307,7 @@ lme-fleet-server Up 35 minutes
 ```
 
 If you see something like the above you're good to go to run the command. 
-The services need to be running when you execute this playbook, it makes api calls to the kibana, fleet, and wazuh services.
+The services need to be running when you execute this playbook, it makes api calls to the Kibana, Elasticfleet, and Wazuh services.
 As before, this script needs to be run from 
 ```
 CLONE_DIRECTORY=~/LME #or whatever directory you cloned it to
@@ -317,10 +315,10 @@ cd $CLONE_DIRECTORY
 [ansible playbook](ansible-playbook) ./ansible/post_install_local.yml
 ```
 
-**IMPORTANT**: the post install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in elasticsearch, but don't need access to administrator functionality.
-The end of the script will output the password of hte read only user... be sure to save that somewhere.
+**IMPORTANT**: The post-install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in Elasticsearch, but don't need access to administrator functionality.
+The end of the script will output the password of the read only user... be sure to save that somewhere.
 
-Heres an example where the password is `oz9vLny0fB3HA8S2hH!FLZ06TvpaCq`. Every time this script is run that password for the readonly user will be changed, so be careful to make sure you only run this when you need to, ideally one time.
+Here's an example where the password is `oz9vLny0fB3HA8S2hH!FLZ06TvpaCq`. Every time this script is run that password for the readonly user will be changed, so be careful to make sure you only run this when you need to, ideally one time.
 ```bash
 TASK [DISPLAY NEW READONLY USER PASSWORD] ***************************************************************************************************************************************
 ok: [localhost] => {
@@ -332,7 +330,7 @@ ok: [localhost] => {
     
 ```
 
-#### Verify post install: 
+#### Verify Post-Install: 
 
 Run the following commands to check `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
 ```bash
@@ -363,24 +361,24 @@ Eventually these steps will be more automated in a future release.
 
 Sysmon provides valuable logs for windows computers. For each of your windows client machines, install Sysmon like so:
 
-1. Download Logging Made Easy and unzip the folder. 
+1. Download LME and unzip the folder. 
 2. From inside the unzipped folder, run the following command in Administrator Powershell:
 ```
 .\scripts\install_sysmon.ps1
 ```
 
 ## Password Encryption:
-Password encryption is enabled using ansible-vault to store all lme user and lme service user passwords at rest.
-We do submit a hash of the password to Have I been pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs), but since they're all randomly generated this should be RARE.
+Password encryption is enabled using Ansible-vault to store all LME user and LME service user passwords at rest.
+We do submit a hash of the password to Have I Been Pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs), but since they're all randomly generated this should be rare.
 
-### where are passwords stored?:
+### Where Are Passwords Stored?:
 ```bash
 # Define user-specific paths
 USER_VAULT_DIR="/etc/lme/vault"
 PASSWORD_FILE="/etc/lme/pass.sh"
 ```
 
-### grabbing passwords: 
+### Grabbing Passwords: 
 To view the appropriate service user password run the following commands:
 ```
 #script:
@@ -391,7 +389,7 @@ source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
 source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
 ```
 
-### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
+### Manually Setting Up Passwords and Accessing Passwords **Unsupported**:
 **These steps are not fully supported and are left if others would like to support this in their environment**
 
 Run the password_management.sh script:
@@ -404,7 +402,7 @@ lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
 -h: print this list
 ```
 
-A cli oneliner to grab passwords (this also demonstrates how we're using ansible-vault in extract_secrets.sh):
+A cli one liner to grab passwords (this also demonstrates how we're using Ansible-vault in extract_secrets.sh):
 ```bash
 #where wazuh_api is the service user whose password you want:
 USER_NAME=wazuh_api
