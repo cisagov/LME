@@ -351,7 +351,7 @@ root@ubuntu:~# ls -al /opt/lme/dashboards/wazuh/INSTALLED
 ```
 
 ## Deploying Agents: 
-We have seperate guides on deploying Wazuh and Elastic in seperate docs, please see links below:
+We have separate guides on deploying Wazuh and Elastic in separate docs, please see links below:
 Eventually these steps will be more automated in a future release. 
 
 ##### - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
