@@ -39,7 +39,7 @@
         -  (not optenv_file.stat.exists) and (not env_file.stat.exists)
 
     - name: Copy lme-environment.env to /opt/lme (only if it doesn't exist)
-      command: "cp {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
+      command: "mv {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
       become: yes
       when: not optenv_file.stat.exists
 
@@ -218,6 +218,7 @@
           - uidmap
           - nix-bin
           - nix-setup-systemd
+          - python3-pexpect
         state: present
       become: yes
 
