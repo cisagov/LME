@@ -7,28 +7,23 @@
 
 # Logging Made Easy: 
 
-Logging Made Easy (LME) is a free, open-source platform developed by CISA to centralize log collection, enhance threat detection, and enable real-time alerting, helping organizations of all sizes secure their infrastructure. LME offers a seamless user experience, integrating Wazuh and Elastic tools to improve detection accuracy and enable endpoint security. 
-
-Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security with a range of advanced features:
-
-- Enhanced Threat Detection and Response: Integrates Wazuh’s open-source tools and Elastic Fleet for improved detection accuracy and faster response times.
-- Security by Design: Utilizes containerization and encryption to meet the highest security standards.
-- Simplified Installation: Ansible scripts automate deployment for faster setup and easier maintenance.
-- Custom Data Visualization: Create personalized dashboards for tailored monitoring.
-- Comprehensive Testing: Expanded unit testing and threat emulation ensure system stability and reliability.
-
+Logging Made Easy (LME) is a free, open source platform developed by CISA to centralize log collection, enhance threat detection, and enable real-time alerting, helping organizations of all sizes secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security.
 
 ## Updates: 
 
-With our LME 2.0 release, we’re introducing several new features and architectural components:
-  - LME now provides organizations with SIEM capabilities to enhance event management, threat detection, and alerting.
-  - The LME team simplified the installation process and created clear instructions on what to download and which configurations to use.
-  - Ansible scripts to automate the install and also provide detailed steps for users that want to manually install.
+With our 2.0 release, we’re introducing several new features and architectural components to improve Security Information and Event Management (SIEM) capabilities while simplifying overall use of LME:
+
+- **Enhanced Threat Detection and Response**: We've integrated Wazuh’s and Elastic's open-source tools, along with ElastAlert, for improved detection accuracy and real-time alerting. 
+- **Security by Design**: Introduced Podman containerization and encryption to meet the highest security standards.
+- **Simplified Installation**: Added Ansible scripts to automate deployment for faster setup and easier maintenance.
+- **Custom Data Visualization**: Design and customize dashboards with Kibana to meet specific monitoring needs.
+- **Comprehensive Testing**: Expanded unit testing and threat emulation ensure system stability and reliability.
+
 
 LME 2.0 is still in development, and version 2.1 will address scaling out the deployment.
 
 ## Questions or Feedback:
-The LME team is not able to comment on or troubleshoot individual installations. If you believe you have found an issue with the LME code or documentation, please submit a GitHub issue. If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
+The LME team is not able to comment on or troubleshoot individual installations. If you believe you have found an issue with the LME code or documentation, please submit a [GitHub issue](https://github.com/cisagov/lme/issues). If you have a question about your installation, please look through all open and closed issues to see if it has been addressed before. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
 
 For general questions about LME and suggestions, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
 
@@ -36,14 +31,14 @@ For general questions about LME and suggestions, please visit [GitHub Discussion
 
 From single IT administrators with a handful of devices in their network to larger organizations.
 
-LME is suited for for:
+LME is suited for:
 
-- Organizations without Security OPerations Center ([SOC](https://en.wikipedia.org/wiki/Information_security_operations_center)), Security Information and Event Management (SIEM), or any monitoring in place at the moment.
-- Organizations that lack the budget, time or understanding to set up a logging system.
-- Organizations that that require gathering logs and monitoring IT
+- Organizations that need a log management and threat detection system.
+- Organizations without an existing Security Operations Center (SOC), Security Information and Event Management (SIEM) solution, or log management and monitoring capabilities.
+- Organizations with limited budget, time, or expertise to set up and manage a logging and threat detection system.
 
 ## Table of Contents:
--   [Pre-Requisites:](#architecture)
+-   [Prerequisites:](#architecture)
 -   [Architecture:](#architecture)
 -   [Installation:](#installing-lme)
 -   [Deploying Agents:](#deploying-agents)
@@ -51,25 +46,31 @@ LME is suited for for:
 -   [Further Documentation & Upgrading:](#documentation)
 -   [Uninstall (if you want to remove LME):](#uninstall)
 
-## Pre-Requisites
-If you are unsure you meet the pre-requisites to installing LME, please read our [prerequisites documentation](/docs/markdown/prerequisites.md).
-The biggest Pre-requisite is setting up hardware for your ubuntu server with a minimum of `2 processors`, `16gb ram`, and `128gb` of dedicated storage for LME's Elasticsearch database.
+## Prerequisites
+If you're unsure whether you meet the prerequisites for installing LME, please refer to our [prerequisites documentation](/docs/markdown/prerequisites.md).
 
-If you really want to try to run with less than 16gb ram or at a minimum amount of hardware  you can follow the troubleshooting guide to setup the podman quadlets to run with a limited amount of ram. We suggest setting elasticsearch to a limit of `8gb` and kibana to a limit of `4gb`. See the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage)
+The main prerequisite is setting up hardware for your Ubuntu server, which should have at least:
+
+- 2 processors
+- 16GB RAM
+- 128GB of dedicated storage for LME’s Elasticsearch database.
+
+If you need to run LME with less than 16GB of RAM or minimal hardware, follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage).
+
 
 ## Architecture:
-LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh’s Manager and Agent with Elastic to provide comprehensive log collection, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and will enable seamless scaling to meet your organization’s evolving security and logging requirements.
-
+LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh,  Elastic, and ElastAlert open source tools to provide log management, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and will enable you to scale as your logging needs evolve.
 
 ### Diagram: 
 
-![diagram](/docs/imgs/lme-architecture-v2.jpg)
-
-### why Podman?:
-We chose Podman as LME’s container engine because it is more secure (by default) against container escape attacks than other engines like Docker. It also is far more debug and programmer friendly. We’re making use of Podman’s unique features, such as Quadlets (Podman's systemd integration) and User Namespacing,  to increase system security and operational efficiency. 
+![diagram](/docs/imgs/lme-architecture-v2.jpg) - UPDATE DIAGRAM
 
 ### Containers:
-Containerization allows each component of LME to run independently, increasing system security, improving performance, and making troubleshooting easier. Below are the containers we’re using for LME:
+Containerization allows each component of LME to run independently, increasing system security, improving performance, and making troubleshooting easier. 
+
+Why Podman? We chose Podman as LME’s container engine because it is more secure (by default) against container escape attacks than other engines like Docker. It's far more debug and programmer friendly. We’re making use of Podman’s unique features, such as Quadlets (Podman's systemd integration) and User Namespacing,  to increase system security and operational efficiency.
+
+Below are the containers we’re using for LME:
 
   - **Setup**: runs `/config/setup/init-setup.sh` based on the configuration of DNS defined in `/config/setup/instances.yml`. The script will create a CA, underlying certs for each service, and intialize the admin accounts for elasticsearch(user:`elastic`) and kibana(user:`kibana_system`). 
   - **Elasticsearch**: runs the database for LME and indexes all logs.
@@ -87,7 +88,7 @@ Ports required are as follows:
  - Wazuh: *1514,1515,1516,55000,514*
  - Agent: *8220*
 
-**Kibana NOTE**: 5601 is the default port, and we've set kibana to listen on 443 as well
+**Note**: For Kibana, 5601 is the default port. We've also set kibana to listen on 443 as well.
 
 ### Agents and Agent Management: 
 LME leverages both Wazuh and Elastic agents providing more comprehensive logging and security monitoring across various log sources. The agents gather critical data from endpoints and send it back to the LME server for analysis, offering organizations deeper visibility into their security posture. We also make use of the Wazuh Manager and Elastic Fleet for agent orchestration and management.
@@ -109,46 +110,50 @@ LME has setup [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.ht
 [Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
 
 ## Installing LME:
-LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. You can follow our [installation video](TODO LINK HERE) for further guidance.
+LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. Our installation guide video is coming soon. When the video is released, you will find the link to it here. 
 These steps will guide you through setting up LME on your Ubuntu 22.04 server, ensuring a smooth and secure deployment.
 
 **Please ensure you follow all the configuration steps required below.**
 
-#####**Upgrading**:
-If you are a previous user of LME and wish to upgrade from 1.4 -> 2.0, please see our [upgrade documentation](/docs/markdown/maintenance/upgrading.md).
+**Upgrading**:
+If you are upgrading from an older version of LME to LME 2.0, please see our [upgrade documentation](/docs/markdown/maintenance/upgrading.md).
 
-
-### Downloading LME:
-**All steps will assume you start the downloaded or cloned directory of LME on your Ubuntu 22.04 server**
+## Downloading LME:
+The following steps assume you're starting from a downloaded or cloned directory of LME on your Ubuntu 22.04 server.
 
 We suggest you install the latest release version of Logging made easy using the following commands: 
 
-Install Requirements
+**1. Install Requirements**
 ```
 sudo apt update && sudo apt install curl jq unzip -y
 ```
-Download and Unzip the latest version of LME. This will add a path to ~/LME with all requires files.
+**2. Download and Unzip the latest version of LME**
+This will add a path to ~/LME with all requires files.
 ```
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
-***Developer Note: if you're looking to develop LME, its suggested you `git clone` rather than downloading, please see our [DEV docs](#developer-notes)***
+Developer Note: if you're looking to develop LME, its suggested you `git clone` rather than downloading, please see our [DEV docs](#developer-notes)
 
-### Operating system: **Ubuntu 22.04**:
-Make sure you run an install on ubuntu 22.04, thats the operating system which has been tested the most. 
-In theory, you can install LME on any nix... but we've only tested and run installs on 22.04.
+### Operating System: **Ubuntu 22.04**:
+LME has been extensively tested on Ubuntu 22.04. While it _can_ run on other Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
 
 ### Configuration
+The configuration files are located in /config/. These steps will guide you through setting up LME
 
-Configuration is `/config/`
-in `setup` find the configuration for certificate generation and password setting.  
-`instances.yml` defines the certificates that will get created.    
-The shellscripts initialize accounts and create certificates, and will run from their respective quadlet definitions `lme-setup-accts` and `lme-setup-certs` respectively.
- 
-Quadlet configuration for containers is in: `/quadlet/`. These are mapped to the root's systemd unit files, but will execute as a non-privileged user.
+**1. Certificates and Passwords**
+- instances.yml defines the certificates to be created.
+- Shell scripts will initialize accounts and generate certificates. They run from the quadlet definitions lme-setup-accts and lme-setup-certs.
+  
+**2. Podman Quadlet Configuration**
+- Quadlet configuration for containers is located in /quadlet/. These map to the root systemd unit files but execute as non-privileged users.
+
+**3. Environment Variables** \***TO EDIT**:\*
+- You only need to edit the /config/lme-environment.env file to set required environment variables.
 
 \***TO EDIT**:\*
-The only file that really needs to be touched is creating `/config/lme-environment.env`, which sets up the required environment variables
+The only file that really needs to be touched is creating `/config/lme-environment.env`, which sets up the required environment variables.
 Get your IP address via the following command: 
+
 ```
 hostname -I | awk '{print $1}'
 ```
@@ -162,7 +167,7 @@ IPVAR=127.0.0.1 #your hosts ip
 
 ### **Automated Install**
 
-You can run this installer to run the total install in ansible. 
+You can run this Ansible installer for a fully automated install. 
 
 ```bash
 sudo apt update && sudo apt install -y ansible
@@ -172,25 +177,30 @@ ansible-playbook ./ansible/install_lme_local.yml
 This assumes that you have the repo in `~/LME/`. 
 
 If you don't, you can pass the `CLONE_DIRECTORY` variable to the playbook. 
-```
+```bash
 ansible-playbook ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
 ```
+**If you have issues accessing a file or directory, please note permissions and notes on folder structure [here](#notes-on-folders-permissions-and-service)**
 
 This also assumes your user can sudo without a password. If you need to input a password when you sudo, you can run it with the `-K` flag and it will prompt you for a password. 
+```bash
+ansible-playbook -K ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone/directory" 
+```
+In the `BECOME password` prompt enter the password for your user you would normally give `sudo`, so the playbook is able to sudo as expected.
 
 #### Steps performed in automated install: 
 
-1. Setup /opt/lme, check for sudo access, and configure other required directories/files
-2. Setup password information: configures the password vault and other configuration for the service user passwords  
-3. Setup [Nix](https://nixos.org/): nix is the opensource package manager we use to install the latest version of podman
-4. set service user passwords: actually sets the service user passwords that are encrypted according to the [security model](/docs/markdown/reference/security-model.md)
-5. Install Quadlets: the quadlet files are setup in the directories described below to be setup as systemd services
-6. Setup Containers for root: The contianers listed in `$clone_directory/config/containers.txt` will be pulled and tagged
-7. Start lme.service: kicks of the start of LME service containers
+1. Setup /opt/lme and check for sudo access. Configure other required directories/files.
+2. **Setup password information**: Configures the password vault and other configuration for the service user passwords.  
+3. **Setup [Nix](https://nixos.org/)**: nix is the open source package manager we use to install the latest version of podman.
+4. **Set service user passwords**: Sets the service user passwords that are encrypted according to the [security model](/docs/markdown/reference/security-model.md)
+5. **Install Quadlets**: Installs quadlet files in the directories described below to be setup as systemd services
+6. **Setup Containers for root**: The containers listed in `$clone_directory/config/containers.txt` will be pulled and tagged.
+7. **Start lme.service**: Kicks off the start of LME service containers.
 
-#### NOTES:
-
-1. `/opt/lme` will be owned by root, all lme services will run and execute as unprivileged users. The active lme configuration is stored in `/opt/lme/config`.
+**Notes on folders, permissions, and service:**
+1. `/opt/lme` will be owned by root, all lme services will run and execute as unprivileged users. The active lme configuration is stored in `/opt/lme/config`. 
+     To access any file at `/opt/lme/` you'll need to make sure you're in a root shell (e.g. `sudo -i su`) or you run whatever command you're wanting to access in that directory as root (e.g. `sudo ls /opt/lme/config`)
  
 2. Other relevant directories are listed here: 
 - `/root/.config/containers/containers.conf`: LME will setup a custom podman configuration for secrets management via [ansible vault](https://docs.ansible.com/ansible/latest/cli/ansible-vault.html).
@@ -199,7 +209,7 @@ This also assumes your user can sudo without a password. If you need to input a 
 - `/etc/containers/systemd`: directory where LME installs its quadlet service files
 - `/etc/systemd/system`: directory where lme.service is installed
  
-3. the master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
+3. The master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
 
 4. lme.service is a KICK START systemd service. It will always succeed and is designed so that the other lme services can be stopped and restarted by stopping/restarting lme.service.
 For example, to stop all of lme: 
@@ -207,19 +217,19 @@ For example, to stop all of lme:
 sudo -i systemctl stop lme.service
 ```
 
-To restart all of lme: 
+To restart all of LME: 
 ```bash
 sudo -i systemctl restart lme.service
 ```
 
-To start all of lme:
+To start all of LME:
 ```bash
 sudo -i systemctl start lme.service
 ```
 
 
 ### Verification post install:
-Make sure to use `-i` to run a login shell with any commands that run as root, so environment varialbes are set proprerly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
+Make sure to use `-i` to run a login shell with any commands that run as root, so environment variables are set properly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
 
 1. Confirm services are installed: 
 ```bash
@@ -234,19 +244,19 @@ SERVICE_NAME=lme-elasticsearch.service
 sudo -i journalctl -xu $SERVICE_NAME
 ```
 
-If somehting is broken try restarting the services and making sure failed services reset before starting:
+If something is broken try restarting the services and making sure failed services reset before starting:
 ```bash
 #try resetting failed: 
 sudo -i systemctl  reset-failed lme*
 sudo -i systemctl  restart lme.service
 ```
 
-2. Check conatiners are running and healthy. this is also how to print out the container names!
+2. Check containers are running and healthy. This is also how to print out the container names!
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
 ```  
 
-example output: 
+Example output: 
 ```shell
 lme-elasticsearch Up 19 hours (healthy)
 lme-wazuh-manager Up 19 hours
@@ -263,14 +273,14 @@ $CONTAINER_NAME=lme-elasticsearch #change this to your container name you want t
 sudo -i podman logs -f $CONTAINER_NAME
 ```
 
-3. Check you can connect to elasticsearch
+3. Check you can connect to Elasticsearch
 ```bash
 #substitute your password below:
 curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
 ```
 
-4. Check you can connect to kibana
-You can use an ssh proxy to forward a local port to the remote linux host. To login as the elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
+4. Check you can connect to Kibana
+You can use a ssh proxy to forward a local port to the remote linux host. To login as the Elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
 ```bash
 #connect via ssh if you need to 
 ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
@@ -279,15 +289,15 @@ ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
 ```
 
 
-### Other Post install setup: 
+### Other Post-Install Setup: 
 A few other things are needed and you're all set to go. 
-1. setting up fleet
-2. fixing a few issues with wazuh (in a future release this won't be necessary)
-3. setting up custom LME dashboards
-4. setting up wazuh's dashboards
-5. setting up a read only user for analysts to connect and query LME's data
+1. Setting up Elasticfleet
+2. Fixing a few issues with Wazuh (in a future release this won't be necessary)
+3. Setting up custom LME dashboards
+4. Setting up Wazuh's dashboards
+5. Setting up a read only user for analysts to connect and query LME's data
 
-Luckily we've packed this in a script for you. Before running it we want to make sure our podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
+Luckily we've packed this in a script for you. Before running it we want to make sure our Podman containers are healthy and setup. Run the command `sudo -i podman ps --format "{{.Names}} {{.Status}}"`
 ```bash
 lme-user@ubuntu:~/LME-TEST$ sudo -i podman ps --format "{{.Names}} {{.Status}}"
 lme-elasticsearch Up 49 minutes (healthy)
@@ -296,15 +306,19 @@ lme-kibana Up 36 minutes (healthy)
 lme-fleet-server Up 35 minutes
 ```
 
-If you see something like the above you're good to go to run the command. The services need to be running when you execute this playbook, it makes api calls to the kibana, fleet, and wazuh services.
+If you see something like the above you're good to go to run the command. 
+The services need to be running when you execute this playbook, it makes api calls to the Kibana, Elasticfleet, and Wazuh services.
+As before, this script needs to be run from 
 ```
-ansible-playbook ./ansible/post_install_local.yml
+CLONE_DIRECTORY=~/LME #or whatever directory you cloned it to
+cd $CLONE_DIRECTORY
+[ansible playbook](ansible-playbook) ./ansible/post_install_local.yml
 ```
 
-**IMPORTANT**: the post install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in elasticsearch, but don't need access to administrator functionality.
-The end of the script will output the password of hte read only user... be sure to save that somewhere.
+**IMPORTANT**: The post-install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in Elasticsearch, but don't need access to administrator functionality.
+The end of the script will output the password of the read only user... be sure to save that somewhere.
 
-Heres an example where the password is `oz9vLny0fB3HA8S2hH!FLZ06TvpaCq`. Every time this script is run that password for the readonly user will be changed, so be careful to make sure you only run this when you need to, ideally one time.
+Here's an example where the password is `oz9vLny0fB3HA8S2hH!FLZ06TvpaCq`. Every time this script is run that password for the readonly user will be changed, so be careful to make sure you only run this when you need to, ideally one time.
 ```bash
 TASK [DISPLAY NEW READONLY USER PASSWORD] ***************************************************************************************************************************************
 ok: [localhost] => {
@@ -316,7 +330,7 @@ ok: [localhost] => {
     
 ```
 
-#### Verify post install: 
+#### Verify Post-Install: 
 
 Run the following commands to check `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
 ```bash
@@ -347,24 +361,24 @@ Eventually these steps will be more automated in a future release.
 
 Sysmon provides valuable logs for windows computers. For each of your windows client machines, install Sysmon like so:
 
-1. Download Logging Made Easy and unzip the folder. 
+1. Download LME and unzip the folder. 
 2. From inside the unzipped folder, run the following command in Administrator Powershell:
 ```
 .\scripts\install_sysmon.ps1
 ```
 
 ## Password Encryption:
-Password encryption is enabled using ansible-vault to store all lme user and lme service user passwords at rest.
-We do submit a hash of the password to Have I been pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs), but since they're all randomly generated this should be RARE.
+Password encryption is enabled using Ansible-vault to store all LME user and LME service user passwords at rest.
+We do submit a hash of the password to Have I Been Pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs), but since they're all randomly generated this should be rare.
 
-### where are passwords stored?:
+### Where Are Passwords Stored?:
 ```bash
 # Define user-specific paths
 USER_VAULT_DIR="/etc/lme/vault"
 PASSWORD_FILE="/etc/lme/pass.sh"
 ```
 
-### grabbing passwords: 
+### Grabbing Passwords: 
 To view the appropriate service user password run the following commands:
 ```
 #script:
@@ -375,7 +389,7 @@ source $CLONE_DIRECTORY/scripts/extract_secrets.sh #without printing values
 source $CLONE_DIRECTORY/scripts/extract_secrets.sh -q #with no output
 ```
 
-### MANUALLY setting up passwords and accessing passwords **UNSUPPORTED**:
+### Manually Setting Up Passwords and Accessing Passwords **Unsupported**:
 **These steps are not fully supported and are left if others would like to support this in their environment**
 
 Run the password_management.sh script:
@@ -388,7 +402,7 @@ lme-user@ubuntu:~/LME-TEST$ sudo -i ${PWD}/scripts/password_management.sh -h
 -h: print this list
 ```
 
-A cli oneliner to grab passwords (this also demonstrates how we're using ansible-vault in extract_secrets.sh):
+A cli one liner to grab passwords (this also demonstrates how we're using Ansible-vault in extract_secrets.sh):
 ```bash
 #where wazuh_api is the service user whose password you want:
 USER_NAME=wazuh_api

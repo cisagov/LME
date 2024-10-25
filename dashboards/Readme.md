@@ -20,7 +20,7 @@ Select the filter `Type` and select `dashboard`.
 You can delete all of the dashboards before importing the new ones. 
 
 
-### Exporting dashboards: *TODO test this*
+### Exporting dashboards: 
 It is recommended that you export your dashboards before updating them, especially if you have customized them or created new ones. 
 To export the dashboards use the `export_dashboards.py`.
 It is easiest to export them from the ubuntu machine where you have installed the ELK stack because the 

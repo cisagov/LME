@@ -88,6 +88,8 @@ Filesystem      Size  Used Avail Use% Mounted on
 Servers can be either on premise, in a public cloud or private cloud. It is your choice, but you'll need to consider how to network between the clients and servers.
 
 ## What firewall rules are needed?
-TODO
+Please see our cloud documentation for a discussion on firewalls [CLOUD](/docs/markdown/loggging-guidance/cloud.md). 
+
+The main point is you need to make sure your client machine you want to monitor can hit the main LME ports in the readme [LINK](/README.md#required-ports) wherever you intend to run your LME server.
 
 
