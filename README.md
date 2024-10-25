@@ -289,7 +289,7 @@ ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
 ```
 
 
-### Other Post install setup: 
+### Other Post-Install Setup: 
 A few other things are needed and you're all set to go. 
 1. Setting up Elasticfleet
 2. Fixing a few issues with Wazuh (in a future release this won't be necessary)
