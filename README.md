@@ -43,7 +43,7 @@ LME is suited for for:
 - Organizations that that require gathering logs and monitoring IT
 
 ## Table of Contents:
--   [Pre-Requisites:](#architecture)
+-   [Pre-Requisites:](#pre-requisites)
 -   [Architecture:](#architecture)
 -   [Installation:](#installing-lme)
 -   [Deploying Agents:](#deploying-agents)
