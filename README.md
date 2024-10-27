@@ -412,7 +412,7 @@ sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USE
 # Documentation: 
 
 ## Logging Guidance
- - [LME in the CLOUD](/docs/markdown/logging-guidance/cloud.md)
+ - [LME in the Cloud](/docs/markdown/logging-guidance/cloud.md)
  - [Log Retention](/docs/markdown/logging-guidance/retention.md)
  - [Filtering](/docs/markdown/logging-guidance/filtering.md)
 
@@ -441,7 +441,7 @@ This is documentatino on agent configuration and management
    - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
    - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
     
-## endpoint tools:
+## Endpoint tools:
 In order to make best use of the agents, they need to be complemented by utilities to generate forensically relevant data to analyze and support detections.
 Look at adding them to Windows/Linux
 
