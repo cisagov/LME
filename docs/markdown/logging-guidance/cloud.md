@@ -1,4 +1,4 @@
-# Logging Made easy in the cloud 
+# Logging Made Easy in the cloud 
 
 These docs attempt to answer some FAQ and other documentation around Logging Made easy in the cloud. 
 
