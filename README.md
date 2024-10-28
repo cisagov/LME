@@ -50,7 +50,7 @@ If you're unsure whether you meet the prerequisites for installing LME, please r
 
 The main prerequisite is setting up hardware for your Ubuntu server, which should have at least:
 
-- two (2) processors
+- Two (2) processors
 - 16GB RAM
 - 128GB of dedicated storage for LME’s Elasticsearch database.
 
