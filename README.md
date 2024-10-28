@@ -62,7 +62,7 @@ LME runs on Ubuntu 22.04 and leverages Podman containers for security, performan
 
 ### Diagram: 
 
-![diagram](/docs/imgs/lme-architecture-v2.png) - UPDATE DIAGRAM
+![diagram](/docs/imgs/lme-architecture-v2.png) 
 
 ### Containers:
 Containerization allows each component of LME to run independently, increasing system security, improving performance, and making troubleshooting easier. 
