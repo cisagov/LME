@@ -71,7 +71,7 @@ LME uses Podman as its container engine because it is more secure (by default) a
 
 LME uses these containers:
 
-  - **Setup**: Runs `/config/setup/init-setup.sh` based on the configuration of DNS defined in `/config/setup/instances.yml`. The script will create a certificate authority (CA), underlying certificates for each service, and initialize the admin accounts for elasticsearch(user:`elastic`) and kibana(user:`kibana_system`). 
+  - **Setup**: Runs `/config/setup/init-setup.sh` based on the configuration of DNS defined in `/config/setup/instances.yml`. The script will create a certificate authority (CA), underlying certificates for each service, and initialize the admin accounts for Elasticsearch(user:`elastic`) and Kibana(user:`kibana_system`). 
   - **Elasticsearch**: Runs LME's database and indexes all logs.
   - **Kibana**: The front end for querying logs, visualizing data, and managing fleet agents.
   - **Elastic Fleet-Server**: Executes an [elastic agent ](https://github.com/elastic/elastic-agent) in fleet-server mode. Coordinates elastic agents to  gather client logs and status. Configuration is inspired by the [elastic-container](https://github.com/peasead/elastic-container) project.
@@ -144,13 +144,15 @@ The configuration files are located in /config/. These steps will guide you thro
 **2. Podman Quadlet Configuration**
 - Quadlet configuration for containers is located in /quadlet/. These map to the root systemd unit files but execute as non-privileged users.
 
-**3. Environment Variables** \***TO EDIT**:\*
+**3. Environment Variables**
 - Only edit the /config/lme-environment.env file to set required environment variables.
 
-\***TO EDIT**:\*
+\***USER REQUIRED EDITS**:\*
 The only file users needs to touch is creating `/config/lme-environment.env`, which sets up the required environment variables.
-Get your IP address via the following command: 
 
+This should be the IP address that your agents will use to connect to this server.
+
+Get your IP address via the following command: 
 ```
 hostname -I | awk '{print $1}'
 ```
