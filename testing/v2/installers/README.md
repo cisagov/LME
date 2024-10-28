@@ -14,3 +14,33 @@ Quick Start
 
 #reminder activiate venv first: `source ~/LME/venv/bin/activate`
 ./azure/build_azure_linux_network.py -g lme-cbaxley-m1 -s 0.0.0.0 -vs Standard_D8_v4 -l westus -ast 00:00   -pub Canonical  -io 0001-com-ubuntu-server-noble-daily  -is 24_04-daily-lts-gen2
+
+## creating clients: 
+Windows: 
+```
+az vm create `
+  --resource-group xxxxxx `
+  --nsg NSG1 `
+  --image Win2019Datacenter `
+  --admin-username admin-user `
+  --admin-password xxxxxxxxxxxxxx `
+  --vnet-name VNet1 `
+  --subnet SNet1 `
+  --public-ip-sku Standard `
+  --name WINDOWS
+```
+
+Ubuntu:
+```
+az vm create `
+   --resource-group XXXXX `
+   --nsg NSG1 `
+   --image Ubuntu2204 `      
+   --admin-username admin-user `
+   --admin-password XXXXXXXX `
+   --vnet-name VNet1 `
+   --subnet SNet1 `
+   --public-ip-sku Standard `
+   --name linux-client
+```
+

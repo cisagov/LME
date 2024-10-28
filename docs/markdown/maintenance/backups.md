@@ -17,23 +17,11 @@ consuming large amounts of disk space.
 
 ### Create a filesystem repository
 
-The LME installation creates a bind mount in Docker that maps to the
-`/opt/lme/backups` directory on the host system.
+LME sets up a podman volume called `lme_backups` so that backups can be saved outside the container.
 
-The LME log retention period is determined by the amount of disk space on the
-host system. Therefore it is **strongly** recommended that an external drive be
-mounted at the `/opt/lme/backups` location so that both disk space is conserved
-and to ensure that backups exist on a separate drive. Backups use a large volume of disk space, and if the storage volume provided is not suitable to store these logs without running out of space backups may cease to function, or LME may stop working altogether if all available disk space on the primary host is consumed.
+######NOTE: If backup storage becomes an issue, LME team will be adding documentation for how to manage the size and storage location of backups
 
-Once the external drive has been mounted on the host, you will need to ensure the ownership of the `/opt/lme/backups` folder is correct, to ensure the elasticsearch user can write the backups correctly. By default this folder will likely be owned by the root user, and this will need to be changed so that it is owned by the user you created during the operating system's installation, typically Ubuntu or similar. This can be achieved using the following command:
-
-```
-sudo chown -R 1000 /opt/lme/backups/
-```
-
-**This will allow the user you configured during the system's installation to write to this location, so ensure that this user is appropriately secured.**
-
-You will then need to create a repository for Elastic to use, which can be done through the Kibana interface.
+You will need to create a repository for Elastic to use, which can be done through the Kibana interface.
 
 First navigate to the "Snapshot and Restore" page under the `Stack Management` tab:
 
@@ -94,8 +82,30 @@ select the "Run now" option for the policy on the polices tab:
 
 ## Backup management
 
-Snapshots will now be periodically written to the drive mounted at
-`/opt/lme/backups`. It is recommended that these are managed in line with your
+Snapshots will now be periodically written to the volume `lme_backups`.
+
+You can find the location on disk of these backups at: 
+```bash
+sudo -i 
+podman volume mount lme_backups
+cd /var/lib/containers/storage/volumes/lme_backups/_data
+ls
+```
+
+it should look somehting like this: 
+```bash
+root@ubuntu:/var/lib/containers/storage/volumes/lme_backups/_data# ls
+index-0  index.latest  indices  meta-cuPUnpl1S0Sx8IkPIWLoEA.dat  snap-cuPUnpl1S0Sx8IkPIWLoEA.dat
+```
+
+You can now save/backup/etc... however you would like
+
+**Make sure to unmount when done**
+```bash
+podman volume unmount lme_backups
+```
+
+It is recommended that these are managed in line with your
 current backup policies and processes.
 
 # Restoring a backup:
