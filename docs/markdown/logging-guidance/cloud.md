@@ -1,23 +1,24 @@
 # Logging Made Easy in the cloud 
 
-These docs attempt to answer some FAQ and other documentation around Logging Made easy in the cloud. 
+This page attempts to answer some FAQ and around deploying LME in the cloud. 
 
 ## Does LME run in the cloud? 
-Yes, Logging Made easy is a simple client-server model, and Logging Made Easy can be deployed in the cloud for cloud infrastructure or in the cloud for on-prem machines.
+Yes, LME is a client-server model and accommodates both on-premises and cloud deployments, allowing organizations to host LME on local or cloud service provider (CSP) infrastructure.
 
 
-### Deploying LME in the cloud for on prem systems:
-In order for the LME agents to talk to LME in the cloud you'll need to ensure the clients you want to monitor can communicate through: 1) the cloud firewall AND 2) logging Made easy's own server firewall.
+
+## Deploying LME in the cloud for on prem systems:
+For LME agents to talk to LME in the cloud, you'll need to ensure the clients you want to monitor can communicate through: 1) the cloud firewall and 2) LME' own server firewall.
 
 ![cloud firewall](/docs/imgs/lme-cloud.jpg)
 
 The easiest way is to make sure you can hit these LME server ports from the on-prem client: 
-  - WAZUH ([DOCS](https://documentation.wazuh.com/current/user-manual/agent/agent-enrollment/requirements.html)): 1514,1515 
-  - Agent ([DOCS](https://www.elastic.co/guide/en/elastic-stack/current/installing-stack-demo-self.html#install-stack-self-elastic-agent)): 8220 (fleet commands), 9200 (input to elasticsearch)
+  - Wazuh Agent ([Agent Enrollment Requirements Documentation](https://documentation.wazuh.com/current/user-manual/agent/agent-enrollment/requirements.html)): 1514,1515 
+  - Elastic Agent ([Agent Install Documentation](https://www.elastic.co/guide/en/elastic-stack/current/installing-stack-demo-self.html#install-stack-self-elastic-agent)): 8220 (fleet commands), 9200 (input to elasticsearch)
 
-You'll need to make sure your Cloud firewall is setup to allow those ports. On azure, network security groups (NSG) run a firewall on your virtual machines network interfaces.  You'll need to update your LME virtual machine's rules to allow inbound connections on the agent ports. Azure has a detailed guide for how to add security rules [here](https://learn.microsoft.com/en-us/azure/virtual-network/manage-network-security-group?tabs=network-security-group-portal#create-a-security-rule). 
+You'll need to make sure your Cloud firewall is setup to allow the ports above. On Azure, network security groups (NSG) run a firewall on your virtual machine;s network interfaces.  You'll need to update your LME virtual machine's rules to allow inbound connections on the agent ports. Azure has a detailed guide for how to add security rules [here](https://learn.microsoft.com/en-us/azure/virtual-network/manage-network-security-group?tabs=network-security-group-portal#create-a-security-rule). 
 
-##### ***We highly suggest you do not open ANY PORT globally and restrict it based on your clients ip address or your client's subnets.****
+##### ***We highly suggest you do not open ANY PORT globally and restrict it based on your clients IP address or your client's subnets.****
 
 Then on LME, you'll want to make sure you have either the firewall disabled (if you're using the cloud firewall as the main firewall):
 ```
