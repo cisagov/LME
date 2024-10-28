@@ -42,7 +42,7 @@ LME is intended for organizations that:
 3. [Downloading and Installing LME:](#installing-lme)
 4. [Deploying Agents:](#deploying-agents)
 5. [Password Encryption:](#password-encryption)
-6. [Further Documentation & Upgrading:](#documentation)
+6. [Documentation:](#documentation)
 7. [Uninstall (if you want to remove LME):](#uninstall)
 
 ## 1. Prerequisites
