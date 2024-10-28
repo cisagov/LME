@@ -415,20 +415,19 @@ sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USE
 
 ## Reference: 
  - [FAQ](/docs/markdown/reference/faq.md) 
- - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
  - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md) *TODO*: update with new 2.0 dashboard descriptions
  - [Security Model](/docs/markdown/reference/security-model.md)
 
 ## Maintenance:
  - [Backups](/docs/markdown/maintenance/backups.md)  
  - [Certificates](/docs/markdown/maintenance/certificates.md) 
- - [Encryption at rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
+ - [Encryption at Rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
  - Data management:
    - [Index Management](/docs/markdown/maintenance/index-management.md)
    - [Volume Management](/docs/markdown/maintenance/volume-management.md)
  - Upgrading:
    - [Upgrading 1x -> 2x](/scripts/upgrade/README.md) 
-   - [Upgrading future 2.X](/docs/markdown/maintenance/upgrading.md)
+   - [Upgrading Future 2.x](/docs/markdown/maintenance/upgrading.md)
 
 ## Agents: 
 Here is documentation on agent configuration and management.
