@@ -230,13 +230,13 @@ Make sure to use `-i` to run a login shell with any commands that run as root, s
 
 1. Confirm services are installed: 
 ```bash
-sudo systemctl  daemon-reload
+sudo systemctl daemon-reload
 sudo systemctl list-unit-files lme\*
 ```
 
 Debug if necessary. The first step is to check the status of individual services listed above:
 ```bash
-#if something breaks use this to see what goes on:
+#if something breaks, use these commands to debug:
 SERVICE_NAME=lme-elasticsearch.service
 sudo -i journalctl -xu $SERVICE_NAME
 ```
@@ -248,7 +248,7 @@ sudo -i systemctl  reset-failed lme*
 sudo -i systemctl  restart lme.service
 ```
 
-2. Check containers are running and healthy. This is also how to print out the container names!
+2. Check that containers are running and healthy. This command will also print container names!
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
 ```  
@@ -270,13 +270,13 @@ $CONTAINER_NAME=lme-elasticsearch #change this to your container name you want t
 sudo -i podman logs -f $CONTAINER_NAME
 ```
 
-3. Check you can connect to Elasticsearch
+3. Check if you can connect to Elasticsearch
 ```bash
 #substitute your password below:
 curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
 ```
 
-4. Check you can connect to Kibana
+4. Check you can connect to Kibana <br/>
 You can use a ssh proxy to forward a local port to the remote linux host. To login as the Elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
 ```bash
 #connect via ssh if you need to 
