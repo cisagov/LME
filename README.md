@@ -62,7 +62,7 @@ LME runs on Ubuntu 22.04 and leverages Podman containers for security, performan
 
 ### Diagram: 
 
-![diagram](/docs/imgs/lme-architecture-v2.jpg) - UPDATE DIAGRAM
+![diagram](/docs/imgs/lme-architecture-v2.png) 
 
 ### Containers:
 Containerization allows each component of LME to run independently, increasing system security, improving performance, and making troubleshooting easier. 
@@ -225,7 +225,7 @@ sudo -i systemctl start lme.service
 ```
 
 
-### Verification post install:
+### Verification Post-Install:
 Make sure to use `-i` to run a login shell with any commands that run as root, so environment variables are set properly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
 
 1. Confirm services are installed: 
@@ -415,20 +415,19 @@ sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USE
 
 ## Reference: 
  - [FAQ](/docs/markdown/reference/faq.md) 
- - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
  - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md) *TODO*: update with new 2.0 dashboard descriptions
  - [Security Model](/docs/markdown/reference/security-model.md)
 
 ## Maintenance:
  - [Backups](/docs/markdown/maintenance/backups.md)  
  - [Certificates](/docs/markdown/maintenance/certificates.md) 
- - [Encryption at rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
+ - [Encryption at Rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
  - Data management:
    - [Index Management](/docs/markdown/maintenance/index-management.md)
    - [Volume Management](/docs/markdown/maintenance/volume-management.md)
  - Upgrading:
    - [Upgrading 1x -> 2x](/scripts/upgrade/README.md) 
-   - [Upgrading future 2.X](/docs/markdown/maintenance/upgrading.md)
+   - [Upgrading Future 2.x](/docs/markdown/maintenance/upgrading.md)
 
 ## Agents: 
 Here is documentation on agent configuration and management.
