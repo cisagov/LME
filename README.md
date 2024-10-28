@@ -168,7 +168,7 @@ You can run this Ansible installer for a fully automated install.
 
 ```bash
 sudo apt update && sudo apt install -y ansible
-# cd ~/LME-PRIV/lme-2-arch # Or path to your clone of this repo
+# cd ~/LME/lme-2-arch # Or path to your clone of this repo
 ansible-playbook ./ansible/install_lme_local.yml
 ```
 This assumes that you have the repo in `~/LME/`. 
@@ -276,7 +276,7 @@ sudo -i podman logs -f $CONTAINER_NAME
 curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
 ```
 
-4. Check you can connect to Kibana <br/>
+4. Check if you can connect to Kibana <br/>
 You can use a ssh proxy to forward a local port to the remote linux host. To login as the Elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
 ```bash
 #connect via ssh if you need to 
