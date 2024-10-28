@@ -225,7 +225,7 @@ sudo -i systemctl start lme.service
 ```
 
 
-### Verification post install:
+### Verification Post-Install:
 Make sure to use `-i` to run a login shell with any commands that run as root, so environment variables are set properly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
 
 1. Confirm services are installed: 
