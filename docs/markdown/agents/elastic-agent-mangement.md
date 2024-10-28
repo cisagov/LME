@@ -93,3 +93,11 @@ This guide will walk you through the process of adding a Windows integration to 
 By following these steps, you can effectively add and configure the Windows integration to your chosen agent policy in the LME system, allowing for comprehensive logging of your Windows endpoints.
 
 Apply these same steps to future integrations such as Auditd for Linux.
+
+## Troubleshooting Agent setup:
+The elastic agent has a ton of debugging commands that can be run to troubleshoot installs. Please see the link [HERE](https://www.elastic.co/guide/en/fleet/current/elastic-agent-cmd-options.html). 
+
+In addition, you can use this link to navigate/find the directories for where elastic agent is installed on the operating system you have installed it [HERE](https://www.elastic.co/guide/en/fleet/current/installation-layout.html).
+
+
+
