@@ -336,9 +336,19 @@ root@ubuntu:~# ls -al /opt/lme/dashboards/wazuh/INSTALLED
 -rw-r--r-- 1 root root 0 Oct 21 19:01 /opt/lme/dashboards/wazuh/INSTALLED
 ```
 
+
+If your linux wazuh agent doesn't start check the error with 
+
+systemctl status wazuh-agent.service 
+
+If the Wazuh agent did not start becasue the "MANAGER_IP" is invalid, set it to the same IP address as your wazuh manager. Or edit the server address manually at /var/ossec/etc/ossec.conf.
+
+
+### Deploy Wazuh Agent On client Machine (Windows)
 ## Deploying Agents: 
 We have seperate guides on deploying Wazuh and Elastic in seperate docs, please see links below:
 Eventually these steps will be more automated in a future release. 
+
 
 ##### - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
 ##### - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
