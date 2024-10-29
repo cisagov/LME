@@ -8,6 +8,7 @@ from .lib import dashboard_test_function
 
 class TestProcessExplorerDashboard:
     dashboard_id = "f2cbc110-8400-11ee-a3de-f1bc0525ad6c"
+    
 
     @pytest.fixture(scope="class")
     def setup_login(self, driver, login):
