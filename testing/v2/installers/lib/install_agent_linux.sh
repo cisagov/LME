@@ -49,8 +49,17 @@ cd "elastic-agent-${VERSION}-${ARCHITECTURE}"
 # Install Elastic Agent with automatic "yes" response
 sudo ./elastic-agent install --non-interactive 
 
-# Enroll the Elastic Agent. The previous install wasn't setting the variables right. 
-sudo /opt/Elastic/Agent/elastic-agent enroll -f --insecure --url=https://${IP}:$PORT --enrollment-token="${ENROLLMENT_TOKEN}"
+# Enroll the Elastic Agent and capture the output
+enrollment_output=$(sudo /opt/Elastic/Agent/elastic-agent enroll -f --insecure --url=https://${IP}:$PORT --enrollment-token="${ENROLLMENT_TOKEN}" 2>&1)
+
+# Check if enrollment was successful
+if echo "$enrollment_output" | grep -q "Successfully enrolled"; then
+    echo "Agent enrollment successful"
+else
+    echo "Agent enrollment failed"
+    echo "Enrollment output: $enrollment_output"
+    exit 1
+fi
 
 # Restart the agent service
 sudo service elastic-agent restart
