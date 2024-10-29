@@ -42,12 +42,12 @@ ssh -o StrictHostKeyChecking=no $user@$hostname << EOF
 EOF
 
 echo "Running ansible installer"
-ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook scripts/install_lme_local.yml"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook ansible/install_lme_local.yml"
 
 echo "Waiting for Kibana and Elasticsearch to start..."
 
 # Wait for services to start
-max_attempts=30
+max_attempts=120
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
     if ssh -o StrictHostKeyChecking=no $user@$hostname bash << EOF
@@ -82,8 +82,8 @@ EOF
         break
     fi
     attempt=$((attempt+1))
-    echo "Attempt $attempt/$max_attempts: Services not ready yet. Waiting 10 seconds..."
-    sleep 10
+    echo "Attempt $attempt/$max_attempts: Services not ready yet. Waiting 15 seconds..."
+    sleep 15
 done
 
 if [ $attempt -eq $max_attempts ]; then
@@ -94,9 +94,11 @@ fi
 echo "Running check-fleet script"
 ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh\"'"
 
-echo "Running set-fleet script"
-#ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./scripts/set-fleet.sh\"'"
-ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME && ./scripts/set-fleet.sh'"
+#echo "Running set-fleet script"
+#ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/ansible && ansible-playbook set_fleet.yml -e \"debug_mode=true\"'"
+
+echo "Running post install script"
+ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/ansible && ansible-playbook post_install_local.yml -e \"debug_mode=true\"'"
 
 echo "Installation and configuration completed successfully."
 

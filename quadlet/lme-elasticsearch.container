@@ -22,11 +22,13 @@ Secret=kibana_system,type=env,target=KIBANA_PASSWORD
 EnvironmentFile=/opt/lme/lme-environment.env
 Image=localhost/elasticsearch:LME_LATEST
 Network=lme
-PodmanArgs=--memory 8gb --network-alias lme-elasticsearch --health-interval=2s
+PodmanArgs= --network-alias lme-elasticsearch --health-interval=2s
 PublishPort=9200:9200
 Ulimit=memlock=-1:-1
 Volume=lme_certs:/usr/share/elasticsearch/config/certs
 Volume=lme_esdata01:/usr/share/elasticsearch/data
+Volume=lme_backups:/usr/share/elasticsearch/backups
+Volume=/opt/lme/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
 Notify=healthy
 HealthCmd=CMD-SHELL curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'
 User=elasticsearch
