@@ -99,5 +99,6 @@ The elastic agent has a ton of debugging commands that can be run to troubleshoo
 
 In addition, you can use this link to navigate/find the directories for where elastic agent is installed on the operating system you have installed it [HERE](https://www.elastic.co/guide/en/fleet/current/installation-layout.html).
 
+If there are issues with running the command like this [LINK](https://discuss.elastic.co/t/windows-pipe-elastic-agent-system-access-is-denied/316344) involving a pipe file, the elastic endpoint service (a windows service started by the agent) is in a failed state, and retarting the machine will most likely fix it. However this isn't required if the agent is showing as healthy, only if you want to run other cli agent debugging commands.
 
 
