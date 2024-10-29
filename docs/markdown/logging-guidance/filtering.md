@@ -40,13 +40,4 @@ More resources on this topic can be found here, and there are many more relevant
  - https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
  - https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-syntax
  - https://www.elastic.co/guide/en/elasticsearch/reference/current/regexp-syntax.html
-
-## Host Side:
-```
-TBD Pending testing
-```
-
-## Server Side:
-```
-TBD Pending testing
 ```
