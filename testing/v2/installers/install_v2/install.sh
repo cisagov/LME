@@ -47,7 +47,7 @@ ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook an
 echo "Waiting for Kibana and Elasticsearch to start..."
 
 # Wait for services to start
-max_attempts=30
+max_attempts=120
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
     if ssh -o StrictHostKeyChecking=no $user@$hostname bash << EOF
@@ -82,8 +82,8 @@ EOF
         break
     fi
     attempt=$((attempt+1))
-    echo "Attempt $attempt/$max_attempts: Services not ready yet. Waiting 10 seconds..."
-    sleep 10
+    echo "Attempt $attempt/$max_attempts: Services not ready yet. Waiting 15 seconds..."
+    sleep 15
 done
 
 if [ $attempt -eq $max_attempts ]; then
