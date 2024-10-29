@@ -9,6 +9,7 @@ PartOf=lme.service
 Restart=always
 LimitNOFILE=655360
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+TimeoutStartSec=2700 #15 minutes, helps ensure does not fail due to health check
 
 [Install]
 WantedBy=default.target lme.service

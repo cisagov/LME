@@ -10,7 +10,7 @@ WantedBy=default.target lme.service
 
 [Service]
 Restart=always
-TimeoutStartSec=900 #5 minutes, kibana can be slow
+TimeoutStartSec=2700 #15 minutes, helps ensure does not fail due to health check
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 
 [Container]
