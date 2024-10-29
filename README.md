@@ -20,7 +20,7 @@ Logging Made Easy can:
 
 **LME is a 'homebrew' way of gathering logs and querying for attacks.**
 
-The LME team simplified the process and created clear instruction on what to download and which configugrations to use, and created convinent scripts to auto configure when possible. 
+The LME team simplified the process and created clear instruction on what to download and which configurations to use, and created convinent scripts to auto configure when possible. 
 
 The current architecture is based on Windows Clients, Microsoft Sysmon, Windows Event Forwarding and the ELK stack.
 
