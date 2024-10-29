@@ -2,7 +2,7 @@ name: Cluster Run - Minimega
 
 on:
   workflow_dispatch:
-  pull_request:
+  # pull_request:
   #  branches:
   #    - '*'
 
@@ -18,6 +18,8 @@ jobs:
       AZURE_IP: ""
       MINIMEGA_IP: ""
       ENROLLMENT_TOKEN: ""
+      ES_PASSWORD: ""
+      KIBANA_PASSWORD: ""
 
     steps:
       - name: Checkout repository
@@ -80,7 +82,7 @@ jobs:
               cd /home/lme-user/LME/testing/v2/installers && \
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
-                -s 0.0.0.0/0 \
+                -s ${{ env.IP_ADDRESS }}/32 \
                 -vs Standard_D8_v4 \
                 -l centralus \
                 -ast 23:00 \
@@ -137,6 +139,7 @@ jobs:
           echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
           echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
+
       - name: Run a command in Minimega
         run: |
           cd testing/v2/development
@@ -152,6 +155,23 @@ jobs:
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
           "
+
+
+      - name: Retrieve Elastic password 
+        env:
+          AZURE_IP: ${{ env.AZURE_IP }}
+        run: |
+          cd testing/v2/development
+          ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$ES_PASSWORD"
+          echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
+          echo "Elastic password retrieved successfully: $ES_PASSWORD"
+          KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$KIBANA_PASSWORD"
+          echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
+          echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
+
+
 
       - name: Install test requirements on Azure instance
         run: |
@@ -170,9 +190,9 @@ jobs:
 
       - name: Retrieve Elastic policy ID and enrollment token
         env:
-          KIBANA_URL: "https://localhost" 
+          KIBANA_URL: "https://localhost:5601" 
           ES_USERNAME: "elastic" 
-          ES_PASSWORD: "password1" 
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
           cd testing/v2/development
           
@@ -228,34 +248,44 @@ jobs:
           "
 
       - name: Check if the Elastic agent is reporting 
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
-          sleep 120
+          sleep 360
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
-              '/home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh'
+              'export ES_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh'
           "
 
       - name: Run api tests on Azure instance
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
             source venv/bin/activate && \
             pytest -v api_tests/'
           "
 
       - name: Run selenium tests on Azure instance
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
             source venv/bin/activate && \
-            pytest -v  selenium_tests/'
+            pytest -v selenium_tests/'
           "
     
       - name: Cleanup Azure resources

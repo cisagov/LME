@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#TODO: may need to add a nix-store --gc, to clean up extra files that exist
 # Find the latest podman version in the Nix store
 latest_podman=$(find /nix/store -maxdepth 1 -name '*-podman-*' | 
                 sed -n 's/.*-podman-\([0-9.]*\)$/\1/p' | 
@@ -8,7 +8,7 @@ latest_podman=$(find /nix/store -maxdepth 1 -name '*-podman-*' |
 
 if [ -n "$latest_podman" ]; then
     # Find the full path of the latest version
-    podman_path=$(find /nix/store -maxdepth 1 -name "*-podman-${latest_podman}")
+    podman_path=$(find /nix/store -maxdepth 1 -name "*-podman-${latest_podman}" | tail -n1)
     
     # Assign the result to a variable
     LATEST_PODMAN_PATH="$podman_path"
