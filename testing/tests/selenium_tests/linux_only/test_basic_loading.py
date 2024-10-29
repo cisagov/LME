@@ -17,7 +17,7 @@ class TestBasicLoading:
     #     driver.quit()  # Clean up the browser (driver) here
 
 
-    # @pytest.mark.skip(reason="This test isn't working for 2.0 yet")
+    #@pytest.mark.skip(reason="This test isn't working for 2.0 yet")
     def test_title(self, setup_login, kibana_url, timeout):
         driver = setup_login
         driver.get(f"{kibana_url}/app/dashboards")
