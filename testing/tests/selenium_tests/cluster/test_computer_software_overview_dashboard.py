@@ -8,7 +8,8 @@ from .lib import dashboard_test_function
 
 class TestComputerSoftwareOverviewDashboard:
     #dashboard_id = "33f0d3b0-8b8a-11ea-b1c6-a5bf39283f12"
-    dashboard_id = "new dashboard"
+    #dashboard_id = "new dashboard"
+    dashboard_id = "ce98c19b-587f-4d76-9c49-2e9acee257d5"
     
     @pytest.fixture(scope="class")
     def setup_login(self, driver, login):

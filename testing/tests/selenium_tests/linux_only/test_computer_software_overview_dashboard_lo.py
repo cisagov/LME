@@ -6,7 +6,8 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 
 class TestComputerSoftwareOverviewDashboard:
-    dashboard_id = "new dashboard"
+    #dashboard_id = "new dashboard"
+    dashboard_id = "ce98c19b-587f-4d76-9c49-2e9acee257d5"
     @pytest.fixture(scope="class")
     def setup_login(self, driver, login):
         login()
