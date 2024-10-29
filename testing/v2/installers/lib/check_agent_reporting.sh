@@ -77,6 +77,9 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
         continue
     fi
 
+    echo "Hit count: $output"
+    echo "Hit count: $hit_count"
+
     # Check the hit count and exit if successful
     if [ "$hit_count" -gt 0 ]; then
         echo "ubuntu-vm is reporting"
