@@ -7,7 +7,7 @@
 
   vars:
     headers:
-      kbn-version: "8.12.2"
+      kbn-version: "8.15.3"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     max_retries: 60
