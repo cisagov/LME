@@ -48,7 +48,7 @@ def test_elastic_root(es_host, es_port, username, password):
             body["version"]["build_type"] == "docker"
     ), f"Expected 'docker', got {body['version']['build_type']}"
     assert (
-            body["version"]["lucene_version"] == "9.9.2"
+            body["version"]["lucene_version"] == "9.11.1"
     ), f"Expected '9.9.2', got {body['version']['lucene_version']}"
     assert (
             body["version"]["minimum_wire_compatibility_version"] == "7.17.0"
