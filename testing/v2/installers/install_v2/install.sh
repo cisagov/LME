@@ -72,7 +72,7 @@ SUDO_EOF
         check_service() {
             local url=\$1
             local auth=\$2
-            curl -k -s -o /dev/null -w '%{http_code}' --insecure -u "\${auth}" "\${url}" | grep -q '200'
+            curl -kL -s -o /dev/null -w '%{http_code}' --insecure -u "\${auth}" "\${url}" | grep -q '200'
         }
         check_service "https://\${IPVAR}:9200" "elastic:\${elastic}" && \
         check_service "\${LOCAL_KBN_URL}" "elastic:\${elastic}"
