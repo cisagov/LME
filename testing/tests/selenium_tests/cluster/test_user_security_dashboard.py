@@ -133,8 +133,7 @@ class TestUserSecurityDashboard:
     #@pytest.mark.skip(reason="Skipping this test")
     def test_potentially_suspicious_powershell(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Potentially suspicious powershell", ".needarealvaluehere",".euiDataGrid__noResults")  
-        #This dashboard panel needs test data. Currently the panel only gives No Result found
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Potentially suspicious powershell", ".euiDataGrid__focusWrap",".euiDataGrid__noResults")  
         
     #@pytest.mark.skip(reason="Skipping this test")
     def test_powershell_network_connections(self, setup_login, kibana_url, timeout):
