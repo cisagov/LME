@@ -235,6 +235,8 @@ sudo -i systemctl start lme.service
 ### Verification Post-Install:
 Make sure to use `-i` to run a login shell with any commands that run as root, so environment variables are set properly [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
 
+**The services take a while to start give it a few minutes before assuming things are broken**
+
 1. Confirm services are installed: 
 ```bash
 sudo systemctl daemon-reload
@@ -270,6 +272,8 @@ lme-elastalert2 Up 17 hours
 ```
 This also prints the names of the containers in the first column of text on the left. You'll want the container names.
 
+We are currently missing health checks for fleet-server and elastalert2, so if those are up they won't show healthy and thats expected. Health checks for these services will be added in a future version.
+
 If a container is missing you can check its logs here: 
 ```bash
 #also try inspecting container logs: 
@@ -283,6 +287,28 @@ sudo -i podman logs -f $CONTAINER_NAME
 curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
 ```
 
+Example output:
+```json
+{
+  "name" : "lme-elasticsearch",
+  "cluster_name" : "LME",
+  "cluster_uuid" : "FOnfbFSWQZ-PD-rU-9w4Mg",
+  "version" : {
+    "number" : "8.12.2",
+    "build_flavor" : "default",
+    "build_type" : "docker",
+    "build_hash" : "48a287ab9497e852de30327444b0809e55d46466",
+    "build_date" : "2024-02-19T10:04:32.774273190Z",
+    "build_snapshot" : false,
+    "lucene_version" : "9.9.2",
+    "minimum_wire_compatibility_version" : "7.17.0",
+    "minimum_index_compatibility_version" : "7.0.0"
+  },
+  "tagline" : "You Know, for Search"
+}
+
+```
+
 4. Check if you can connect to Kibana <br/>
 You can use a ssh proxy to forward a local port to the remote linux host. To login as the Elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
 ```bash
@@ -291,6 +317,8 @@ ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
 #go to browser:
 #https://localhost:8080
 ```
+
+You can also navigate to your browser at the value you set for `IPVAR`: https://IPVAR
 
 
 ### Other Post-Install Setup: 
