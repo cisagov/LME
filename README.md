@@ -344,7 +344,7 @@ As before, this script needs to be run from
 ```
 CLONE_DIRECTORY=~/LME #or whatever directory you cloned it to
 cd $CLONE_DIRECTORY
-[ansible playbook](ansible-playbook) ./ansible/post_install_local.yml
+ansible-playbook ./ansible/post_install_local.yml
 ```
 
 **IMPORTANT**: The post-install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in Elasticsearch, but doesn't need access to administrator functionality.
