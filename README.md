@@ -159,8 +159,13 @@ hostname -I | awk '{print $1}'
 
 Setup the config via the following  steps:
 ```
+#change directory to ~/LME or whatever your download directory is above
+cd ~/LME 
 cp ./config/example.env ./config/lme-environment.env
-#update the following values:
+```
+In the new `lme-environment.env` file, update the following values:
+```
+#your host ip as found from the above command
 IPVAR=127.0.0.1 #your hosts ip 
 ```
 
