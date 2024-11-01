@@ -83,12 +83,12 @@ class TestUserSecurityDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_network_connections_from_nonbrowser_processes(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Network connections from non-browser processes", ".tbvChart",".visError")                
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Unusual network connections from non-browser processes", ".tbvChart",".visError")                
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
-    def test_network_connections_by_protocol(self, setup_login, kibana_url, timeout):
+    def test_security_network_connections_area(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Network connection by protocol", ".echChart",".xyChart__empty")              
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security - Network connections area", ".echChart",".xyChart__empty")              
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_unusual_network_connections_from_non_browser_processes(self, setup_login, kibana_url, timeout):
@@ -138,7 +138,7 @@ class TestUserSecurityDashboard:
     #@pytest.mark.skip(reason="Skipping this test")
     def test_powershell_network_connections(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Powershell network connections", ".needarealvaluehere",".euiDataGrid__noResults")  
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Powershell network connections", ".euiDataGrid__focusWrap",".euiDataGrid__noResults")  
  
     
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")

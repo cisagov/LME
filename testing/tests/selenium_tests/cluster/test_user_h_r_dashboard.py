@@ -52,15 +52,16 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "HR - User activity title", ".visualization",".dummyval")
         
-    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_all_user_events_dayofweek_hourofday(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "All User Events by Day of Week, Hour of Day", ".echChart",".dummyval")
+        #This panel is no longer available in release 2
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
-    def test_timestamps_by_count(self, setup_login, kibana_url, timeout):
+    def test_events_by_time(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Timestamps by Count", ".echChart",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Events by Time", ".echChart",".dummyval")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_hr_logon_title(self, setup_login, kibana_url, timeout):
