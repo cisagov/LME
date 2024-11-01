@@ -454,6 +454,7 @@ sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USE
  - [Security Model](/docs/markdown/reference/security-model.md)
 
 ## Maintenance:
+ - [Alerting](/docs/markdown/maintenanc/elastalert-rules.md)
  - [Backups](/docs/markdown/maintenance/backups.md)  
  - [Certificates](/docs/markdown/maintenance/certificates.md) 
  - [Encryption at Rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
