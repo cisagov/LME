@@ -1,4 +1,24 @@
-# Elast Alert Rule Example
+# Elast Alert Rule writing:
+
+
+## Debugging:
+
+Debugging the rule you want to write can be done with the following podman command as root:
+
+```bash
+podman run -it --rm --net lme --env-file=/opt/lme/lme-environment.env -e ES_HOST=lme-elasticsearch -e ES_PORT=9200 -e ES_USERNAME=elastic --secret elastic,type=env,target=ES_PASSWORD  -v /opt/lme/config/elastalert2/config.yaml:/opt/elastalert/config.yaml -v /opt/lme/config/elastalert2/rules:/opt/elastalert/rules --entrypoint elastalert-test-rule localhost/elastalert2:LME_LATEST /opt/elastalert/rules/example-email-rule.yml
+```
+
+## Elastalert logs:
+You can find the logs for elastalert at:
+```bash
+sudo -i 
+podman volume mount lme_elastalert2_logs
+cd /var/lib/containers/storage/volumes/lme_elastalert2_logs/_data
+```
+
+
+#OLD NOTES:
 
 Below is the complete rule for detecting when Windows Event Logs are cleared:
 
