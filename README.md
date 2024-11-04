@@ -37,13 +37,13 @@ LME is intended for organizations that:
 
 
 ## Table of Contents:
-1. [Prerequisites:](#architecture)
-2. [Architecture:](#architecture)
-3. [Downloading and Installing LME:](#installing-lme)
-4. [Deploying Agents:](#deploying-agents)
-5. [Password Encryption:](#password-encryption)
-6. [Documentation:](#documentation)
-7. [Uninstall (if you want to remove LME):](#uninstall)
+[1](1). [Prerequisites:](#1-prerequisites)
+2. [Architecture:](#2-architecture)
+3. [Downloading and Installing LME:](#3-downloading-and-installing-lme)
+4. [Deploying Agents:](#4-deploying-agents)
+5. [Password Encryption:](#5-password-encryption)
+6. [Documentation:](#6-documentation)
+7. [Uninstall (if you want to remove LME):](#7-uninstall)
 
 ## 1. Prerequisites
 If you're unsure whether you meet the prerequisites for installing LME, please refer to our [prerequisites documentation](/docs/markdown/prerequisites.md).

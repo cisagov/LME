@@ -53,7 +53,7 @@ It’s possible to scale the solution to multiple event collectors and ELK nodes
 
 To begin your Logging Made Easy installation, you will need access to (or creation of) the following servers:
 
-* A server with 2 processor cores and at least 8GB RAM. We will install the Windows Event Collector Service on this machine, set it up as a Windows Event Collector (WEC), and join it to the domain.
+* A client machine (or multiple client machines) you would like to monitor.
 * An ubuntu linux 22.04 server. We will install our database (Elasticsearch) and dashboard software on this machine. This is all taken care of through Podman containers.
 
 ### Minimum Hardware Requirements:
