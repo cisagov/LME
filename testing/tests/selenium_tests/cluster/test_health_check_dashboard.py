@@ -44,4 +44,3 @@ class TestHealthCheckDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Users seen", ".visualization",".dummyval")
 
-

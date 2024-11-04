@@ -9,7 +9,6 @@ from .lib import dashboard_test_function
 class TestPrivilegedActivityLogDashboard:
     dashboard_id = "09d32fc8-e1d1-418a-8793-507ed5430d3d"
     
-    
     @pytest.fixture(scope="class")
     def setup_login(self, driver, login):
         login()

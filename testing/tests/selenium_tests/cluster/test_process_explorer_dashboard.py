@@ -10,6 +10,7 @@ class TestProcessExplorerDashboard:
     #dashboard_id = "f2cbc110-8400-11ee-a3de-f1bc0525ad6c"
     dashboard_id = "cf38381a-e9e1-4b28-914e-0819fb59e53c"
 
+
     @pytest.fixture(scope="class")
     def setup_login(self, driver, login):
         login()

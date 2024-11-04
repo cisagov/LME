@@ -18,8 +18,7 @@ class TestSysmonSummaryDashboard:
     def test_count_of_sysmon_events_by_event_code(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Count of Sysmon events by event code", ".tbvChart",".visError")
-        
-        
+                
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_total_number_of_sysmon_events_found(self, setup_login, kibana_url, timeout):
         driver = setup_login

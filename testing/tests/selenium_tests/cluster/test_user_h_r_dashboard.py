@@ -14,6 +14,7 @@ class TestUserHRDashboard:
         login()
         yield driver
 
+
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_filter_computers(self, setup_login, kibana_url, timeout):
         driver = setup_login

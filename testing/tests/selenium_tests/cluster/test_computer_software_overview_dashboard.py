@@ -41,4 +41,5 @@ class TestComputerSoftwareOverviewDashboard:
     def test_processes(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Processes", ".euiDataGrid__focusWrap",".euiText")
+        
 

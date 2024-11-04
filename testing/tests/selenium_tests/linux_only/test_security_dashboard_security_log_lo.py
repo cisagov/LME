@@ -55,6 +55,7 @@ class TestSecurityDashboardSecurityLog:
         panel = driver.find_element(By.CSS_SELECTOR, selector)
         assert "No results found" not in panel.get_attribute("innerHTML")
 
+
     #@pytest.mark.skip(reason="This test isn't working for 2.0 yet")
     def test_failed_logon_status_codes(self, setup_login, kibana_url, timeout):
         driver = setup_login

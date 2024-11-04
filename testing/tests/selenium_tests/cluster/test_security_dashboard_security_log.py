@@ -44,7 +44,6 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log - Credential sent as clear text - Logon type 8", ".needarealvaluehere",".visError")
    
-
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_failed_logon_and_reason(self, setup_login, kibana_url, timeout):
         driver = setup_login

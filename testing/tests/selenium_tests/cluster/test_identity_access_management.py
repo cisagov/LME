@@ -9,7 +9,6 @@ from .lib import dashboard_test_function
 class TestCredentialsAccessLogsDashboard:
     dashboard_id = "32ed7a33-b22e-4c4b-b4bd-a55c2cf4c0d0"
     
-    
     @pytest.fixture(scope="class")
     def setup_login(self, driver, login):
         login()
