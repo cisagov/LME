@@ -77,6 +77,6 @@ Servers can be either on premise, in a public cloud, or in a private cloud. It i
 ## What firewall rules are needed?
 Please see our cloud documentation for a discussion on firewalls [LME in the Cloud](/docs/markdown/loggging-guidance/cloud.md). 
 
-You must ensure that the client machine you want to monitor can reach the main LME ports as described in the ReadMe [LINK](/README.md#required-ports).
+You must ensure that the client machine you want to monitor can reach the main LME ports as described in the ReadMe [Required Ports section](/README.md#required-ports).
 
 
