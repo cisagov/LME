@@ -26,24 +26,8 @@ This project (scripts, documentation, and so on) is licensed under the [Apache L
 
 The design uses open software which comes at no cost to the user. CISA will ensure that no paid software licenses are needed above standard infrastructure costs (With the exception of Windows Operating System Licensing).
 
-Users must pay for hosting, bandwidth and time; for an estimate of server specs that might be needed, see this [blogpost from elasticsearch](https://www.elastic.co/blog/benchmarking-and-sizing-your-elasticsearch-cluster-for-logs-and-metrics) then use your estimated server specs to determine a price for an on prem or cloud deployment.
+Users must pay for hosting, bandwidth and time; for an estimate of server specs that might be needed, see this [blogpost from elasticsearch](https://www.elastic.co/blog/benchmarking-and-sizing-your-elasticsearch-cluster-for-logs-and-metrics) then use your estimated server specs to determine a price for an on premise or cloud deployment.
 
-
-## Navigating this document
-
-A **Chapter Overview** appears at the top of each chapter to briefly signpost the work of the associated section.
-
-Text in **bold** means that you have must make a decision or take an action that needs particular attention.
-
-
-Text in *italics* is an easy way of doing something, such as running a script. Double check you are comfortable doing this. A longer, manual, way is also provided.
-
-
-```
-Text in boxes is a command you need to type 
-```
-
-You should follow each chapter in order, and complete the checklist at the end before continuing.
 
 ## Scaling the solution
 To keep LME simple, our guide only covers single server setups.  Considering the differences across environments and scaling needs, we cannot provide an estimate of server resources beyond single server setups.
@@ -67,23 +51,23 @@ This is estimated to only support ~17 clients worth of log streaming data per da
 If you need to run LME with less than 16GB of RAM or minimal hardware, please follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage).
 		 
 #### Confirm your system meets the minimum hardware requirements:
-**Memory**: To check your available memory, run this command, look under the "free" column:
-```bash
-$ free -h 
-total        used        free      shared  buff/cache   available
-Mem:            31Gi       6.4Gi        22Gi       4.0Mi       2.8Gi        24Gi
-Swap:             0B          0B          0B
-```
-
 **CPU**: To check the number of CPUs, run the following command:
 ```bash
 $ lscpu | egrep 'CPU\(s\)'
 ```
 
+**Memory**: To check your available memory, run this command, look under the "free" column:
+```bash
+$ free -h 
+total        used        **free**      shared  buff/cache   available
+Mem:            31Gi       6.4Gi        22Gi       4.0Mi       2.8Gi        24Gi
+Swap:             0B          0B          0B
+```
+
 **Storage**: To check available hardware storage, typically the /dev/root will be your main filesystem. The number of gigabytes available is in the Avail column
 ```bash
 $ df -h
-Filesystem      Size  Used Avail Use% Mounted on
+Filesystem      Size  Used **Avail** Use% Mounted on
 /dev/root       124G   13G  112G  11% /
 ```
 
