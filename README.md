@@ -37,7 +37,7 @@ LME is intended for organizations that:
 
 
 ## Table of Contents:
-[1](1). [Prerequisites:](#1-prerequisites)
+1. [Prerequisites:](#1-prerequisites)
 2. [Architecture:](#2-architecture)
 3. [Downloading and Installing LME:](#3-downloading-and-installing-lme)
 4. [Deploying Agents:](#4-deploying-agents)
