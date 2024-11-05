@@ -11,7 +11,26 @@ Users with a background in systems or network administration can download LME. I
 
 … then you are likely to have the skills to install LME!
 
-We estimate that you should allow a couple of hours to complete the entire installation process.  We have automated steps where possible and made the instructions as detailed as possible.
+We estimate that you should allow half an hour to complete the entire installation process.  We have automated steps where possible and made the instructions as detailed as possible. 
+
+The following time table of real recorded times will provide you a reference of how long the installation may take to complete.
+
+| Milestones 				| Time 		| Timeline 	|
+| ------------- 			| ------------- | ------------- |
+| Download LME 				| 0:31.49 	| 0:31.49 	|
+| Set Environment 			| 0:35.94 	| 1:06.61 	|
+| Install Ansible 			| 1:31.94 	| 2:38.03 	|
+| Installing LME Ansible Playbook 	| 4:03.63 	| 6:41.66 	|
+| All Containers Active 		| 6:41.66 	| 13:08.92 	|
+| Accessing Elastic 			| 0:38.97 	| 13:47.60 	|
+| Post-Install Ansible Playbook 	| 2:04.34 	| 15:51.94 	|
+| Deploy Linux Elastic Agent 		| 0:49.95 	| 16:41.45 	|
+| Deploy Windows Elastic Agent 		| 1:32.00 	| 18:13.40 	|
+| Deploy Linux Wazuh Agent 		| 1:41.99 	| 19:55.34 	|
+| Deploy Windows Wazuh Agent 		| 1:55.00 	| 21:51.22 	|
+| Download LME Zip on Windows 		| 2:22.43	| 24:13.65 	|
+| Install Sysmon 			| 1:04.34 	| 25:17.99 	|
+| Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
 ## High level overview diagram of the LME system architecture
 
