@@ -15,6 +15,8 @@ We estimate that you should allow half an hour to complete the entire installati
 
 The following time table of real recorded times will provide you a reference of how long the installation may take to complete.
 
+### Estimated Installation Times
+
 | Milestones 				| Time 		| Timeline 	|
 | ------------- 			| ------------- | ------------- |
 | Download LME 				| 0:31.49 	| 0:31.49 	|
