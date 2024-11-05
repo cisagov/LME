@@ -399,6 +399,11 @@ Sysmon provides valuable logs for windows computers. For each of your windows cl
 .\scripts\install_sysmon.ps1
 ```
 
+To run this powershell script, you may need to temporarily set the powershell script execution policy to "Unrestricted" which lets Windows execute downloaded powershell scripts. You can do that with the following command:
+```
+Set-ExecutionPolicy Unrestricted
+```
+
 ## 5. Password Encryption:
 Ansible-vault is used to enable password encryption, securely storing all LME user and service user passwords at rest
 We do submit a hash of the password to Have I Been Pwned to check to see if it is compromised: [READ MORE HERE](https://haveibeenpwned.com/FAQs), but since they're all randomly generated this should be rare.
