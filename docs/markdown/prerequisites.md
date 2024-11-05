@@ -46,21 +46,25 @@ Text in boxes is a command you need to type
 You should follow each chapter in order, and complete the checklist at the end before continuing.
 
 ## Scaling the solution
-To keep LME simple, our guide only covers single server setups. It’s difficult to estimate how much load the single server setup will take.
-It’s possible to scale the solution to multiple event collectors and ELK nodes, but that will require more experience with the technologies involved. We plan to publish documentation for scaling LME in the future.
+To keep LME simple, our guide only covers single server setups.  Considering the differences across environments and scaling needs, we cannot provide an estimate of server resources beyond single server setups.
+It’s possible to scale the solution to multiple event collectors and ELK nodes, but that will require more experience with the technologies involved. However, we plan to publish documentation for scaling LME in the future.
 
 ## Required infrastructure
 
 To begin installing LME, you will need access to the following servers or you will need to create them:
 
-* A client machine (or multiple client machines) you would like to monitor.
-* An Ubuntu linux 22.04 server. We will install our database (Elasticsearch) and dashboard software on this machine. This is all taken care of through Podman containers.
+- A client machine (or multiple client machines) you would like to monitor.
+- An Ubuntu linux 22.04 server.
+
+We will install our database (Elasticsearch) and dashboard software on this machine. This is all taken care of through Podman containers.
 
 ### Minimum Hardware Requirements:
    -  CPU: 2 processor cores, 4+ recommended
    -  MEMORY: 16GB RAM,  (32GB+ recommended by [Elastic](https://www.elastic.co/guide/en/cloud-enterprise/current/ece-hardware-prereq.html)),
    - STORAGE: dedicated 128GB storage for ELK (not including storage for OS and other files)
-     - This is estimated to only support ~17 clients worth of log streaming data per day. Elasticsearch will automatically purge old logs to make space for new ones. We **highly** suggest more storage than 128GB for any enterprise network greater than this.
+This is estimated to only support ~17 clients worth of log streaming data per day. Elasticsearch will automatically purge old logs to make space for new ones. We **highly** suggest more storage than 128GB for any enterprise network greater than this.
+    
+If you need to run LME with less than 16GB of RAM or minimal hardware, please follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage).
 		 
 #### Confirm your system meets the minimum hardware requirements:
 **Memory**: To check your available memory, run this command, look under the "free" column:
