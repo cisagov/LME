@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from .lib import dashboard_test_function
 
-class TestSysmonSummaryDashboard:
+class TestPolicyChangesSystemActivityDashboard:
     
     dashboard_id = "614a8392-17b5-49c4-9397-bc3cac526c61"
     
