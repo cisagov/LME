@@ -55,11 +55,10 @@ If you need to run LME with less than 16GB of RAM or minimal hardware, please fo
 ```bash
 $ lscpu | egrep 'CPU\(s\)'
 ```
-
 **Memory**: To check your available memory, run this command, look under the "free" column:
 ```bash
 $ free -h 
-total        used        **free**      shared  buff/cache   available
+total        used        free      shared  buff/cache   available
 Mem:            31Gi       6.4Gi        22Gi       4.0Mi       2.8Gi        24Gi
 Swap:             0B          0B          0B
 ```
