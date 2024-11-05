@@ -66,7 +66,7 @@ Swap:             0B          0B          0B
 **Storage**: To check available hardware storage, typically the /dev/root will be your main filesystem. The number of gigabytes available is in the Avail column
 ```bash
 $ df -h
-Filesystem      Size  Used **Avail** Use% Mounted on
+Filesystem      Size  Used Avail Use% Mounted on
 /dev/root       124G   13G  112G  11% /
 ```
 
