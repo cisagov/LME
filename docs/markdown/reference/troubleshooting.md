@@ -110,11 +110,11 @@ systemctl --user restart lme.service
 ## Elastic troubleshooting steps
 
 ### Manual Dashboard Install
+You can now import the dashboards by clicking ‘Management’ -> ‘Stack Management’ -> ‘Saved Objects’. Please follow the steps in Figure 4 below. 
+
 This step should not be required by default. Only use if the installer failed to automatically populate the expected dashboards or if you wish to make use of your own modified version of the supplied visualizations.
 
-Each dashboard and its visualization objects are contained within a NDJSON file (previously JSON) and can be easily imported
-
-You can now import the dashboards by clicking ‘Management’ -> ‘Stack Management’ -> ‘Saved Objects’. Please follow the steps in Figure 4, and the NDJSON files are in [dashboards/](/dashboards).
+Each dashboard and its visualization objects are contained within a NDJSON file (previously JSON) and can be easily imported. The NDJSON files are in [dashboards/](/dashboards).
 
 
 ![Importing Objects](/docs/imgs/import.png)
