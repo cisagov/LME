@@ -3,14 +3,14 @@ This script creates a "blank slate" for testing/configuring LME.
 
 Using the Azure CLI, it creates the following:
 - A resource group
-- A virtual network, subnet and network security group
+- A virtual network, subnet, and network security group
 - 2 VMs: "DC1," a Windows server, and "LS1," a Linux server
 - Client VMs: Windows clients "C1", "C2", etc. up to 16 based on user input 
 - Promotes DC1 to a domain controller
 - Adds C1 to the managed domain
 - Adds a DNS entry pointing to LS1
 
-This script does not install LME. It simply creates a fresh environment that's ready to have LME installed.
+This script does not install LME; it simply creates a fresh environment that's ready to have LME installed.
 
 ## Usage
 | **Parameter**      | **Alias** | **Description**                                                                                                                                                   | **Required** |
