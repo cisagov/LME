@@ -1,0 +1,51 @@
+# Add host IP address / domain names as needed.
+
+instances:
+  - name: "elasticsearch"
+    dns:
+      - "lme-elasticsearch"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "kibana"
+    dns:
+      - "lme-kibana"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "fleet-server"
+    dns:
+      - "lme-fleet-server"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "wazuh-manager"
+    dns:
+      - "lme-wazuh-manager"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "logstash"
+    dns:
+      - "logstash"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "curator"
+    dns:
+      - "curator"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "caddy"
+    dns:
+      - "lme-caddy"
+      - "localhost"
+    ip:
+      - "127.0.0.1"

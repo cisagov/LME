@@ -1,14 +1,15 @@
 # Backing up LME Logs
 
-You back up logs using the built-in Elastic facilities. Out of the box,
-Elasticsearch supports backing up to filesystems, and this is the only approach LME supports. Other backup destinations are supported but these require
-separate plugins, and LME does not not support them.
+Logs are backed up using the built-in Elastic facilities. Out of the box,
+Elasticsearch supports backing up to filesystems, and this is the only approach
+supported by LME. Other backup destinations are supported but these require
+separate plugins, and are not supported by LME.
 
 ## Approach
 
-You create backups using Elasticsearch snapshots. The initial snapshot will
-contain all of the current logs but subsequent backups will onlyYou  contain changes
-since the last snapshot was taken. It is possible to take regular
+Backups are created using Elasticsearch snapshots. The initial snapshot will
+contain all of the current logs but subsequent backups will only contain changes
+since the last snapshot was taken. It is therefore possible to take regular
 backups without a significant effect on the system's performance and without
 consuming large amounts of disk space.
 
@@ -16,21 +17,11 @@ consuming large amounts of disk space.
 
 ### Create a filesystem repository
 
-The LME installation creates a bind mount in Docker that maps to the
-`/opt/lme/backups` directory on the host system.
+LME sets up a podman volume called `lme_backups` so that backups can be saved outside the container.
 
-The amount of disk space on the host system determines the LME log retention period. We **strongly** recommend thatyou mount an external drive at the `/opt/lme/backups` location so that both disk space is conserved
-and to ensure that backups exist on a separate drive. Backups use a large volume of disk space, and if the storage volume provided is not suitable to store these logs without running out of space backups may cease to function, or LME may stop working altogether if all available disk space on the primary host is consumed.
+######NOTE: If backup storage becomes an issue, LME team will be adding documentation for how to manage the size and storage location of backups
 
-Once you have mounted the external drive on the host, you will need to ensure the ownership of the `/opt/lme/backups` folder is correct, to ensure the elasticsearch user can write the backups correctly. By default the root user will likely be the owner of this folder, and you will need to change this so that the user you created during the operating system's installation is the owner. To do this use the following command:
-
-```
-sudo chown -R 1000 /opt/lme/backups/
-```
-
-**This will allow the user you configured during the system's installation to write to this location, so ensure that this user is appropriately secured.**
-
-You will then need to create a repository for Elastic to use, which can be done through the Kibana interface.
+You will need to create a repository for Elastic to use, which can be done through the Kibana interface.
 
 First navigate to the "Snapshot and Restore" page under the `Stack Management` tab:
 
@@ -65,7 +56,7 @@ then click the "Create a policy" button:
 On the next screen, pick a name for your new policy ("lme-snapshots" in this
 example). For the snapshot name the value `<lme-daily-{now/d}>` will create
 files with the prefix `lme-daily` and with the current date as a suffix. Make
-sure that you select your new repository, and then configure a schedule in line with
+sure your new repository is selected, and then configure a schedule in line with
 your backup policy. Elasticsearch uses incremental snapshots for its backup,
 and so only the previous day's logs will need to be snapshotted, which will help
 minimize the performance impact.
@@ -84,15 +75,37 @@ Review the new policy and click "Create policy".
 
 ![Policy Five](/docs/imgs/backup_pics/policy_5.png)
 
-If you want to test the new policy or want to create the initial snapshot, you can
+If you want to test the new policy, or to create the initial snapshot, you can
 select the "Run now" option for the policy on the polices tab:
 
 ![Policy Six](/docs/imgs/backup_pics/policy_6.png)
 
 ## Backup management
 
-Snapshots will now be periodically written to the drive mounted at
-`/opt/lme/backups`. It is recommended that these are managed in line with your
+Snapshots will now be periodically written to the volume `lme_backups`.
+
+You can find the location on disk of these backups at: 
+```bash
+sudo -i 
+podman volume mount lme_backups
+cd /var/lib/containers/storage/volumes/lme_backups/_data
+ls
+```
+
+it should look somehting like this: 
+```bash
+root@ubuntu:/var/lib/containers/storage/volumes/lme_backups/_data# ls
+index-0  index.latest  indices  meta-cuPUnpl1S0Sx8IkPIWLoEA.dat  snap-cuPUnpl1S0Sx8IkPIWLoEA.dat
+```
+
+You can now save/backup/etc... however you would like
+
+**Make sure to unmount when done**
+```bash
+podman volume unmount lme_backups
+```
+
+It is recommended that these are managed in line with your
 current backup policies and processes.
 
 # Restoring a backup:

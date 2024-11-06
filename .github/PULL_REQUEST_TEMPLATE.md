@@ -18,13 +18,11 @@
 ## 🧪 Testing 
 
 <!-- How did you test your changes? How could someone else test this PR? -->
-<!-- Include details of your testing environment, and the tests you ran to. -->
+<!-- Include details of your testing environment, and the tests you ran to -->
 <!-- see how your change affects other areas of the code, etc. -->
 
 ## ✅ Pre-approval checklist ##
-- [ ] There is a [gitIssue](https://github.com/cisagov/LME/issues) that this PR resolves
-- [ ] Git Issue that this PR solves has been selected in the Development section
-- [ ] The PR's base branch has been modified to be the proper branch. 
+
 - [ ] Changes are limited to a single goal **AND** 
       the title reflects this in a clear human readable format
 - [ ] Issue that this PR solves has been selected in the Development section
@@ -35,12 +33,11 @@
 
 ## ✅ Pre-merge Checklist
 
-- [ ] All tests pass.
-- [ ] PR has been tested and the documentation for testing is above.
-- [ ] Squash and merge all commits into one PR level commit. 
+- [ ] All tests pass
+- [ ] PR has been tested and the documentation for testing is above
+- [ ] Squash and merge all commits into one PR level commit 
 
 ## ✅ Post-merge Checklist
 
-- [ ] Delete the branch to keep down number of branches.
-- [ ] The PR is labeled with `feat` for an added new feature, `update` for an update, **OR** `fix` for a fix.
-- [ ] The PR contains `Resolves #<issue #>` so that merging it closes out the corresponding issue.  For example `Resolves #132`.
+- [ ] Delete the branch to keep down number of branches
+

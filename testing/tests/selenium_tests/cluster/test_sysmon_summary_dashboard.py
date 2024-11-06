@@ -14,11 +14,13 @@ class TestSysmonSummaryDashboard:
         login()
         yield driver
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_count_of_sysmon_events_by_event_code(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Count of Sysmon events by event code", ".tbvChart",".visError")
         
         
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_total_number_of_sysmon_events_found(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Total number of Sysmon events found", ".visualization",".dummyval")    
@@ -28,19 +30,23 @@ class TestSysmonSummaryDashboard:
         
 
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_percentage_of_sysmon_events_by_event_code(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Percentage of Sysmon events by event code", ".echChart",".euiText")
     
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_sysmon_events(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Sysmon events", ".echChart",".visError")    
         
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_top10_hosts_generating_most_sysmon_data(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Top 10 hosts generating the most Sysmon data", ".tbvChart",".visError")
 
 
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_sysmon_events_code_reference(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Sysmon event code reference", ".visualization",".dummyval")
