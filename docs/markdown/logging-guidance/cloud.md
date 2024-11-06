@@ -1,6 +1,6 @@
 # Logging Made Easy in the cloud 
 
-This page attempts to answer some FAQ and around deploying LME in the cloud. 
+This page answers some common FAQ about deploying LME in the cloud. 
 
 ## Does LME run in the cloud? 
 Yes, LME is a client-server model and accommodates both on-premises and cloud deployments, allowing organizations to host LME on local or cloud service provider (CSP) infrastructure.
@@ -12,7 +12,7 @@ For LME agents to talk to LME in the cloud, you'll need to ensure the clients yo
 
 ![cloud firewall](/docs/imgs/lme-cloud.jpg)
 
-The easiest way is to make sure you can hit these LME server ports from the on-prem client: 
+The easiest way is to make sure you can access these LME server ports from the on premise client: 
   - Wazuh Agent ([Agent Enrollment Requirements Documentation](https://documentation.wazuh.com/current/user-manual/agent/agent-enrollment/requirements.html)): 1514,1515 
   - Elastic Agent ([Agent Install Documentation](https://www.elastic.co/guide/en/elastic-stack/current/installing-stack-demo-self.html#install-stack-self-elastic-agent)): 8220 (fleet commands), 9200 (input to elasticsearch)
 
@@ -20,7 +20,7 @@ You'll need to make sure your Cloud firewall is setup to allow the ports above. 
 
 ##### ***We highly suggest you do not open ANY PORT globally and restrict it based on your clients IP address or your client's subnets.****
 
-Then on LME, you'll want to make sure you have either the firewall disabled (if you're using the cloud firewall as the main firewall):
+On LME, you'll want to make sure you have the firewall disabled (if you're using the cloud firewall as the main firewall):
 ```
 lme-user@ubuntu:~$ sudo ufw status
 Status: inactive
@@ -49,7 +49,7 @@ sudo ufw allow 1515
 sudo ufw allow 8220
 sudo ufw allow 9200
 ```
-If you want to use the wazuh api, you'll also need to setup port 55000 to be allowed in:
+If you want to use the Wazuh API, you'll also need to setup port 55000 to be allowed in:
 ```
 sudo ufw allow 55000
 ```
@@ -59,8 +59,8 @@ In addition, you'll need to setup rules to forward traffic to the container netw
 ufw route allow in on eth0 out on podman1 to any port 443,1514,1515,5601,8220,9200 proto tcp
 ufw route allow in on podman1
 ```
-Theres a helpful stackoverflow article on why: [LINK](https://stackoverflow.com/questions/70870689/configure-ufw-for-podman-on-port-443)
-Your `podman1` interface name maybe differently, check the output of your network interfaces here and see if its also called podman1: 
+Theres a helpful stackoverflow article on [Configuring UFW for podman on port 443](https://stackoverflow.com/questions/70870689/configure-ufw-for-podman-on-port-443)
+Your `podman1` interface name may be different. Check the output of your network interfaces by running the following command to check if your interface is also called podman1: 
 ```
 sudo -i podman network inspect lme | jq 'map(select(.name == "lme")) | map(.network_interface) | .[]'
 ```
@@ -82,7 +82,7 @@ root@ubuntu:~#
 
 ### Deploying LME for cloud infrastructure: 
 
-Every cloud setup is different, but as long as the LME server is on the same network and able to talk to the machines you want to monitor everything should be good to go.
+Every cloud setup is different. As long as the LME server is on the same network and able to talk to the machines you want to monitor, your deployment should run smoothly.
 
 ## Other firewall rules
 You may also want to access kibana from outside the cloud as well. You'll want to make sure you either allow port `5601` or port `443` inbound from the cloud firewall AND virtual machine firewall. 
@@ -111,9 +111,9 @@ To                         Action      From
 443 (v6)                   ALLOW       Anywhere (v6)
 ```
 
-### Don't lock yourself out AND Enabling the firewall
+### Don't lock yourself out AND enable the firewall
  
-You also probably don't want to lock yourself out of ssh, so make sure to enable port 22!
+You also don't want to lock yourself out of ssh, so make sure to enable port 22!
 ```
 sudo ufw allow 22
 ```
