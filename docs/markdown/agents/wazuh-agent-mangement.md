@@ -26,7 +26,7 @@ Output should look similar to this:
   "error": 0,
   "data": [
     {
-      "WAZUH_VERSION": "v4.7.5"
+      "WAZUH_VERSION": "v4.9.1"
     },
     {
       "WAZUH_REVISION": "40720"
@@ -37,7 +37,7 @@ Output should look similar to this:
   ]
 }
 ```
-drop the v, and use `4.7.5`
+drop the v, and use `4.9.1`
 
 ## Steps to Enroll a Wazuh Agent (***Windows***)
 
@@ -50,10 +50,10 @@ drop the v, and use `4.7.5`
    - You can also use the below powershell command: 
 ```powershell
 # Replace the values with the values you have above
-# where {WAZUH_AGENT_VERSION}=4.7.5
+# where {WAZUH_AGENT_VERSION}=4.9.1
 # where {WAZUH_MANAGER_IP}=10.1.0.5
-Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi;`
-Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER="10.1.0.5"' -Wait -NoNewWindow`
+Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.1-1.msi -OutFile wazuh-agent-4.9.1-1.msi;`
+Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.9.1-1.msi /q WAZUH_MANAGER="10.1.0.5"' -Wait -NoNewWindow
 ```
 
 2. **Install the Wazuh Agent**

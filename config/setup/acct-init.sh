@@ -15,7 +15,7 @@ if [ ! -f "${CERTS_DIR}/ACCOUNTS_CREATED" ]; then
   until curl -s --cacert config/certs/ca/ca.crt https://lme-elasticsearch:9200 | grep -q "missing authentication credentials"; do echo "WAITING"; sleep 30; done;
 
   echo "Setting kibana_system password";
-  until curl -s -X POST --cacert config/certs/ca/ca.crt -u elastic:${ELASTIC_PASSWORD} -H "Content-Type: application/json" https://lme-elasticsearch:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 2; done;
+  until curl -L -s -X POST --cacert config/certs/ca/ca.crt -u elastic:${ELASTIC_PASSWORD} -H "Content-Type: application/json" https://lme-elasticsearch:9200/_security/user/kibana_system/_password -d "{\"password\":\"${KIBANA_PASSWORD}\"}" | grep -q "^{}"; do sleep 2; done;
 
   echo "All done!" | tee "${CERTS_DIR}/ACCOUNTS_CREATED" ;
 fi
