@@ -23,7 +23,7 @@ Wazuh can automatically block IP addresses attempting SSH brute-force attacks us
    </command>
    ```
 
-3. **Set Up Active Response**: Looks for the section that says "active-reponse options here" in the .conf file. Copy and paste the entire configuration below that commented out line. You can continue to add more active reponse configs below that line.
+3. **Set Up Active Response**: Looks for the section that says "active-response options here" in the .conf file. Copy and paste the entire configuration below that commented out line. You can continue to add more active response configs below that line.
    ```xml
    <active-response>
      <command>firewall-drop</command>
@@ -52,7 +52,7 @@ Wazuh can automatically block IP addresses attempting SSH brute-force attacks us
 
 ## Testing
 
-1. Use a tool like Hydra to simulate a brute-force attack, or you can just attemp to SSH into the machine multiple times until it triggers. You will need 8 failed SSH attemps in order to trigger Brute Force. (This can be adjusted in the ruleset manually)
+1. Use a tool like Hydra to simulate a brute-force attack, or you can attempt to SSH into the machine multiple times until it triggers. You will need eight failed SSH attempts to trigger Brute Force. (This can be adjusted in the ruleset manually)
 2. Verify that the attacker's IP is blocked by attempting to ping the target machine.
 
 ## Custom Responses
