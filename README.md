@@ -56,7 +56,7 @@ The main prerequisite is setting up hardware for your Ubuntu server, which shoul
 
 If you need to run LME with less than 16GB of RAM or minimal hardware, please follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage).
 
-The following time table of real recorded times will provide you a reference of how long the installation may take to complete.
+We estimate that you should allow half an hour to complete the entire installation process. The following time table of real recorded times will provide you a reference of how long the installation may take to complete.
 
 ### Estimated Installation Times
 
