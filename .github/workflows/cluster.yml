@@ -1,10 +1,31 @@
 name: Cluster Run - Minimega
 
 on:
+  pull_request:
+    # branches:
+    #   - '*'
   workflow_dispatch:
-  # pull_request:
-  #  branches:
-  #    - '*'
+    inputs:
+      azure_region:
+        description: 'Azure region to deploy resources'
+        required: true
+        default: 'centralus'
+        type: choice
+        options:
+          - centralus
+          - eastus
+          - eastus2
+          - westus
+          - westus2
+          - westus3
+          - northcentralus
+          - southcentralus
+          - canadacentral
+          - canadaeast
+          - uksouth
+          - ukwest
+          - northeurope
+          - westeurope
 
 jobs:
   build-and-test-cluster:
@@ -84,7 +105,7 @@ jobs:
                 -g pipe-${{ env.UNIQUE_ID }} \
                 -s ${{ env.IP_ADDRESS }}/32 \
                 -vs Standard_D8_v4 \
-                -l centralus \
+                -l ${{ inputs.azure_region || 'centralus' }} \
                 -ast 23:00 \
                 -y
             "
@@ -199,7 +220,7 @@ jobs:
           # Retrieve policy ID
           POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh lme-user@${{ env.AZURE_IP }} '
-              curl -k -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
                 -H \"kbn-xsrf: true\" \
                 -H \"Content-Type: application/json\" |
               jq -r '.items[0].id'
@@ -210,7 +231,7 @@ jobs:
           # Retrieve enrollment token using the policy ID
           ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh lme-user@${{ env.AZURE_IP }} '
-              curl -k -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
                 -H \"kbn-xsrf: true\" \
                 -H \"Content-Type: application/json\" \
                 -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |

@@ -6,7 +6,7 @@
 
   vars:
     headers:
-      kbn-version: "8.12.2"
+      kbn-version: "8.15.3"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     max_retries: 60
@@ -109,7 +109,7 @@
         max_attempts=30
         delay=10
         while [ $attempt -lt $max_attempts ]; do
-          response=$(curl -s -o /dev/null -w "%{http_code}" -k -u elastic:{{ elastic_password }} {{ local_kbn_url }}/api/fleet/agents/setup)
+          response=$(curl -s -o /dev/null -w "%{http_code}" -kL -u elastic:{{ elastic_password }} {{ local_kbn_url }}/api/fleet/agents/setup)
           if [ "$response" = "200" ]; then
             echo "Fleet API is ready. Proceeding with configuration..."
             exit 0

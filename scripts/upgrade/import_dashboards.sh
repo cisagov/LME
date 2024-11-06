@@ -114,7 +114,7 @@ echo "Found ${#DASHBOARDS[@]} dashboard files."
 # Upload dashboards
 for db in "${DASHBOARDS[@]}"; do
     echo "Uploading ${db##*/} dashboard"
-    curl -X POST -k --user "${USER}:${PASSWORD}" -H 'kbn-xsrf: true' --form file="@${db}" "https://127.0.0.1/api/saved_objects/_import?overwrite=true"
+    curl -X POST -kL --user "${USER}:${PASSWORD}" -H 'kbn-xsrf: true' --form file="@${db}" "https://127.0.0.1/api/saved_objects/_import?overwrite=true"
     echo
 done
 

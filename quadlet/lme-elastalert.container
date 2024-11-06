@@ -24,6 +24,7 @@ Network=lme
 PodmanArgs=--network-alias lme-elastalert2
 Volume=lme_elastalert2_logs:/opt/elastalert/logs
 Volume=/opt/lme/config/elastalert2/rules:/opt/elastalert/rules:ro
+Volume=/opt/lme/config/elastalert2/misc:/opt/elastalert/misc:ro
 Volume=/opt/lme/config/elastalert2/config.yaml:/opt/elastalert/config.yaml:ro
 Volume=lme_certs:/etc/wazuh-manager/certs:ro
 Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
