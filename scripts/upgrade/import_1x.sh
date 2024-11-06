@@ -30,7 +30,7 @@ set_credentials_from_file() {
 check_es_connection() {
     local response
     local http_code
-    response=$(curl -s -k -u "${ES_USER}:${ES_PASS}" -w "\n%{http_code}" "${ES_PROTOCOL}://${ES_HOST}:${ES_PORT}")
+    response=$(curl -s -kL -u "${ES_USER}:${ES_PASS}" -w "\n%{http_code}" "${ES_PROTOCOL}://${ES_HOST}:${ES_PORT}")
     http_code=$(echo "$response" | tail -n1)
     body=$(echo "$response" | sed '$d')
 
@@ -58,7 +58,7 @@ increase_field_limit() {
     local new_limit="$2"
 
     echo "Increasing field limit for index ${index_name} to ${new_limit}..."
-    curl -X PUT -k -H 'Content-Type: application/json' \
+    curl -X PUT -kL -H 'Content-Type: application/json' \
          -u "${ES_USER}:${ES_PASS}" \
          "${ES_PROTOCOL}://${ES_HOST}:${ES_PORT}/${index_name}/_settings" \
          -d "{\"index.mapping.total_fields.limit\": ${new_limit}}"
@@ -74,7 +74,7 @@ import_data_and_mappings() {
 
     # Create the index with increased field limit
     echo "Creating index ${import_index} with increased field limit..."
-    curl -X PUT -k -H 'Content-Type: application/json' \
+    curl -X PUT -kL -H 'Content-Type: application/json' \
          -u "${ES_USER}:${ES_PASS}" \
          "${ES_PROTOCOL}://${ES_HOST}:${ES_PORT}/${import_index}" \
          -d "{\"settings\": {\"index.mapping.total_fields.limit\": ${field_limit}}}"

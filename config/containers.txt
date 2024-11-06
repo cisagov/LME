@@ -1,6 +1,6 @@
 docker.io/caddy:2-alpine
-docker.elastic.co/elasticsearch/elasticsearch:8.12.2
-docker.elastic.co/beats/elastic-agent:8.12.2
-docker.elastic.co/kibana/kibana:8.12.2
-docker.io/wazuh/wazuh-manager:4.7.5
+docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+docker.elastic.co/beats/elastic-agent:8.15.3
+docker.elastic.co/kibana/kibana:8.15.3
+docker.io/wazuh/wazuh-manager:4.9.1
 docker.io/jertel/elastalert2:2.20.0

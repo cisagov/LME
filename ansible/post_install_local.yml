@@ -7,7 +7,7 @@
 
   vars:
     headers:
-      kbn-version: "8.12.2"
+      kbn-version: "8.15.3"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     max_retries: 60
@@ -465,7 +465,7 @@
       register: dashboards
 
     - name: Upload dashboards to Kibana
-      shell: 'curl -X POST -k --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
+      shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
       args:
         warn: false
@@ -610,7 +610,7 @@
       register: dashboards
 
     - name: Upload dashboards to Kibana
-      shell: 'curl -X POST -k --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
+      shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
       args:
         warn: false
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
@@ -901,7 +901,7 @@
       shell: >
         curl -X POST "{{ local_es_url }}/_security/user/readonly_user"
         -u "{{ elastic_username }}:{{ elastic_password }}"
-        -k
+        -kL
         -H "Content-Type: application/json"
         -d '{
               "password": "{{ read_only_password.stdout }}",

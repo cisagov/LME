@@ -51,7 +51,7 @@ ELASTICSEARCH_HOST="localhost"
 ELASTICSEARCH_PORT="9200"
 
 # Get list of all indexes
-indexes=$(curl -sk -u "elastic:$elastic" "https://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/_cat/indices?v" | awk '{print $3}')
+indexes=$(curl -skL -u "elastic:$elastic" "https://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/_cat/indices?v" | awk '{print $3}')
 
 # Check if winlogbeat index exists
 if echo "$indexes" | grep -q "winlogbeat"; then
@@ -62,7 +62,7 @@ else
 fi
 
 # Check if we can query the winlogbeat index
-response=$(curl -sk -u "elastic:$elastic"  "https://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/winlogbeat-*/_search" -H "Content-Type: application/json" -d '{
+response=$(curl -skL -u "elastic:$elastic"  "https://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}/winlogbeat-*/_search" -H "Content-Type: application/json" -d '{
   "size": 1,
   "query": {
     "match_all": {}
@@ -89,7 +89,7 @@ fi
 # echo $response
 
 
-response=$(curl -sk -u "elastic:$elastic"  "https://${ELASTICSEARCH_HOST}/api/kibana/management/saved_objects/_find?perPage=500&page=1&type=dashboard&sortField=updated_at&sortOrder=desc")
+response=$(curl -skL -u "elastic:$elastic"  "https://${ELASTICSEARCH_HOST}/api/kibana/management/saved_objects/_find?perPage=500&page=1&type=dashboard&sortField=updated_at&sortOrder=desc")
 
 #!/bin/bash
 
