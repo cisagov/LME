@@ -1,4 +1,4 @@
-name: Cluster Run
+name: Cluster Run - Minimega
 
 on:
   workflow_dispatch:
@@ -10,21 +10,25 @@ jobs:
   build-and-test-cluster:
     runs-on: self-hosted
     env:
-      UNIQUE_ID:
-      IP_ADDRESS:
-      LS1_IP:
-      BRANCH_NAME:
-      elastic:
+      UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+      IP_ADDRESS: ""
+      LS1_IP: ""
+      elastic: ""
+      AZURE_IP: ""
+      MINIMEGA_IP: ""
+      ENROLLMENT_TOKEN: ""
+      ES_PASSWORD: ""
+      KIBANA_PASSWORD: ""
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.1.1
-
+    
       - name: Setup environment variables
         run: |
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
-          echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
 
       - name: Get branch name
         shell: bash
@@ -34,245 +38,273 @@ jobs:
           else
             echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
           fi
-
-      - name: Set up Docker Compose
+                
+      - name: Set the environment for docker-compose 
         run: |
-          sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
-          -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-
-      - name: Set the environment for docker-compose
-        run: |
-          cd testing/development
+          cd testing/v2/development
           # Get the UID and GID of the current user
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
+          cat .env
 
-      # - name: Run Docker Compose Build to fix a user id issue in a prebuilt container
-      #   run: |
-      #     cd testing/development
-      #     docker compose -p ${{ env.UNIQUE_ID }} build --no-cache
-
-      - name: Run Docker Compose
-        run: docker compose -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up -d
-
-      - name: List docker containers to wait for them to start
+      - name: Build pipeline container
         run: |
-          docker ps 
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} build pipeline --no-cache
 
-      - name: List files in home directory
+      - name: Start pipeline container
         run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "pwd && ls -la"
-
-      - name:  Check powershell environment
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
+          
+      - name: Install Python requirements
         run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME; \
-            ls -la; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
-
-      - name:  Build the cluster
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/azure && \
+            pip install -r requirements.txt
+          "
+          
+      - name: Build an Azure instance 
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            \$env:IP_ADDRESS='${{ env.IP_ADDRESS }}'; \
-            ./development/build_cluster.ps1 -IPAddress \$env:IP_ADDRESS; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
-          cd .. 
-          . configure/lib/functions.sh
-          extract_ls1_ip 'LME-pipe-${{ env.UNIQUE_ID }}.cluster.output.log'
-          echo "LS1_IP=$LS1_IP" >> $GITHUB_ENV
-
-      - name:  Install lme on cluster
-        run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            ./development/install_lme.ps1 -b '${{ env.BRANCH_NAME }}'; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
-
-      - name:  Set the environment passwords for other steps
-        run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
-            cd /home/admin.ackbar/LME/testing \
-            && . configure/lib/functions.sh \
-            && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
-            && write_credentials_to_file '${{ env.UNIQUE_ID }}.github_env.sh' \
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              cd /home/lme-user/LME/testing/v2/installers && \
+              python3 ./azure/build_azure_linux_network.py \
+                -g pipe-${{ env.UNIQUE_ID }} \
+                -s ${{ env.IP_ADDRESS }}/32 \
+                -vs Standard_D8_v4 \
+                -l centralus \
+                -ast 23:00 \
+                -y
             "
-            . ../${{ env.UNIQUE_ID }}.github_env.sh
-            rm ../${{ env.UNIQUE_ID }}.github_env.sh
-            echo "elastic=$elastic" >> $GITHUB_ENV
-            echo "kibana=$kibana" >> $GITHUB_ENV
-            echo "logstash_system=$logstash_system" >> $GITHUB_ENV
-            echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
-            echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
-
-      - name:  Check that the environment variables are set
+          
+      - name: Install minimega on Azure instance
         run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
-            if [ -z \"${{ env.elastic }}\" ]; then
-              echo 'Error: env.elastic variable is not set' >&2
-              exit 1
-            else
-              echo 'Elastic password is set'
-            fi
+          cd testing/v2/development
+          sleep 30
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
+          "
+          
+      - name: Install Linux in minimega 
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
+          "
+          
+      - name: Check if linux is running in minimega 
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            sleep 120 && \
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS 'sudo /opt/minimega/bin/minimega -e vm info'
           "
 
-      # - name: Run a command on the domain controller
-      #   run: |
-      #     set +e
-      #     cd testing/development
-      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& {
-      #       cd /home/admin.ackbar/LME/testing; \
-      #       \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-      #       \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-      #       \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-      #       \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-      #       \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-      #       \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-      #       az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
-      #       az vm run-command invoke  \
-      #         --command-id RunPowerShellScript  \
-      #         --name DC1  \
-      #         --resource-group \$env:RESOURCE_GROUP \
-      #         --scripts 'ls C:\'; \
-      #       exit \$LASTEXITCODE;
-      #     }"
-      #     EXIT_CODE=$?
-      #     echo "Exit code: $EXIT_CODE"
-      #     set -e
-      #     if [ "$EXIT_CODE" -ne 0 ]; then
-      #       exit $EXIT_CODE
-      #     fi
-
-      - name: Run a command on the linux machine
+      - name: Get Azure and Minimega IP addresses
         run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
-            az vm run-command invoke  \
-              --command-id RunShellScript  \
-              --name LS1  \
-              --resource-group \$env:RESOURCE_GROUP \
-              --scripts 'ls -lan'; \
-            exit \$LASTEXITCODE;
-          }"
+          cd testing/v2/development
+          AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
+          echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
+          echo "Azure IP:$AZURE_IP"
+          MINIMEGA_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh lme-user@$AZURE_IP 'sudo /opt/minimega/bin/minimega -e .json true .filter name=\"linux-runner\" vm info | jq -r \".[].Data[].Networks[].IP4\"'
+          " )
           EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "Failed to get Minimega IP. Exit code: $EXIT_CODE" >&2
+            exit 1
           fi
+          if [ -z "$MINIMEGA_IP" ]; then
+            echo "Minimega IP is empty" >&2
+            exit 1
+          fi
+          echo "MINIMEGA_IP=$MINIMEGA_IP" >> $GITHUB_ENV    
+          echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
-      # This only passes when you do a full install
-      - name: Run api tests in container
+
+      - name: Run a command in Minimega
         run: |
-          set +e
-          cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
-          && echo export elastic=${{ env.elastic }} > .env \
-          && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
-          && python3 -m venv /home/admin.ackbar/venv_test \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && pip install -r requirements.txt \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && pytest -v api_tests/"
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.MINIMEGA_IP }} ls -la'
+          "
 
-      - name: Run selenium tests in container
+      - name: Install LME on Azure instance
         run: |
-          set +e
-          cd testing/development
-          docker-compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
-          && echo export elastic=${{ env.elastic }} > .env \
-          && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
-          && echo export KIBANA_HOST= ${{ env.LS1_IP }} >> .env \
-          && echo export KIBANA_PORT=443 >> .env \
-          && echo export KIBANA_USER=elastic >> .env \
-          && echo export SELENIUM_TIMEOUT=60 >> .env \
-          && echo export SELENIUM_MODE=headless >> .env \
-          && cat .env \
-          && python3 -m venv /home/admin.ackbar/venv_test \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && pip install -r requirements.txt \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && pytest -v selenium_tests/"
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
+          "
 
-      # - name: Run selenium tests in container
-      #   run: |
-      #     set +e
-      #     cd testing/development
-      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
-      #     && echo export ELASTIC_PASSWORD=${{ env.elastic }} > .env \
-      #     && . .env \
-      #     && python3 -m venv /home/admin.ackbar/venv_test \
-      #     && . /home/admin.ackbar/venv_test/bin/activate \
-      #     && pip install -r requirements.txt \
-      #     && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-      #     && python selenium_tests.py --domain ${{ env.LS1_IP }} -v"
 
-      - name: Cleanup environment
+      - name: Retrieve Elastic password 
+        env:
+          AZURE_IP: ${{ env.AZURE_IP }}
+        run: |
+          cd testing/v2/development
+          ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$ES_PASSWORD"
+          echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
+          echo "Elastic password retrieved successfully: $ES_PASSWORD"
+          KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$KIBANA_PASSWORD"
+          echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
+          echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
+
+
+
+      - name: Install test requirements on Azure instance
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS  'whoami && hostname && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+            cd /home/lme-user/LME/testing/tests && \
+            python3 -m venv venv && \
+            source venv/bin/activate && \
+            pip install -r requirements.txt '
+          "
+
+      - name: Retrieve Elastic policy ID and enrollment token
+        env:
+          KIBANA_URL: "https://localhost:5601" 
+          ES_USERNAME: "elastic" 
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          
+          # Retrieve policy ID
+          POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -k -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" |
+              jq -r '.items[0].id'
+            '
+          ")
+          echo "Retrieved Policy ID: $POLICY_ID"
+          
+          # Retrieve enrollment token using the policy ID
+          ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -k -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" \
+                -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
+              jq -r .item.api_key
+            '
+          ")
+          echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"
+          
+          # Mask the enrollment token in logs and set it as an environment variable
+          echo "::add-mask::$ENROLLMENT_TOKEN"
+          echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
+          echo "Policy ID and Enrollment Token retrieved successfully"
+
+      - name: Copy the Elastic Agent installer to Minimega
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'sudo scp -p -o StrictHostKeyChecking=no /home/lme-user/LME/testing/v2/installers/lib/install_agent_linux.sh vmuser@${{ env.MINIMEGA_IP }}:~'
+          "
+
+      - name: Run a command in Minimega
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.MINIMEGA_IP }} ls -la'
+          "
+
+      - name: Install the Elastic Agent in Minimega
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.MINIMEGA_IP }} chmod +x ./install_agent_linux.sh ' && \
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.MINIMEGA_IP }} ./install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }}'
+          "
+
+      - name: Check if the Elastic agent is reporting 
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        run: |
+          sleep 360
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'export ES_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh'
+          "
+
+      - name: Run api tests on Azure instance
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            source venv/bin/activate && \
+            pytest -v api_tests/'
+          "
+
+      - name: Run selenium tests on Azure instance
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            source venv/bin/activate && \
+            pytest -v selenium_tests/'
+          "
+    
+      - name: Cleanup Azure resources
+        if: always()
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
+            az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+          "
+          
+      - name: Stop and remove containers
         if: always()
         run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            ./development/destroy_cluster.ps1; \
-            exit \$LASTEXITCODE;
-          }"
+          cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} down
-          docker system prune --force
+          docker system prune -af

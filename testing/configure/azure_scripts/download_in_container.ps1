@@ -72,7 +72,6 @@ if ($Os -eq "linux") {
     $DestinationPath = "/home/$UserName/lme/$DestinationFileName"
     # Create the lme directory if it doesn't exist
     $DirectoryCreationScript = "mkdir -p '/home/$UserName/lme'"
-    # TODO: We don't want to output this until we fix it so we can put all of the output from thw whole script into one json object
     # We are just ignoring the output for now
     $CreateDirectoryResponse = az vm run-command invoke `
         --command-id RunShellScript `

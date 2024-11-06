@@ -1,5 +1,5 @@
 # Docker Compose file for setting up development environment for LME project.
-#
+# 
 # This file defines two services:
 # 1. ubuntu:
 #    - Builds an Ubuntu container with the specified USER_ID and GROUP_ID arguments.
@@ -7,7 +7,7 @@
 #    - Sets the container name to "lme_development".
 #    - Sets the user to the specified HOST_UID and HOST_GID.
 #    - Runs the command "sleep infinity" to keep the container running indefinitely.
-#
+# 
 # 2. lme:
 #    - Builds a container using the Dockerfile located in ../../ directory.
 #    - Uses the specified USER_ID and GROUP_ID arguments.
@@ -16,12 +16,12 @@
 #    - Mounts the parent directory to /home/admin.ackbar/LME in the container, allowing access to the LME project.
 #    - Runs the command "sleep infinity" to keep the container running indefinitely.
 #    - Exposes the following ports: 443, 9200, 9300, 5000, 9600, 5601.
-#
+# 
 version: '3.8'
 
 services:
   ubuntu:
-    build:
+    build: 
       context: .
       args:
         USER_ID: "${HOST_UID:-1001}"
@@ -31,26 +31,26 @@ services:
     volumes:
       - ../../../LME/:/lme
     command: sleep infinity
-
-  lme:
-    build:
-      context: ../../
-      dockerfile: testing/development/Dockerfile
-      args:
-        USER_ID: "${HOST_UID:-1001}"
-        GROUP_ID: "${HOST_GID:-1001}"
+  
+  lme: 
+    build: 
+      context: ../../ 
+      dockerfile: testing/development/Dockerfile 
+      args: 
+        USER_ID: "${HOST_UID:-1001}" 
+        GROUP_ID: "${HOST_GID:-1001}" 
     # semgrep: allowlist
     # semgrep: yaml.docker-compose.security.privileged-service.privileged-service
-    privileged: true
-    container_name: lme
-    user: "${HOST_UID:-1001}:${HOST_GID:-1001}"
-    volumes:
-      - ../../:/home/admin.ackbar/LME
-    command: sleep infinity
-    ports:
-      - "443:443"
-      - "9200:9200"
-      - "9300:9300"
-      - "5000:5000"
-      - "9600:9600"
+    privileged: true 
+    container_name: lme 
+    user: "${HOST_UID:-1001}:${HOST_GID:-1001}" 
+    volumes: 
+      - ../../:/home/admin.ackbar/LME 
+    command: sleep infinity 
+    ports: 
+      - "443:443" 
+      - "9200:9200" 
+      - "9300:9300" 
+      - "5000:5000" 
+      - "9600:9600" 
       - "5601:5601"

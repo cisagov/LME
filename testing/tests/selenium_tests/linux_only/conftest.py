@@ -15,7 +15,7 @@ def kibana_host():
 
 @pytest.fixture(scope="session")
 def kibana_port():
-    return int(os.getenv("KIBANA_PORT", 443))
+    return int(os.getenv("KIBANA_PORT", 5601))
 
 @pytest.fixture(scope="session")
 def kibana_user():
@@ -23,7 +23,7 @@ def kibana_user():
 
 @pytest.fixture(scope="session")
 def kibana_password():
-    return os.getenv("elastic",os.getenv("KIBANA_PASSWORD", "changeme"))
+    return os.getenv("elastic",os.getenv("KIBANA_PASSWORD", "password1"))
 
 @pytest.fixture(scope="session")
 def kibana_url(kibana_host, kibana_port):

@@ -1,0 +1,16 @@
+[Unit]
+Description=LME service orchestrator runs all the service files
+
+[Install]
+WantedBy=default.target
+
+[Service]
+# Exits after it starts the service
+Type=oneshot
+# Execute dummy program
+ExecStart=/bin/true
+# This service shall be considered active after start
+RemainAfterExit=yes
+
+
+
