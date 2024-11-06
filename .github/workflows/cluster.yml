@@ -105,7 +105,7 @@ jobs:
                 -g pipe-${{ env.UNIQUE_ID }} \
                 -s ${{ env.IP_ADDRESS }}/32 \
                 -vs Standard_D8_v4 \
-                -l ${{ inputs.azure_region }} \
+                -l ${{ inputs.azure_region || 'centralus' }} \
                 -ast 23:00 \
                 -y
             "
