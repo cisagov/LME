@@ -1,23 +1,23 @@
 # Certificates
 # 
-The LME installation makes use of a number of TLS certificates to protect communications between the server components and agents, as well as to secure connections to Elasticsearch and Kibana. 
+The LME installation makes use of a number of TLS certificates to protect communications between the server components and agents, and also secures the connections between Elasticsearch and Kibana. 
 By default the installation will create certificates and this documentation describes how to modify and update the cert store.
 
 ## Regenerating Self-Signed Certificates
 The easiest way to do this is to delete the `lme_certs` volume, and restart lme.service:
 
-Be advised this is destructive and not recommended, but there could be cases you would like to recreate the certificates.
+This is destructive and not recommended,but there could be cases.
 ```bash
 sudo -i podman volume rm lme_certs
 sudo systemctl restart lme.service
 ```
 
 ## Using Your Own Certificates
-It is possible to use certificates signed by an existing root CA as part of the LME install by generating certificates manually with the correct settings and placing these within the required directory inside the LME folder. **NOTE: The default supported method of LME installation is to use the automatically created self-signed certificates, and we will be unable to support any problems that arise from generating the certificates manually incorrectly.**
+You can certificates signed by an existing root CA as part of the LME install by generating certificates manually with the correct settings and placing these within the required directory inside the LME folder. **NOTE: The default supported method of LME installation is to use the automatically created self-signed certificates, and we will be unable to support any problems that arise from generating the certificates manually incorrectly.**
 
 
 ### Certificate Creation
-If you create certificates ensure their subject alt names allow for the ips/dns entries listed below, but as well as the ips/domains you'll be connecting to the service as: 
+If you create certificates ensure their subject alt names allow for the ips/dns entries listed below, as well as the ips/domains you'll be connecting to the service as: 
 ```bash
 root@ubuntu:~# cat /opt/lme/config/setup/instances.yml  | head -n 30
 # Add host IP address / domain names as needed.
@@ -107,8 +107,8 @@ cp ~/new_kibana_key.key /var/lib/containers/storage/volumes/lme_certs/_data/kiba
 
 ## Migrating from Self-Signed Certificates
 
-It is possible to migrate from the default self-signed certificates to manually generated certificates at a later date, for example to move to enterprise certificates post-installation after an initial testing period. 
+You can migrate from the default self-signed certificates to manually generated certificates at a later date, for example to move to enterprise certificates post-installation after an initial testing period. 
 
 **NOTE: The default supported method of LME installation is to use the automatically created self-signed certificates, and we will be unable to support any problems that arise from generating the certificates manually incorrectly.**
 
-Simply replace the certs above within the given container for the given service that you would like LME to use. If the certs are self signed, ensure you also include the root ca in the  appropriate location as well
+Simply replace the certs above within the given container for the given service that you would like LME to use. If the certs are signed, ensure you also include the root ca in the  appropriate location as well.
