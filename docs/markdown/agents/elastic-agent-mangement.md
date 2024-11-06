@@ -22,13 +22,13 @@ This guide will walk you through the process of enrolling an agent in the LME sy
    - Select the appropriate option based on your endpoint:
      - Linux Tar
      - Mac
-     - Windows (ensure you run this in a powershell prompt with administrator privileges)
+     - Windows (ensure you run this in a PowerShell prompt with administrator privileges)
 
 6. **Installation Command**
    - You will be presented with an installation command for the selected platform
    - Note: If you haven't added the LME certificates to your trusted store, you'll need to modify the command
 
-7. **Modify the Command (If necessary. You will need to do this if you haven't add certificates to the trusted store)**
+7. **Modify the Command If necessary(e.g.,if certificates have not been added to the trusted store)**
    - Add `--insecure` at the end of the `./elastic-agent install` command
    - This is similar to clicking "continue to website" in a browser when you get a certificate warning
    - Example:
@@ -94,8 +94,8 @@ By following these steps, you can effectively add and configure the Windows inte
 
 Apply these same steps to future integrations such as Auditd for Linux.
 
-## Troubleshooting Agent setup:
-The elastic agent has a ton of debugging commands that can be run to troubleshoot installs. Please see the link [HERE](https://www.elastic.co/guide/en/fleet/current/elastic-agent-cmd-options.html). 
+## Troubleshooting Agent Setup:
+The Elastic agent has multiple debugging commands that can be run to troubleshoot installs. Please see the link [HERE](https://www.elastic.co/guide/en/fleet/current/elastic-agent-cmd-options.html). 
 
 In addition, you can use this link to navigate/find the directories for where elastic agent is installed on the operating system you have installed it [HERE](https://www.elastic.co/guide/en/fleet/current/installation-layout.html).
 
