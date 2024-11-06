@@ -1,12 +1,12 @@
 # LME Wazuh Agent Enrollment Guide
 
-- See Official Wazuh Doumentation [Wazuh agent install documentation](https://documentation.wazuh.com/4.7/installation-guide/wazuh-agent/index.html).
+- See Official Wazuh Documentation [Wazuh agent install documentation](https://documentation.wazuh.com/4.7/installation-guide/wazuh-agent/index.html).
 
-This guide will walk you through the process of enrolling a Wazuh agent in the LME (Logging Made Easy) system.
+This guide will walk you through the process of enrolling a Wazuh agent in the LME system.
 
 ## Important Note
 
-Before proceeding, ensure that the Wazuh agent version you're installing is not newer than the version of the Wazuh manager you're running. Using an agent version that is more recent than the manager version can lead to compatibility issues.
+Ensure the Wazuh agent version you're installing is not newer than your Wazuh manager version, as this can cause compatibility issues.
 
 ## Variables
 
@@ -70,7 +70,7 @@ Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MAN
 3. **Verify Installation**
    - After installation, the Wazuh agent service should start automatically.
    - You can verify the service status in the Windows Services manager.
-   - ensure the service starts if it doesn't start automatically. Run this in a powershell terminal:
+   - Ensure the service starts if it doesn't start automatically. Run this in a powershell terminal:
    ```powershell
    NET START Wazuh
    ```
