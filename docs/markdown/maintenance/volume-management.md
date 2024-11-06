@@ -101,15 +101,15 @@ You should now see all your indexes and their sizes:
 
 ### Editing Files in Podman Volumes and Bind Mounts
 
-When you edit files that are made available to containers through Podman volumes or bind mounts, these changes are immediately reflected in the running containers. This creates a direct link between files on the host system and within the container's filesystem. In the LME setup, many configuration files use this principle. For example, the Wazuh manager configuration file (ossec.conf) is actually located at `/opt/lme/config/wazuh_cluster/wazuh_manager.conf` on the host and is bind-mounted into the container. 
+When you edit files that are made available to containers through Podman volumes or bind mounts, these changes are immediately reflected in the running containers. This creates a direct link between files on the host system and within the container's filesystem. In the LME setup, many configuration files use this principle. For example, the Wazuh Manager configuration file (ossec.conf) is actually located at `/opt/lme/config/wazuh_cluster/wazuh_manager.conf` on the host and is bind-mounted into the container. 
 
-When you edit this file on the host, the changes are instantly visible to the Wazuh manager process inside the container. You could then restart the wazuh manager container using:
+When you edit this file on the host, the changes are instantly visible to the Wazuh manager process inside the container. You could then restart the Wazuh Manager container using:
 
 ```bash
 sudo systemctl restart lme-wazuh-manager.service
 ```
 
-Now your changes will be implemented into the running wazuh manager container.
+Now your changes will be implemented into the running Wazuh Manager container.
 
 # Backup Volumes
 
@@ -135,4 +135,4 @@ Example command you might use to copy all volumes to a mounted drive:
 rsync -av ~/.local/share/containers/storage/volumes/ /mnt/nas/podman_volume_backup/
 ```
 
-**NOTE: Ensure you are going by your drives documentation for connecting/mounting to an Ubuntu instance.**
+**Note**: Ensure you use your drive's documentation for connecting/mounting to an Ubuntu instance.**
