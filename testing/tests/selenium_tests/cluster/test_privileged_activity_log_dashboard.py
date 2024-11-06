@@ -26,7 +26,7 @@ class TestPrivilegedActivityLogDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_process_termination(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process termination", ".euiText",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process termination", ".echChart",".xyChart__empty")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_non_sensitive_privilege(self, setup_login, kibana_url, timeout):
