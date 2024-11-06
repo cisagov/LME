@@ -1,0 +1,29 @@
+# lme-elasticsearch-security-setup.container
+[Unit] 
+Requires=lme-network.service lme-setup-certs.service lme-elasticsearch.service
+After=lme-network.service lme-setup-certs.service lme-elasticsearch.service
+PartOf=lme.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+[Install]
+WantedBy=default.target
+
+[Container]
+ContainerName=lme-setup-accts
+EnvironmentFile=/opt/lme/lme-environment.env
+Secret=elastic,type=env,target=ELASTIC_PASSWORD
+Secret=kibana_system,type=env,target=KIBANA_PASSWORD
+Exec=/bin/bash /usr/share/elasticsearch/config/setup/acct-init.sh
+Image=localhost/elasticsearch:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-setup --health-interval=2s 
+Volume=lme_certs:/usr/share/elasticsearch/config/certs
+Volume=/opt/lme/config/setup:/usr/share/elasticsearch/config/setup
+User=0
+#match permissions so we can write to the lme_certs volume
+UserNS=container:lme-elasticsearch
+

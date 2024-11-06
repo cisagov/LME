@@ -1,0 +1,11 @@
+[Unit]
+Description=minimega
+After=network.target
+
+[Service]
+ExecStart=/opt/minimega/bin/minimega -nostdin &
+Restart=always
+WorkingDirectory=/opt/minimega
+
+[Install]
+WantedBy=multi-user.target
