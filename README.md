@@ -234,7 +234,7 @@ SERVICE_NAME=lme-elasticsearch.service
 sudo -i journalctl -xu $SERVICE_NAME
 ```
 
-If somehting is broken try restarting the services and making sure failed services reset before starting:
+If something is broken try restarting the services and making sure failed services reset before starting:
 ```bash
 #try resetting failed: 
 sudo -i systemctl  reset-failed lme*

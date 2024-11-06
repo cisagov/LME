@@ -26,7 +26,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     fi
     
     # Run the curl command and capture the output
-    output=$(curl -k -s -X GET "https://localhost:9200/.ds-metrics-system.cpu-default-*/_search" \
+    output=$(curl -kL -s -X GET "https://localhost:9200/.ds-metrics-system.cpu-default-*/_search" \
          -H 'Content-Type: application/json' \
          -H "kbn-xsrf: true" \
          -u "elastic:$ES_PASSWORD" \
