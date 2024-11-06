@@ -37,7 +37,7 @@ LME is intended for organizations that:
 
 
 ## Table of Contents:
-[1](1). [Prerequisites:](#1-prerequisites)
+1. [Prerequisites:](#1-prerequisites)
 2. [Architecture:](#2-architecture)
 3. [Downloading and Installing LME:](#3-downloading-and-installing-lme)
 4. [Deploying Agents:](#4-deploying-agents)
@@ -56,6 +56,26 @@ The main prerequisite is setting up hardware for your Ubuntu server, which shoul
 
 If you need to run LME with less than 16GB of RAM or minimal hardware, please follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage).
 
+We estimate that you should allow half an hour to complete the entire installation process. The following time table of real recorded times will provide you a reference of how long the installation may take to complete.
+
+### Estimated Installation Times
+
+| Milestones 				| Time 		| Timeline 	|
+| ------------- 			| ------------- | ------------- |
+| Download LME 				| 0:31.49 	| 0:31.49 	|
+| Set Environment 			| 0:35.94 	| 1:06.61 	|
+| Install Ansible 			| 1:31.94 	| 2:38.03 	|
+| Installing LME Ansible Playbook 	| 4:03.63 	| 6:41.66 	|
+| All Containers Active 		| 6:41.66 	| 13:08.92 	|
+| Accessing Elastic 			| 0:38.97 	| 13:47.60 	|
+| Post-Install Ansible Playbook 	| 2:04.34 	| 15:51.94 	|
+| Deploy Linux Elastic Agent 		| 0:49.95 	| 16:41.45 	|
+| Deploy Windows Elastic Agent 		| 1:32.00 	| 18:13.40 	|
+| Deploy Linux Wazuh Agent 		| 1:41.99 	| 19:55.34 	|
+| Deploy Windows Wazuh Agent 		| 1:55.00 	| 21:51.22 	|
+| Download LME Zip on Windows 		| 2:22.43	| 24:13.65 	|
+| Install Sysmon 			| 1:04.34 	| 25:17.99 	|
+| Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
 ## 2. Architecture:
 LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh,  Elastic, and ElastAlert open source tools to provide log management, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and enables you to scale as your logging needs evolve.
@@ -397,6 +417,11 @@ Sysmon provides valuable logs for windows computers. For each of your windows cl
 2. From inside the unzipped folder, run the following command in Administrator Powershell:
 ```
 .\scripts\install_sysmon.ps1
+```
+
+To run this powershell script, you may need to temporarily set the powershell script execution policy to "Unrestricted" which lets Windows execute downloaded powershell scripts. You can do that with the following command:
+```
+Set-ExecutionPolicy Unrestricted
 ```
 
 ## 5. Password Encryption:
