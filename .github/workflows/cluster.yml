@@ -2,8 +2,8 @@ name: Cluster Run - Minimega
 
 on:
   pull_request:
-    branches:
-      - '*'
+    # branches:
+    #   - '*'
   workflow_dispatch:
     inputs:
       azure_region:
