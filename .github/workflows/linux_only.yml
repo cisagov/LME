@@ -118,6 +118,7 @@ jobs:
         KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
         AZURE_IP: ${{ env.AZURE_IP }}
       run: |
+        sleep 360
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
