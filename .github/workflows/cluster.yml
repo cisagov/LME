@@ -1,7 +1,7 @@
 name: Cluster Run - Minimega
 
 on:
-  pull_request:
+  #pull_request:
     # branches:
     #   - '*'
   workflow_dispatch:
