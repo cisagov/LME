@@ -7,12 +7,14 @@ Readme.md
 ./docs/markdown/reference/faq.md
 ./docs/markdown/reference/security-model.md
 ./docs/markdown/reference/troubleshooting.md
-./docs/markdown/maintenance/Encryption_at_rest_option_for_users.md
 ./docs/markdown/maintenance/backups.md
 ./docs/markdown/maintenance/certificates.md
+./docs/markdown/maintenance/elastalert-rules.md
+./docs/markdown/maintenance/Encryption_at_rest_option_for_users.md
 ./docs/markdown/maintenance/index-management.md
 ./docs/markdown/maintenance/upgrading.md
 ./docs/markdown/maintenance/volume-management.md
+./docs/markdown/maintenance/vulnerability-scan-setup.md
 ./docs/markdown/maintenance/wazuh-configuration.md
 ./docs/markdown/agents/elastic-agent-mangement.md
 ./docs/markdown/agents/wazuh-active-response.md
