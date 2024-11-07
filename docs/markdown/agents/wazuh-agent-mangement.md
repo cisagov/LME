@@ -93,14 +93,14 @@ Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MAN
    apt-get update
    ```
 
-4. **Install Wazuh agent**
+4. **Install Wazuh agent and configure Wazuh Manager IP variable**
    ```bash
-   WAZUH_MANAGER="{WAZUH_MANAGER_IP}" apt-get install wazuh-agent={WAZUH_AGENT_VERSION}
+   WAZUH_MANAGER="{WAZUH_MANAGER_IP}" apt-get install wazuh-agent={WAZUH_AGENT_VERSION} && sed -i 's/MANAGER_IP/10.0.0.15/i' /var/ossec/etc/ossec.conf
    ```
    
    For example: 
    ```bash
-   WAZUH_MANAGER="10.1.0.5" apt-get install wazuh-agent=4.7.5-1
+   WAZUH_MANAGER=10.0.0.15 apt-get install wazuh-agent=4.7.5-1 && sed -i 's/MANAGER_IP/10.0.0.15/i' /var/ossec/etc/ossec.conf
    ```
 
 ## Verifying Installation
