@@ -4,7 +4,7 @@
         "must": [
           {
             "term": {
-              "host.name": "c1"
+              "host.name": "ubuntu-vm"
             }
           },
           {

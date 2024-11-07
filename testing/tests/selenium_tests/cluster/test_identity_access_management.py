@@ -23,7 +23,7 @@ class TestCredentialsAccessLogsDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Updated Scheduler Jobs", ".visualization",".dummyval")
         
-    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
+    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_new_scheduler_jobs(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "New Scheduler Jobs", ".visualization",".dummyval")

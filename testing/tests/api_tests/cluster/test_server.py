@@ -46,14 +46,13 @@ def test_host_search(es_host, es_port, username, password):
     
     assert (data[rootKey]["total"]["value"] > 0)
     assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]    
-    assert (data[rootKey]["hits"][0]["_source"]["agent"]["name"] == "C1")    
-    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.15.3") 
-    #assert (data[rootKey]["hits"][0]["_source"]["cloud"]["instance"]["name"] == "C1")  
+    assert (data[rootKey]["hits"][0]["_source"]["agent"]["name"] == "ubuntu-vm")    
+    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.15.3")   
     assert (data[rootKey]["hits"][0]["_source"]["data_stream"]["dataset"] == "system.cpu") 
     assert (data[rootKey]["hits"][0]["_source"]["ecs"]["version"] == "8.0.0") 
     assert (data[rootKey]["hits"][0]["_source"]["elastic_agent"]["version"] == "8.15.3") 
     assert (data[rootKey]["hits"][0]["_source"]["event"]["dataset"] == "system.cpu") 
-    assert (data[rootKey]["hits"][0]["_source"]["host"]["hostname"] == "c1") 
+    assert (data[rootKey]["hits"][0]["_source"]["host"]["hostname"] == "ubuntu-vm") 
     assert (data[rootKey]["hits"][0]["_source"]["metricset"]["name"] == "cpu") 
     assert (data[rootKey]["hits"][0]["_source"]["service"]["type"] == "system") 
     assert "system" in data[rootKey]["hits"][0]["_source"]
