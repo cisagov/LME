@@ -1,5 +1,5 @@
 
-[![BANNER](/docs/imgs/REPLACEME)]()
+[![BANNER](/docs/imgs/lme-image.png)]()
 
 [![Downloads](https://img.shields.io/github/downloads/cisagov/lme/total.svg)]()
 
