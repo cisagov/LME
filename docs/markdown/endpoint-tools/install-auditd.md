@@ -9,7 +9,7 @@ This guide will walk you through the process of installing auditd on Linux syste
 
 ## Step 1: Install Auditd
 
-The installation process may vary depending on your Linux distribution. Here are instructions for some common distributions:
+The installation process may vary depending on your Linux distribution. Here are instructions for common distributions:
 
 ### For Ubuntu/Debian:
 

@@ -1,6 +1,6 @@
 # Installing Sysmon on Windows Machines
 
-This guide will walk you through the process of installing Sysmon (System Monitor) on your Windows machines using the SwiftOnSecurity configuration.
+This guide will walk you through the process of installing Sysmon (System Monitor) on your Windows machine(s) using the SwiftOnSecurity configuration.
 
 ## Prerequisites
 - Administrative access to the Windows machine
