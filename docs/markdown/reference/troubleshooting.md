@@ -181,6 +181,18 @@ PUT _settings
 
 If the above solution was unable to resolve your issue, further information on this and general advice on troubleshooting an unhealthy cluster status can be found [here](https://www.elastic.co/guide/en/elasticsearch/reference/master/red-yellow-cluster-status.html).
 
+## FLEET SERVER - ADD AGENT shows missing url for Fleet Server Host
+
+When trying to add Elastic Agent on host server, you may see **Missing URL for Fleet Server host** as shown in screenshot below.
+
+![Check Default Index](/docs/imgs/fleetservermissingurl.png)
+
+This can happen when LME post install steps were run before *lme-fleet-server* displayed status of **Up** when you check podman status.
+Do make sure your post installation verification steps are completed.
+If post installation verification steps fail, then uninstall and re-install LME is recommended.
+Otherwise a simple reboot of the host server or restart of lme-service should fix the problem.
+
+
 ## Start/Stop LME:
 
 ### Re-Indexing Errors
