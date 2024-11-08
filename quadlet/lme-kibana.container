@@ -1,0 +1,31 @@
+# lme-kibana.container
+[Unit]
+Description=Kibana Container Service
+Requires=lme-setup-accts.service lme-elasticsearch.service lme-kibanadata-volume.service
+After=lme-setup-accts.service lme-elasticsearch.service lme-kibanadata-volume.service
+PartOf=lme.service
+
+[Install]
+WantedBy=default.target lme.service
+
+[Service]
+Restart=always
+TimeoutStartSec=5400 #30 minutes, helps ensure does not fail due to health check
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+[Container]
+ContainerName=lme-kibana
+Environment=SERVER_NAME=lme-kibana ELASTICSEARCH_HOSTS=https://lme-elasticsearch:9200  ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt SERVER_SSL_ENABLED=true SERVER_SSL_CERTIFICATE=config/certs/kibana/kibana.crt SERVER_SSL_KEY=config/certs/kibana/kibana.key SERVER_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt NODE_OPTIONS=--max-old-space-size=4096
+Secret=kibana_system,type=env,target=ELASTICSEARCH_PASSWORD
+EnvironmentFile=/opt/lme/lme-environment.env
+Image=localhost/kibana:LME_LATEST
+Network=lme
+PodmanArgs= --network-alias lme-kibana --requires lme-elasticsearch --health-interval=2s
+PublishPort=5601:5601,443:5601
+Volume=lme_certs:/usr/share/kibana/config/certs
+Volume=lme_kibanadata:/usr/share/kibana/data
+Volume=/opt/lme/config/kibana.yml:/usr/share/kibana/config/kibana.yml
+Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+HealthCmd=CMD-SHELL curl -I -s --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/1.1 302 Found'
+Notify=healthy
+UserNS=auto:uidmapping=0:168584:3048,gidmapping=0:168584:3048

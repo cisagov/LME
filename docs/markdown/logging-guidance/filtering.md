@@ -1,6 +1,6 @@
 # Filtering logs:
  
-There may come a time where a log is not particularly useful or an aspect of LME proves overly verbose (e.g.: [Dashboard spamming events](https://github.com/cisagov/LME/issues/22). We try our best to make everything useful by default but cannot predict every eventuality since all environments will be different. To enable users to make the LME system more useful, we document here how to filter out logs in the:
+Sometimes a log is not particularly useful or an aspect of LME cloud prove overly verbose (e.g.: [Dashboard spamming events](https://github.com/cisagov/LME/issues/22). We try our best to make everything useful but cannot predict every possibility since all environments will be different. So to enable users to make LME more useful (and hopefully commit their own pull requests back with updates :) ),we document here how you can filter out logs in the:
 
 1. Dashboard
 2. Host logging utility (e.g. winlogbeat)
@@ -10,7 +10,7 @@ Have fun reading and applying these concepts
 
 ## Dashboard:
 
-The below example shows a filter that you can apply to a search and save with a dashboard to filter out unneeded windows event log [4624](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624) with a TargetUserName field that has a `$ `. 
+The below example shows how users can apply a filter to a search, and saved with a dashboard to filter out unneeded windows event log [4624](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624) with a TargetUserName field that has a `$ `. 
 ```
 {
   "bool": {
@@ -36,17 +36,8 @@ To Add:
 1. Click the `Add filter`:
 2. Click `Edit as DSL` to add a regexp filter:
 
-More resources on this topic can be found here, and there are many more relevant examples on stackoverflow:
+Users can find many resources here and more relevant examples on stackoverflow:
  - https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
  - https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-syntax
  - https://www.elastic.co/guide/en/elasticsearch/reference/current/regexp-syntax.html
-
-## Host Side:
-```
-TBD Pending testing
-```
-
-## Server Side:
-```
-TBD Pending testing
 ```

@@ -1,8 +1,10 @@
 # Dashboard Descriptions
 
-## Purpose   
-Logging Made Easy (LME) releases new dashboards on GitHub periodically. Here are the dashboard descriptions.
+## Prerequisites
+In order for the The Logging Made Easy (LME) dashboards to display without errors, they require an elastic agent to be logging sysmon events from a Windows machine. With this configuration, wait at least 30 minutes for logs to populate within Elasticsearch. 
 
+## Purpose   
+Logging Made Easy (LME) releases new dashboards on GitHub periodically.The dashboard descriptions currently availble can be found below. Users may also choose to create custome dashboards.
 ## User Human Resources  
 
 The User Human Resources Dashboard provides a comprehensive overview of network activity and displays domains, users, workstations, activity times and days of the week. It includes details on general logon events, logoff events and distinguishes between in-person and remote logons. Analogous to a security guard monitoring a camera, the dashboard facilitates network monitoring by revealing overall network traffic, user locations, peak hours and the ratio of remote-to-in-person logons. Users can filter and analyze individual or specific computer activity logs. 
@@ -31,9 +33,9 @@ The User Security Dashboard provides a comprehensive view of network activity an
 
 The Alert Dashboard enables users to define rules that detect complex conditions within networks/environments. It also uses trigger actions in case of suspicious activities. These alerts contain pre-built rules that detects suspicious activities.  There are options that schedule how these suspicious activities are detected and actions taken when these conditions are detected. 
 
-## Healthcheck 
+## HealthCheck 
 
-The HealthCheck Dashboard gives users the ability to view different processes such as unexpected shutdowns, events by each machine, total hosts and total number of logged in admins with data that is based on a selected date range.  Users can verify the health of their system by observing events such as if there are more admin users than expected or if an unexpected shutdown occurs. 
+The HealthCheck Dashboard gives users the ability to view different processes such as unexpected shutdowns, events by each machine, total hosts and total number of logged in admins with data that is based on a selected date range.Users can check system health by noting events like unexpected shutdowns or a higher-than-expected number of admin users. 
 
 ## Policy Changes and System Activity
 
@@ -53,4 +55,3 @@ The Credential Access Log dashboard, focuses on account logon and account logoff
 
 
 
-For more information or to seek additional help, [Click Here](https://github.com/cisagov/LME) 

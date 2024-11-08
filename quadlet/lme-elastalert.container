@@ -1,0 +1,33 @@
+# lme-elastalert.container
+[Unit]
+Description=Elastalert Service
+After=lme-elasticsearch.service 
+Requires=lme-elasticsearch.service
+PartOf=lme.service
+
+[Service]
+Restart=always
+LimitNOFILE=655360
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+[Install]
+WantedBy=default.target lme.service
+
+[Container]
+ContainerName=lme-elastalert2
+Environment=ES_HOST=lme-elasticsearch ES_PORT=9200  ES_USERNAME=elastic 
+EnvironmentFile=/opt/lme/lme-environment.env
+Secret=elastic,type=env,target=ES_PASSWORD
+HostName=elastalert2
+Image=localhost/elastalert2:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-elastalert2
+Volume=lme_elastalert2_logs:/opt/elastalert/logs
+Volume=/opt/lme/config/elastalert2/rules:/opt/elastalert/rules:ro
+Volume=/opt/lme/config/elastalert2/misc:/opt/elastalert/misc:ro
+Volume=/opt/lme/config/elastalert2/config.yaml:/opt/elastalert/config.yaml:ro
+Volume=lme_certs:/etc/wazuh-manager/certs:ro
+Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+UserNS=auto:uidmapping=0:177728:3048,gidmapping=0:177728:3048
+#TODO: add a health check command
+#HealthCmd=CMD-SHELL curl -I -s --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/1.1 302 Found'

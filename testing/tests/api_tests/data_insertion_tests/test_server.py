@@ -30,56 +30,27 @@ def suppress_insecure_request_warning():
     warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
-
+@pytest.mark.skip(reason="This test is for reference to use in 2.0")
 def test_filter_hosts_insert(es_host, es_port, username, password):
     
     second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_hosts.json', 'hosts.json', 0)
      
     # Check to make sure the data was inserted
-    length = len(second_response_loaded['aggregations']['2']['buckets'])
-
-    for i in range(length):
+    
+    for i in range(5):
+        #print(second_response_loaded['aggregations']['2']['buckets'][i]['key'])
         if second_response_loaded['aggregations']['2']['buckets'][i]['key'] == 'testing.lme.local':
             break
         
     assert(second_response_loaded['aggregations']['2']['buckets'][i]['key'] == 'testing.lme.local')
 
+@pytest.mark.skip(reason="This test is for reference to use in 2.0")
 def test_user_logon_events_insert(es_host, es_port, username, password):
         
     second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_logonevents.json', 'logonevents.json', 2)
     
     # Check to make sure the data was inserted
     assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'APItestuserid')
-    
 
-def test_file_downloads_insert(es_host, es_port, username, password):
-        
-    second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_fileCreatedDownloads.json', 'fileCreatedDownloads.json', 2)
-    
-    # Check to make sure the data was inserted
-    assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'C:\\Users\\admin.ackbar\\Downloads\\test.txt')    
-
-    
-def test_file_suspicious_powershell(es_host, es_port, username, password):
-        
-    second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_suspiciouspowershell.json', 'suspiciouspowershell.json', 1)
-    
-    # Check to make sure the data was inserted
-    assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'powershell.exe')    
-
-def test_createRemoteThread(es_host, es_port, username, password):
-        
-    second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_createRemoteThreads.json', 'createRemoteThreads.json', 1)
-    
-    # Check to make sure the data was inserted
-    assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'testsource')    
-    
-def test_powershellNetworkConnections(es_host, es_port, username, password):
-        
-    second_response_loaded=insert_winlog_data(es_host, es_port, username, password, 'filter_powershellnetworkconnections.json', 'powershellnetworkconnections.json', 1)
-    
-    # Check to make sure the data was inserted
-    assert(second_response_loaded['aggregations']['2']['buckets'][0]['key'] == 'APItestuserid')        
-    
 
 

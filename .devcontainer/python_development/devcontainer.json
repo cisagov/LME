@@ -1,11 +1,11 @@
 {
   "name": "Python Development",
   "dockerComposeFile": [
-    "../../testing/development/docker-compose.yml"
+    "../../testing/v2/development/docker-compose.yml"
   ],
   "service": "ubuntu",
   "shutdownAction": "none",
-  "workspaceFolder": "/lme",
+  "workspaceFolder": "/root/LME",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -15,5 +15,5 @@
       ]
     }
   },
-  "remoteUser": "admin.ackbar"
+  "remoteUser": "root"
 }

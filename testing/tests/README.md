@@ -230,11 +230,11 @@ Once you have set up this configuration you can add this to `devcontainer.json`:
 {
   "name": "Python Development",
   "dockerComposeFile": [
-    "../../testing/development/docker-compose.yml"
+    "../../testing/v2/development/docker-compose.yml"
   ],
   "service": "ubuntu",
   "shutdownAction": "none",
-  "workspaceFolder": "/lme",
+  "workspaceFolder": "/root/lme",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -244,7 +244,7 @@ Once you have set up this configuration you can add this to `devcontainer.json`:
       ]
     }
   },
-  "remoteUser": "admin.ackbar"
+  "remoteUser": "root"
 }
 ```
 

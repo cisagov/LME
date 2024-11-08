@@ -7,13 +7,15 @@ from selenium.common.exceptions import NoSuchElementException
 from .lib import dashboard_test_function
 
 class TestHealthCheckDashboard:
-    dashboard_id = "51fe1470-fa59-11e9-bf25-8f92ffa3e3ec"
-
+    #dashboard_id = "51fe1470-fa59-11e9-bf25-8f92ffa3e3ec"
+    dashboard_id = "fff78bfe-2758-4fa1-939f-362380fc607d"
+    
     @pytest.fixture(scope="class")
     def setup_login(self, driver, login):
         login()
         yield driver
 
+    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_number_of_admins(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Number of Admins", ".expExpressionRenderer",".dummyval")
@@ -22,21 +24,22 @@ class TestHealthCheckDashboard:
         # If there is no visualization rendered or "No Results found" message is displayed for this panel on dashboard, this test should fail which is correct behavior
         
 
+    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_total_hosts(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Total Hosts", ".visualization",".dummyval")
 
+    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_events_by_machine(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Events by machine", ".echChart",".euiText")
 
-    @pytest.mark.skip(reason="Skipping this test")
+    #@pytest.mark.skip(reason="Skipping this test")
     def test_unexpected_shutdowns(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Unexpected shutdowns", ".echChart",".visError")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Unexpected shutdowns", ".tbvChart",".visError")
 
+    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_users_seen(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Users seen", ".visualization",".dummyval")
-
-

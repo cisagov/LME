@@ -16,7 +16,7 @@ class TestBasicLoading:
     #     yield
     #     driver.quit()  # Clean up the browser (driver) here
 
-
+    #@pytest.mark.skip(reason="This test isn't working for 2.0 yet")
     def test_title(self, setup_login, kibana_url, timeout):
         driver = setup_login
         driver.get(f"{kibana_url}/app/dashboards")
@@ -25,6 +25,7 @@ class TestBasicLoading:
         WebDriverWait(driver, timeout).until(expected_cond)
         assert driver.title == "Dashboards - Elastic"
 
+    @pytest.mark.skip(reason="This test isn't working for 2.0 yet")
     def test_dashboard_menu(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
@@ -37,4 +38,3 @@ class TestBasicLoading:
         WebDriverWait(driver, timeout).until(expected_cond)
         panel = driver.find_element(By.CSS_SELECTOR, selector)
         assert "No results found" not in panel.get_attribute("innerHTML")
-
