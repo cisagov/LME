@@ -482,7 +482,7 @@ sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USE
  - [Alerting](/docs/markdown/maintenance/elastalert-rules.md)
  - [Backups](/docs/markdown/maintenance/backups.md)  
  - [Certificates](/docs/markdown/maintenance/certificates.md) 
- - [Encryption at Rest](/docs/markdown/maintenance/Encryptionatrestoptionforusers.md)
+ - [Encryption at Rest](/docs/markdown/maintenance/Encryption_at_rest_option_for_users.md)
  - Data management:
    - [Index Management](/docs/markdown/maintenance/index-management.md)
    - [Volume Management](/docs/markdown/maintenance/volume-management.md)
