@@ -475,14 +475,14 @@ sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USE
 
 ## Reference: 
  - [FAQ](/docs/markdown/reference/faq.md) 
- - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md) *TODO*: update with new 2.0 dashboard descriptions
+ - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
  - [Security Model](/docs/markdown/reference/security-model.md)
 
 ## Maintenance:
  - [Alerting](/docs/markdown/maintenance/elastalert-rules.md)
  - [Backups](/docs/markdown/maintenance/backups.md)  
  - [Certificates](/docs/markdown/maintenance/certificates.md) 
- - [Encryption at Rest](/docs/markdown/maintenance/Encryption at rest option for users.md)
+ - [Encryption at Rest](/docs/markdown/maintenance/Encryptionatrestoptionforusers.md)
  - Data management:
    - [Index Management](/docs/markdown/maintenance/index-management.md)
    - [Volume Management](/docs/markdown/maintenance/volume-management.md)
