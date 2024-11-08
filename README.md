@@ -236,6 +236,7 @@ In the `BECOME password` prompt enter the password for your user you would norma
 3. The master password will be stored at `/etc/lme/pass.sh` and owned by root, while service user passwords will be stored at `/etc/lme/vault/`
 
 4. lme.service is a KICK START systemd service. It will always succeed and is designed so that the other lme services can be stopped and restarted by stopping/restarting lme.service.
+
 For example, to stop all of LME: 
 ```bash
 sudo -i systemctl stop lme.service
