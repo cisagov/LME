@@ -2,15 +2,13 @@
 
 ## Wazuh Dashboards: 
 For more info on these dashboards see wazuh's documentation: [LINK](https://documentation.wazuh.com/current/integrations-guide/elastic-stack/index.html)
-This is the dashboard URL that inspired the current Wazuh dashboards: 
+This is the dashboard URL: 
 ```bash
 https://packages.wazuh.com/integrations/elastic/4.x-8.x/dashboards/wz-es-4.x-8.x-dashboards.ndjson
 ```
 
 ## How to update dashboards 
 Currently you need to run `ansible-playbook post_install_local.yml` to upload the current LME dashboards.
-
-If you need to reupload them, you can delete the `INSTALLED` file in the appropriate `/opt/lme/dashboards` directory and re-run the `post install` script. 
 
 ## Updating to new dashboards and removing old ones (Starting with 1.1.0)
 Browse to `Kibana->Stack Management` then select `Saved Objects`.
@@ -32,23 +30,15 @@ on your initial install.
 ##### The files will be exported to `./exported`
 
 #### Running on Ubuntu
-To get your password you can run: 
-```bash
-cd ~/LME #OR YOUR CLONE DIRECTORY
-source ./scripts/extract_secrets
-```
 
-Then you can use the following command to export dashboards:
-```bash
-./export_dashboards.py -u elastic -p "$elastic"
+```
+./export_dashboards.py -u elastic -p YOURUNIQUEPASS
 ```
 
 The modules should already be installed on Ubuntu, but If the script complains about missing modules:
-```bash
+```
 pip install -r requirements.txt 
 ```
-
-The dashboards will be exported to: `~/LME/dashboards/exported`
 
 #### Running on Windows
 You must have python and the modules installed. (You can install python 3 from the Microsoft Store). Then install the requirements: 

@@ -76,7 +76,7 @@ PUT wazuh-alerts-4.x-*/_settings
 }
 ```
 
-This will create a policy, create a template that applies this policy to all new indices, and then also applies the policy to existing wazuh indices.
+This will create a policy, create a template that applies this policy to all new indices, and then also apply the policy to existing Wazuh indices.
 
 **NOTE: This is an example that will delete wazuh indices after 30 days. Adjust as needed.**
 
@@ -84,18 +84,18 @@ This will create a policy, create a template that applies this policy to all new
 
 Your Elastic agent logs are managed by a policy called "logs"
 
-1. Navigate to Index Lifecycle policies, turn the switch for "Include managed system policies" and then search for "logs"
+1. Navigate to Index Lifecycle policies, toggle the switch for "Include managed system policies" and then search for "logs"
 
-2. Click to edit this policy. You will see warnings that editing a managed policy can break Kibana, you can mostly ignore this warning if you set your phases properly. 
+2. Click to edit this policy. You will see warnings that editing a managed policy can break Kibana. Assuming you set your phases properly, you can ignore this warning. 
 
-3. The default setup is to "rollover" once your index is 30 days old or larger than 50 gigabytes. Rollover just means rename the index and create a new one so you keep your shard size down. This will NOT delete the previous index. I.E. logs-00001 rolls over to logs-00002. 00001 remains, its just not 'active'
+3. By default, the setup "rolls over" when an index is 30 days old or exceeds 50 GB. Rollover renames the index and creates a new one to manage shard size without deleting the previous index I.E. logs-00001 rolls over to logs-00002. 00001 remains, its just not 'active'
 
 4. Set your Hot, Warm, Cold phase as you see fit. 
 
-5. After you turn on "Cold Phase" you will most likely have to hit the trash can switch to turn on the delete phase. 
+5. After you turn on "Cold Phase" you must hit the trash can switch to turn on the delete phase. 
 
-6. After you apply these changes to your policy please allow it some time to actually take effect on all indices.
+6. After you apply these changes to your policy please allow it some time to take effect on all indices.
 
-7. You can also just completely skip these steps and manually delete indices from the UI as you see fit / when needed.
+**Note**: You can also just completely skip these steps and manually delete indices from the UI as you see fit / when needed.
 
-**NOTE: By default your rollover policy is set for 30 days. Do not set your 'delete' phase to be shorter than your rollover phase. You need your active indices to rollover into inactive indices before you delete them.**
+**Note**: By default your rollover policy is set for 30 days. Do not set your 'delete' phase to be shorter than your rollover phase. You need your active indices to rollover into inactive indices before you delete them.**
