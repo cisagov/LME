@@ -45,7 +45,7 @@ For existing LME users, **click here** for easy instructions on transferring log
 
 ## 11.  Can I transfer my customized dashboards? If so, how?
 
-Yes, you can import your dashboards on Elastic from Stack Management > Kibana > Saved Objects and click import and select the custom dashboard ndjson file to import it into your Elastic instance.
+Yes, you can import your dashboards on Elastic from Stack Management > Kibana > Saved Objects and click import and select the custom dashboard ndjson file to import it into your Elastic instance. You'll need to export your old dashboards first. 
 
 ## 12. Are there new system requirements for LME 2.0?
 
