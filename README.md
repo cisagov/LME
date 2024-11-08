@@ -298,7 +298,7 @@ We are currently missing health checks for fleet-server and elastalert2, so if t
 If a container is missing you can check its logs here: 
 ```bash
 #also try inspecting container logs: 
-$CONTAINER_NAME=lme-elasticsearch #change this to your container name you want to monitor lme-kibana, etc...
+CONTAINER_NAME=lme-elasticsearch #change this to your container name you want to monitor lme-kibana, etc...
 sudo -i podman logs -f $CONTAINER_NAME
 ```
 

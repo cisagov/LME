@@ -54,7 +54,7 @@ You can confirm the version is accurate with a list from wazuh's versions [HERE]
 # where {WAZUH_AGENT_VERSION}=4.7.5
 # where {WAZUH_MANAGER_IP}=10.1.0.5
 Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi;`
-Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER="10.1.0.5"' -Wait -NoNewWindow`
+Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER="10.1.0.5"' -Wait -NoNewWindow
 ```
 
 2. **Install the Wazuh Agent**
@@ -95,7 +95,7 @@ Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MAN
 
 4. **Install Wazuh agent and configure Wazuh Manager IP variable**
    ```bash
-   WAZUH_MANAGER="{WAZUH_MANAGER_IP}" apt-get install wazuh-agent={WAZUH_AGENT_VERSION} && sed -i 's/MANAGER_IP/10.0.0.15/i' /var/ossec/etc/ossec.conf
+   WAZUH_MANAGER="{WAZUH_MANAGER_IP}" apt-get install wazuh-agent={WAZUH_AGENT_VERSION} && sed -i 's/MANAGER_IP/{WAZUH_MANAGER_IP}/i' /var/ossec/etc/ossec.conf
    ```
    
    For example: 
