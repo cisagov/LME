@@ -23,7 +23,14 @@ Other operating systems adn their respecitve latex/pandoc packages have not been
 ## Compiling: 
 This command below will compile the markdown docs on macos from the homebrew install pandoc/mactex packages:
 ```bash
-$ pandoc --from gfm --pdf-engine=lualatex -H ./build/setup.tex -V geometry:margin=1in --highlight-style pygments -o docs.pdf -V colorlinks=true -V linkcolor=blue --lua-filter=./build/emoji-filter.lua --lua-filter=./build/makerelativepaths.lua --lua-filter=./build/parse_breaks.lua --table-of-contents --number-sections --wrap=preserve --quiet -s $(cat ./build/includes.txt)
+pandoc --from gfm --pdf-engine=lualatex -H ./build/setup.tex -V geometry:margin=1in --highlight-style pygments -o docs.pdf -V colorlinks=true -V linkcolor=blue --lua-filter=./build/emoji-filter.lua --lua-filter=./build/makerelativepaths.lua --lua-filter=./build/parse_breaks.lua --table-of-contents --number-sections --wrap=preserve --quiet -s $(cat ./build/includes.txt)
 ```
 
 On a successful compilation it will output the `docs.pdf` file, a pdf of all the docs. There is a small bug where the `troubleshooting.md` table does not display as expected, so if you want the notes in the table offline, we suggest you record the information manually, OR submit a pull request that fixes this bug :smile:.
+
+### Compiling .docx:
+.docx doesn't support emojis, so thats removed from the command
+```bash
+pandoc --from gfm --pdf-engine=lualatex -H ./build/setup.tex -V geometry:margin=1in --highlight-style pygments -o docs.docx -V colorlinks=true -V linkcolor=blue  --lua-filter=./build/makerelativepaths.lua --lua-filter=./build/parse_breaks.lua --table-of-contents --number-sections --wrap=preserve --quiet -s $(cat ./build/includes.txt)
+```
+
