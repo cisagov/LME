@@ -1,7 +1,7 @@
 # Dashboard Descriptions
 
 ## Prerequisites
-In order for the The Logging Made Easy (LME) dashboards to display without errors, they require an elastic agent to be logging sysmon events from a Windows machine. 
+In order for the The Logging Made Easy (LME) dashboards to display without errors, they require an elastic agent to be logging sysmon events from a Windows machine. With this configuration, wait at least 30 minutes for logs to populate within Elasticsearch. 
 
 ## Purpose   
 Logging Made Easy (LME) releases new dashboards on GitHub periodically.The dashboard descriptions currently availble can be found below. Users may also choose to create custome dashboards.
