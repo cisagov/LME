@@ -41,7 +41,7 @@ While CISA recommends upgrading to LME 2.0, users can continue using older versi
 
 ## 10. How do I transition/migrate from older versions to LME 2.0 while retaining my log history?
 
-For existing LME users, **click here** for easy instructions on transferring log history from previous versions. LME will automatically reintegrate your log history and data.
+For existing LME users, [click here](/scripts/upgrade) for easy instructions on transferring log history from previous versions. LME will automatically reintegrate your log history and data.
 
 ## 11.  Can I transfer my customized dashboards? If so, how?
 
