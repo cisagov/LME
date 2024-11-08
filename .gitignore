@@ -1,4 +1,5 @@
 *.pdf
+*.docx
 .DS_Store
 /.idea/
 /.vscode/
