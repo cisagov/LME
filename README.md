@@ -33,7 +33,7 @@ From single IT administrators with a handful of devices in their network to smal
 LME is intended for organizations that:
 - Need a log management and threat detection system.
 - Do not have an existing Security Operations Center (SOC), Security Information and Event Management (SIEM) solution or log management and monitoring capabilities.
-- Work within limited budgets, time or expertise to set up and manage a logging and threat detection system
+- Work within limited budgets, time or expertise to set up and manage a logging and threat detection system.
 
 
 ## Table of Contents:
@@ -111,9 +111,9 @@ Ports required are as follows:
 ### Agents and Agent Management: 
 LME leverages both Wazuh and Elastic agents providing more comprehensive logging and security monitoring across various log sources. The agents gather critical data from endpoints and send it back to the LME server for analysis, offering organizations deeper visibility into their security posture. We also make use of the Wazuh Manager and Elastic Fleet for agent orchestration and management.
 
-- **Wazuh Agents**: Enables Endpoint Detection and Response (EDR) on client systems, providing advanced security features like intrusion detection and anomaly detection. https://github.com/wazuh/wazuh-agent 
+- **Wazuh Agents**: Enables Endpoint Detection and Response (EDR) on client systems, providing advanced security features like intrusion detection and anomaly detection. For more information, see [Wazuh's agent documentation](https://github.com/wazuh/wazuh-agent). 
 - **Wazuh Manager**: Responsible for managing Wazuh Agents across endpoints, and overseeing agent registration, configuration, and data collection, providing centralized control for monitoring security events and analyzing data. 
-- **Elastic Agents**: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications https://github.com/elastic/elastic-agent
+- **Elastic Agents**: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications. For more information, see [Elastic's agent documentation](https://github.com/elastic/elastic-agent).
 - **Elastic Fleet**: Manages Elastic Agents across your infrastructure, providing centralized control over agent deployment, configuration, and monitoring. It simplifies the process of adding and managing agents on various endpoints. ElasticFleet also supports centralized updates and policy management.
 
 
@@ -148,7 +148,7 @@ We suggest you install the latest release version of LME using the following com
 sudo apt update && sudo apt install curl jq unzip -y
 ```
 **2. Download and Unzip the latest version of LME**
-This will add a path to ~/LME with all requires files.
+This will add a path to ~/LME with all required files.
 ```
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
