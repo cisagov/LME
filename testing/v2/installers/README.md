@@ -1,117 +1,153 @@
-There are readmes for each of the installer directories.
+# Installation Guide
+#### Attention: Run these commands in the order presented in this document. Some commands depend on variables set in previous commands. Not all commands need to be run. There are some optional commands depending on the testing scenario.
+
+## Initial Setup Variables
+First, set these variables in your terminal:
+
+```bash
+# Required variables
+export RESOURCE_GROUP="your-group-name"
+export PUBLIC_IP="your-effective-public-ip/32"  # Get this from https://www.whatismyip.com/
+export VM_SIZE="Standard_D8_v4"
+export LOCATION="westus"
+export AUTO_SHUTDOWN_TIME="00:00"
+export LME_USER="lme-user"
+```
 
 You'll need to follow the steps in [Azure Authentication](/testing/v2/installers/azure/build_azure_linux_network.md#authentication) and 
-[Python Setup](/testing/v2/installers/azure/build_azure_linux_network.md#setup) prior to running the steps below. 
+[Python Setup](/testing/v2/installers/azure/build_azure_linux_network.md#setup) prior to running the steps below.
 
 ## Quick Start
-All commands are run from the installer directory. You need to do them in the order below.
+All commands are run from the installer directory:
 
 ```bash
 cd testing/v2/installers
 ```
 
-You can get your effective public ip by browsing to https://www.whatismyip.com/
+### Creating Azure Machine(s)
 
-#### Creating the azure machine(s).
 Linux only:
 ```bash
-./azure/build_azure_linux_network.py -g your-group-name -s your-effective-public-ip/32 -vs Standard_D8_v4 -l westus -ast 00:00
-```
-Linux and a windows machine (just add the -w flag):
-```bash
-./azure/build_azure_linux_network.py -g your-group-name -s your-effective-public-ip/32 -vs Standard_D8_v4 -l westus -ast 00:00 -w
+./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME
 ```
 
-Installing lme-v2
+Linux and Windows (just add the -w flag):
 ```bash
-./install_v2/install.sh lme-user $(cat your-group-name.ip.txt) your-group-name.password.txt branch 
+./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME -w
 ```
 
-### For nasty network attacks you can create minimega clients. 
-To connect to the ubuntu machine (after it is created) you can use the following command:
+After VM creation, set these additional variables:
+```bash
+# These are generated during VM creation
+export VM_IP=$(cat $RESOURCE_GROUP.ip.txt)
+export VM_PASSWORD=$(cat $RESOURCE_GROUP.password.txt)
+```
+
+### Installing lme-v2
+```bash
+./install_v2/install.sh $LME_USER $VM_IP $RESOURCE_GROUP.password.txt your-branch-name 
+```
+
+## Setting Up Minimega Clients
+
+### Connecting to VMs
+
+#### You connect to these from the host azure machine
+
+To connect to the Ubuntu machine:
 ```bash
 sudo su
 minimega -e vm info
 # Find the ip of the ubuntu machine
-ssh vmuser@<ip>
+ssh vmuser@<ip>  # Password: vmuser
 ```
-You can also connect to the ubuntu machine using the web ui. Browse to the host machine's ip in a web browser http://host-machine-ip:9001. You should see the ubuntu machine listed. 
-The user is `vmuser` and the password is `vmuser`. You can't copy and paste in the vnc session, so I usually use ssh instead. 
 
+For web UI access: Browse to http://host-machine-ip:9001
+- Ubuntu credentials: `vmuser`/`vmuser`
+- Windows credentials: `Admin`/`minimega!1`
 
-To connect to the windows machine (after it is created) you can browse to the host machine's ip in a web browser http://host-machine-ip:9001. You should see the windows machine listed. 
-You can click the connect button to connect to the machine. The username and password for the 
-windows machine is `Admin` and the password is `minimega!1`. If you want to ssh into the windows 
-machine you can use the following command:
+To SSH into Windows:
 ```bash
-ssh Test@<ip>
-# password is minimega!1
+ssh Test@<ip>  # Password: minimega!1
 ```
 
-Install the minimega service on the remote machine.
+### Installing Minimega Service
 ```bash
-./minimega/install.sh lme-user  $(cat your-group-name.ip.txt) your-group-name.password.txt
+./minimega/install.sh $LME_USER $VM_IP $RESOURCE_GROUP.password.txt
 ```
 
-For Ubuntu minimega clients you can use the qcow2 image. 
+### Setting Up Ubuntu Minimega VMs
 ```bash
-./ubuntu_qcow_maker/install.sh lme-user $(cat your-group-name.ip.txt) your-group-name.password.txt
+./ubuntu_qcow_maker/install.sh $LME_USER $VM_IP $RESOURCE_GROUP.password.txt
 ```
 
-For Windows minimega vms you need to set up the env file.
+### Setting Up Windows Minimega VMs
+1. Set up the environment file:
 ```bash
 cp ./windows_qcow/.env.example ./windows_qcow/.env
-# edit the env file and change your resource group name
+# Edit the .env file and update your resource group name
 ```
 
-Then you can install the windows minimega vm on the remote machine you will be prompted to login with your device code.
+2. Install Windows VM:
 ```bash
-export user=lme-user
-export hostname=$(cat your-group-name.ip.txt)
-scp -r windows_qcow ubuntu_qcow_maker $user@$hostname:/home/$user
-ssh $user@$hostname 
+scp -r windows_qcow ubuntu_qcow_maker $LME_USER@$VM_IP:/home/$LME_USER
+ssh $LME_USER@$VM_IP 
 cd /home/lme-user/windows_qcow
 sudo ./install_local.sh
-# Do the signing in with your device code
-# Just press enter when it asks for the subscription and tenant
-# Windows is a big file so it will take a while
+# Follow the device code login prompts
+# Press enter for subscription and tenant prompts
 ```
-## For a 24.04 machine instead of 22.04 (optional)
-Reminder activate venv, from steps above, first: 
 
-`source ~/LME/venv/bin/activate`
-
-Create the network.
+## Optional: Ubuntu 24.04 Setup
+Remember to activate venv first:
 ```bash
-./azure/build_azure_linux_network.py -g your-group-name -s 0.0.0.0 -vs Standard_D8_v4 -l westus -ast 00:00   -pub Canonical  -io 0001-com-ubuntu-server-noble-daily  -is 24_04-daily-lts-gen2
+source ~/LME/venv/bin/activate
 ```
 
-## Creating additional virtual machine clients if you aren't going to do nasty network attacks: 
-Windows: 
+Create the network:
 ```bash
-az vm create `
-  --resource-group xxxxxx `
-  --nsg NSG1 `
-  --image Win2019Datacenter `
-  --admin-username admin-user `
-  --admin-password xxxxxxxxxxxxxx `
-  --vnet-name VNet1 `
-  --subnet SNet1 `
-  --public-ip-sku Standard `
-  --name WINDOWS
+./azure/build_azure_linux_network.py \
+    -g $RESOURCE_GROUP \
+    -s "0.0.0.0" \
+    -vs $VM_SIZE \
+    -l $LOCATION \
+    -ast $AUTO_SHUTDOWN_TIME \
+    -pub Canonical \
+    -io 0001-com-ubuntu-server-noble-daily \
+    -is 24_04-daily-lts-gen2
 ```
 
-Ubuntu:
+## Creating Additional VMs (Non-Network Attack Scenarios)
+
+### Windows VM
+First, set a secure password for the Windows VM:
 ```bash
-az vm create `
-   --resource-group XXXXX `
-   --nsg NSG1 `
-   --image Ubuntu2204 `      
-   --admin-username admin-user `
-   --admin-password XXXXXXXX `
-   --vnet-name VNet1 `
-   --subnet SNet1 `
-   --public-ip-sku Standard `
-   --name linux-client
+export WINDOWS_PASSWORD="SecurePass123!"  # Must contain 12+ chars, uppercase, lowercase, numbers, and symbols
+```
+```bash
+az vm create \
+    --resource-group $RESOURCE_GROUP \
+    --nsg NSG1 \
+    --image Win2019Datacenter \
+    --admin-username admin-user \
+    --admin-password $WINDOWS_PASSWORD \
+    --vnet-name VNet1 \
+    --subnet SNet1 \
+    --public-ip-sku Standard \
+    --name WINDOWS
 ```
 
+### Ubuntu VM
+Note: Use the $VM_PASSWORD that was set earlier after initial VM creation (see "After VM creation, set these additional variables" section above)
+```bash
+az vm create \
+    --resource-group $RESOURCE_GROUP \
+    --nsg NSG1 \
+    --image Ubuntu2204 \
+    --admin-username admin-user \
+    --admin-password $VM_PASSWORD \
+    --vnet-name VNet1 \
+    --subnet SNet1 \
+    --public-ip-sku Standard \
+    --name linux-client
+```
