@@ -55,11 +55,7 @@ class TestUserHRDashboard:
         assert "No results found" not in panel.get_attribute("innerHTML")
         #This panel is no longer available in Release 2.0
 
-<<<<<<< HEAD
     #@pytest.mark.skip(reason="This test isn't working for 2.0 yet")
-=======
-    @pytest.mark.skip(reason="This test isn't working for 2.0 yet")
->>>>>>> main
     def test_timestamps_by_count(self, setup_login, kibana_url, timeout):
         driver = setup_login
         #dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
