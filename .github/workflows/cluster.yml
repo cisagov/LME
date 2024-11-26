@@ -1,9 +1,9 @@
 name: Cluster Run - Minimega
 
 on:
-  #pull_request:
-    # branches:
-    #   - '*'
+  pull_request:
+    branches:
+      - '*'
   workflow_dispatch:
     inputs:
       azure_region:
@@ -118,6 +118,15 @@ jobs:
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
+          "
+      - name: Install minimega on Azure instance
+        run: |
+          cd testing/v2/development
+          sleep 30
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./windows_qcow/pipeline_install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
           
       - name: Install Linux in minimega 
