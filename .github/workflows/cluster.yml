@@ -119,7 +119,7 @@ jobs:
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
-      - name: Install minimega on Azure instance
+      - name: Install windows minimega on Azure instance
         run: |
           cd testing/v2/development
           sleep 30

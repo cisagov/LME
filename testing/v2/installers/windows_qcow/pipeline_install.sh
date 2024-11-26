@@ -31,11 +31,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Change to the parent directory of the script
 cd "$SCRIPT_DIR/.."
 
+echo "$SCRIPT_DIR"
+
 # Copy the SSH key to the remote machine
 ./lib/copy_ssh_key.sh $user $hostname $password_file
 
-cp "./$SCRIPT_DIR/.env.example" "./$SCRIPT_DIR/.env"
+cp "windows_qcow/.env.example" "windows_qcow/.env"
 
-scp -r "$SCRIPT_DIR" ubuntu_qcow_maker $user@$hostname:/home/$user
+scp -r windows_qcow "ubuntu_qcow_maker" $user@$hostname:/home/$user
 
 ssh $user@$hostname "cd /home/${user}/windows_qcow && sudo ./install_local.sh"
