@@ -120,12 +120,21 @@ jobs:
             ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
       - name: Install windows minimega on Azure instance
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           cd testing/v2/development
           sleep 30
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            AZURE_CLIENT_ID=${{ env.AZURE_CLIENT_ID }} && \
+            AZURE_CLIENT_SECRET=${{ env.AZURE_CLIENT_SECRET }} && \
+            AZURE_TENANT_ID=${{ env.AZURE_TENANT_ID }} && \
+            AZURE_SUBSCRIPTION_ID=${{ env.AZURE_SUBSCRIPTION_ID }} && \
             ./windows_qcow/pipeline_install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
           
