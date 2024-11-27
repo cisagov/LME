@@ -136,7 +136,7 @@ jobs:
             pipeline bash -c "
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            sudo ./windows_qcow/pipeline_install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
+            ./windows_qcow/pipeline_install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
           
       - name: Install Linux in minimega 
