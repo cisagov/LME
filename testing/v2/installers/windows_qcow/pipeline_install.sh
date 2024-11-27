@@ -38,6 +38,8 @@ echo "$SCRIPT_DIR"
 
 cp "windows_qcow/.env.example" "windows_qcow/.env"
 
+echo "AZURE_CLIENT_ID: $AZURE_CLIENT_ID"
+
 if [[ ! -z "$AZURE_CLIENT_ID" ]] && [[ ! -z "$AZURE_CLIENT_SECRET" ]] && [[ ! -z "$AZURE_TENANT_ID" ]]; then
     echo "export AZURE_CLIENT_ID=$AZURE_CLIENT_ID" >> "windows_qcow/.env"
     echo "export AZURE_CLIENT_SECRET=$AZURE_CLIENT_SECRET" >> "windows_qcow/.env"
