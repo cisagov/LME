@@ -4,7 +4,7 @@ set -e
 
 # Function to print usage
 print_usage() {
-    echo "Usage: $0 <username> <hostname> <password_file> [num_cpus] [memory_mb]"
+    echo "Usage: $0 <username> <hostname> <password_file>"
     echo "Required parameters:"
     echo "  <username>: The username for the remote server"
     echo "  <hostname>: The hostname or IP address of the remote server"
@@ -41,6 +41,7 @@ cp "windows_qcow/.env.example" "windows_qcow/.env"
 echo "AZURE_CLIENT_ID: $AZURE_CLIENT_ID"
 
 if [[ ! -z "$AZURE_CLIENT_ID" ]] && [[ ! -z "$AZURE_CLIENT_SECRET" ]] && [[ ! -z "$AZURE_TENANT_ID" ]]; then
+    echo "" >> "windows_qcow/.env"
     echo "export AZURE_CLIENT_ID=$AZURE_CLIENT_ID" >> "windows_qcow/.env"
     echo "export AZURE_CLIENT_SECRET=$AZURE_CLIENT_SECRET" >> "windows_qcow/.env"
     echo "export AZURE_TENANT_ID=$AZURE_TENANT_ID" >> "windows_qcow/.env"
