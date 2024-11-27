@@ -22,9 +22,10 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     if [ $ATTEMPT -gt 1 ]; then
         echo "Waiting before next attempt..."
         sleep $WAIT_TIME
-        ATTEMPT=$((ATTEMPT + 1))
     fi
     
+    ATTEMPT=$((ATTEMPT + 1))
+
     # Run the curl command and capture the output
     output=$(curl -kL -s -X GET "https://localhost:9200/.ds-metrics-system.cpu-default-*/_search" \
          -H 'Content-Type: application/json' \
