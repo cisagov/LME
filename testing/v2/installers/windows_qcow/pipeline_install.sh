@@ -39,10 +39,10 @@ echo "$SCRIPT_DIR"
 cp "windows_qcow/.env.example" "windows_qcow/.env"
 
 if [[ ! -z "$AZURE_CLIENT_ID" ]] && [[ ! -z "$AZURE_CLIENT_SECRET" ]] && [[ ! -z "$AZURE_TENANT_ID" ]]; then
-    echo "AZURE_CLIENT_ID: $AZURE_CLIENT_ID" >> "windows_qcow/.env"
-    echo "AZURE_CLIENT_SECRET: $AZURE_CLIENT_SECRET" >> "windows_qcow/.env"
-    echo "AZURE_TENANT_ID: $AZURE_TENANT_ID" >> "windows_qcow/.env"
-    echo "AZURE_SUBSCRIPTION_ID: $AZURE_SUBSCRIPTION_ID" >> "windows_qcow/.env"
+    echo "export AZURE_CLIENT_ID=$AZURE_CLIENT_ID" >> "windows_qcow/.env"
+    echo "export AZURE_CLIENT_SECRET=$AZURE_CLIENT_SECRET" >> "windows_qcow/.env"
+    echo "export AZURE_TENANT_ID=$AZURE_TENANT_ID" >> "windows_qcow/.env"
+    echo "export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID" >> "windows_qcow/.env"
 fi
 
 scp -r windows_qcow "ubuntu_qcow_maker" $user@$hostname:/home/$user
