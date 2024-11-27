@@ -5,7 +5,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 . "$SCRIPT_DIR/.env"
 
-rm -rf "$SCRIPT_DIR/.env"
+# rm -rf "$SCRIPT_DIR/.env"
 
 "$SCRIPT_DIR/install_azure.sh"
 
