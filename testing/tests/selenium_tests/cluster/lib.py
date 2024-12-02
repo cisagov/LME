@@ -28,6 +28,16 @@ def dashboard_test_function (driver, kibana_url, timeout, dashboard_id, panel_ti
     expected_cond = EC.presence_of_element_located((By.CSS_SELECTOR, f"{panel_content_selector}, {no_results_selector}"))
     WebDriverWait(driver, timeout).until(expected_cond)
     
+     # Check if the red error icon is present on panel
+    try:
+        # Check if the "red error icon" message is present
+        error_message = driver.find_element(By.XPATH, f"//div[@data-title='{panel_title}']//*/button[@data-test-subj='lens-message-list-trigger']")
+        assert (error_message.is_displayed() == False)
+    except NoSuchElementException:
+        #No error message found
+        assert 1==1, "No error message found"
+
+    #error_message = driver.find_element(By.XPATH, f"//div[@data-title='{panel_title}']//*/button[@title='1 error']")
 
     # Check if the panel content is present
     try:
