@@ -15,7 +15,7 @@ class TestComputerSoftwareOverviewDashboard:
     def setup_login(self, driver, login):
         login()
         yield driver
-
+        
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_application_crashing_and_hanging(self, setup_login, kibana_url, timeout):
         driver = setup_login
