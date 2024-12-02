@@ -119,6 +119,16 @@ jobs:
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./minimega/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
+
+      - name: Install Linux in minimega 
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
+          "
+
       - name: Install windows minimega on Azure instance
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -139,14 +149,6 @@ jobs:
             ./windows_qcow/pipeline_install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
           "
           
-      - name: Install Linux in minimega 
-        run: |
-          cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ./ubuntu_qcow_maker/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" 
-          "
           
       - name: Check if linux is running in minimega 
         run: |
@@ -158,7 +160,7 @@ jobs:
             ssh lme-user@\$IP_ADDRESS 'sudo /opt/minimega/bin/minimega -e vm info'
           "
 
-      - name: Get Azure and Minimega IP addresses
+      - name: Get Azure and Linux Minimega IP addresses
         run: |
           cd testing/v2/development
           AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
@@ -180,7 +182,7 @@ jobs:
           echo "Azure IP:$AZURE_IP Minimega IP:$MINIMEGA_IP"
 
 
-      - name: Run a command in Minimega
+      - name: Run a command in Linux Minimega
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
