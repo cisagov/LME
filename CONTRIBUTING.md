@@ -33,7 +33,8 @@ Below are some loose requirements we'd like all PR's to follow. Our release proc
 
 All PRs will be tested, vetted, and reviewed by our team before being merged with the main code base. All should be pull requested into the `develop` branch. 
 
-### Steps to submit a PR
+### Steps to submit a PR  
+
 	- All PRs should request merges back into LME's `develop` branch.  This will be viewable in the branch list on Github. You can also refer to our release documentation for guidance. If the fix fits the requirements for a hotfix, the LME team will modify your PR as is relevant.
   - If the PR corresponds to an issue we are already tracking on LME's public Github [project](https://github.com/orgs/cisagov/projects/68), please comment the PR in the issue, and we will update the issue. 
   - If the PR does not have an issue, please create a new issue and name your branch according to the conventions [here](#branch-naming-conventions). Add a comment at the top of the pull request describing the PR and how it fits into LME's project/code. If the PR follows our other requirements listed here, we'll add it into our public project linked previously.
