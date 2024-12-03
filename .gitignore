@@ -34,4 +34,4 @@ testing/tests/assets/style.css
 *.vim*
 **/quadlet/output
 **/lme-environment.env
-
+**/env.sh
