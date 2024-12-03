@@ -46,7 +46,7 @@ Each code freeze will have an announced end date/time in accordance with our pub
 
 ### Steps:
 
-1. Goals/changes/updates to LME will be tracked in LME's public [project](https://github.com/orgs/cisagov/projects/68). These updates to LME will be tracked by pull requests (and may be backed by corresponding issues for documentation purposes for documentation purposes) the `develop`  branch.
+1. Goals/changes/updates to LME will be tracked in LME's public [project](https://github.com/orgs/cisagov/projects/68). These updates to LME will be tracked by pull requests (and may be backed by corresponding issues for documentation purposes for documentation purposes) into the `develop`  branch.
 2. As commits are pushed to the PRs set to pull into the `develop` branch, we will determine a time to cease developments, and mark a period of testing for `development` that will be merged into main.
 3. When its determined the features developed meet a goal or publish point, after waiting for feedback and proper testing,  we will merge `develop` with a `vX.Y.Z` semver tag into `main` branch.  
 
