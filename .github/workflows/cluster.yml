@@ -160,7 +160,7 @@ jobs:
             ssh lme-user@\$IP_ADDRESS 'sudo /opt/minimega/bin/minimega -e vm info'
           "
 
-      - name: Get Azure and Linux IP addresses
+      - name: Get Azure, Windows, and Linux IP addresses
         run: |
           cd testing/v2/development
           AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
@@ -179,6 +179,7 @@ jobs:
             exit 1
           fi
           echo "LINUX_IP=$LINUX_IP" >> $GITHUB_ENV    
+          echo "Linux IP:$LINUX_IP"
 
           WINDOWS_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh lme-user@$AZURE_IP 'sudo /opt/minimega/bin/minimega -e .json true vm info | jq -r --arg name \"windows-runner\" \".[].Data[] | select(.Name == \\\$name) | .Networks[0].IP4\"'
@@ -193,7 +194,7 @@ jobs:
             exit 1
           fi
           echo "WINDOWS_IP=$WINDOWS_IP" >> $GITHUB_ENV    
-
+          echo "Windows IP:$WINDOWS_IP"
 
           echo "Azure_IP:$AZURE_IP LINUX_IP:$LINUX_IP WINDOWS_IP:$WINDOWS_IP"
 
