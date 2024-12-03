@@ -6,20 +6,34 @@ Our versioning scheme for LME adheres to [SEMVER 2.0](https://semver.org/):  X.Y
 The patch versions will generally adhere to the following guidelines:
 1. Major SEMVER: Denotes a major release, e.g., a new capability, or LME architecture change.
 2. Minor SEMVER: Denotes updates which are less than major but introduces noticeable changes.
-3. Patch SEMVER: Fix bug issues or vulnerability issues but do not introduce new features or updates.
+3. Patch SEMVER: Fix product breaking bugs, or vulnerabilities, or key documentation issues, but do not introduce new features or updates.
 
 ### Timelines
 
 Development lifecycle timelines will vary depending on project goals, tasking, community contributions, and vision.
 
 
-## Current Release Branch:
-To determine the current release branch, it will either be clearly documented in our wiki or on our public [project](https://github.com/orgs/cisagov/projects/68) board. The below example can also be used to determine our current release branch.
+## Branch Convention:
+We are using a github flow denoted by: 
+![git-flow](/docs/imgs/git-flow.png)
 
-- For example, if the current latest release (as seen on the main [README](/README.md)) version `1.1.0`, and the `release-*` branches are: `release-1.1.1` and `release-1.2.0` then the `1.2.0` branch would be the branch where submit the PR, since it is the closest release that is a Major or Minor release, while 1.1.1 is a patch release.
+The team requests a brief description if you submit a fix for a current issue on the public project, that context will allow us to help determine if it warrants inclusion. If the PR is well documented following our processes in our CONTRIBUTING.md, it will most likely be worked into LME. We value inclusion and recognize the importance of the open-source community.
 
-- All `release-*` have various branch protections enabled, and will require review by the development team before being merged.
-The team requests a brief description if one submits a fix for a current issue on the public project, that context will allow us to help determine if it warrants inclusion. If the PR is well documented following our processes in our CONTRIBUTING.md, it will most likely be worked into LME. We value inclusion and recognize the importance of the open-source community.
+### branch naming explained: 
+We have 2 main branches whose names will stay constant:
+  1. The `main` branch tracks Major/Minor/Patch releases only, and is only updated with merges from the `develop` or a `hotfix` branch. Releases are tagged appropriate SEMVERs based on their content:  `vX.Y.Z`.
+  2. The `develop` branch is our working copy of latest changes, and tracks all feature development. Feature branches are merged into `develop` as features are added, and when ready `develop` will merge into main as documented above.
+  
+There are 2 other branch naming conventions that change based on the issue/update/content they add to the project. 
+  - A `hotfix` branch is created to "fix" or "patch" a critical issue in the `main` branch of the LME repository. Hotfixes are branched from `main` and merged into `develop`. This way `main` can get fixes, and `develop` will be synced with `main`.
+    - It uses the convention: `hotfix-<username>-<issue#>-<shortstring>`
+    - An example: `hotfix-cbaxley-222-fix-the-pipeline`
+  - A feature branch is created from `develop` to add content for issues/work/updates/etc...
+    - It uses the convention: <username>-<issue #>-shortstring
+    - An example: `mreeve-22-filter-events`
+
+**NOTE:** Each branch name will have a short string to describe what it is solving for example `create-new-container`:
+ 
 
 ## Content: 
 
