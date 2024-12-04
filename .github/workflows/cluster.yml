@@ -283,7 +283,7 @@ jobs:
           echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
           echo "Policy ID and Enrollment Token retrieved successfully"
 
-      - name: Copy the Elastic Agent installer to Minimega
+      - name: Copy the Elastic Agent installer to Linux Minimega
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
@@ -291,19 +291,19 @@ jobs:
               'sudo scp -p -o StrictHostKeyChecking=no /home/lme-user/LME/testing/v2/installers/lib/install_agent_linux.sh vmuser@${{ env.LINUX_IP }}:~'
           "
 
-      - name: Run a command in Minimega
+      - name: Run a command in Linux Minimega
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} ls -la'
           "
 
-      - name: Install the Elastic Agent in Minimega
+      - name: Install the Elastic Agent in Linux Minimega
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} chmod +x ./install_agent_linux.sh ' && \
-              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} ./install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }}'
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} ./install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version 8.15.3'
           "
 
       - name: Check if the Elastic agent is reporting 

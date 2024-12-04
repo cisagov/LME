@@ -27,3 +27,9 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 "$SCRIPT_DIR/setup_rdp.sh"
 
+WINDOWS_IP="$("$SCRIPT_DIR/get_windows_ip.sh" windows-runner)"
+
+echo "Windows IP: $WINDOWS_IP"
+
+ssh-keyscan -H $WINDOWS_IP >> ~/.ssh/known_hosts
+
