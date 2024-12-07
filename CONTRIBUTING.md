@@ -27,7 +27,7 @@ Example:
 
 If you choose to submit a pull request, it will be required to pass various sanity checks in our continuous integration (CI) pipeline, before we merge it. Your pull request may fail these checks, and that's OK. If you want you can stop there and wait for us to make the necessary corrections to ensure your code passes the CI checks, you're more than within your rights; however, it helps our team greatly if you fix the issues found by our CI pipeline. 
 
-Below are some loose requirements we'd like all PR's to follow. Our release process is documented in [Releases](releases.md).
+Below are some loose requirements we'd like all PR's to follow. Our release process is documented in [Releases](RELEASES.md).
 
 ### Quality assurance and code reviews
 
