@@ -60,12 +60,17 @@ echo "Extracting windows archive..."
 #./run_elevated_powershell.sh "New-Item -ItemType Directory -Path ./elastic-agent-${VERSION}-${ARCHITECTURE}; Expand-Archive -Path ./elastic-agent-${VERSION}-${ARCHITECTURE}.zip -DestinationPath ./"
 ./run_elevated_powershell.sh "Expand-Archive -Path ./elastic-agent-${VERSION}-${ARCHITECTURE}.zip -Force"
 
-#
-## Change to the extracted directory
-#cd "elastic-agent-${VERSION}-${ARCHITECTURE}"
-#
 ## Install Elastic Agent with automatic "yes" response
-./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --non-interactive "
+echo "Installing elastic agent"
+#./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --non-interactive "
+./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --force --no-restart --no-registration"
+
+echo "Waiting for service to start"
+sleep 10
+
+echo "Checking agent service status"
+./run_elevated_powershell.sh "Get-Service Elastic\` Agent"
+
 #
 ## Enroll the Elastic Agent and capture the output
 enrollment_output=$(./run_elevated_powershell.sh "./elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent enroll --force --insecure --url=https://${HOST_IP}:$PORT --enrollment-token=${ENROLLMENT_TOKEN}")

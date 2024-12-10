@@ -38,6 +38,7 @@ jobs:
       elastic: ""
       AZURE_IP: ""
       LINUX_IP: ""
+      WINDOWS_IP: ""
       ENROLLMENT_TOKEN: ""
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
@@ -277,7 +278,7 @@ jobs:
             '
           ")
           echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"
-          
+
           # Mask the enrollment token in logs and set it as an environment variable
           echo "::add-mask::$ENROLLMENT_TOKEN"
           echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
@@ -304,6 +305,14 @@ jobs:
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} chmod +x ./install_agent_linux.sh ' && \
               ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} ./install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version 8.15.3'
+          "
+
+      - name: Install the Elastic Agent in Windows Minimega
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.WINDOWS_IP }} chmod +x ./install_agent_windows.sh ' && \
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.WINDOWS_IP }} ./install_agent_windows.sh --token ${{ env.ENROLLMENT_TOKEN }} --version 8.15.3'
           "
 
       - name: Check if the Elastic agent is reporting 
