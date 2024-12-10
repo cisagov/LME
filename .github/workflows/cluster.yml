@@ -42,6 +42,8 @@ jobs:
       ENROLLMENT_TOKEN: ""
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
+      ELASTIC_AGENT_VERSION: "8.15.3"
+      MINIMEGA_PASSWORD: ${{ secrets.MINIMEGA_PASSWORD }}
 
     steps:
       - name: Checkout repository
@@ -304,14 +306,14 @@ jobs:
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} chmod +x ./install_agent_linux.sh ' && \
-              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} ./install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version 8.15.3'
+              ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} ./install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }}'
           "
       - name: Install the Elastic Agent in Windows Minimega
         run: |
           set +H
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='minimega!1' && export WINDOWS_HOST=${{ env.LINUX_IP }} && sudo /home/lme-user/LME/testing/v2/installers/lib/install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version 8.15.3\"
+            ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && export WINDOWS_HOST=${{ env.LINUX_IP }} && sudo /home/lme-user/LME/testing/v2/installers/lib/install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }}\"
           "
 
       - name: Check if the Elastic agent is reporting 
