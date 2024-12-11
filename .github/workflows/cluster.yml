@@ -112,7 +112,6 @@ jobs:
                 -ast 23:00 \
                 -y
             "
-            // -vs Standard_D8_v4 \
           
       - name: Install minimega on Azure instance
         run: |
