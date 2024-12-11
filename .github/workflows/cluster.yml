@@ -313,7 +313,7 @@ jobs:
           set +H
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && export WINDOWS_HOST=${{ env.LINUX_IP }} && sudo /home/lme-user/LME/testing/v2/installers/lib/install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }}\"
+            ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && export WINDOWS_HOST=${{ env.LINUX_IP }} && sudo /home/lme-user/LME/testing/v2/installers/lib/install_agent_windows.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }}\"
           "
 
       - name: Check if the Elastic agent is reporting 
