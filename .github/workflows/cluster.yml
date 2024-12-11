@@ -308,13 +308,28 @@ jobs:
               ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} chmod +x ./install_agent_linux.sh ' && \
               ssh lme-user@${{ env.AZURE_IP }} 'sudo ssh -o StrictHostKeyChecking=no vmuser@${{ env.LINUX_IP }} ./install_agent_linux.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }}'
           "
+
+      # - name: Install the Elastic Agent in Windows Minimega
+      #   run: |
+      #     set +H
+      #     cd testing/v2/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+      #       ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && export WINDOWS_HOST=${{ env.WINDOWS_IP }} && cd /home/lme-user/LME/testing/v2/installers/lib && sudo /install_agent_windows.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }} --clientip ${{ env.WINDOWS_IP }}\"
+      #     "
+
       - name: Install the Elastic Agent in Windows Minimega
         run: |
           set +H
           cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && export WINDOWS_HOST=${{ env.WINDOWS_IP }} && cd /home/lme-user/LME/testing/v2/installers/lib && sudo /install_agent_windows.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }} --clientip ${{ env.WINDOWS_IP }}\"
-          "
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash <<EOF
+              ssh lme-user@${{ env.AZURE_IP }} "export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && \
+                export WINDOWS_HOST=${{ env.WINDOWS_IP }} && \
+                cd /home/lme-user/LME/testing/v2/installers/lib && \
+                sudo /install_agent_windows.sh \
+                  --token ${{ env.ENROLLMENT_TOKEN }} \
+                  --version ${{ env.ELASTIC_AGENT_VERSION }} \
+                  --clientip ${{ env.WINDOWS_IP }}"
+          EOF
 
       - name: Check if the Elastic agent is reporting 
         env:
