@@ -107,11 +107,12 @@ jobs:
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
                 -s ${{ env.IP_ADDRESS }}/32 \
-                -vs Standard_D8_v4 \
+                -vs Standard_E8_v4 \
                 -l ${{ inputs.azure_region || 'centralus' }} \
                 -ast 23:00 \
                 -y
             "
+            // -vs Standard_D8_v4 \
           
       - name: Install minimega on Azure instance
         run: |
@@ -313,7 +314,7 @@ jobs:
           set +H
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && export WINDOWS_HOST=${{ env.LINUX_IP }} && sudo /home/lme-user/LME/testing/v2/installers/lib/install_agent_windows.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }}\"
+            ssh lme-user@${{ env.AZURE_IP }} \"export SSHPASS='${{ env.MINIMEGA_PASSWORD }}' && export WINDOWS_HOST=${{ env.WINDOWS_IP }} && cd /home/lme-user/LME/testing/v2/installers/lib && sudo /install_agent_windows.sh --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }} --clientip ${{ env.WINDOWS_IP }}\"
           "
 
       - name: Check if the Elastic agent is reporting 

@@ -63,26 +63,27 @@ echo "Extracting windows archive..."
 ## Install Elastic Agent with automatic "yes" response
 echo "Installing elastic agent"
 #./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --non-interactive "
-./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --force --no-restart --no-registration"
+#./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --force "
+./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --non-interactive --force --url=https://${HOST_IP}:$PORT --insecure --enrollment-token=${ENROLLMENT_TOKEN}"
 
-echo "Waiting for service to start"
-sleep 10
+echo "Waiting for service to start..."
+sleep 60
 
 echo "Checking agent service status"
 ./run_elevated_powershell.sh "Get-Service Elastic\` Agent"
 
 #
 ## Enroll the Elastic Agent and capture the output
-enrollment_output=$(./run_elevated_powershell.sh "./elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent enroll --force --insecure --url=https://${HOST_IP}:$PORT --enrollment-token=${ENROLLMENT_TOKEN}")
-
-# Check if enrollment was successful
-if echo "$enrollment_output" | grep -q "Successfully enrolled"; then
-    echo "Agent enrollment successful"
-else
-    echo "Agent enrollment failed"
-    echo "Enrollment output: $enrollment_output"
-    exit 1
-fi
+#enrollment_output=$(./run_elevated_powershell.sh "./elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent enroll --force --insecure --url=https://${HOST_IP}:$PORT --enrollment-token=${ENROLLMENT_TOKEN} ")
+#
+## Check if enrollment was successful
+#if echo "$enrollment_output" | grep -q "Successfully enrolled"; then
+#    echo "Agent enrollment successful"
+#else
+#    echo "Agent enrollment failed"
+#    echo "Enrollment output: $enrollment_output"
+#    exit 1
+#fi
 
 ## Restart the agent service
 #sudo service elastic-agent restart
