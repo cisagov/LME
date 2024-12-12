@@ -1,3 +1,4 @@
+
 # lme-elasticsearch.container
 [Unit] 
 Description=Elasticsearch Container Service
@@ -14,6 +15,7 @@ WantedBy=default.target lme.service
 
 [Container]
 ContainerName=lme-elasticsearch
+
 #TODO: set discovery mode/cluster.name via environment
 Environment=node.name=lme-elasticsearch cluster.name=LME  bootstrap.memory_lock=true discovery.type=single-node xpack.security.enabled=true xpack.security.http.ssl.enabled=true xpack.security.http.ssl.key=certs/elasticsearch/elasticsearch.key xpack.security.http.ssl.certificate=certs/elasticsearch/elasticsearch.chain.pem xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt xpack.security.http.ssl.verification_mode=certificate xpack.security.http.ssl.client_authentication=optional xpack.security.transport.ssl.enabled=true xpack.security.transport.ssl.key=certs/elasticsearch/elasticsearch.key xpack.security.transport.ssl.certificate=certs/elasticsearch/elasticsearch.crt xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt xpack.security.transport.ssl.verification_mode=certificate xpack.security.transport.ssl.client_authentication=optional xpack.license.self_generated.type=basic
 Secret=elastic,type=env,target=ELASTIC_PASSWORD
@@ -22,7 +24,7 @@ Secret=kibana_system,type=env,target=KIBANA_PASSWORD
 EnvironmentFile=/opt/lme/lme-environment.env
 Image=localhost/elasticsearch:LME_LATEST
 Network=lme
-PodmanArgs= --network-alias lme-elasticsearch --health-interval=2s
+PodmanArgs= --network-alias lme-elasticsearch --health-interval=2s --http-proxy=false
 PublishPort=9200:9200
 Ulimit=memlock=-1:-1
 Volume=lme_certs:/usr/share/elasticsearch/config/certs
@@ -33,4 +35,5 @@ Notify=healthy
 HealthCmd=CMD-SHELL curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'
 User=elasticsearch
 UserNS=auto:uidmapping=0:165536:3048,gidmapping=0:165536:3048
+
 #UserNS=auto

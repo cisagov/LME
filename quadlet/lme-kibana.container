@@ -1,3 +1,4 @@
+
 # lme-kibana.container
 [Unit]
 Description=Kibana Container Service
@@ -10,7 +11,8 @@ WantedBy=default.target lme.service
 
 [Service]
 Restart=always
-TimeoutStartSec=5400 #30 minutes, helps ensure does not fail due to health check
+TimeoutStartSec=5400
+#30 minutes, helps ensure does not fail due to health check
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 
 [Container]
@@ -20,7 +22,7 @@ Secret=kibana_system,type=env,target=ELASTICSEARCH_PASSWORD
 EnvironmentFile=/opt/lme/lme-environment.env
 Image=localhost/kibana:LME_LATEST
 Network=lme
-PodmanArgs= --network-alias lme-kibana --requires lme-elasticsearch --health-interval=2s
+PodmanArgs= --network-alias lme-kibana --requires lme-elasticsearch --health-interval=2s --http-proxy=false
 PublishPort=5601:5601,443:5601
 Volume=lme_certs:/usr/share/kibana/config/certs
 Volume=lme_kibanadata:/usr/share/kibana/data

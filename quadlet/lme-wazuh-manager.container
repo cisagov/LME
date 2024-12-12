@@ -1,3 +1,4 @@
+
 # lme-wazuh-manager.container
 [Unit]
 Description=Wazuh Container Service
@@ -9,7 +10,8 @@ PartOf=lme.service
 Restart=always
 LimitNOFILE=655360
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
-TimeoutStartSec=5400 #30 minutes, helps ensure does not fail due to health check
+TimeoutStartSec=5400
+#30 minutes, helps ensure does not fail due to health check
 
 [Install]
 WantedBy=default.target lme.service
@@ -24,13 +26,15 @@ Secret=elastic,type=env,target=INDEXER_PASSWORD
 HostName=wazuh-manager
 Image=localhost/wazuh-manager:LME_LATEST
 Network=lme
-PodmanArgs=--network-alias lme-wazuh-manager --health-interval=30s --health-timeout=10s --health-retries=5 --health-start-period=120s
+PodmanArgs=--network-alias lme-wazuh-manager --health-interval=30s --health-timeout=10s --health-retries=5 --health-start-period=120s --http-proxy=false
 PublishPort=1514:1514
 PublishPort=1515:1515
 PublishPort=514:514/udp
 PublishPort=55000:55000
 Ulimit=memlock=-1:-1
+
 #Set above, leaving here for posterity, systemctl doesn't allow containers to set ulimits
+
 #Ulimit=nofile=655360:655360
 Volume=lme_wazuh_api_configuration:/var/ossec/api/configuration
 Volume=lme_wazuh_etc:/var/ossec/etc
