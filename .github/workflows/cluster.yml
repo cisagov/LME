@@ -313,7 +313,7 @@ jobs:
         run: |
           set +H
           cd testing/v2/development
-          docker compose -p 12294652563-447 exec -T pipeline bash -c '
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c '
             ssh lme-user@${{ env.AZURE_IP }} "export SSHPASS='\''${{ env.MINIMEGA_PASSWORD }}'\'' && export WINDOWS_HOST=${{ env.WINDOWS_IP }} && cd /home/lme-user/LME/testing/v2/installers/lib/ && sudo -E ./install_agent_windows.sh  --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }} --clientip ${{ env.WINDOWS_IP }}"
           '
 
