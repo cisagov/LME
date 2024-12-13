@@ -10,7 +10,7 @@ WantedBy=default.target lme.service
 
 [Service]
 Restart=always
-TimeoutStartSec=5400 #30 minutes, helps ensure does not fail due to health check
+TimeoutStartSec=5400
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 
 [Container]
