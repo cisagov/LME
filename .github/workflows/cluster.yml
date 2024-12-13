@@ -317,7 +317,7 @@ jobs:
             ssh lme-user@${{ env.AZURE_IP }} "export SSHPASS='\''${{ env.MINIMEGA_PASSWORD }}'\'' && export WINDOWS_HOST=${{ env.WINDOWS_IP }} && cd /home/lme-user/LME/testing/v2/installers/lib/ && sudo -E ./install_agent_windows.sh  --token ${{ env.ENROLLMENT_TOKEN }} --version ${{ env.ELASTIC_AGENT_VERSION }} --clientip ${{ env.WINDOWS_IP }}"
           '
 
-      - name: Check if the Elastic agent is reporting 
+      - name: Check if the Linux Elastic agent is reporting 
         env:
           ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
@@ -326,6 +326,17 @@ jobs:
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
               ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
               'export ES_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh'
+          "
+
+      - name: Check if the Windows Elastic agent is reporting 
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        run: |
+          sleep 360
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'export ES_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh windows'
           "
 
       - name: Run api tests on Azure instance
