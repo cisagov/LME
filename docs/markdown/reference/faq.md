@@ -18,7 +18,11 @@ LME 2.0 supports Windows, Linux, and macOS operating systems. Elastic and Wazuh 
 
 ## 5. Who can use LME?
 
+<<<<<<< HEAD
 While intended for small to medium-sized organizations with limited resources, anyone can download and use LME. Reference [LME 2.0 Prerequisite documentation](docs/markdown/prerequisites.md) for more details on required infrastructure and hardware including CPU, memory, and storage requirements.
+=======
+While intended for small to medium-sized organizations with limited resources, anyone can download and use LME. Reference [LME 2.0 Prerequisite documentation](/docs/markdown/prerequisites.md) for more details on required infrastructure and hardware including CPU, memory, and storage requirements.
+>>>>>>> main
 
 ## 6. Can LME run in the cloud?
 
@@ -28,7 +32,11 @@ LME supports both on-premises and cloud deployments, allowing organizations to h
 
 Both new and existing users must complete a full install of LME 2.0.
 
+<<<<<<< HEAD
 LME has an upgrade process from v1.4 -> 2.0. The upgrade uninstalls 1.4 and installs 2.0, and will reintegrate old dashboards and data into the new 2.0 deployment. Checkout our [Upgrading docs](scripts/upgrade/README.md) for more information on upgrading from an older version of LME to LME 2.0.
+=======
+LME has an upgrade process from v1.4 -> 2.0. The upgrade uninstalls 1.4 and installs 2.0, and will reintegrate old dashboards and data into the new 2.0 deployment. Checkout our [Upgrading docs](/scripts/upgrade/README.md) for more information on upgrading from an older version of LME to LME 2.0.
+>>>>>>> main
 
 ## 8. How do I download LME?
 
@@ -41,6 +49,7 @@ While CISA recommends upgrading to LME 2.0, users can continue using older versi
 
 ## 10. How do I transition/migrate from older versions to LME 2.0 while retaining my log history?
 
+<<<<<<< HEAD
 For existing LME users, **click here** for easy instructions on transferring log history from previous versions. LME will automatically reintegrate your log history and data.
 
 ## 11.  Can I transfer my customized dashboards? If so, how?
@@ -50,6 +59,17 @@ Yes, you can import your dashboards on Elastic from Stack Management > Kibana > 
 ## 12. Are there new system requirements for LME 2.0?
 
 Although system requirements are mostly the same for LME 2.0, we do have  hardware and infrastructure recommendations in our [LME 2.0 Prerequisite documentation](docs/markdown/prerequisites.md)
+=======
+For existing LME users, [click here](/scripts/upgrade) for easy instructions on transferring log history from previous versions. LME will automatically reintegrate your log history and data.
+
+## 11.  Can I transfer my customized dashboards? If so, how?
+
+Yes, you can import your dashboards on Elastic from Stack Management > Kibana > Saved Objects and click import and select the custom dashboard ndjson file to import it into your Elastic instance. You'll need to export your old dashboards first. 
+
+## 12. Are there new system requirements for LME 2.0?
+
+Although system requirements are mostly the same for LME 2.0, we do have  hardware and infrastructure recommendations in our [LME 2.0 Prerequisite documentation](/docs/markdown/prerequisites.md)
+>>>>>>> main
 
 ## 13. Where can I receive further support?
 
@@ -60,7 +80,11 @@ For further support with LME 2.0 users can explore the following options:
 
 ## 14. Where Can I Find Additional Resources?
 
+<<<<<<< HEAD
 Please visit (CISA’s LME website)[https://www.cisa.gov/resources-tools/services/logging-made-easy] for additional resources.
+=======
+Please visit [CISA’s LME website](https://www.cisa.gov/resources-tools/services/logging-made-easy) for additional resources.
+>>>>>>> main
                    
 # Other Questions:                       
  

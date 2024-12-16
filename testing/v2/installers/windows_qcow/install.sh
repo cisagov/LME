@@ -27,7 +27,7 @@ ORIGINAL_DIR="$(pwd)"
 # Get the directory of the script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# TODO: Need to set up the env file and source it for other scripts 
+# TODO: Need to set up the env file and source it for other scripts
 cd "$SCRIPT_DIR"
 cp .env.example .env
 

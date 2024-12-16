@@ -60,7 +60,7 @@ download_file() {
     
     echo "Downloading file to: $output_path"
     curl -sS -L -o "$output_path" "$url"
-    
+
     if [ $? -eq 0 ]; then
         echo "File downloaded successfully to: $output_path"
     else
