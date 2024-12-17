@@ -8,6 +8,8 @@ on:
 
 name: Build Release
 
+permissions: read-all
+
 jobs: 
   build-release:
     runs-on: ubuntu-latest
