@@ -26,14 +26,14 @@ jobs:
       - name: Build Assets
         run: git ls-files | zip LME-${{ inputs.version }}.zip -@
 
-      - name: Create Draft Release 
+      - name: Create Draft Release
         uses: softprops/action-gh-release@v0.1.15
         with:
           name: LME v${{ inputs.version }}
           tag_name: v${{ inputs.version }}
-          body: | 
+          body: |
             ## [${{ inputs.version }}] - Timberrrrr! - ${{ env.date }}
-            ${{ steps.release.outputs.changelog }}
+          append_body: true
           files: LME-${{ inputs.version }}.zip
           draft: true
           prerelease: false
