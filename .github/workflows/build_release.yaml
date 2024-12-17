@@ -8,7 +8,8 @@ on:
 
 name: Build Release
 
-permissions: read-all
+permissions:
+  contents: write
 
 jobs: 
   build-release:
