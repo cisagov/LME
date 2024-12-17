@@ -253,7 +253,6 @@
     - name: Wait for Kibana to be fully ready
       pause:
         seconds: 180
-      before: Create Endpoint Policy
 
     - name: Create Endpoint Policy
       # TODO: This might need to check if the system is running before creating the policy
