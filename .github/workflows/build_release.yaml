@@ -8,6 +8,9 @@ on:
 
 name: Build Release
 
+permissions:
+  contents: write
+
 jobs: 
   build-release:
     runs-on: ubuntu-latest
@@ -23,27 +26,17 @@ jobs:
       - name: Build Assets
         run: git ls-files | zip LME-${{ inputs.version }}.zip -@
 
-      - name: Build Changelog
-        id: release
-        uses: mikepenz/release-changelog-builder-action@v4.1.1
-        with: 
-          toTag: "release-${{ inputs.version }}"
-          configuration: ".github/changelog-configuration.json"
-          failOnError: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Draft Release 
+      - name: Create Draft Release
         uses: softprops/action-gh-release@v0.1.15
         with:
           name: LME v${{ inputs.version }}
           tag_name: v${{ inputs.version }}
-          body: | 
+          body: |
             ## [${{ inputs.version }}] - Timberrrrr! - ${{ env.date }}
-            ${{ steps.release.outputs.changelog }}
+          append_body: true
           files: LME-${{ inputs.version }}.zip
           draft: true
           prerelease: false
           discussion_category_name: "Announcements"
-          generate_release_notes: false
+          generate_release_notes: true
           fail_on_unmatched_files: true
