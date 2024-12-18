@@ -5,6 +5,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 . "$SCRIPT_DIR/.env"
 
+# rm -rf "$SCRIPT_DIR/.env"
+
 "$SCRIPT_DIR/install_azure.sh"
 
 . "$SCRIPT_DIR/get_storage_key.sh"  
@@ -24,4 +26,10 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 "$SCRIPT_DIR/start_ssh_service.sh"
 
 "$SCRIPT_DIR/setup_rdp.sh"
+
+WINDOWS_IP="$("$SCRIPT_DIR/get_windows_ip.sh" windows-runner)"
+
+echo "Windows IP: $WINDOWS_IP"
+
+ssh-keyscan -H $WINDOWS_IP >> ~/.ssh/known_hosts
 

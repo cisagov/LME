@@ -212,6 +212,9 @@
         body:
           hosts: ["https://{{ ipvar }}:9200"]
       register: fleet_output_hosts_result
+      until: fleet_output_hosts_result.status == 200
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
       ignore_errors: yes
 
@@ -233,6 +236,9 @@
         body:
           ca_trusted_fingerprint: "{{ ca_fingerprint.stdout }}"
       register: fleet_output_fingerprint_result
+      until: fleet_output_fingerprint_result.status == 200
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
 
     - name: Set Fleet default output SSL verification mode
@@ -250,7 +256,12 @@
       register: fleet_output_ssl_result
       no_log: "{{ not debug_mode }}"
 
+    - name: Wait for Kibana to be fully ready
+      pause:
+        seconds: 180
+
     - name: Create Endpoint Policy
+      # TODO: This might need to check if the system is running before creating the policy
       uri:
         url: "{{ local_kbn_url }}/api/fleet/agent_policies?sys_monitoring=true"
         method: POST
@@ -332,6 +343,10 @@
         path: "{{ installed_file }}"
         state: touch
       when: not installed_file_check.stat.exists
+
+    - name: Wait for Fleet to be fully initialized
+      pause:
+        seconds: 120
 
 - name: Install LME Dashboards 
   hosts: localhost
@@ -723,6 +738,7 @@
         clone_directory: "{{clone_directory | expanduser }}"
 
     - name: fix wazuh password 
+      # TODO: This might need to check if the container is running. It has failed before.
       ansible.builtin.expect:
         #source + podman exec
         command: "{{ clone_directory }}/scripts/wazuh_rbac.sh"
@@ -731,7 +747,7 @@
             - "{{ wazuh_password }}"
           ".*'wazuh-wui'.*":
             - "{{ wazuh_api_password }}"
-        timeout: 30
+        timeout: 60
       become: yes
 
 - name: Create Read Only User

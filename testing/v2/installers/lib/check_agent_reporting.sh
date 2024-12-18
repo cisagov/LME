@@ -11,22 +11,29 @@ if [ -z "$ES_PASSWORD" ]; then
     handle_error "ES_PASSWORD environment variable is not set"
 fi
 
+# Set default type and allow override via argument
+TYPE="linux"
+if [ "$1" = "windows" ]; then
+    TYPE="windows"
+fi
+
 # Initialize retry variables
 MAX_ATTEMPTS=100
 ATTEMPT=1
 WAIT_TIME=15
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-    echo "Attempt $ATTEMPT of $MAX_ATTEMPTS to check agent reporting..."
+    echo "Attempt $ATTEMPT of $MAX_ATTEMPTS to check agent reporting for $TYPE type..."
     
     if [ $ATTEMPT -gt 1 ]; then
         echo "Waiting before next attempt..."
         sleep $WAIT_TIME
-        ATTEMPT=$((ATTEMPT + 1))
     fi
     
+    ATTEMPT=$((ATTEMPT + 1))
+
     # Run the curl command and capture the output
-    output=$(curl -kL -s -X GET "https://localhost:9200/.ds-metrics-system.cpu-default-*/_search" \
+    output=$(curl -kL -s -X GET "https://localhost:9200/metrics-endpoint.metadata-*/_search" \
          -H 'Content-Type: application/json' \
          -H "kbn-xsrf: true" \
          -u "elastic:$ES_PASSWORD" \
@@ -36,17 +43,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
           "must": [
             {
               "term": {
-                "host.name": "ubuntu-vm"
-              }
-            },
-            {
-              "term": {
-                "event.module": "system"
-              }
-            },
-            {
-              "term": {
-                "event.dataset": "system.cpu"
+                "host.os.type": "'$TYPE'"
               }
             }
           ]
@@ -77,17 +74,16 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
         continue
     fi
 
-    echo "Hit count: $output"
     echo "Hit count: $hit_count"
 
     # Check the hit count and exit if successful
     if [ "$hit_count" -gt 0 ]; then
-        echo "ubuntu-vm is reporting"
+        echo "$TYPE type agent is reporting"
         exit 0
     fi
 
-    echo "No recent data from ubuntu-vm, retrying..."
+    echo "No recent data from $TYPE type, retrying..."
 done
 
-echo "No recent data from ubuntu-vm after $MAX_ATTEMPTS attempts"
+echo "No recent data from $TYPE type after $MAX_ATTEMPTS attempts"
 exit 1
