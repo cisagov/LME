@@ -212,6 +212,9 @@
         body:
           hosts: ["https://{{ ipvar }}:9200"]
       register: fleet_output_hosts_result
+      until: fleet_output_hosts_result.status == 200
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
       ignore_errors: yes
 
@@ -233,6 +236,9 @@
         body:
           ca_trusted_fingerprint: "{{ ca_fingerprint.stdout }}"
       register: fleet_output_fingerprint_result
+      until: fleet_output_fingerprint_result.status == 200
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
 
     - name: Set Fleet default output SSL verification mode
