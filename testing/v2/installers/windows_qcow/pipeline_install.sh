@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
 # Function to print usage
@@ -27,24 +28,28 @@ ORIGINAL_DIR="$(pwd)"
 # Get the directory of the script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# TODO: Need to set up the env file and source it for other scripts
-cd "$SCRIPT_DIR"
-cp .env.example .env
-
 # Change to the parent directory of the script
 cd "$SCRIPT_DIR/.."
+
+echo "$SCRIPT_DIR"
 
 # Copy the SSH key to the remote machine
 ./lib/copy_ssh_key.sh $user $hostname $password_file
 
-# Copy the windows qcow directory to the remote machine
-scp -r ./windows_qcow $user@$hostname:/home/$user
+cp "windows_qcow/.env.example" "windows_qcow/.env"
 
-# Copy the ubuntu qcow maker directory to the remote machine
-scp -r ./ubuntu_qcow_maker $user@$hostname:/home/$user
+echo "AZURE_CLIENT_ID: $AZURE_CLIENT_ID"
 
-# Run the install_local.sh script on the remote machine
-ssh $user@$hostname "cd /home/$user/windows_qcow && sudo ./install_local.sh"
+if [[ ! -z "$AZURE_CLIENT_ID" ]] && [[ ! -z "$AZURE_CLIENT_SECRET" ]] && [[ ! -z "$AZURE_TENANT_ID" ]]; then
+    echo "" >> "windows_qcow/.env"
+    echo "export AZURE_CLIENT_ID=$AZURE_CLIENT_ID" >> "windows_qcow/.env"
+    echo "export AZURE_CLIENT_SECRET=$AZURE_CLIENT_SECRET" >> "windows_qcow/.env"
+    echo "export AZURE_TENANT_ID=$AZURE_TENANT_ID" >> "windows_qcow/.env"
+    echo "export AZURE_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID" >> "windows_qcow/.env"
+fi
 
-# Change back to the original directory
-cd "$ORIGINAL_DIR"
+scp -r windows_qcow "ubuntu_qcow_maker" $user@$hostname:/home/$user
+
+rm -rf windows_qcow/.env
+
+ssh $user@$hostname "cd /home/${user}/windows_qcow && sudo ./install_local.sh"

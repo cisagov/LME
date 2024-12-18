@@ -4,7 +4,7 @@ echo "Installing Azure CLI..."
 
 # Install prerequisites
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
+sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg sshpass
 
 # Download and install the Microsoft signing key
 sudo mkdir -p /etc/apt/keyrings

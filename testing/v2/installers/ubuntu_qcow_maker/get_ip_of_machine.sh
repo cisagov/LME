@@ -5,7 +5,7 @@ MAX_ATTEMPTS=30
 SLEEP_INTERVAL=10
 
 get_ip() {
-    /opt/minimega/bin/minimega -e .json true .filter name="$VM_NAME" vm info | jq -r '.[].Data[].Networks[].IP4'
+    /opt/minimega/bin/minimega -e ".json true vm info" | jq -r --arg name "$VM_NAME" '.[].Data[] | select(.Name == $name) .Networks[0].IP4'
 }
 
 echo "Waiting for IP assignment for VM: $VM_NAME"
