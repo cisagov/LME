@@ -9,6 +9,15 @@
 
 CISA's Logging Made Easy (LME) is a no cost, open source platform that centralizes log collection, enhances threat detection, and enables real-time alerting, helping small to medium-sized organizations secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security.
 
+## Who is Logging Made Easy for?
+
+From single IT administrators with a handful of devices in their network to small and medium-sized agencies. Really, for anyone! 
+LME is intended for organizations that:
+- Need a log management and threat detection system.
+- Do not have an existing Security Operations Center (SOC), Security Information and Event Management (SIEM) solution or log management and monitoring capabilities.
+- Work within limited budgets, time or expertise to set up and manage a logging and threat detection system.
+
+
 ## Updates 
 
 For LME's 2.0 release, we’re introducing several new features and architectural components to improve Security Information and Event Management (SIEM) capabilities while simplifying overall use of LME:
@@ -22,18 +31,13 @@ For LME's 2.0 release, we’re introducing several new features and architectura
 
 LME 2.0 is fully operational and built to deliver effective log management and threat detection. As part of our commitment to continuous improvement, future updates, including version 2.1, will introduce additional enhancements for scalability and deployment flexibility.
 
-## Questions or Feedback:
-The LME team cannot comment on or troubleshoot individual installations. If you have found an issue with LME code or documentation, please submit a [GitHub issue](https://github.com/cisagov/lme/issues). For installation questions, please review all open and closed issues to see if it's addressed. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
+## Questions:
+If you have found an issue with LME code or documentation, please submit a [GitHub issue](https://github.com/cisagov/lme/issues). For installation questions, please review all open and closed issues to see if it's addressed. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
 
 For general LME questions or suggestions, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
 
-## Who is Logging Made Easy for?
-
-From single IT administrators with a handful of devices in their network to small and medium-sized agencies. Really, for anyone! 
-LME is intended for organizations that:
-- Need a log management and threat detection system.
-- Do not have an existing Security Operations Center (SOC), Security Information and Event Management (SIEM) solution or log management and monitoring capabilities.
-- Work within limited budgets, time or expertise to set up and manage a logging and threat detection system.
+##Share Your Feedback:
+Your input is essential to the continuous improvement of LME and to ensure it best meets your needs. Take a few moments to complete our [LME Feedback Survey](https://forms.office.com/g/TNytTeexG0). Together, we can improve LME's ability to secure your organization!
 
 
 ## Table of Contents:
