@@ -278,8 +278,53 @@
           monitoring_enabled: ["logs", "metrics"]
           inactivity_timeout: 1209600
         timeout: 600
+        status_code: [200, 409]
       register: endpoint_policy_result
       no_log: "{{ not debug_mode }}"
+
+    - name: Debug endpoint_policy_result
+      debug:
+        var: endpoint_policy_result 
+
+    - name: Get existing policy ID if creation failed
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agent_policies"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ headers }}"
+      register: existing_policies
+      when: endpoint_policy_result.status == 409
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug existing_policies
+      debug:
+        var: existing_policies 
+
+    - name: Set policy ID fact for existing policy
+      set_fact:
+        policy_id: "{{ item.id }}"
+      when: 
+        - endpoint_policy_result.status == 409
+        - item.name == 'Endpoint Policy'
+      loop: "{{ existing_policies.json['items'] | list }}"
+
+    - name: Set policy ID fact for new policy
+      set_fact:
+        policy_id: "{{ endpoint_policy_result.json.id }}"
+      when: endpoint_policy_result.status == 200
+
+    - name: Debug policy ID
+      debug:
+        var: policy_id
+      when: debug_mode | bool
+
+    - name: Fail if policy ID is not set
+      fail:
+        msg: "Failed to get policy ID. Neither creation nor lookup of existing policy succeeded."
+      when: policy_id is not defined
 
     - name: Get Endpoint package version
       uri:
@@ -304,11 +349,12 @@
         headers: "{{ headers }}"
         body_format: json
         timeout: 600
+        status_code: [200, 409]
         body:
           name: "Elastic Defend"
           description: ""
           namespace: "default"
-          policy_id: "{{ endpoint_policy_result.json.item.id }}"
+          policy_id: "{{ policy_id }}"
           enabled: true
           inputs:
             - enabled: true

@@ -35,3 +35,4 @@ testing/tests/assets/style.css
 **/quadlet/output
 **/lme-environment.env
 **/env.sh
+testing/v2/installers/envirnment.sh

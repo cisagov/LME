@@ -258,6 +258,19 @@
         create: yes
       become: yes
 
+    - name: Update PATH in user's bashrc
+      lineinfile:
+        path: "~/.bashrc"
+        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+        create: yes
+
+    - name: Update PATH in root's bashrc
+      lineinfile:
+        path: "/root/.bashrc"
+        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+        create: yes
+      become: yes
+
     - name: Install Podman using Nix 
       command: nix-env -iA nixpkgs.podman
       become: yes
