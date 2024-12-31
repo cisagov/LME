@@ -10,30 +10,29 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=en_US.UTF-8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    locales \
-    ca-certificates \
-    sudo \
-    sshpass \
-    openssh-client \
-    systemd \
-    systemd-sysv \
-    lsb-release \
-    python3 \
-    python3-venv \
-    python3-pip \
-    zip \
-    git \
-    curl \
-    wget \
-    cron \
-    pkg-config \
-    libcairo2-dev \
-    libdbus-1-dev \
-    distro-info \
-    libgirepository1.0-dev \
-    ansible \
+    locales ca-certificates sudo sshpass openssh-client \
     && locale-gen en_US.UTF-8 \
     && update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 \
+    && groupadd -g $GROUP_ID lme-user \
+    && useradd -m -u $USER_ID -g lme-user --badnames lme-user \
+    && usermod -aG sudo lme-user \
+    && echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+
+ENV BASE_DIR=/home/lme-user
+WORKDIR $BASE_DIR
+
+# Lme stage with full dependencies
+FROM base AS lme
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    systemd systemd-sysv lsb-release python3 python3-venv python3-pip \
+    zip git curl wget cron pkg-config libcairo2-dev libdbus-1-dev \
+    distro-info libgirepository1.0-dev ansible \
+    && apt-get install -f \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
