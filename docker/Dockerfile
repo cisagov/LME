@@ -36,11 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-
-RUN groupadd -g $GROUP_ID lme-user \
-    && useradd -m -u $USER_ID -g lme-user --badnames lme-user \
-    && usermod -aG sudo lme-user \
-    && cd /lib/systemd/system/sysinit.target.wants/ && \
+RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     ls | grep -v systemd-tmpfiles-setup | xargs rm -f $1 && \
     rm -f /lib/systemd/system/multi-user.target.wants/* && \
     rm -f /etc/systemd/system/*.wants/* && \
@@ -51,14 +47,5 @@ RUN groupadd -g $GROUP_ID lme-user \
     rm -f /lib/systemd/system/anaconda.target.wants/* && \
     mkdir -p /etc/systemd/system/systemd-logind.service.d && \
     echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
-
-RUN echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
-
-# Lme stage 
-FROM base AS lme
-ENV BASE_DIR=/root
-WORKDIR $BASE_DIR
-
 
 CMD ["/lib/systemd/systemd"]
