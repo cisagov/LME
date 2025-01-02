@@ -1,7 +1,5 @@
 [Unit]
 Description=LME Setup Service
-After=docker.service elasticsearch.service kibana.service
-Requires=docker.service elasticsearch.service kibana.service
 
 [Service]
 Type=oneshot

@@ -453,8 +453,29 @@
       when: not installed_file_check.stat.exists
 
     - name: Wait for Fleet to be fully initialized
-      pause:
-        seconds: 120
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_status
+      until: fleet_status.status == 200
+      retries: 36  # With 10 second delay, this gives us 6 minutes total
+      delay: 10
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet status
+      debug:
+        var: fleet_status
+      when: debug_mode | bool
+
+    - name: Fail if Fleet is not ready
+      fail:
+        msg: "Fleet did not become ready within the expected time. Status: {{ fleet_status | default('unknown') }}"
+      when: fleet_status.status is not defined or fleet_status.status != 200
 
 - name: Install LME Dashboards 
   hosts: localhost
