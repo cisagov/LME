@@ -28,13 +28,14 @@ WORKDIR $BASE_DIR
 # Lme stage with full dependencies
 FROM base AS lme
 
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     systemd systemd-sysv lsb-release python3 python3-venv python3-pip \
     zip git curl wget cron pkg-config libcairo2-dev libdbus-1-dev \
-    distro-info libgirepository1.0-dev ansible \
-    && apt-get install -f \
+    distro-info libgirepository1.0-dev ansible python3-apt \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
 
 RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     ls | grep -v systemd-tmpfiles-setup | xargs rm -f $1 && \
@@ -47,5 +48,12 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     rm -f /lib/systemd/system/anaconda.target.wants/* && \
     mkdir -p /etc/systemd/system/systemd-logind.service.d && \
     echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
+
+COPY lme-setup.service /etc/systemd/system/
+
+RUN chmod 644 /etc/systemd/system/lme-setup.service
+
+# Enable the service
+RUN systemctl enable lme-setup.service
 
 CMD ["/lib/systemd/systemd"]

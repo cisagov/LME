@@ -257,11 +257,66 @@
       no_log: "{{ not debug_mode }}"
 
     - name: Wait for Kibana to be fully ready
-      pause:
-        seconds: 180
+      uri:
+        url: "{{ local_kbn_url }}/api/status"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: kibana_status
+      until: kibana_status.status == 200 and kibana_status.json.status.overall.level == "available"
+      retries: 36  # With a 10 second delay, this gives us 6 minutes total
+      delay: 10 
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Kibana status
+      debug:
+        var: kibana_status
+      when: debug_mode | bool
+
+    - name: Fail if Kibana is not ready
+      fail:
+        msg: "Kibana did not become ready within the expected time. Status: {{ kibana_status | default('unknown') }}"
+      when: kibana_status.status is not defined or kibana_status.status != 200
+
+    - name: Wait for Fleet API to be ready
+      ansible.builtin.shell: |
+        attempt=0
+        max_attempts=30
+        delay=10
+        while [ $attempt -lt $max_attempts ]; do
+          response=$(curl -s -o /dev/null -w "%{http_code}" -k -u elastic:{{ elastic_password }} {{ local_kbn_url }}/api/fleet/agents/setup)
+          if [ "$response" = "200" ]; then
+            echo "Fleet API is ready. Proceeding with configuration..."
+            exit 0
+          fi
+          echo "Waiting for Fleet API to be ready..."
+          sleep $delay
+          attempt=$((attempt+1))
+        done
+        echo "Fleet API did not become ready within the expected time."
+        exit 1
+      register: fleet_api_check
+      changed_when: false
+      no_log: "{{ not debug_mode }}"
+
+    - name: Display Fleet API check result
+      debug:
+        var: fleet_api_check.stdout_lines
+
+    - name: Confirm Fleet API is ready
+      debug:
+        msg: "Fleet API is ready"
+      when: "'Fleet API is ready' in fleet_api_check.stdout"
+
+    - name: Fail if Fleet API is not ready
+      fail:
+        msg: "Fleet API did not become ready within the expected time."
+      when: "'Fleet API is ready' not in fleet_api_check.stdout"
 
     - name: Create Endpoint Policy
-      # TODO: This might need to check if the system is running before creating the policy
       uri:
         url: "{{ local_kbn_url }}/api/fleet/agent_policies?sys_monitoring=true"
         method: POST
@@ -280,11 +335,19 @@
         timeout: 600
         status_code: [200, 409]
       register: endpoint_policy_result
+      until: endpoint_policy_result.status in [200, 409]
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
 
     - name: Debug endpoint_policy_result
       debug:
         var: endpoint_policy_result 
+
+    - name: Set policy ID fact for new policy
+      set_fact:
+        policy_id: "{{ endpoint_policy_result.json.item.id }}"
+      when: endpoint_policy_result.status == 200
 
     - name: Get existing policy ID if creation failed
       uri:
@@ -310,11 +373,6 @@
         - endpoint_policy_result.status == 409
         - item.name == 'Endpoint Policy'
       loop: "{{ existing_policies.json['items'] | list }}"
-
-    - name: Set policy ID fact for new policy
-      set_fact:
-        policy_id: "{{ endpoint_policy_result.json.id }}"
-      when: endpoint_policy_result.status == 200
 
     - name: Debug policy ID
       debug:
@@ -371,7 +429,11 @@
             title: "Elastic Defend"
             version: "{{ endpoint_package_result.json.item.version }}"
       register: elastic_defend_policy_result
+      until: elastic_defend_policy_result.status in [200, 409]
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
 
     - name: Display results
       debug:
