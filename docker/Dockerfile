@@ -49,9 +49,14 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     mkdir -p /etc/systemd/system/systemd-logind.service.d && \
     echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
 
-COPY lme-setup.service /etc/systemd/system/
+
+COPY docker/lme-setup.service /etc/systemd/system/
 
 RUN chmod 644 /etc/systemd/system/lme-setup.service
+
+COPY ansible/install_lme_local.yml /root/LME/ansible/
+COPY config/example.env /root/LME/config/lme-environment.env
+RUN ansible-playbook /root/LME/ansible/install_lme_local.yml --tags base
 
 # Enable the service
 RUN systemctl enable lme-setup.service

@@ -1,8 +1,8 @@
 services:
   lme:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: docker/Dockerfile
       target: lme
       args:
         USER_ID: "${HOST_UID:-1001}"
