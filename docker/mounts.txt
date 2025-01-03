@@ -1,9 +1,0 @@
-/nix
-/var/lib/containers
-/opt
-/var/lib/systemd
-/var/lib/systemd/linger
-/var/lib/systemd/linger/root
-/var/tmp
-/etc/containers
-/etc/lme
