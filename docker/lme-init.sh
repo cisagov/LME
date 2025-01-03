@@ -10,7 +10,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     
     # Run initial setup
     cd /root/LME/ansible/
-    ansible-playbook install_lme_local.yml
+    ansible-playbook install_lme_local.yml --tags system
     ansible-playbook post_install_local.yml -e "debug_mode=true"
     
     # Create flag file to indicate initialization is complete
