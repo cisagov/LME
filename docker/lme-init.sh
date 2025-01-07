@@ -8,10 +8,13 @@ if [ ! -f "$INIT_FLAG" ]; then
     # Copy environment file if it doesn't exist
     cp -n /root/LME/config/example.env /root/LME/config/lme-environment.env
     
-    # Run initial setup
+    # Run initial setup with timing
     cd /root/LME/ansible/
-    ansible-playbook install_lme_local.yml --tags system
-    ansible-playbook post_install_local.yml -e "debug_mode=true"
+    echo "Starting system setup at $(date)"
+    time ansible-playbook install_lme_local.yml --tags system
+    echo "Starting post-install setup at $(date)"
+    time ansible-playbook post_install_local.yml -e "debug_mode=true"
+    echo "Setup completed at $(date)"
     
     # Create flag file to indicate initialization is complete
     touch "$INIT_FLAG"
