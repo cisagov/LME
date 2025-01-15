@@ -10,13 +10,28 @@ services:
     container_name: lme
     working_dir: /root
     volumes:
-      - ../../LME:/root/LME
+      - ../../LME:/LME
+      - lme_root_data:/root
       - /sys/fs/cgroup:/sys/fs/cgroup:rslave
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
+      - lme_container_storage:/var/lib/containers
+      - lme_app_data:/opt/lme
+      - lme_etc_data:/etc/lme
+      - lme_containers_data:/etc/containers
+      - lme_opt_data:/opt
+      - lme_nix_data:/nix
+      - lme_etc_security_data:/etc/security
+      - lme_etc_systemd_data:/etc/systemd
+      - lme_lib_systemd_data:/lib/systemd
+      - lme_usr_lib_systemd_data:/usr/lib/systemd
+      - lme_var_lib_systemd_data:/var/lib/systemd
+      
+
     cap_add:
       - SYS_ADMIN
     security_opt:
       - seccomp:unconfined
+    restart: unless-stopped
     privileged: true
     user: root
     tmpfs:
@@ -29,9 +44,23 @@ services:
       - LANGUAGE=en_US:en
       - LC_ALL=en_US.UTF-8
       - container=docker
-    command: ["/lib/systemd/systemd", "--system"]
+    command: ${INIT_COMMAND:-/lib/systemd/systemd --system}
     ports:
       - "5601:5601"
       - "443:443"
       - "8220:8220"
       - "9200:9200"
+
+volumes:
+  lme_root_data:
+  lme_container_storage:
+  lme_app_data:
+  lme_etc_data:
+  lme_containers_data:
+  lme_opt_data:
+  lme_nix_data:
+  lme_etc_security_data:
+  lme_etc_systemd_data:
+  lme_usr_lib_systemd_data:
+  lme_var_lib_systemd_data:
+  lme_lib_systemd_data:
