@@ -31,8 +31,8 @@ if [ ! -f "$SYSTEMD_FLAG" ]; then
     
     # Exit with special code to trigger restart
     cp /LME/docker/lme-setup.service /etc/systemd/system/lme-setup.service
-    tail -f /dev/null
-    # exit 0
+    #tail -f /dev/null
+    exit 0
 else
     # If systemd is already installed in mounted volumes, start it
     exec /lib/systemd/systemd --system

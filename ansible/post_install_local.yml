@@ -138,6 +138,8 @@
         done
         echo "Fleet API did not become ready within the expected time."
         exit 1
+      args:
+        executable: /bin/bash
       register: fleet_api_check
       changed_when: false
       no_log: "{{ not debug_mode }}"
@@ -611,8 +613,6 @@
     - name: Upload dashboards to Kibana
       shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
-      args:
-        warn: false
 
     - name: Create INSTALLED file
       file:
@@ -755,8 +755,6 @@
 
     - name: Upload dashboards to Kibana
       shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
-      args:
-        warn: false
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
 
     - name: Create INSTALLED file
@@ -1019,8 +1017,6 @@
                 }
               ]
             }'
-      args:
-        warn: false
       register: role_creation_result
       when: result.status is defined and result.status == 200
 
