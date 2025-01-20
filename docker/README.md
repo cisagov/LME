@@ -4,11 +4,17 @@ All of the commands in this guide should be run from the docker directory of the
 ## Build and run the docker container
 ```bash
 docker compose build
-docker compose up -d
+INIT_COMMAND=/usr/local/bin/setup-systemd.sh docker-compose up
+docker compose restart lme 
 ```
 
 ## Check the status of the LME setup in docker
 In order to check the status of the LME setup in docker, you can use the following commands:
+
+Using docker compose and journalctl. You can watch the output of the LME setup in docker:
+```bash
+docker compose exec lme journalctl -u lme-setup -f -o cat --no-hostname
+```
 
 For Linux:
 ```bash
