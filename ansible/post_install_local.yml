@@ -595,9 +595,23 @@
       when: debug_mode | bool
     #SETUP
 
-    - name: Copy dashboards files /opt/lme/dashboards
+    - name: Expand clone directory path
+      set_fact:
+        absolute_clone_dir: "{{ clone_directory | expanduser }}"
+
+    - name: Check if source dashboards directory exists
+      stat:
+        path: "{{ absolute_clone_dir }}/dashboards"
+      register: source_dashboard_dir
+
+    - name: Fail if source directory doesn't exist
+      fail:
+        msg: "Source dashboards directory {{ source_dashboard_dir.stat.path }} doesn't exist"
+      when: not source_dashboard_dir.stat.exists
+
+    - name: Copy dashboards files to /opt/lme/dashboards
       copy:
-        src: "{{ clone_directory }}/dashboards/"
+        src: "{{ source_dashboard_dir.stat.path }}/"
         dest: /opt/lme/dashboards/
         owner: "{{ install_user }}"
         group: "{{ install_user }}"
