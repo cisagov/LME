@@ -118,8 +118,21 @@
       wait_for:
         host: "{{ ipvar }}"
         port: "{{ kibana_port | int }}"
-        timeout: 300
+        timeout: 120  # 2 minutes
+        sleep: 60    # Check every minute
+        msg: "Timeout waiting for Kibana port {{ kibana_port }} to become available (attempt {{ '{:.0f}'.format((120 - timeout) / 60) }}/2)"
       register: kibana_port_check
+      until: kibana_port_check.state is defined and kibana_port_check.state == "started"
+      retries: 15
+      delay: 0
+      ignore_errors: no
+
+    - name: Debug wait_for results
+      debug:
+        msg: 
+          - "State: {{ kibana_port_check.state }}"
+          - "Full result: {{ kibana_port_check }}"
+      when: debug_mode | bool
 
     - name: Wait for Fleet API to be ready
       ansible.builtin.shell: |
