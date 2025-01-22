@@ -120,7 +120,7 @@
         port: "{{ kibana_port | int }}"
         timeout: 120  # 2 minutes
         sleep: 60    # Check every minute
-        msg: "Timeout waiting for Kibana port {{ kibana_port }} to become available (attempt {{ '{:.0f}'.format((120 - timeout) / 60) }}/2)"
+        msg: "Timeout waiting for Kibana port {{ kibana_port }} to become available"
       register: kibana_port_check
       until: kibana_port_check.state is defined and kibana_port_check.state == "started"
       retries: 15
