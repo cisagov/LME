@@ -1,10 +1,12 @@
 [Unit]
 Description=LME Setup Service
+After=nix-daemon.service
+Requires=nix-daemon.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/LME
-ExecStart=/bin/bash /LME/docker/lme-init.sh
+WorkingDirectory=/root/LME
+ExecStart=/bin/bash /root/LME/docker/lme-init.sh
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
