@@ -1,4 +1,112 @@
 # Troubleshooting LME Install
+## Installation Troubleshooting
+**Make sure to use `-i` to run a login shell with any commands that run as root, so environment variables are set properly** [LINK](https://unix.stackexchange.com/questions/228314/sudo-command-doesnt-source-root-bashrc)
+
+**The services take a while to start give it a few minutes before assuming things are broken**
+
+1. Confirm services are installed: 
+```bash
+sudo systemctl daemon-reload
+sudo systemctl list-unit-files lme\*
+```
+
+Debug if necessary. The first step is to check the status of individual services listed above:
+```bash
+#if something breaks, use these commands to debug:
+SERVICE_NAME=lme-elasticsearch.service
+sudo -i journalctl -xu $SERVICE_NAME
+```
+
+If something is broken, try restarting the services and making sure failed services reset before starting:
+```bash
+#try resetting failed: 
+sudo -i systemctl  reset-failed lme*
+sudo -i systemctl  restart lme.service
+```
+
+2. Check that containers are running and healthy. This command will also print container names!
+```bash
+sudo -i podman ps --format "{{.Names}} {{.Status}}"
+```  
+
+Example output: 
+```shell
+lme-elasticsearch Up 19 hours (healthy)
+lme-wazuh-manager Up 19 hours
+lme-kibana Up 19 hours (healthy)
+lme-fleet-server Up 19 hours
+lme-elastalert2 Up 17 hours
+```
+This also prints the names of the containers in the first column of text on the left. You'll want the container names.
+
+We are currently missing health checks for fleet-server and elastalert2, so if those are up they won't show healthy and thats expected. Health checks for these services will be added in a future version.
+
+If a container is missing you can check its logs here: 
+```bash
+#also try inspecting container logs: 
+CONTAINER_NAME=lme-elasticsearch #change this to your container name you want to monitor lme-kibana, etc...
+sudo -i podman logs -f $CONTAINER_NAME
+```
+
+3. Check if you can connect to Elasticsearch
+```bash
+#substitute your password below:
+curl -k -u elastic:$(sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep elastic | awk '{print $1}') | tr -d '\n') https://localhost:9200
+```
+
+Example output:
+```json
+{
+  "name" : "lme-elasticsearch",
+  "cluster_name" : "LME",
+  "cluster_uuid" : "FOnfbFSWQZ-PD-rU-9w4Mg",
+  "version" : {
+    "number" : "8.12.2",
+    "build_flavor" : "default",
+    "build_type" : "docker",
+    "build_hash" : "48a287ab9497e852de30327444b0809e55d46466",
+    "build_date" : "2024-02-19T10:04:32.774273190Z",
+    "build_snapshot" : false,
+    "lucene_version" : "9.9.2",
+    "minimum_wire_compatibility_version" : "7.17.0",
+    "minimum_index_compatibility_version" : "7.0.0"
+  },
+  "tagline" : "You Know, for Search"
+}
+
+```
+
+4. Check if you can connect to Kibana <br/>
+You can use a ssh proxy to forward a local port to the remote linux host. To login as the Elastic admin use the username `elastic` and elastics password grabbed from the export password script [here](#grabbing-passwords)
+```bash
+#connect via ssh if you need to 
+ssh -L 8080:localhost:5601 [YOUR-LINUX-SERVER]
+#go to browser:
+#https://localhost:8080
+```
+
+You can also navigate to your browser at the value you set for `IPVAR`: https://IPVAR
+
+## Post-Installation Troubleshooting
+
+Run the following commands to check `/opt/lme/dashboards/elastic/` and `/opt/lme/dashboards/wazuh/` directories if dashboard installation was successful:
+```bash
+sudo -i 
+ls -al /opt/lme/FLEET_SETUP_FINISHED
+ls -al /opt/lme/dashboards/elastic/INSTALLED
+ls -al /opt/lme/dashboards/wazuh/INSTALLED
+```
+
+which should look like the following: 
+```bash
+root@ubuntu:~# ls -al /opt/lme/FLEET_SETUP_FINISHED
+-rw-r--r-- 1 root root 0 Oct 21 18:41 /opt/lme/FLEET_SETUP_FINISHED
+root@ubuntu:~# ls -al /opt/lme/dashboards/elastic/INSTALLED
+-rw-r--r-- 1 root root 0 Oct 21 18:44 /opt/lme/dashboards/elastic/INSTALLED
+root@ubuntu:~# ls -al /opt/lme/dashboards/wazuh/INSTALLED
+-rw-r--r-- 1 root root 0 Oct 21 19:01 /opt/lme/dashboards/wazuh/INSTALLED
+```
+If you don't have these files, something has screwed up, please read the output from ansible, and feel free to file an issue or dicussion. Issues are for bugs, most likely an issue has occured in your post installation due to a specific component in your local installation, please file a discussion unless this is believed to be a bug.
 
 ## Logging Issues
 
