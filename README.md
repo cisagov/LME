@@ -42,12 +42,11 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 
 ## Table of Contents:
 1. [Prerequisites:](#1-prerequisites)
-2. [Architecture:](#2-architecture)
-3. [Downloading and Installing LME:](#3-downloading-and-installing-lme)
-4. [Deploying Agents:](#4-deploying-agents)
-5. [Password Encryption:](#5-password-encryption)
-6. [Documentation:](#6-documentation)
-7. [Uninstall (if you want to remove LME):](#7-uninstall)
+2. [Downloading and Installing LME:](#3-downloading-and-installing-lme)
+3. [Deploying Agents:](#4-deploying-agents)
+4. [Password Encryption:](#5-password-encryption)
+5. [Documentation:](#6-documentation)
+6. [Uninstall (if you want to remove LME):](#7-uninstall)
 
 ## 1. Prerequisites
 If you're unsure whether you meet the prerequisites for installing LME, please refer to our [prerequisites documentation](/docs/markdown/prerequisites.md).
@@ -81,56 +80,6 @@ We estimate that you should allow half an hour to complete the entire installati
 | Install Sysmon 			| 1:04.34 	| 25:17.99 	|
 | Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
-## 2. Architecture:
-LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh,  Elastic, and ElastAlert open source tools to provide log management, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and enables you to scale as your logging needs evolve.
-
-### Diagram: 
-
-![diagram](/docs/imgs/lme-architecture-v2.png) 
-
-### Containers:
-Containerization allows each component of LME to run independently, increasing system security, improving performance, and making troubleshooting easier. 
-
-LME uses Podman as its container engine because it is more secure (by default) against container escape attacks than other engines like Docker. It's far more debug and programmer friendly. We’re making use of Podman’s unique features, such as Quadlets (Podman's systemd integration) and User Namespacing,  to increase system security and operational efficiency.
-
-LME uses these containers:
-
-  - **Setup**: Runs `/config/setup/init-setup.sh` based on the configuration of DNS defined in `/config/setup/instances.yml`. The script will create a certificate authority (CA), underlying certificates for each service, and initialize the admin accounts for Elasticsearch(user:`elastic`) and Kibana(user:`kibana_system`). 
-  - **Elasticsearch**: Runs LME's database and indexes all logs.
-  - **Kibana**: The front end for querying logs, visualizing data, and managing fleet agents.
-  - **Elastic Fleet-Server**: Executes an [elastic agent ](https://github.com/elastic/elastic-agent) in fleet-server mode. Coordinates elastic agents to  gather client logs and status. Configuration is inspired by the [elastic-container](https://github.com/peasead/elastic-container) project.
-  - **Wazuh-Manager**: Allows LME to deploy and manage Wazuh agents.
-    -  Wazuh (open source) gives EDR (Endpoint Detection Response) with security dashboards to cover the security of all of the machines.
-  - **LME-Frontend** (*coming in a future release*): Will host an API and GUI that unifies the architecture behind one interface.
-   
-### Required Ports:
-Ports required are as follows:
- - Elasticsearch: *9200*
- - Kibana: *443,5601*
- - Wazuh: *1514,1515,1516,55000,514*
- - Agent: *8220*
-
-**Note**: For Kibana, 5601 is the default port. We've also set kibana to listen on 443 as well.
-
-### Agents and Agent Management: 
-LME leverages both Wazuh and Elastic agents providing more comprehensive logging and security monitoring across various log sources. The agents gather critical data from endpoints and send it back to the LME server for analysis, offering organizations deeper visibility into their security posture. We also make use of the Wazuh Manager and Elastic Fleet for agent orchestration and management.
-
-- **Wazuh Agents**: Enables Endpoint Detection and Response (EDR) on client systems, providing advanced security features like intrusion detection and anomaly detection. For more information, see [Wazuh's agent documentation](https://github.com/wazuh/wazuh-agent). 
-- **Wazuh Manager**: Responsible for managing Wazuh Agents across endpoints, and overseeing agent registration, configuration, and data collection, providing centralized control for monitoring security events and analyzing data. 
-- **Elastic Agents**: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications. For more information, see [Elastic's agent documentation](https://github.com/elastic/elastic-agent).
-- **Elastic Fleet**: Manages Elastic Agents across your infrastructure, providing centralized control over agent deployment, configuration, and monitoring. It simplifies the process of adding and managing agents on various endpoints. ElasticFleet also supports centralized updates and policy management.
-
-
-### Alerting:
-LME has setup [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html), an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
-
-### Log Storage and Search:
-
-As the core component for log search and storage, [Elasticsearch](https://www.elastic.co/elasticsearch) indexes and stores logs and detections collected from Elastic and Wazuh Agents, allowing for fast, real-time querying of security events. Elasticsearch enables users to search and filter large datasets efficiently, providing a powerful backend for data analysis and visualization in Kibana. Its scalability and flexibility make it essential for handling the high-volume log data generated across different endpoints within LME's architecture.
-
-### Data Visualization and Querying:
-[Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
-
 ## 3. Downloading and Installing LME:
 LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. Our installation guide video is coming soon. When the video is released, you will find the link to it here. 
 These steps will guide you through setting up LME on your Ubuntu 22.04 server, ensuring a smooth and secure deployment.
@@ -154,7 +103,7 @@ sudo apt update && sudo apt install curl jq unzip -y
 **2. Download and Unzip the latest version of LME**
 This will add a path to ~/LME with all required files.
 ```
-curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
+curl -s https://api.github.com/repos/cisagov/LME/releases/latest | tee LATEST_LME | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})' && jq -r '.tag_name' LATEST_LME > version.txt && rm LATEST_LME
 ```
 Developer Note: if you're looking to develop LME, its suggested you `git clone` rather than downloading, please see our [DEV docs](#developer-notes)
 
@@ -482,6 +431,7 @@ sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USE
  - [FAQ](/docs/markdown/reference/faq.md) 
  - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
  - [Security Model](/docs/markdown/reference/security-model.md)
+ - [Architecture](/docs/markdown/reference/architecture.md)
 
 ## Maintenance:
  - [Alerting](/docs/markdown/maintenance/elastalert-rules.md)
