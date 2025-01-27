@@ -41,13 +41,47 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 
 
 ## Table of Contents:
-1. [Prerequisites:](#1-prerequisites)
-2. [Downloading and Installing LME:](#2-downloading-and-installing-lme)
-3. [Whats Next?:](#3-whats-next?)
-4. [Documentation:](#4-documentation)
+1. [What is LME?:](#1-what-is-lme?)
+2. [Prerequisites:](#1-prerequisites)
+3. [Downloading and Installing LME:](#2-downloading-and-installing-lme)
+4. [Whats Next?:](#3-whats-next?)
+5. [Documentation:](#4-documentation)
 5. [Developer Notes](#5-developer-notes)
 
-## 1. Prerequisites
+
+## 1. What is LME?: 
+For more precise understanding of LME's architecture please see our [architecture documentation](/docs/markdown/reference/architecture.md).
+
+### Description:
+LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh,  Elastic, and ElastAlert open source tools to provide log management, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and enables you to scale as your logging needs evolve.
+
+### How does LME work?:
+
+![diagram](/docs/imgs/lme-architecture-v2.png) 
+
+Important pieces to understand from an LME user perspective:
+
+1. **Collecting**: Logs are collected via  agents  
+  - **Wazuh Agents**: Enables Endpoint Detection and Response (EDR) on client systems, providing advanced security features like intrusion detection and anomaly detection. For more information, see [Wazuh's agent documentation](https://github.com/wazuh/wazuh-agent). 
+  - **Elastic Agents**: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications. For more information, see [Elastic's agent documentation](https://github.com/elastic/elastic-agent).
+2. **Viewing**: Logs are viewable in dashboards via kibana  
+  - [Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
+
+3. **Alerting**: Creating notifications for logs organizations want to  configurable via Elastalert:
+  -  [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html) is an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
+ 
+### What firewall rules do I need to setup?:
+Please see our doucmentation around cloud and firewall setup for more information on how you can [expose these ports](/docs/markdown/logging-guidance/cloud.md)
+Ports that need to be open at the server where LME is installed are listed below:
+ - Elasticsearch: *9200*
+ - Kibana: *443,5601*
+ - Wazuh: *1514,1515,1516,55000,514*
+ - Agent: *8220*
+
+**Note**: For Kibana, 5601 is the default port. We've also set kibana to listen on 443 as well.
+
+
+## 2. Prerequisites
 If you're unsure whether you meet the prerequisites for installing LME, please refer to our [prerequisites documentation](/docs/markdown/prerequisites.md).
 
 The main prerequisite is setting up hardware for your Ubuntu server, which should have at least:
@@ -79,8 +113,9 @@ We estimate that you should allow half an hour to complete the entire installati
 | Install Sysmon 			| 1:04.34 	| 25:17.99 	|
 | Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
-## 2. Downloading and Installing LME:
-LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. Our installation guide video is coming soon. When the video is released, you will find the link to it here. 
+## 3. Downloading and Installing LME:
+LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. Our installation guide video is coming soon. When the video is released, you will find the link to it here.
+
 These steps will guide you through setting up LME on your Ubuntu 22.04 server, ensuring a smooth and secure deployment.
 
 **Note:** LME has been extensively tested on Ubuntu 22.04. While it can run on other Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
