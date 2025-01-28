@@ -277,16 +277,38 @@
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
   tags: ['system', 'all']
-  tasks:
-    - name: Restart Nix daemon
-      command: systemctl restart nix-daemon
+  
+  handlers:
+    - name: restart nix-daemon
+      systemd:
+        name: nix-daemon
+        state: restarted
+        daemon_reload: yes
       become: yes
+      
+  tasks:
+    - name: Ensure Nix daemon is running
+      systemd:
+        name: nix-daemon
+        state: started
+        enabled: yes
+      become: yes
+      notify: restart nix-daemon
+
+    - name: Wait for Nix daemon to be ready
+      wait_for:
+        timeout: 10
+      when: ansible_play_hosts_all.index(inventory_hostname) == 0
 
     - name: Install Podman using Nix 
       command: nix-env -iA nixpkgs.podman
       become: yes
       environment:
         PATH: "{{ ansible_env.PATH }}"
+      register: podman_install
+      retries: 3
+      delay: 5
+      until: podman_install is not failed
 
     - name: Set sysctl limits 
       command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"

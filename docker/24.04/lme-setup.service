@@ -6,7 +6,7 @@ Requires=nix-daemon.service
 [Service]
 Type=oneshot
 WorkingDirectory=/root/LME
-ExecStart=/bin/bash /root/LME/docker/lme-init.sh
+ExecStart=/bin/bash /root/LME/docker/24.04/lme-init.sh
 RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal
