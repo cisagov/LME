@@ -1,8 +1,8 @@
 services:
   lme:
     build:
-      context: ../
-      dockerfile: docker/Dockerfile
+      context: ../../
+      dockerfile: docker/24.04/Dockerfile
       target: lme
       args:
         USER_ID: "${HOST_UID:-1001}"
@@ -10,7 +10,7 @@ services:
     container_name: lme
     working_dir: /root
     volumes:
-      - ../../LME:/root/LME
+      - ../../../LME:/root/LME
       - /sys/fs/cgroup:/sys/fs/cgroup:rslave
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:

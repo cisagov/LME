@@ -1073,8 +1073,6 @@
               "roles": ["readonly_role"],
               "full_name": "Read Only User"
             }'
-      args:
-        warn: false
       register: user_creation_result
       when: result.status is defined and result.status == 200
 
