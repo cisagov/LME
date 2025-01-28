@@ -95,6 +95,8 @@
     #directories
     user_config_dir: "/root/.config/containers"
     user_secrets_conf: "/root/.config/containers/containers.conf"  # Update with actual path
+    user_storage_conf: "/root/.config/containers/storage.conf"  # Update with actual path
+    global_storage_conf: "/etc/containers/storage.conf"  # Update with actual path
     config_dir: "/etc/lme"
     user_vault_dir: "/etc/lme/vault"  # Update with actual path
     password_file: "/etc/lme/pass.sh"
@@ -198,6 +200,31 @@
           store = "cat > {{ user_vault_dir }}/$SECRET_ID && chmod 700 {{ user_vault_dir }}/$SECRET_ID && ansible-vault encrypt {{ user_vault_dir }}/$SECRET_ID"
           delete = "rm {{ user_vault_dir }}/$SECRET_ID"
         mode: '0600'
+    - name: setup root overlay-fs usage
+      copy:
+        dest: "{{ user_storage_conf }}"
+        content: |
+          [storage]
+          driver = "overlay"
+
+          [storage.options.overlay]
+          mount_program = "/usr/bin/fuse-overlayfs"
+
+        mode: '0600'
+
+    - name: setup global overlay-fs usage
+      copy:
+        dest: "{{ global_storage_conf }}"
+        content: |
+          [storage]
+          driver = "overlay"
+          runroot =  "/run/containers/storage"
+          graphroot = "/var/lib/containers/storage"
+
+          [storage.options.overlay]
+          mount_program = "/usr/bin/fuse-overlayfs"
+
+        mode: '0600'
 
 - name: Setup Nix
   hosts: localhost
@@ -221,6 +248,7 @@
           - nix-bin
           - nix-setup-systemd
           - python3-pexpect
+          - fuse-overlayfs
         state: present
       become: yes
 

@@ -71,8 +71,9 @@ Important pieces to understand from an LME user perspective:
   -  [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html) is an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
  
 ### What firewall rules do I need to setup?:
-Please see our doucmentation around cloud and firewall setup for more information on how you can [expose these ports](/docs/markdown/logging-guidance/cloud.md)
-Ports that need to be open at the server where LME is installed are listed below:
+Please see our doucmentation around cloud and firewall setup for more information on how you can [expose these ports](/docs/markdown/logging-guidance/cloud.md).
+
+Ports that need to be open on LME's server AND reachable by all clients from which you want to collect logs:  
  - Elasticsearch: *9200*
  - Kibana: *443,5601*
  - Wazuh: *1514,1515,1516,55000,514*
@@ -120,8 +121,6 @@ These steps will guide you through setting up LME on your Ubuntu 22.04 server, e
 
 **Note:** LME has been extensively tested on Ubuntu 22.04. While it can run on other Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
 
-**Please ensure you follow all the configuration steps required below.**
-
 **Upgrading**:
 If you are upgrading from an older version of LME to LME 2.0, please see our [upgrade documentation](/docs/markdown/maintenance/upgrading.md).
 
@@ -141,7 +140,7 @@ This will add a path to ~/LME with all required files.
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
 
-### 2. Configuration
+### 2. Configuration 
 
 The configuration files are located in `~/LME/config/`. These steps will guide you through setting up LME.
 
@@ -157,11 +156,16 @@ cd ~/LME
 cp ./config/example.env ./config/lme-environment.env
 ```
 
-In the new `lme-environment.env` file, update the following values:
-```
-#your host ip as found from the above command
+In the new `lme-environment.env` file, update IPVAR to the ip you got in the above command, using your text editor of choice:
+```shell
 IPVAR=127.0.0.1 #your hosts ip 
 ```
+
+For example open and edit the file via nano: 
+```bash
+nano ./config/lme-environment.env
+```
+
 
 ### 3. Installation
 This assumes that you have the repo in `~/LME/`. If you have deviated from our instructions, jump to our [notes on non-default installation](#non-default-installation-notes)
@@ -275,7 +279,7 @@ To uninstall everything:
 sudo -i -u root 
 systemctl stop lme* && systemctl reset-failed && podman volume rm -a &&  podman secret rm -a && rm -rf /opt/lme && rm -rf /etc/lme && rm -rf /etc/containers/systemd
 #reset podman, DON'T RUN THIS IF YOU HAVE OTHER PODMAN CONTAINERS!
-sudo -i podman system reset --forc
+sudo -i podman system reset --force
 ```
 **WARNING THIS WILL DELETE EVERYTHING!!!**  
 
@@ -305,10 +309,9 @@ We're doing our best to have regular updates that add new and/or requested featu
 
 1. [Alerting](/docs/markdown/maintenance/elastalert-rules.md): Adding custom notifications for triggered alerts using elastalert2
 2. [Active Response](/docs/markdown/agents/wazuh-active-response.md): Creating custom wazuh active response actions to automatically respond to a malicious event wazuh detects. 
-   - 
 3. [Backups](/docs/markdown/maintenance/backups.md): Customizing backups of logs for your organizations own compliance needs.
 4. [Custom log types](/docs/markdown/agents/elastic-agent-mangement.md#lme-elastic-agent-integration-example): using elastic agents built in [integrations](https://www.elastic.co/guide/en/integrations/current/index.html) ingest a log type specific to your organization.
-  - 
+ 
 # 4. Documentation:
 
 ## Logging Guidance
