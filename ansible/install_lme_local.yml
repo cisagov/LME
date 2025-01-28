@@ -6,6 +6,7 @@
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "root"
+  tags: ['base', 'all']
 
   tasks:
     - name: Expand clone_directory path
@@ -97,6 +98,7 @@
     config_dir: "/etc/lme"
     user_vault_dir: "/etc/lme/vault"  # Update with actual path
     password_file: "/etc/lme/pass.sh"
+  tags: ['base', 'all']
 
   tasks:
     - name: Create Vault password
@@ -200,12 +202,12 @@
 - name: Setup Nix
   hosts: localhost
   connection: local
-  become: no  # Default to no privilege escalation
+  become: no
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
+  tags: ['base', 'all']
   tasks:
-
     - name: Update apt cache
       apt:
         update_cache: yes
@@ -237,10 +239,6 @@
         append: yes
       become: yes
 
-    - name: Restart Nix daemon
-      command: systemctl restart nix-daemon
-      become: yes
-
     - name: Update PATH for Ansible execution
       set_fact:
         ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
@@ -256,6 +254,32 @@
         path: "/root/.profile"
         line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
         create: yes
+      become: yes
+
+    - name: Update PATH in user's bashrc
+      lineinfile:
+        path: "~/.bashrc"
+        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+        create: yes
+
+    - name: Update PATH in root's bashrc
+      lineinfile:
+        path: "/root/.bashrc"
+        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+        create: yes
+      become: yes
+
+- name: Setup Podman
+  hosts: localhost
+  connection: local
+  become: no
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "{{ ansible_user_id }}"
+  tags: ['system', 'all']
+  tasks:
+    - name: Restart Nix daemon
+      command: systemctl restart nix-daemon
       become: yes
 
     - name: Install Podman using Nix 
@@ -280,6 +304,7 @@
   become: no  # Default to no privilege escalation
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
+  tags: ['system', 'all']
   tasks:
     #maybe check for each in the shell script below?
     - name: Register a variable, ignore errors and continue
@@ -318,6 +343,7 @@
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
+  tags: ['system', 'all']
   tasks:
     - name: Enable linger for user
       command: "loginctl enable-linger {{ install_user }}"
@@ -367,11 +393,11 @@
 - name: Setup Containers for root
   hosts: localhost
   connection: local
-  become: no  # Default to no privilege escalation
+  become: no
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
+  tags: ['system', 'all']
   tasks:
-
     - name: Add Container Image policy file
       copy:
         content: |
@@ -386,23 +412,28 @@
       become: yes
 
     - name: Pull containers
-      command: "podman pull {{ item }}"
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman pull {{ item }}
+      args:
+        executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
-      environment:
-        PATH: "{{ ansible_env.PATH }}"
       become: yes
 
     - name: Tag containers
-      command: "podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST"
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+      args:
+        executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
-      environment:
-        PATH: "{{ ansible_env.PATH }}"
       become: yes
 
 - name: Start lme.service
   hosts: localhost
   connection: local
   become: yes  # Default to no privilege escalation
+  tags: ['system', 'all']
   tasks:
     - name: Reload systemd daemon
       systemd:
