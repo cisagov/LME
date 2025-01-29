@@ -173,16 +173,13 @@
 
     - name: Get CA fingerprint
       ansible.builtin.shell: |
-        sudo bash -c '
-          set -a
-          . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
-          set +a
-          /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
-        '
+        set -a
+        . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+        set +a
+        /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
       register: ca_fingerprint
       changed_when: false
       become: yes
-      become_method: sudo
       no_log: "{{ not debug_mode }}"
 
     - name: Display CA fingerprint
@@ -1076,8 +1073,6 @@
               "roles": ["readonly_role"],
               "full_name": "Read Only User"
             }'
-      args:
-        warn: false
       register: user_creation_result
       when: result.status is defined and result.status == 200
 
