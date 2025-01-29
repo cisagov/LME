@@ -177,6 +177,9 @@
         . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
         set +a
         /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
+
+      args:
+        executable: /bin/bash
       register: ca_fingerprint
       changed_when: false
       become: yes
