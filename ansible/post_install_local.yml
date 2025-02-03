@@ -211,7 +211,11 @@
 
     - name: Debug Fleet server hosts result
       debug:
-        var: fleet_server_hosts_result
+        msg: 
+          - "Status: {{ fleet_server_hosts_result.status | default('N/A') }}"
+          - "Response: {{ fleet_server_hosts_result.json | default('N/A') }}"
+          - "URL: {{ local_kbn_url }}/api/fleet/settings"
+          - "Body: {{ {'fleet_server_hosts': ['https://' + ipvar + ':' + fleet_port]} }}"
       when: fleet_server_hosts_result is defined and debug_mode | bool
 
     - name: Set Fleet default output hosts
