@@ -6,6 +6,8 @@ Requires=nix-daemon.service
 [Service]
 Type=oneshot
 WorkingDirectory=/root/LME
+Environment="HOST_IP=$HOST_IP"
+PassEnvironment=HOST_IP
 ExecStart=/bin/bash -c 'HOST_IP=$HOST_IP /root/LME/docker/22.04/lme-init.sh'
 RemainAfterExit=yes
 StandardOutput=journal
