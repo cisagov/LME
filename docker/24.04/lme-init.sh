@@ -7,7 +7,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     
     # Copy environment file if it doesn't exist
     cp -n /root/LME/config/example.env /root/LME/config/lme-environment.env
-    
+     
     # Update IPVAR in the environment file with the passed HOST_IP
     if [ ! -z "$HOST_IP" ]; then
         sed -i "s/IPVAR=.*/IPVAR=$HOST_IP/" /root/LME/config/lme-environment.env
