@@ -1,15 +1,16 @@
 # LME Docker Setup
 All commands in this guide should be run from the `LME/docker` directory of the repository.
+At this point you can choose 22.04 or 24.04 directories to build the container.
 
 ## Prerequisites
 
-- Docker
+- Docker 
 - Docker Compose
 - At least 20GB of RAM 
 - 100GB of disk space preferred
 
 ### Special Windows/Linux VM Configuration
-If running Linux on a hypervisor or virtual machine, you may need to modify the GRUB configuration:
+If running Linux on a hypervisor or virtual machine, you may need to modify the GRUB configuration in your VM:
 
 1. Add the following to the `GRUB_CMDLINE_LINUX` line in `/etc/default/grub`:
 ```bash

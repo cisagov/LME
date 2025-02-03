@@ -29,6 +29,7 @@ services:
       - LANGUAGE=en_US:en
       - LC_ALL=en_US.UTF-8
       - container=docker
+      - HOST_IP=${HOST_IP}
     command: ["/lib/systemd/systemd", "--system"]
     ports:
       - "5601:5601"
