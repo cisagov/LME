@@ -116,16 +116,17 @@
 
     - name: Wait for Kibana port to be available
       wait_for:
-        host: "{{ ipvar }}"
-        port: "{{ kibana_port | int }}"
+        host: "{{ local_kbn_url | urlsplit('hostname') }}"
+        port: "{{ local_kbn_url | urlsplit('port') | default('5601', true) | int }}"
         timeout: 120  # 2 minutes
         sleep: 60    # Check every minute
-        msg: "Timeout waiting for Kibana port {{ kibana_port }} to become available"
+        msg: "Timeout waiting for Kibana port {{ local_kbn_url | urlsplit('port') }} to become available"
       register: kibana_port_check
       until: kibana_port_check.state is defined and kibana_port_check.state == "started"
       retries: 15
       delay: 0
       ignore_errors: no
+      when: local_kbn_url is defined
 
     - name: Debug wait_for results
       debug:
@@ -211,11 +212,7 @@
 
     - name: Debug Fleet server hosts result
       debug:
-        msg: 
-          - "Status: {{ fleet_server_hosts_result.status | default('N/A') }}"
-          - "Response: {{ fleet_server_hosts_result.json | default('N/A') }}"
-          - "URL: {{ local_kbn_url }}/api/fleet/settings"
-          - "Body: {{ {'fleet_server_hosts': ['https://' + ipvar + ':' + fleet_port]} }}"
+        var: fleet_server_hosts_result
       when: fleet_server_hosts_result is defined and debug_mode | bool
 
     - name: Set Fleet default output hosts
