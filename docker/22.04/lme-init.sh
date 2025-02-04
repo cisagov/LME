@@ -23,7 +23,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     echo "Starting system setup at $(date)"
     time ansible-playbook install_lme_local.yml --tags system
     echo "Starting post-install setup at $(date)"
-    time ansible-playbook post_install_local.yml -e "debug_mode=true"
+    time ansible-playbook post_install_local.yml -e "IPVAR=$IPVAR"
     echo "Setup completed at $(date)"
     
     # Create flag file to indicate initialization is complete
