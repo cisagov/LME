@@ -18,6 +18,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     else
         echo "Warning: HOST_IP not set, using default IPVAR value"
     fi
+    cp -n /root/LME/config/lme-environment.env /opt/lme/lme-environment.env
     
     # Run initial setup with timing
     cd /root/LME/ansible/
