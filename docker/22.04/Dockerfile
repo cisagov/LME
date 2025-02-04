@@ -56,6 +56,7 @@ RUN chmod 644 /etc/systemd/system/lme-setup.service
 
 COPY ansible/install_lme_local.yml /root/LME/ansible/
 COPY config/example.env /root/LME/config/lme-environment.env
+
 RUN ansible-playbook /root/LME/ansible/install_lme_local.yml --tags base
 
 # Enable the service
