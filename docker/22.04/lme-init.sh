@@ -13,6 +13,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     # Update IPVAR in the environment file with the passed HOST_IP
     if [ ! -z "$HOST_IP" ]; then
         sed -i "s/IPVAR=.*/IPVAR=$HOST_IP/" /root/LME/config/lme-environment.env
+        export IPVAR=$HOST_IP
     else
         echo "Warning: HOST_IP not set, using default IPVAR value"
     fi
