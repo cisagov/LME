@@ -4,6 +4,7 @@ INIT_FLAG="/opt/.lme_initialized"
 
 if [ ! -f "$INIT_FLAG" ]; then
     echo "Running first-time LME initialization..."
+    rm -rf /opt/lme/lme-environment.env
     
     # Copy environment file if it doesn't exist
     cp -n /root/LME/config/example.env /root/LME/config/lme-environment.env
