@@ -6,6 +6,7 @@
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "root"
+  tags: ['base', 'all']
 
   tasks:
     - name: Expand clone_directory path
@@ -94,9 +95,12 @@
     #directories
     user_config_dir: "/root/.config/containers"
     user_secrets_conf: "/root/.config/containers/containers.conf"  # Update with actual path
+    user_storage_conf: "/root/.config/containers/storage.conf"  # Update with actual path
+    global_storage_conf: "/etc/containers/storage.conf"  # Update with actual path
     config_dir: "/etc/lme"
     user_vault_dir: "/etc/lme/vault"  # Update with actual path
     password_file: "/etc/lme/pass.sh"
+  tags: ['base', 'all']
 
   tasks:
     - name: Create Vault password
@@ -196,16 +200,49 @@
           store = "cat > {{ user_vault_dir }}/$SECRET_ID && chmod 700 {{ user_vault_dir }}/$SECRET_ID && ansible-vault encrypt {{ user_vault_dir }}/$SECRET_ID"
           delete = "rm {{ user_vault_dir }}/$SECRET_ID"
         mode: '0600'
+    - name: setup root overlay-fs usage
+      copy:
+        dest: "{{ user_storage_conf }}"
+        content: |
+          [storage]
+          driver = "overlay"
+
+          [storage.options.overlay]
+          mount_program = "/usr/bin/fuse-overlayfs"
+
+        mode: '0600'
+
+    - name: Create /etc/containers
+      file:
+        path: /etc/containers/
+        state: directory
+        owner: "root"
+        group: "root"
+        mode: '0744'
+
+    - name: setup global overlay-fs usage
+      copy:
+        dest: "{{ global_storage_conf }}"
+        content: |
+          [storage]
+          driver = "overlay"
+          runroot =  "/run/containers/storage"
+          graphroot = "/var/lib/containers/storage"
+
+          [storage.options.overlay]
+          mount_program = "/usr/bin/fuse-overlayfs"
+
+        mode: '0600'
 
 - name: Setup Nix
   hosts: localhost
   connection: local
-  become: no  # Default to no privilege escalation
+  become: no
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
+  tags: ['base', 'all']
   tasks:
-
     - name: Update apt cache
       apt:
         update_cache: yes
@@ -219,6 +256,7 @@
           - nix-bin
           - nix-setup-systemd
           - python3-pexpect
+          - fuse-overlayfs
         state: present
       become: yes
 
@@ -235,10 +273,6 @@
         name: "{{ install_user }}"
         groups: nix-users
         append: yes
-      become: yes
-
-    - name: Restart Nix daemon
-      command: systemctl restart nix-daemon
       become: yes
 
     - name: Update PATH for Ansible execution
@@ -258,11 +292,59 @@
         create: yes
       become: yes
 
+    - name: Update PATH in user's bashrc
+      lineinfile:
+        path: "~/.bashrc"
+        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+        create: yes
+
+    - name: Update PATH in root's bashrc
+      lineinfile:
+        path: "/root/.bashrc"
+        line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+        create: yes
+      become: yes
+
+- name: Setup Podman
+  hosts: localhost
+  connection: local
+  become: no
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "{{ ansible_user_id }}"
+  tags: ['system', 'all']
+
+  handlers:
+    - name: restart nix-daemon
+      systemd:
+        name: nix-daemon
+        state: restarted
+        daemon_reload: yes
+      become: yes
+      
+  tasks:
+    - name: Ensure Nix daemon is running
+      systemd:
+        name: nix-daemon
+        state: started
+        enabled: yes
+      become: yes
+      notify: restart nix-daemon
+
+    - name: Wait for Nix daemon to be ready
+      wait_for:
+        timeout: 10
+      when: ansible_play_hosts_all.index(inventory_hostname) == 0
+
     - name: Install Podman using Nix 
       command: nix-env -iA nixpkgs.podman
       become: yes
       environment:
         PATH: "{{ ansible_env.PATH }}"
+      register: podman_install
+      retries: 3
+      delay: 5
+      until: podman_install is not failed
 
     - name: Set sysctl limits 
       command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
@@ -280,6 +362,7 @@
   become: no  # Default to no privilege escalation
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
+  tags: ['system', 'all']
   tasks:
     #maybe check for each in the shell script below?
     - name: Register a variable, ignore errors and continue
@@ -318,6 +401,7 @@
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
+  tags: ['system', 'all']
   tasks:
     - name: Enable linger for user
       command: "loginctl enable-linger {{ install_user }}"
@@ -367,11 +451,11 @@
 - name: Setup Containers for root
   hosts: localhost
   connection: local
-  become: no  # Default to no privilege escalation
+  become: no
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
+  tags: ['system', 'all']
   tasks:
-
     - name: Add Container Image policy file
       copy:
         content: |
@@ -386,23 +470,28 @@
       become: yes
 
     - name: Pull containers
-      command: "podman pull {{ item }}"
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman pull {{ item }}
+      args:
+        executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
-      environment:
-        PATH: "{{ ansible_env.PATH }}"
       become: yes
 
     - name: Tag containers
-      command: "podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST"
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+      args:
+        executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
-      environment:
-        PATH: "{{ ansible_env.PATH }}"
       become: yes
 
 - name: Start lme.service
   hosts: localhost
   connection: local
   become: yes  # Default to no privilege escalation
+  tags: ['system', 'all']
   tasks:
     - name: Reload systemd daemon
       systemd:
