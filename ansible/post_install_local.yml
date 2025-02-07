@@ -118,8 +118,21 @@
       wait_for:
         host: "{{ ipvar }}"
         port: "{{ kibana_port | int }}"
-        timeout: 300
+        timeout: 120  # 2 minutes
+        sleep: 60    # Check every minute
+        msg: "Timeout waiting for Kibana port {{ kibana_port }} to become available"
       register: kibana_port_check
+      until: kibana_port_check.state is defined and kibana_port_check.state == "started"
+      retries: 15
+      delay: 0
+      ignore_errors: no
+
+    - name: Debug wait_for results
+      debug:
+        msg: 
+          - "State: {{ kibana_port_check.state }}"
+          - "Full result: {{ kibana_port_check }}"
+      when: debug_mode | bool
 
     - name: Wait for Fleet API to be ready
       ansible.builtin.shell: |
@@ -138,6 +151,8 @@
         done
         echo "Fleet API did not become ready within the expected time."
         exit 1
+      args:
+        executable: /bin/bash
       register: fleet_api_check
       changed_when: false
       no_log: "{{ not debug_mode }}"
@@ -158,16 +173,16 @@
 
     - name: Get CA fingerprint
       ansible.builtin.shell: |
-        sudo bash -c '
-          set -a
-          . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
-          set +a
-          /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
-        '
+        set -a
+        . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+        set +a
+        /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
+
+      args:
+        executable: /bin/bash
       register: ca_fingerprint
       changed_when: false
       become: yes
-      become_method: sudo
       no_log: "{{ not debug_mode }}"
 
     - name: Display CA fingerprint
@@ -257,8 +272,64 @@
       no_log: "{{ not debug_mode }}"
 
     - name: Wait for Kibana to be fully ready
-      pause:
-        seconds: 180
+      uri:
+        url: "{{ local_kbn_url }}/api/status"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: kibana_status
+      until: kibana_status.status == 200 and kibana_status.json.status.overall.level == "available"
+      retries: 36  # With a 10 second delay, this gives us 6 minutes total
+      delay: 10 
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Kibana status
+      debug:
+        var: kibana_status
+      when: debug_mode | bool
+
+    - name: Fail if Kibana is not ready
+      fail:
+        msg: "Kibana did not become ready within the expected time. Status: {{ kibana_status | default('unknown') }}"
+      when: kibana_status.status is not defined or kibana_status.status != 200
+
+    - name: Wait for Fleet API to be ready
+      ansible.builtin.shell: |
+        attempt=0
+        max_attempts=30
+        delay=10
+        while [ $attempt -lt $max_attempts ]; do
+          response=$(curl -s -o /dev/null -w "%{http_code}" -k -u elastic:{{ elastic_password }} {{ local_kbn_url }}/api/fleet/agents/setup)
+          if [ "$response" = "200" ]; then
+            echo "Fleet API is ready. Proceeding with configuration..."
+            exit 0
+          fi
+          echo "Waiting for Fleet API to be ready..."
+          sleep $delay
+          attempt=$((attempt+1))
+        done
+        echo "Fleet API did not become ready within the expected time."
+        exit 1
+      register: fleet_api_check
+      changed_when: false
+      no_log: "{{ not debug_mode }}"
+
+    - name: Display Fleet API check result
+      debug:
+        var: fleet_api_check.stdout_lines
+
+    - name: Confirm Fleet API is ready
+      debug:
+        msg: "Fleet API is ready"
+      when: "'Fleet API is ready' in fleet_api_check.stdout"
+
+    - name: Fail if Fleet API is not ready
+      fail:
+        msg: "Fleet API did not become ready within the expected time."
+      when: "'Fleet API is ready' not in fleet_api_check.stdout"
 
     - name: Create Endpoint Policy
       # TODO: This might need to check if the system is running before creating the policy
@@ -278,8 +349,56 @@
           monitoring_enabled: ["logs", "metrics"]
           inactivity_timeout: 1209600
         timeout: 600
+        status_code: [200, 409]
       register: endpoint_policy_result
+      until: endpoint_policy_result.status in [200, 409]
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
+
+    - name: Debug endpoint_policy_result
+      debug:
+        var: endpoint_policy_result 
+
+    - name: Set policy ID fact for new policy
+      set_fact:
+        policy_id: "{{ endpoint_policy_result.json.item.id }}"
+      when: endpoint_policy_result.status == 200
+
+    - name: Get existing policy ID if creation failed
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agent_policies"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ headers }}"
+      register: existing_policies
+      when: endpoint_policy_result.status == 409
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug existing_policies
+      debug:
+        var: existing_policies 
+
+    - name: Set policy ID fact for existing policy
+      set_fact:
+        policy_id: "{{ item.id }}"
+      when: 
+        - endpoint_policy_result.status == 409
+        - item.name == 'Endpoint Policy'
+      loop: "{{ existing_policies.json['items'] | list }}"
+
+    - name: Debug policy ID
+      debug:
+        var: policy_id
+      when: debug_mode | bool
+
+    - name: Fail if policy ID is not set
+      fail:
+        msg: "Failed to get policy ID. Neither creation nor lookup of existing policy succeeded."
+      when: policy_id is not defined
 
     - name: Get Endpoint package version
       uri:
@@ -304,11 +423,12 @@
         headers: "{{ headers }}"
         body_format: json
         timeout: 600
+        status_code: [200, 409]
         body:
           name: "Elastic Defend"
           description: ""
           namespace: "default"
-          policy_id: "{{ endpoint_policy_result.json.item.id }}"
+          policy_id: "{{ policy_id }}"
           enabled: true
           inputs:
             - enabled: true
@@ -325,7 +445,11 @@
             title: "Elastic Defend"
             version: "{{ endpoint_package_result.json.item.version }}"
       register: elastic_defend_policy_result
+      until: elastic_defend_policy_result.status in [200, 409]
+      retries: 12
+      delay: 30
       no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
 
     - name: Display results
       debug:
@@ -345,8 +469,29 @@
       when: not installed_file_check.stat.exists
 
     - name: Wait for Fleet to be fully initialized
-      pause:
-        seconds: 120
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_status
+      until: fleet_status.status == 200
+      retries: 36  # With 10 second delay, this gives us 6 minutes total
+      delay: 10
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet status
+      debug:
+        var: fleet_status
+      when: debug_mode | bool
+
+    - name: Fail if Fleet is not ready
+      fail:
+        msg: "Fleet did not become ready within the expected time. Status: {{ fleet_status | default('unknown') }}"
+      when: fleet_status.status is not defined or fleet_status.status != 200
 
 - name: Install LME Dashboards 
   hosts: localhost
@@ -464,9 +609,23 @@
       when: debug_mode | bool
     #SETUP
 
-    - name: Copy dashboards files /opt/lme/dashboards
+    - name: Expand clone directory path
+      set_fact:
+        absolute_clone_dir: "{{ clone_directory | expanduser }}"
+
+    - name: Check if source dashboards directory exists
+      stat:
+        path: "{{ absolute_clone_dir }}/dashboards"
+      register: source_dashboard_dir
+
+    - name: Fail if source directory doesn't exist
+      fail:
+        msg: "Source dashboards directory {{ source_dashboard_dir.stat.path }} doesn't exist"
+      when: not source_dashboard_dir.stat.exists
+
+    - name: Copy dashboards files to /opt/lme/dashboards
       copy:
-        src: "{{ clone_directory }}/dashboards/"
+        src: "{{ source_dashboard_dir.stat.path }}/"
         dest: /opt/lme/dashboards/
         owner: "{{ install_user }}"
         group: "{{ install_user }}"
@@ -482,8 +641,6 @@
     - name: Upload dashboards to Kibana
       shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
-      args:
-        warn: false
 
     - name: Create INSTALLED file
       file:
@@ -626,8 +783,6 @@
 
     - name: Upload dashboards to Kibana
       shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "{{ kibana_url }}"'
-      args:
-        warn: false
       loop: "{{ dashboards.files | map(attribute='path') | list }}"
 
     - name: Create INSTALLED file
@@ -890,8 +1045,6 @@
                 }
               ]
             }'
-      args:
-        warn: false
       register: role_creation_result
       when: result.status is defined and result.status == 200
 
@@ -924,8 +1077,6 @@
               "roles": ["readonly_role"],
               "full_name": "Read Only User"
             }'
-      args:
-        warn: false
       register: user_creation_result
       when: result.status is defined and result.status == 200
 
