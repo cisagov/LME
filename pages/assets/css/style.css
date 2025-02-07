@@ -1,0 +1,123 @@
+html {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body{
+    margin: 0;
+    height: auto;
+}
+
+main{
+    width: 100%;
+}
+
+.wrapper{
+    display:flex;
+    height: auto;
+}
+
+header {
+    background-color: #0F3F67;
+    min-width: 250px;
+    max-width: 250px;
+    box-shadow: 3px 3px 3px gainsboro;
+}
+
+header a{ 
+    float: left;
+    color: white;
+    padding: 12px;
+    text-decoration: none;
+    font-size: 18px;
+    line-height: 25px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+header a:hover {
+    text-decoration: underline;
+}
+
+header a.active{
+    text-decoration: underline;
+}
+
+.nav-links{
+    display: flex;
+    flex-direction: column;
+    margin-top: 50px;
+}
+
+.version{
+    font-size: 12pt;
+    font-style: italic;
+    color: white;
+    display: flex;
+    justify-content: center;
+}
+
+header img{
+    width:100%;
+}
+
+.body-text{
+    padding: 5% 15%;
+}
+
+.body-boxes{
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+}
+.box{
+  border: 2px #0F3F67 solid;  
+  width: 40%;
+  height: 50%;
+  box-shadow: 5px 5px 5px gainsboro;
+  border-radius: 10px;
+  
+}
+.nav-footer{ 
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+.foot-link{
+    font-size: smaller;
+}
+
+.nav-blocks{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    grid-column-gap: 1em;
+    grid-row-gap: 1em;
+    grid-auto-rows: 1fr;
+    margin: 1em;
+}
+
+.box{
+    width:100%;
+    height:100%;
+}
+.box a{
+    text-decoration: none;
+    color: #0F3F67;
+}
+.needs-changing{
+    color:red;
+    font-weight: bold;
+}
+@media screen and (max-width: 500px) {
+    .header a {
+      float: none;
+      display: block;
+      text-align: left;
+    }
+    .header-right {
+      float: none;
+    }
+    .body-boxes{
+        flex-direction: column;
+    }
+  }

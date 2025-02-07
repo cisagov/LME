@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title> Logging Made Easy </title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description" content="Logging Made Easy">
+
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <a href="index.html">Overview</a>
+                    <a href="installation-overview.html">Installation</a>
+                    <a class="active" href="documentation.html">Documentation</a>
+                </div>
+            </div>
+        </header>
+        <main>
+            <section>
+                <div class="body-text">
+            <h1>Deploying Agents</h1>
+            <p class="needs-changing">We have separate guides on deploying Wazuh and Elastic in separate docs, please
+                see links below. Eventually, LME will automate these steps in a future release. </p>
+            <ul>
+                <li><a href="/docs/markdown/agents/wazuh-agent-mangement.md">Deploy Wazuh Agent</a></li>
+                <li><a href="/docs/markdown/agents/elastic-agent-mangement.md">Deploying Elastic-Agent</a></li>
+            </ul>
+            <h2>Installing Sysmon on Windows Clients</h2>
+                <p>Sysmon provides valuable logs for windows computers. For each of your windows client machines,
+                    install
+                    Sysmon like so:</p>
+                <ol>
+                    <li>Download LME and unzip the folder. </li>
+                    <li>From inside the unzipped folder, run the following command in Administrator Powershell:</li>
+                </ol>
+                <pre><code>.\scripts\install_sysmon.ps1
+</code></pre>
+                <p>To run this powershell script, you may need to temporarily set the powershell script execution policy
+                    to
+                    &quot;Unrestricted&quot; which lets Windows execute downloaded powershell scripts. You can do that
+                    with
+                    the following command:</p>
+                <pre><code>Set-ExecutionPolicy Unrestricted
+</code></pre>
+
+                <h1 id="elastic-agent-management---enrollment-guide">Elastic Agent Management - Enrollment Guide</h1>
+                <p>This guide will walk you through the process of enrolling an Elastic agent.</p>
+                <h2 id="steps-to-enroll-an-agent">Steps to Enroll an Agent</h2>
+                <ol>
+                    <li>
+                        <p><strong>Access the Fleet Menu</strong></p>
+                        <ul>
+                            <li>Open the LME dashboard</li>
+                            <li>Scroll down and select &quot;Fleet&quot; from the menu</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Add a New Agent</strong></p>
+                        <ul>
+                            <li>Click on the &quot;Add agent&quot; button</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Select the Policy</strong></p>
+                        <ul>
+                            <li>Ensure you select the appropriate policy for the agent</li>
+                            <li>For example, choose &quot;Endpoint Policy&quot; if you&#39;re adding an endpoint device
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Enrollment Settings</strong></p>
+                        <ul>
+                            <li>Keep the &quot;Enroll in Fleet&quot; option selected</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Choose the Agent Type</strong></p>
+                        <ul>
+                            <li>Select the appropriate option based on your endpoint:<ul>
+                                    <li>Linux Tar</li>
+                                    <li>Mac</li>
+                                    <li>Windows (ensure you run this in a PowerShell prompt with administrator
+                                        privileges)</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Installation Command</strong></p>
+                        <ul>
+                            <li>You will be presented with an installation command for the selected platform</li>
+                            <li>Note: If you haven&#39;t added the LME certificates to your trusted store, you&#39;ll
+                                need to modify the command</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Modify the Command If necessary(e.g.,if certificates have not been added to the
+                                trusted store)</strong></p>
+                        <ul>
+                            <li>
+                                <p>Add <code>--insecure</code> at the end of the ./elastic-agent install` command</p>
+                            </li>
+                            <li>
+                                <p>This is similar to clicking &quot;continue to website&quot; in a browser when you get
+                                    a certificate warning</p>
+                            </li>
+                            <li>
+                                <p>Example:</p>
+                                <pre><code>./elastic-agent install [-other-flags-youll-see] --insecure
+</code></pre>
+                            </li>
+                            <li>
+                                <p>it should look like this screenshot:</p>
+                            </li>
+                        </ul>
+                    </li>
+                </ol>
+                <p><img src="/docs/imgs/insecure-powershell.png" alt="example-screenshot"></p>
+                <ol start="8">
+                    <li><strong>Execute the Command</strong>
+                        <ul>
+                            <li>Recommend running each line individually so you can see a clear picture of the status of
+                                each command ran. The entire process will download an agent, unzip it, and install it.
+                            </li>
+                        </ul>
+                    </li>
+                </ol>
+                <p>From Fleet you should see the agent enrolled now.</p>
+                <h1 id="lme-elastic-agent-integration-example">LME Elastic Agent Integration Example</h1>
+                <p>This guide will walk you through the process of adding a Windows integration to an agent policy in
+                    the LME system.</p>
+                <h2 id="steps-to-add-windows-integration">Steps to Add Windows Integration</h2>
+                <ol>
+                    <li>
+                        <p><strong>Access Fleet and Agent Policies</strong></p>
+                        <ul>
+                            <li>Open the LME dashboard</li>
+                            <li>Select &quot;Fleet&quot; from the menu</li>
+                            <li>Click on &quot;Agent policies&quot;</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Select the Target Policy</strong></p>
+                        <ul>
+                            <li>Choose the policy you want to add the integration to</li>
+                            <li>For example, select &quot;Endpoint Policy&quot;</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Add Integration</strong></p>
+                        <ul>
+                            <li>Click the &quot;Add integration&quot; button</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Choose Windows Integration</strong></p>
+                        <ul>
+                            <li>From the list of available integrations, select &quot;Windows&quot;</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Configure Windows Integration</strong></p>
+                        <ul>
+                            <li>Scroll down to review the options available</li>
+                            <li>You&#39;ll see various Windows logs and metrics that can be collected</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Customize Log Collection</strong></p>
+                        <ul>
+                            <li>Review the options set to on or off</li>
+                            <li>These options provide more choices for collecting Windows logs</li>
+                            <li>Important note: If you have Sysmon installed on your endpoints, ensure &quot;Sysmon
+                                Operational&quot; is selected to collect Sysmon logs</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Configure Metrics Collection</strong></p>
+                        <ul>
+                            <li>You can choose to collect various metrics from your Windows endpoints</li>
+                            <li>Review and enable the metrics you&#39;re interested in monitoring</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Save and Deploy</strong></p>
+                        <ul>
+                            <li>After configuring your desired options, save the integration</li>
+                            <li>Deploy the changes to apply them to the agents using this policy</li>
+                        </ul>
+                    </li>
+                </ol>
+                <h2 id="important-considerations">Important Considerations</h2>
+                <ul>
+                    <li><strong>Sysmon Integration</strong>: If you&#39;re using Sysmon for enhanced logging, make sure
+                        to enable the Sysmon Operational log collection.</li>
+                    <li><strong>Performance Impact</strong>: Be mindful that collecting more logs and metrics may impact
+                        endpoint performance. Balance your monitoring needs with system resources.</li>
+                    <li><strong>Regulatory Compliance</strong>: Consider any regulatory requirements you may have when
+                        selecting which logs and metrics to collect.</li>
+                    <li><strong>Storage Considerations</strong>: More data collection means more storage usage. Ensure
+                        your LME system has adequate storage capacity.</li>
+                    <li><strong>Review Regularly</strong>: Periodically review your integration settings to ensure they
+                        still meet your needs and adjust as necessary.</li>
+                </ul>
+                <p>By following these steps, you can effectively add and configure the Windows integration to your
+                    chosen agent policy in the LME system, allowing for comprehensive logging of your Windows endpoints.
+                </p>
+                <p>Apply these same steps to future integrations such as Auditd for Linux.</p>
+                <h2 id="troubleshooting-agent-setup">Troubleshooting Agent Setup:</h2>
+                <p>The Elastic agent has multiple debugging commands that can be run to troubleshoot installs. Please
+                    see the link <a
+                        href="https://www.elastic.co/guide/en/fleet/current/elastic-agent-cmd-options.html">HERE</a>.
+                </p>
+                <p>In addition, you can use this <a
+                        href="https://www.elastic.co/guide/en/fleet/current/installation-layout.html">link</a> to
+                    navigate/find the directories for where Elastic agent is installed on the operating system.</p>
+                <p>If there are issues with running the command involving a pipe file, the elastic endpoint service (a
+                    windows service started by the agent) is in a failed state, and retarting the machine will most
+                    likely fix it, check out this <a
+                        href="https://discuss.elastic.co/t/windows-pipe-elastic-agent-system-access-is-denied/316344">link</a>
+                    However, this isn&#39;t required if the agent is showing as healthy, only if you want to run other
+                    cli agent debugging commands.</p>
+
+
+                <h1 id="lme-wazuh-agent-enrollment-guide">LME Wazuh Agent Enrollment Guide</h1>
+                <ul>
+                    <li>See Official Wazuh Documentation <a
+                            href="https://documentation.wazuh.com/4.7/installation-guide/wazuh-agent/index.html">Wazuh
+                            agent install documentation</a>.</li>
+                </ul>
+                <p>This guide will walk you through the process of enrolling a Wazuh agent in the LME system.</p>
+                <h2 id="important-note">Important Note</h2>
+                <p>Ensure the Wazuh agent version you&#39;re installing is not newer than your Wazuh manager version, as
+                    this can cause compatibility issues.</p>
+                <h2 id="variables">Variables</h2>
+                <p>Throughout this guide, we&#39;ll use the following variables. Replace these with your specific
+                    values:</p>
+                <ul>
+                    <li><code>{WAZUH_AGENT_VERSION}</code>: The version of the Wazuh agent you&#39;re installing (e.g.,
+                        4.9.0-1)</li>
+                    <li><code>{WAZUH_MANAGER_IP}</code>: The IP address of your Wazuh manager (e.g., 10.0.0.2)</li>
+                </ul>
+                <p>You can get your wazuh version that you are running via the following command:</p>
+                <pre><code class="language-bash">sudo -i podman exec -it lme-wazuh-manager /var/ossec/bin/wazuh-control -j info | jq
+</code></pre>
+                <p>Output should look similar to this:</p>
+                <pre><code class="language-json">{
+  &quot;error&quot;: 0,
+  &quot;data&quot;: [
+    {
+      &quot;WAZUH_VERSION&quot;: &quot;v4.7.5&quot;
+    },
+    {
+      &quot;WAZUH_REVISION&quot;: &quot;40720&quot;
+    },
+    {
+      &quot;WAZUH_TYPE&quot;: &quot;server&quot;
+    }
+  ]
+}
+</code></pre>
+                <p>drop the v, and use <code>4.7.5-1</code>. You need to add a &quot;-1&quot; like wazuh expects.
+                    You can confirm the version is accurate with a list from wazuh&#39;s versions <a
+                        href="https://documentation.wazuh.com/current/installation-guide/packages-list.html">HERE</a>
+                </p>
+                <h2 id="steps-to-enroll-a-wazuh-agent-windows">Steps to Enroll a Wazuh Agent
+                    (<em><strong>Windows</strong></em>)</h2>
+                <ol>
+                    <li><strong>Download the Wazuh Agent</strong>
+                        <ul>
+                            <li>Download the Wazuh agent MSI installer from the following URL:
+                                <pre><code>https://packages.wazuh.com/4.x/windows/wazuh-agent-{WAZUH_AGENT_VERSION}.msi
+</code></pre>
+                            </li>
+                            <li>Replace <code>{WAZUH_AGENT_VERSION}</code> with the appropriate version number.</li>
+                            <li>You can also use the below powershell command:</li>
+                        </ul>
+                    </li>
+                </ol>
+                <pre><code class="language-powershell"># Replace the values with the values you have above
+# where {WAZUH_AGENT_VERSION}=4.7.5
+# where {WAZUH_MANAGER_IP}=10.1.0.5
+Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi;`
+Start-Process msiexec.exe -ArgumentList &#39;/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER=&quot;10.1.0.5&quot;&#39; -Wait -NoNewWindow
+</code></pre>
+                <ol start="2">
+                    <li>
+                        <p><strong>Install the Wazuh Agent</strong></p>
+                        <ul>
+                            <li>Open a command prompt with administrator privileges.</li>
+                            <li>Navigate to the directory containing the downloaded MSI file.</li>
+                            <li>Run the following command to install the agent:
+                                <pre><code class="language-powershell">wazuh-agent-{WAZUH_AGENT_VERSION}.msi /q WAZUH_MANAGER=&quot;{WAZUH_MANAGER_IP}&quot;
+</code></pre>
+                            </li>
+                            <li>Replace <code>{WAZUH_AGENT_VERSION}</code> with the version you downloaded.</li>
+                            <li>Replace <code>{WAZUH_MANAGER_IP}</code> with the IP address of your Wazuh manager.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Verify Installation</strong></p>
+                        <ul>
+                            <li>After installation, the Wazuh agent service should start automatically.</li>
+                            <li>You can verify the service status in the Windows Services manager.</li>
+                            <li>Ensure the service starts if it doesn&#39;t start automatically. Run this in a
+                                powershell terminal:</li>
+                        </ul>
+                        <pre><code class="language-powershell">NET START Wazuh
+</code></pre>
+                    </li>
+                </ol>
+                <h2 id="steps-to-enroll-a-wazuh-agent-debian-based-systems">Steps to Enroll a Wazuh Agent
+                    (<em><strong>Debian-based Systems</strong></em>)</h2>
+                <ol>
+                    <li>
+                        <p><strong>Add Wazuh GPG key</strong></p>
+                        <pre><code class="language-bash">curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import &amp;&amp; chmod 644 /usr/share/keyrings/wazuh.gpg
+</code></pre>
+                    </li>
+                    <li>
+                        <p><strong>Add Wazuh repository</strong></p>
+                        <pre><code class="language-bash">echo &quot;deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main&quot; | tee -a /etc/apt/sources.list.d/wazuh.list
+</code></pre>
+                    </li>
+                    <li>
+                        <p><strong>Update package information</strong></p>
+                        <pre><code class="language-bash">apt-get update
+</code></pre>
+                    </li>
+                    <li>
+                        <p><strong>Install Wazuh agent and configure Wazuh Manager IP variable</strong></p>
+                        <pre><code class="language-bash">WAZUH_MANAGER=&quot;{WAZUH_MANAGER_IP}&quot; apt-get install wazuh-agent={WAZUH_AGENT_VERSION} &amp;&amp; sed -i &#39;s/MANAGER_IP/{WAZUH_MANAGER_IP}/i&#39; /var/ossec/etc/ossec.conf
+</code></pre>
+                        <p>For example: </p>
+                        <pre><code class="language-bash">WAZUH_MANAGER=10.0.0.15 apt-get install wazuh-agent=4.7.5-1 &amp;&amp; sed -i &#39;s/MANAGER_IP/10.0.0.15/i&#39; /var/ossec/etc/ossec.conf
+</code></pre>
+                    </li>
+                </ol>
+                <h2 id="verifying-installation">Verifying Installation</h2>
+                <p>After installation, you can check the status of the Wazuh agent:</p>
+                <pre><code class="language-bash">systemctl status wazuh-agent
+</code></pre>
+                <h2 id="troubleshooting">Troubleshooting</h2>
+                <p>If it doesn&#39;t start attempt the following: </p>
+                <pre><code class="language-bash">systemctl daemon-reload
+systemctl enable wazuh-agent
+systemctl start wazuh-agent
+</code></pre>
+                <ul>
+                    <li>If the agent fails to connect, check your firewall settings to ensure the necessary ports are
+                        open. <a href="https://documentation.wazuh.com/current/getting-started/architecture.html">Wazuh
+                            Ports Documentation</a></li>
+                    <li>Verify that the Wazuh manager IP address is correct and reachable from the agent. This is the IP
+                        address of your LME server running the containers.</li>
+                </ul>
+                <p>By following these steps, you should be able to successfully enroll Wazuh agents into your LME
+                    system. Remember to keep your agents updated, but always ensure compatibility with your Wazuh
+                    manager version.</p>
+                <h1 id="verifying-wazuh-agent-status">Verifying Wazuh Agent Status</h1>
+                <p>This guide provides steps to check the status of Wazuh agents in the LME setup. These commands can be
+                    run from the host system without needing to execute into the container.</p>
+                <h2 id="listing-all-agents-and-their-status">Listing All Agents and Their Status</h2>
+                <p>To get an overview of all registered agents and their current status:</p>
+                <pre><code class="language-bash">sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
+</code></pre>
+                <p>This command will display a list of all agents, including their ID, name, IP address, and current
+                    status (active, disconnected, never connected, etc.).</p>
+                <h2 id="checking-status-of-a-specific-agent">Checking Status of a Specific Agent</h2>
+                <p>To check the detailed status of a specific agent:</p>
+                <pre><code class="language-bash">sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -i [agent_id]
+</code></pre>
+                <p>Replace <code>[agent_id]</code> with the ID of the agent you want to check. This will provide more
+                    detailed information about the agent, including its last keep alive time, version, and operating
+                    system.</p>
+                <p>This command gives you a quick overview of how many agents are active, disconnected, or never
+                    connected.</p>
+                <p>See official Wazuh documentation for more steps on <a
+                        href="https://documentation.wazuh.com/current/user-manual/reference/tools/agent-control.html">agent_control</a>
+                </p>
+
+                <h1 id="example-setup-for-wazuh-active-response">Example Setup for Wazuh Active Response</h1>
+                <p>This guide summarizes how to configure Wazuh&#39;s active response to defend against SSH brute-force
+                    attacks.</p>
+                <h2 id="overview">Overview</h2>
+                <p>Wazuh can automatically block IP addresses attempting SSH brute-force attacks using its active
+                    response module. This feature executes scripts on monitored endpoints when specific triggers occur.
+                </p>
+                <h2 id="configuration-steps">Configuration Steps</h2>
+                <ol>
+                    <li>
+                        <p><strong>Verify Default Script</strong>:</p>
+                        <ul>
+                            <li>Check for <code>firewall-drop</code> script in
+                                <code>/var/ossec/active-response/bin/</code> on Linux/Unix systems.
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Configure Command in wazuh_manager.conf</strong>: Note this command (firewall-drop)
+                            already exists. But you can create custom scripts located in the active response/bin path
+                            and add new commands into the .conf file located at wazuh_manger.conf located at
+                            /opt/lme/config/wazuh_cluster/wazuh_manager.conf</p>
+                        <pre><code class="language-xml">&lt;command&gt;
+  &lt;name&gt;firewall-drop&lt;/name&gt;
+  &lt;executable&gt;firewall-drop&lt;/executable&gt;
+  &lt;timeout_allowed&gt;yes&lt;/timeout_allowed&gt;
+&lt;/command&gt;
+</code></pre>
+                    </li>
+                    <li>
+                        <p><strong>Set Up Active Response</strong>: Looks for the section that says
+                            &quot;active-response options here&quot; in the .conf file. Copy and paste the entire
+                            configuration below that commented out line. You can continue to add more active response
+                            configs below that line.</p>
+                        <pre><code class="language-xml">&lt;active-response&gt;
+  &lt;command&gt;firewall-drop&lt;/command&gt;
+  &lt;location&gt;local&lt;/location&gt;
+  &lt;rules_id&gt;5763&lt;/rules_id&gt;
+  &lt;timeout&gt;180&lt;/timeout&gt;
+&lt;/active-response&gt;
+</code></pre>
+                        <ul>
+                            <li>This configures a local response, triggering on rule 5763 (SSH brute-force detection),
+                                with a 180-second block.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <p><strong>Restart Wazuh Manager</strong>:</p>
+                        <pre><code class="language-bash">podman restart lme-wazuh-manager
+</code></pre>
+                    </li>
+                </ol>
+                <h2 id="how-it-works">How It Works</h2>
+                <ul>
+                    <li>When rule 5763 triggers (detecting SSH brute-force attempts), the <code>firewall-drop</code>
+                        script executes.</li>
+                    <li>The script uses iptables to block the attacker&#39;s IP address for the specified timeout
+                        period.</li>
+                    <li>Wazuh logs the action in <code>/var/ossec/logs/active-responses.log</code>.</li>
+                </ul>
+                <h2 id="monitoring">Monitoring</h2>
+                <ul>
+                    <li>Wazuh dashboard displays alerts when rule 5763 triggers and when an active response occurs.</li>
+                    <li>The active response alert is typically associated with rule ID 651. These alerts will be
+                        displayed in Kibana in the wazuh alerts dashboard.</li>
+                </ul>
+                <h2 id="testing">Testing</h2>
+                <ol>
+                    <li>Use a tool like Hydra to simulate a brute-force attack, or you can attempt to SSH into the
+                        machine multiple times until it triggers. You will need eight failed SSH attempts to trigger
+                        Brute Force. (This can be adjusted in the ruleset manually)</li>
+                    <li>Verify that the attacker&#39;s IP is blocked by attempting to ping the target machine.</li>
+                </ol>
+                <h2 id="custom-responses">Custom Responses</h2>
+                <ul>
+                    <li>You can create custom scripts for different actions.</li>
+                    <li>For custom scripts, ensure you create corresponding rules to analyze the generated logs.</li>
+                </ul>
+                <p>This setup provides an automated defense against SSH brute-force attacks, enhancing the security of
+                    your Linux/Unix systems monitored by Wazuh.</p>
+                <p>See a list of Wazuh Rules that trigger here: <a
+                        href="https://github.com/wazuh/wazuh/tree/master/ruleset/rules">Wazuh Ruleset</a></p>
+                <p>Consult Wazuh Documentation for more on active response configuration.</p>
+</div>
+</section>
+        </main>
+        </div>
+
+</html>
