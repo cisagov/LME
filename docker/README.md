@@ -1,13 +1,18 @@
 # LME Docker Setup
+This guide is for setting up the LME container using Docker. It is NOT persistent, which means you will need to run, and rebuild, the container again after stopping it.
+It is for testing purposes only, so you can easily install and examine the parts of the LME stack.
+
 All commands in this guide should be run from the `LME/docker` directory of the repository.
-At this point you can choose 22.04 or 24.04 directories to build the container.
+You can choose either the 22.04 or 24.04 directories to build the container.
+
 
 ## Prerequisites
 
-- Docker 
-- Docker Compose
+- A current version of Docker which should include Docker compose (there is an installer script for ubuntu in the `docker` directory)
 - At least 20GB of RAM 
 - 100GB of disk space preferred
+
+Note: We have installed Docker desktop on Windows and Linux and have been able to build and run the container.
 
 ### Special Windows/Linux VM Configuration
 If running Linux on a hypervisor or virtual machine, you may need to modify the GRUB configuration in your VM:
@@ -25,12 +30,16 @@ sudo reboot
 
 ## Building and Running LME
 
-1. Build the container (this may take several minutes):
+1. Cd to the version you want to run and build the container (this may take several minutes):
 ```bash
 docker compose build
 ```
-
-2. Start the container:
+2. Edit environment.sh to set the IP address of the host machine that you will access the LME UI from.
+Set this variable to the ip of the host machine. 
+```bash
+export HOST_IP=192.168.50.205
+```
+3. Start the container:
 ```bash
 docker compose up -d
 ```
@@ -40,12 +49,19 @@ docker compose up -d
 The initial LME setup can take 15-30 minutes to complete. Here are ways to monitor the progress:
 
 ### View Setup Logs
-Watch the detailed setup logs:
+Watch the detailed setup logs and wait for it to report that the setup is complete:
 ```bash
 docker compose exec lme journalctl -u lme-setup -f -o cat --no-hostname
 ```
+When the setup is complete, you will see something like this:
+```bash
+Setup completed at Tue Feb 11 12:42:30 PM UTC 2025
+First-time initialization complete.
+Finished LME Setup Service.
+```
 
 ### Check Setup Status
+This will check the status of the setup and report if it is complete, but it doesn't report the progress.
 Check the current setup status:
 
 #### Linux:
@@ -68,9 +84,10 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ## Accessing the Container
 
 ### List Running Containers
+These must be run in the directory of the version you are using.
 View all running containers:
 ```bash
-docker ps
+docker compose ps
 ```
 
 ### Access Container Shell
@@ -78,6 +95,22 @@ Enter the running container:
 ```bash
 docker compose exec lme bash
 ```
+This will give you a root shell into the container. 
+
+### Getting passwords for the users
+The passwords for the users are accessed by running the following command:
+```bash
+docker compose exec lme bash -c "/root/LME/scripts/extract_secrets.sh -p"
+```
+The user and password for the LME UI are:
+```bash
+elastic=password_printed_in_the_last_command
+# user: elastic
+# password: password_printed_in_the_last_command
+```
+
+### Access the LME UI
+The LME UI is available at https://localhost
 
 ### Stop the Container
 When you're done:
@@ -94,7 +127,7 @@ docker compose logs lme
 
 - If you need to rebuild from scratch:
 ```bash
-docker compose down
+docker compose down -v 
 docker compose build --no-cache
 docker compose up -d
 ```

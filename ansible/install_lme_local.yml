@@ -6,6 +6,8 @@
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "root"
+    storage_runroot: "{{ storage_runroot | default('/run/containers/storage') }}"
+    storage_graphroot: "{{ storage_graphroot | default('/var/lib/containers/storage') }}"
   tags: ['base', 'all']
 
   tasks:
@@ -226,8 +228,8 @@
         content: |
           [storage]
           driver = "overlay"
-          runroot =  "/run/containers/storage"
-          graphroot = "/var/lib/containers/storage"
+          runroot = "{{ storage_runroot | default('/run/containers/storage') }}"
+          graphroot = "{{ storage_graphroot | default('/var/lib/containers/storage') }}"
 
           [storage.options.overlay]
           mount_program = "/usr/bin/fuse-overlayfs"
