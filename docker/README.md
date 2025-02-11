@@ -1,4 +1,6 @@
 # LME Docker Setup
+Download and unzip the latest release of LME from the [releases page](https://github.com/cisagov/lme/releases) into your home directory.
+
 This guide is for setting up the LME container using Docker. It is NOT persistent, which means you will need to run, and rebuild, the container again after stopping it.
 It is for testing purposes only, so you can easily install and examine the parts of the LME stack.
 
@@ -14,7 +16,7 @@ You can choose either the 22.04 or 24.04 directories to build the container.
 
 Note: We have installed Docker desktop on Windows and Linux and have been able to build and run the container.
 
-### Special Windows/Linux VM Configuration
+### Special instructions for Windows running Linux
 If running Linux on a hypervisor or virtual machine, you may need to modify the GRUB configuration in your VM:
 
 1. Add the following to the `GRUB_CMDLINE_LINUX` line in `/etc/default/grub`:
@@ -30,7 +32,7 @@ sudo reboot
 
 ## Building and Running LME
 
-1. Cd to the version you want to run and build the container (this may take several minutes):
+1. Cd to the version you want to run (eg `cd LME/docker/22.04`) and build the container (this may take several minutes):
 ```bash
 docker compose build
 ```
@@ -95,7 +97,9 @@ Enter the running container:
 ```bash
 docker compose exec lme bash
 ```
-This will give you a root shell into the container. 
+This will give you a root shell into the container and you can follow the instructions on the main readme about how 
+to check containers within the container. In the [main readme](https://github.com/cisagov/lme?tab=readme-ov-file#table-of-contents)  
+locate the "Verification Post-Install:" section and the directions that follow.
 
 ### Getting passwords for the users
 The passwords for the users are accessed by running the following command:
