@@ -13,6 +13,7 @@ if [ ! -f "$INIT_FLAG" ]; then
 
     # Update IPVAR in the environment file with the passed HOST_IP
     if [ ! -z "$HOST_IP" ]; then
+        echo "Using HOST_IP: $HOST_IP"
         sed -i "s/IPVAR=.*/IPVAR=$HOST_IP/" /root/LME/config/lme-environment.env
         export IPVAR=$HOST_IP
     else
@@ -25,7 +26,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     echo "Starting system setup at $(date)"
     time ansible-playbook install_lme_local.yml --tags system
     echo "Starting post-install setup at $(date)"
-    time ansible-playbook post_install_local.yml -e "IPVAR=$IPVAR"
+    time ansible-playbook post_install_local.yml -e "IPVAR=$IPVAR" -e "debug_mode=true"
     echo "Setup completed at $(date)"
     
     # Create flag file to indicate initialization is complete
