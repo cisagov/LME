@@ -46,7 +46,7 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 3. [Downloading and Installing LME:](#2-downloading-and-installing-lme)
 4. [Whats Next?:](#3-whats-next?)
 5. [Documentation:](#4-documentation)
-5. [Developer Notes](#5-developer-notes)
+6. [Developer Notes](#5-developer-notes)
 
 
 ## 1. What is LME?: 
@@ -326,6 +326,7 @@ We're doing our best to have regular updates that add new and/or requested featu
  - [Architecture](/docs/markdown/reference/architecture.md)
  - [Configuration Customization Options](/docs/markdown/reference/configuration.md)
  - [Password Maintenance](/docs/markdown/reference/passwords.md)
+ - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
 
 ## Maintenance:
  - [Alerting](/docs/markdown/maintenance/elastalert-rules.md)
