@@ -212,6 +212,14 @@
 
         mode: '0600'
 
+    - name: Create /etc/containers
+      file:
+        path: /etc/containers/
+        state: directory
+        owner: "root"
+        group: "root"
+        mode: '0744'
+
     - name: setup global overlay-fs usage
       copy:
         dest: "{{ global_storage_conf }}"
