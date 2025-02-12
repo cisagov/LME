@@ -36,7 +36,8 @@ sudo reboot
 ```bash
 docker compose build
 ```
-2. Edit environment.sh to set the IP address of the host machine that you will access the LME UI from.
+2. Copy the  environment_example.sh file to environment.sh and set the IP address of the host machine that you will access the LME UI from.
+
 Set this variable to the ip of the host machine. 
 ```bash
 export HOST_IP=192.168.50.205
