@@ -44,7 +44,7 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 1. [What is LME?](#1-what-is-lme)
 2. [Prerequisites](#2-prerequisites)
 3. [Downloading and Installing LME](#3-downloading-and-installing-lme)
-    1. [Downloading LME:](#1-downloading-lme)
+    1. [Downloading LME](#1-downloading-lme)
     2. [Configuration](#2-configuration)
     3. [Installation](#3-installation)
     4. [Post-Installation Steps](#4-post-installation-steps)
@@ -54,8 +54,8 @@ Your input is essential to the continuous improvement of LME and to ensure it be
     1. [Retrieving Passwords](#retrieving-passwords-passwords)
     2. [Starting and Stopping LME](#starting-and-stopping-lme)
     3. [Uninstall LME](#uninstall-lme)
-5. [Documentation:](#4-documentation)
-6. [Developer Notes](#5-developer-notes)
+5. [Documentation:](#5-documentation)
+6. [Developer Notes](#6-developer-notes)
 
 
 ## 1. What is LME?: 
@@ -350,7 +350,7 @@ We're doing our best to have regular updates that add new and/or requested featu
 3. [Backups](/docs/markdown/maintenance/backups.md): Customizing backups of logs for your organizations own compliance needs.
 4. [Custom log types](/docs/markdown/agents/elastic-agent-mangement.md#lme-elastic-agent-integration-example): using elastic agents built in [integrations](https://www.elastic.co/guide/en/integrations/current/index.html) ingest a log type specific to your organization.
  
-# 4. Documentation:
+# 5. Documentation:
 
 ## Logging Guidance
  - [LME in the Cloud](/docs/markdown/logging-guidance/cloud.md)
@@ -395,7 +395,7 @@ Consider adding them to Windows/Linux.
 ### Linux:
  - [Auditd](/docs/markdown/endpoint-tools/install-auditd.md)
 
-# 5. Developer notes:
+# 6. Developer notes:
 Git clone and git checkout your development branch on the server:
 
 ```bash
