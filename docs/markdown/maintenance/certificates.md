@@ -1,5 +1,5 @@
 # Certificates
-# 
+ 
 The LME installation makes use of a number of TLS certificates to protect communications between the server components and agents, and also secures the connections between Elasticsearch and Kibana. 
 By default the installation will create certificates and this documentation describes how to modify and update the cert store.
 
