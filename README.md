@@ -41,10 +41,19 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 
 
 ## Table of Contents:
-1. [What is LME?:](#1-what-is-lme?)
-2. [Prerequisites:](#1-prerequisites)
-3. [Downloading and Installing LME:](#2-downloading-and-installing-lme)
-4. [Whats Next?:](#3-whats-next?)
+1. [What is LME?](#1-what-is-lme)
+2. [Prerequisites](#2-prerequisites)
+3. [Downloading and Installing LME](#3-downloading-and-installing-lme)
+    1. [Downloading LME:](#1-downloading-lme)
+    2. [Configuration](#2-configuration)
+    3. [Installation](#3-installation)
+    4. [Post-Installation Steps](#4-post-installation-steps)
+    5. [Deploying Agents](#5-deploying-agents)
+    6. [Installing Sysmon](#6-installing-sysmon-windows-clients-only)
+4. [Next Steps](#4-next-steps)
+    1. [Retrieving Passwords](#retrieving-passwords-passwords)
+    2. [Starting and Stopping LME](#starting-and-stopping-lme)
+    3. [Uninstall LME](#uninstall-lme)
 5. [Documentation:](#4-documentation)
 6. [Developer Notes](#5-developer-notes)
 
@@ -114,51 +123,48 @@ We estimate that you should allow half an hour to complete the entire installati
 | Install Sysmon 			| 1:04.34 	| 25:17.99 	|
 | Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
-## 3. Downloading and Installing LME:
-LME now includes Ansible scripts to automate the installation process, making deployment faster and more efficient. Our installation guide video is coming soon. When the video is released, you will find the link to it here.
-
-These steps will guide you through setting up LME on your Ubuntu 22.04 server, ensuring a smooth and secure deployment.
+## 3. Downloading and Installing LME
+This guide provides step-by-step instructions for downloading, configuring, and installing LME on an Ubuntu 22.04 server.
 
 **Note:** LME has been extensively tested on Ubuntu 22.04. While it can run on other Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
 
 **Upgrading**:
 If you are upgrading from an older version of LME to LME 2.0, please see our [upgrade documentation](/docs/markdown/maintenance/upgrading.md).
 
-### 1. Downloading LME:
-The following steps assume you're starting from a downloaded or cloned directory of LME on your Ubuntu 22.04 server.
+### 1. Downloading LME
+Follow these steps to download and set up LME:
 
-We suggest you install the latest release version of LME using the following commands: 
-
-**1. Install Requirements**
-```
+#### 1.1 Install Prerequisites
+Update your package list and install the necessary tools:
+```bash
 sudo apt update && sudo apt install curl jq unzip -y
 ```
 
-**2. Download and Unzip the latest version of LME**
-This will add a path to ~/LME with all required files.
-```
+#### 1.2 Download and Extract LME
+Download the latest release of LME and extract it to `~/LME`:
+```bash
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
 
-### 2. Configuration 
+### 2. Configuration
 
-The configuration files are located in `~/LME/config/`. These steps will guide you through setting up LME.
+Configure LME by following these steps:
 
-Get your IP address via the following command. This IP should be the IP address clients will forward logs to, and should be reachable from all clients you would like to log from.
-```
+#### 2.1 Retrieve Server IP Address
+Obtain your server's IP address, which will be used by clients to forward logs:
+```bash
 hostname -I | awk '{print $1}'
 ```
 
-Setup the environment with your new ip address via the following  steps:
-```
-#change directory to ~/LME or whatever your download directory is above
+#### 2.2 Set Up Environment Variables
+Navigate to the LME directory and copy the example environment file:
+```bash
 cd ~/LME 
 cp ./config/example.env ./config/lme-environment.env
 ```
-
-In the new `lme-environment.env` file, update IPVAR to the ip you got in the above command, using your text editor of choice:
+Edit the `lme-environment.env` file to update the `IPVAR` variable with your server's IP address:
 ```shell
-IPVAR=127.0.0.1 #your hosts ip 
+IPVAR=127.0.0.1 # Replace with your server's IP address
 ```
 
 For example open and edit the file via nano: 
@@ -168,21 +174,28 @@ nano ./config/lme-environment.env
 
 
 ### 3. Installation
-This assumes that you have the repo in `~/LME/`. If you have deviated from our instructions, jump to our [notes on non-default installation](#non-default-installation-notes)
+Install LME by following these steps:
+
+#### 3.1 Install Ansible
+Install Ansible to manage the installation process:
 ```bash
 sudo apt update && sudo apt install -y ansible
-# cd ~/LME/lme-2-arch # Or path to your clone of this repo
-ansible-playbook ./ansible/install_lme_local.yml
 ```
 
-**----The services can take a while to start give it a few minutes before assuming things are broken----**
+#### 3.2 Execute the Installation Playbook
+Run the Ansible playbook from within your LME directory to install LME:
+```bash
+ansible-playbook ./ansible/install_lme_local.yml
+```
+<span style="color:orange">**Note**: The services may take a few minutes to start. Please be patient.</span>
 
-Check that containers are running and healthy. This command will also print container names!
+#### 3.3 Verify Container Status
+Check that the containers are running and healthy:
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
 ```  
 
-You should see output like this, if you don't please attempt these [troubleshooting steps](/docs/markdown/reference/troubleshooting.md#installation-troubleshooting)
+Expected output:
 ```shell
 lme-elasticsearch Up 19 hours (healthy)
 lme-wazuh-manager Up 19 hours
@@ -191,20 +204,23 @@ lme-fleet-server Up 19 hours
 lme-elastalert2 Up 17 hours
 ```
 
+**Note:** If the output differs, refer to the [troubleshooting guide](/docs/markdown/reference/troubleshooting.md#installation-troubleshooting).
+
 Proceed to Post-Installation steps.
 
-### 4. Post installation steps:
+### 4. Post-Installation Steps
 
-If you encounter any issues, try running through our post-installation [troubleshooting steps](/docs/markdown/reference/troubleshooting.md#post-installation-troubleshooting)
+If you encounter any issues, refer to the post-installation [troubleshooting guide](/docs/markdown/reference/troubleshooting.md#post-installation-troubleshooting).
 
+#### 4.1 Execute the Post-Installation Playbook
+Run the post-installation playbook:
 ```bash
 ansible-playbook ./ansible/post_install_local.yml
 ```
 
-**IMPORTANT**: The post-install script will setup the password for a `readonly_user` to use with analysts that want to query/hunt in Elasticsearch, but doesn't need access to administrator functionality.
-The end of the script will output the password of the read only user... be sure to save that somewhere.
+<span style="color:red">**Important**: The post-install script sets up the password for a `readonly_user` account, intended for analysts who need to query Elasticsearch without administrative access. The script will output the password at the end. Ensure you save this password securely.</span>
 
-Here's an example where the password is `oz9vLny0fB3HA8S2hH!FLZ06TvpaCq`. Every time this script is run that password for the readonly user will be changed, so be careful to make sure you only run this when you need to, ideally one time.
+Example output:
 ```bash
 TASK [DISPLAY NEW READONLY USER PASSWORD] ***************************************************************************************************************************************
 ok: [localhost] => {
@@ -215,76 +231,99 @@ ok: [localhost] => {
     localhost                  : ok=27   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0
     
 ```
+<span style="color:orange">**Note:** The password for the `readonly_user` will change each time this script is run. Run this script only when necessary, ideally just once.</span>
 
-### 5. Deploying Agents: 
-Now that LME is installed, to actually get data in dashboards we have to install agents. 
 
-We have guides on deploying Wazuh and Elastic in separate docs, please see links below (Eventually, LME will automate these steps in a future release): 
+### 5. Deploying Agents 
+To populate the dashboards with data, you need to install agents. Detailed guides for deploying Wazuh and Elastic agents are available in the following documents:
 
  - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
  - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
 
-### 6. (ONLY FOR WINDOWS CLIENTS) Installing Sysmon:
 
-On windows, to get the best logs from the client (and get proper data in our dashboards), you'll need to install sysmon.  
+### 6. Installing Sysmon (Windows Clients Only)
+For Windows clients, installing Sysmon is essential to obtain comprehensive logs and ensure proper data visualization in the dashboards. Follow these steps to install Sysmon on each Windows client machine:
 
-Sysmon provides valuable logs for windows computers. For each of your windows client machines, install Sysmon like so:
+1. Download and unzip the LME folder on the Windows client.
+2. Run the following command in an Administrator PowerShell session from inside the unzipped folder:
+   ```powershell
+   .\scripts\install_sysmon.ps1
+   ```
 
-1. Download LME and unzip the folder. 
-2. From inside the unzipped folder, run the following command in Administrator Powershell:
-```
-.\scripts\install_sysmon.ps1
-```
-
-To run this powershell script, you may need to temporarily set the powershell script execution policy to "Unrestricted" which lets Windows execute downloaded powershell scripts. You can do that with the following command:
-```
+You may need to temporarily set the PowerShell script execution policy to "Unrestricted" to allow the execution of downloaded scripts. Use the following command to do so:
+```powershell
 Set-ExecutionPolicy Unrestricted
 ```
 
-## 3. Whats next?:
-See some common questions below and check out our [documentation](#4-documentation) for further notes:
+## 4. Next Steps
 
-### Grabbing Passwords: 
-To view the appropriate service user password run the following commands:
-```
+Refer to the common questions below and consult our [documentation](#4-documentation) for additional information.
+
+### Retrieving Passwords Passwords: 
+To view the service user passwords, run the following command:
+```bash
 $CLONE_DIRECTORY/scripts/extract_secrets.sh -p
 ```
-If you'd like more documentation around passwords see [here](/docs/markdown/reference/passwords.md)
+For more information about passwords, see [here](/docs/markdown/reference/passwords.md).
 
-### Starting/Stopping LME:
+### Starting and Stopping LME:
+To manage the LME services, use the following commands:
+- **Stop all LME services:**
+  ```bash
+  sudo -i systemctl stop lme.service
+  ```
 
-To stop all of LME: 
-```bash
-sudo -i systemctl stop lme.service
-```
+- **Restart all LME services:**
+  ```bash
+  sudo -i systemctl restart lme.service
+  ```
 
-To restart all of LME: 
-```bash
-sudo -i systemctl restart lme.service
-```
+- **Start all LME services:**
+  ```bash
+  sudo -i systemctl start lme.service
+  ```
 
-To start all of LME:
-```bash
-sudo -i systemctl start lme.service
-```
-
-### Uninstall
-This walks through how to completely uninstall LME's services and data. 
-
-The dependencies will not be removed this way, if desired we can add that to the documentation, and you can consult the ansible scripts to see what was installed, and remove the created directories.
+### Uninstall LME
+To completely uninstall LME's services and data, follow these steps. Note that dependencies will not be removed. You can consult the Ansible scripts to identify and remove the installed dependencies and created directories if desired.
  
-To uninstall everything:  
-**WARNING THIS WILL DELETE EVERYTHING!!!**  
-``` bash
-sudo -i -u root 
-systemctl stop lme* && systemctl reset-failed && podman volume rm -a &&  podman secret rm -a && rm -rf /opt/lme && rm -rf /etc/lme && rm -rf /etc/containers/systemd
-#reset podman, DON'T RUN THIS IF YOU HAVE OTHER PODMAN CONTAINERS!
-sudo -i podman system reset --force
-```
-**WARNING THIS WILL DELETE EVERYTHING!!!**  
+<span style="color:red">**Warning: This will delete all LME data and services.**</span>
 
-#### To stop/optionally uninstall things:
-1. Stop lme services: 
+#### Complete Uninstall
+
+1. **Stop LME services:**
+   ```bash
+   sudo systemctl stop lme*
+   ```
+
+2. **Reset systemd service states:**
+   ```bash
+   sudo systemctl reset-failed
+   ```
+
+3. **Remove all Podman volumes:**
+   ```bash
+   sudo -i podman volume rm -a
+   ```
+
+4. **Remove all Podman secrets:**
+   ```bash
+   sudo -i podman secret rm -a
+   ```
+
+5. **Delete LME directories:**
+   ```bash
+   sudo rm -rf /opt/lme /etc/lme /etc/containers/systemd
+   ```
+
+6. **Reset Podman <span style="color:red">(Do not run this if you have other Podman containers)</span>:**
+   ```bash
+   sudo -i podman system reset --force
+   ```
+
+<span style="color:red">**Warning: This will delete all LME data and services.**</span>
+
+#### Optional Uninstall Steps
+1. **Stop LME services:**
 ```bash
 sudo systemctl stop lme*
 sudo systemctl disable lme.service
@@ -292,18 +331,17 @@ sudo -i podman stop $(sudo -i podman ps -aq)
 sudo -i podman rm $(sudo -i podman ps -aq)
 ```
 
-2. To delete only lme volumes:
-```bash
-sudo -i podman volume ls --format "{{.Name}}" | grep lme | xargs podman volume rm
-```
-or
-To delete all volumes: 
-```bash
-sudo -i podman volume rm -a
-```
+2. **Delete LME volumes:**
+   - To delete only LME volumes:
+     ```bash
+     sudo -i podman volume ls --format "{{.Name}}" | grep lme | xargs podman volume rm
+     ```
+   - To delete all volumes:
+     ```bash
+     sudo -i podman volume rm -a
+     ```
  
- 
- 
+
 ### Customizing LME: 
 We're doing our best to have regular updates that add new and/or requested features. A few ideas for customizing your installation to your needs. Please see the appropriate section of our documentation for more information on each topic.
 
