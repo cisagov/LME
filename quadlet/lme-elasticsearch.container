@@ -8,6 +8,7 @@ PartOf=lme.service
 [Service]
 Restart=always
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+TimeoutStartSec=5400
 
 [Install]
 WantedBy=default.target lme.service

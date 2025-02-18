@@ -130,7 +130,7 @@
 
     - name: Debug wait_for results
       debug:
-        msg: 
+        msg:
           - "State: {{ kibana_port_check.state }}"
           - "Full result: {{ kibana_port_check }}"
       when: debug_mode | bool
@@ -284,7 +284,7 @@
       register: kibana_status
       until: kibana_status.status == 200 and kibana_status.json.status.overall.level == "available"
       retries: 36  # With a 10 second delay, this gives us 6 minutes total
-      delay: 10 
+      delay: 10
       no_log: "{{ not debug_mode }}"
 
     - name: Debug Kibana status
@@ -358,7 +358,7 @@
 
     - name: Debug endpoint_policy_result
       debug:
-        var: endpoint_policy_result 
+        var: endpoint_policy_result
 
     - name: Set policy ID fact for new policy
       set_fact:
@@ -380,12 +380,12 @@
 
     - name: Debug existing_policies
       debug:
-        var: existing_policies 
+        var: existing_policies
 
     - name: Set policy ID fact for existing policy
       set_fact:
         policy_id: "{{ item.id }}"
-      when: 
+      when:
         - endpoint_policy_result.status == 409
         - item.name == 'Endpoint Policy'
       loop: "{{ existing_policies.json['items'] | list }}"
@@ -423,7 +423,6 @@
         headers: "{{ headers }}"
         body_format: json
         timeout: 600
-        status_code: [200, 409]
         body:
           name: "Elastic Defend"
           description: ""
