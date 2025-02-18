@@ -323,7 +323,7 @@
         state: restarted
         daemon_reload: yes
       become: yes
-      
+
   tasks:
     - name: Ensure Nix daemon is running
       systemd:
@@ -338,7 +338,7 @@
         timeout: 10
       when: ansible_play_hosts_all.index(inventory_hostname) == 0
 
-    - name: Install Podman using Nix 
+    - name: Install Podman using Nix
       command: nix-env -iA nixpkgs.podman
       become: yes
       environment:
@@ -478,6 +478,8 @@
       args:
         executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
+      environment:
+        PATH: "{{ ansible_env.PATH }}"
       become: yes
 
     - name: Tag containers
