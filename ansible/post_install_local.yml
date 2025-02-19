@@ -130,7 +130,7 @@
 
     - name: Debug wait_for results
       debug:
-        msg:
+        msg: 
           - "State: {{ kibana_port_check.state }}"
           - "Full result: {{ kibana_port_check }}"
       when: debug_mode | bool
@@ -382,6 +382,7 @@
       debug:
         var: existing_policies
 
+
     - name: Set policy ID fact for existing policy
       set_fact:
         policy_id: "{{ item.id }}"
@@ -423,6 +424,7 @@
         headers: "{{ headers }}"
         body_format: json
         timeout: 600
+        status_code: [200, 409]
         body:
           name: "Elastic Defend"
           description: ""
