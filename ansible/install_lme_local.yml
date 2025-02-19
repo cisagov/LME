@@ -230,7 +230,6 @@
           driver = "overlay"
           runroot = "{{ storage_runroot | default('/run/containers/storage') }}"
           graphroot = "{{ storage_graphroot | default('/var/lib/containers/storage') }}"
-
           [storage.options.overlay]
           mount_program = "/usr/bin/fuse-overlayfs"
 
@@ -323,7 +322,6 @@
         state: restarted
         daemon_reload: yes
       become: yes
-
   tasks:
     - name: Ensure Nix daemon is running
       systemd:
@@ -478,8 +476,6 @@
       args:
         executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
-      environment:
-        PATH: "{{ ansible_env.PATH }}"
       become: yes
 
     - name: Tag containers
