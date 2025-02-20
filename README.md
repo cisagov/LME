@@ -58,7 +58,7 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 6. [Developer Notes](#6-developer-notes)
 
 
-## 1. What is LME?: 
+## 1. What is LME? 
 For more precise understanding of LME's architecture please see our [architecture documentation](/docs/markdown/reference/architecture.md).
 
 ### Description:
