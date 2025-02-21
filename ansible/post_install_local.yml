@@ -124,9 +124,12 @@
         validate_certs: no
         status_code: 200
       register: kibana_status
-      until: kibana_status.status == 200 and kibana_status.json.status.overall.level == "available"
-      retries: 60  # Increase retries
-      delay: 20
+      until: >
+        kibana_status.status == 200 and 
+        kibana_status.json.status.overall.level == "available" and 
+        kibana_status.json.status.core.elasticsearch.level == "available"
+      retries: 60  
+      delay: 20    # Increase delay between retries
       no_log: "{{ not debug_mode }}"
 
     - name: Enable Fleet in Kibana
@@ -143,7 +146,7 @@
         status_code: [200, 409]  # 409 means already set up
       register: fleet_setup
       until: fleet_setup.status in [200, 409]
-      retries: 36  # 6 minutes with 10 second delay
+      retries: 48  # Increase to 8 minutes
       delay: 20
       no_log: "{{ not debug_mode }}"
 
@@ -151,6 +154,35 @@
       debug:
         msg: "Fleet setup response: {{ fleet_setup }}"
       when: debug_mode | bool
+
+    - name: Verify Fleet setup was successful
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_verification
+      until: fleet_verification.status == 200
+      retries: 12
+      delay: 10
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet setup issues
+      debug:
+        msg: 
+          - "Fleet setup response: {{ fleet_setup }}"
+          - "Fleet verification response: {{ fleet_verification }}"
+      when: 
+        - debug_mode | bool
+        - (fleet_setup.status not in [200, 409]) or (fleet_verification.status != 200)
+
+    - name: Fail if Fleet setup was not successful
+      fail:
+        msg: "Fleet setup failed or could not be verified"
+      when: (fleet_setup.status not in [200, 409]) or (fleet_verification.status != 200)
 
     - name: Get CA fingerprint
       ansible.builtin.shell: |
@@ -308,21 +340,6 @@
           - "Fleet server hosts result: {{ fleet_server_hosts_result }}"
           - "Fleet output hosts result: {{ fleet_output_hosts_result }}"
       when: debug_mode | bool
-
-    - name: Verify Fleet is running
-      uri:
-        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
-        method: GET
-        user: "{{ elastic_username }}"
-        password: "{{ elastic_password }}"
-        force_basic_auth: yes
-        validate_certs: no
-        status_code: 200
-      register: fleet_verification
-      until: fleet_verification.status == 200
-      retries: 12
-      delay: 10
-      no_log: "{{ not debug_mode }}"
 
     - name: Create Endpoint Policy
       uri:
