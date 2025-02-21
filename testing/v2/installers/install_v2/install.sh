@@ -30,7 +30,10 @@ echo "Installing ansible"
 ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update && sudo apt-get -y install ansible python3-pip python3.10-venv git && sudo locale-gen en_US.UTF-8 && sudo update-locale'
 
 echo "Checking out code"
-ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git && cd LME && git checkout -t origin/${branch}"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git"
+if [ "${branch}" != "main" ]; then
+    ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && git checkout -t origin/${branch}"
+fi
 echo "Code cloned to $HOME/LME"
 
 echo "Setting config file"
