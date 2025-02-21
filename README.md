@@ -163,9 +163,12 @@ hostname -I | awk '{print $1}'
 ```
 
 #### 2.2 Set Up Environment Variables
-Navigate to the LME directory and copy the example environment file:
+Navigate to the LME directory:
 ```bash
-cd ~/LME 
+cd ~/LME
+```
+Copy the example environment file:
+```bash
 cp ./config/example.env ./config/lme-environment.env
 ```
 Edit the `lme-environment.env` file to update the `IPVAR` variable with your server's IP address:
