@@ -260,9 +260,13 @@ Set-ExecutionPolicy Unrestricted
 Refer to the common questions below and consult our [documentation](#4-documentation) for additional information.
 
 ### Retrieving Passwords Passwords: 
+Navigate to the LME directory:
+```bash
+cd ~/LME
+```
 To view the service user passwords, run the following command:
 ```bash
-$CLONE_DIRECTORY/scripts/extract_secrets.sh -p
+./scripts/extract_secrets.sh -p
 ```
 
 **NOTE: Manually changing these passwords in the encrypted file, or via others means (I.E. manually changing the elastic logon password in Kibana) will break connectivity between containers.**
