@@ -264,6 +264,8 @@ To view the service user passwords, run the following command:
 ```bash
 $CLONE_DIRECTORY/scripts/extract_secrets.sh -p
 ```
+
+**NOTE: Manually changing these passwords in the encrypted file, or via others means (I.E. manually changing the elastic logon password in Kibana) will break connectivity between containers.**
 For more information about passwords, see [here](/docs/markdown/reference/passwords.md).
 
 ### Starting and Stopping LME:
