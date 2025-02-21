@@ -5,7 +5,9 @@ This guide will walk you through the process of enrolling an Elastic agent.
 ## Steps to Enroll an Agent
 
 1. **Access the Fleet Menu**
-   - Open the LME dashboard
+   - Open the LME dashboard (https://{SERVER_IP}:5601})
+      - Password information can be found in the [Readme](https://github.com/cisagov/LME/blob/tylmorr-QoL-improvements/README.md#retrieving-passwords-passwords).
+   - Open the "hamburger" menu icon in the top left (three horizontal lines)
    - Scroll down and select "Fleet" from the menu
 
 2. **Add a New Agent**
@@ -40,7 +42,8 @@ This guide will walk you through the process of enrolling an Elastic agent.
 ![example-screenshot](/docs/imgs/insecure-powershell.png)
 
 8. **Execute the Command**
-   - Recommend running each line individually so you can see a clear picture of the status of each command ran. The entire process will download an agent, unzip it, and install it.
+   - Run the command on the desired host.
+      - Recommend running each line individually so you can see a clear picture of the status of each command ran. The entire process will download an agent, unzip it, and install it.
 
 From Fleet you should see the agent enrolled now.
 
@@ -51,7 +54,9 @@ This guide will walk you through the process of adding a Windows integration to 
 ## Steps to Add Windows Integration
 
 1. **Access Fleet and Agent Policies**
-   - Open the LME dashboard
+   - Open the LME dashboard (https://{SERVER_IP}:5601})
+      - Password information can be found in the [Readme](https://github.com/cisagov/LME/blob/tylmorr-QoL-improvements/README.md#retrieving-passwords-passwords).
+   - Open the "hamburger" menu icon in the top left (three horizontal lines)
    - Select "Fleet" from the menu
    - Click on "Agent policies"
 
@@ -64,6 +69,7 @@ This guide will walk you through the process of adding a Windows integration to 
 
 4. **Choose Windows Integration**
    - From the list of available integrations, select "Windows"
+   - Select "add Windows"
 
 5. **Configure Windows Integration**
    - Scroll down to review the options available
