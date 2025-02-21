@@ -134,13 +134,19 @@ If you are upgrading from an older version of LME to LME 2.0, please see our [up
 ### 1. Downloading LME
 Follow these steps to download and set up LME:
 
-#### 1.1 Install Prerequisites
+#### 1.1 Update System Packages
 Update your package list and install the necessary tools:
 ```bash
-sudo apt update && sudo apt install curl jq unzip -y
+sudo apt update && sudo apt upgrade -y
 ```
 
-#### 1.2 Download and Extract LME
+#### 1.2 Install Prerequisites
+Install the required tools including Ansible:
+```bash
+sudo apt install curl jq unzip ansible -y
+```
+
+#### 1.3 Download and Extract LME
 Download the latest release of LME and extract it to `~/LME`:
 ```bash
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
@@ -176,20 +182,14 @@ nano ./config/lme-environment.env
 ### 3. Installation
 Install LME by following these steps:
 
-#### 3.1 Install Ansible
-Install Ansible to manage the installation process:
-```bash
-sudo apt update && sudo apt install -y ansible
-```
-
-#### 3.2 Execute the Installation Playbook
+#### 3.1 Execute the Installation Playbook
 Run the Ansible playbook from within your LME directory to install LME:
 ```bash
 ansible-playbook ./ansible/install_lme_local.yml
 ```
 <span style="color:orange">**Note**: The services may take a few minutes to start. Please be patient.</span>
 
-#### 3.3 Verify Container Status
+#### 3.2 Verify Container Status
 Check that the containers are running and healthy:
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
