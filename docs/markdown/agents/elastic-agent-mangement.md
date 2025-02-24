@@ -54,7 +54,7 @@ This guide will walk you through the process of adding a Windows integration to 
 ## Steps to Add Windows Integration
 
 1. **Access Fleet and Agent Policies**
-   - Open the LME dashboard (https://{SERVER_IP}:5601)
+   - Open the LME dashboard: `https://{SERVER_IP}:5601`
       - Password information can be found in the [Readme](https://github.com/cisagov/LME/blob/tylmorr-QoL-improvements/README.md#retrieving-passwords-passwords).
    - Open the "hamburger" menu icon in the top left (three horizontal lines)
    - Select "Fleet" from the menu
