@@ -5,7 +5,7 @@ This guide will walk you through the process of enrolling an Elastic agent.
 ## Steps to Enroll an Agent
 
 1. **Access the Fleet Menu**
-   - Open the LME dashboard (https://{SERVER_IP}:5601)
+   - Open the LME dashboard: `https://{SERVER_IP}:5601`
       - Password information can be found in the [README](/README.md#retrieving-passwords-passwords).
    - Open the "hamburger" menu icon in the top left (three horizontal lines)
    - Scroll down and select "Fleet" from the menu
