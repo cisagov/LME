@@ -51,7 +51,7 @@ Your input is essential to the continuous improvement of LME and to ensure it be
     5. [Deploying Agents](#5-deploying-agents)
     6. [Installing Sysmon](#6-installing-sysmon-windows-clients-only)
 4. [Next Steps](#4-next-steps)
-    1. [Retrieving Passwords](#retrieving-passwords-passwords)
+    1. [Retrieving Passwords](#retrieving-passwords)
     2. [Starting and Stopping LME](#starting-and-stopping-lme)
     3. [Uninstall LME](#uninstall-lme)
 5. [Documentation:](#5-documentation)
@@ -262,7 +262,7 @@ Set-ExecutionPolicy Unrestricted
 
 Refer to the common questions below and consult our [documentation](#4-documentation) for additional information.
 
-### Retrieving Passwords Passwords: 
+### Retrieving Passwords: 
 Navigate to the LME directory:
 ```bash
 cd ~/LME
