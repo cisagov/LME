@@ -1,0 +1,4 @@
+- name: Read lme-environment.env file
+  ansible.builtin.slurp:
+    src: /opt/lme/lme-environment.env
+  register: lme_env_content

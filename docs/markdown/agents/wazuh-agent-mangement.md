@@ -45,7 +45,7 @@ You can confirm the version is accurate with a list from wazuh's versions [HERE]
 1. **Download the Wazuh Agent**
    - Download the Wazuh agent MSI installer from the following URL:
      ```
-     https://packages.wazuh.com/4.x/windows/wazuh-agent-{WAZUH_AGENT_VERSION}.msi
+     https://packages.wazuh.com/4.x/windows/wazuh-agent-{WAZUH_AGENT_VERSION}-1.msi
      ```
    - Replace `{WAZUH_AGENT_VERSION}` with the appropriate version number.
    - You can also use the below powershell command: 
