@@ -155,6 +155,26 @@
         msg: "Fleet setup response: {{ fleet_setup }}"
       when: debug_mode | bool
 
+    - name: Wait for Fleet to be fully initialized
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_verification
+      until: fleet_verification.status == 200 and fleet_verification.json is defined and fleet_verification.json.isReady == true
+      retries: 45  # Increased from 30 to 45 (15 minutes total)
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet verification response
+      debug:
+        msg: "Fleet verification response: {{ fleet_verification }}"
+      when: debug_mode | bool
+
     - name: Verify Fleet setup was successful
       uri:
         url: "{{ local_kbn_url }}/api/fleet/agents/setup"
