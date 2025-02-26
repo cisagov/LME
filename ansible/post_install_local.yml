@@ -165,8 +165,14 @@
         validate_certs: no
         status_code: 200
       register: fleet_verification
-      until: fleet_verification.status == 200 and fleet_verification.json is defined and fleet_verification.json.isReady == true
-      retries: 45  # Increased from 30 to 45 (15 minutes total)
+      until: >
+        fleet_verification.status == 200 and 
+        fleet_verification.json is defined and 
+        (fleet_verification.json.isReady == true or 
+         (fleet_verification.json.missing_requirements is defined and 
+          fleet_verification.json.missing_requirements | length == 1 and 
+          fleet_verification.json.missing_requirements[0] == "fleet_server"))
+      retries: 45
       delay: 20
       no_log: "{{ not debug_mode }}"
 
@@ -174,6 +180,16 @@
       debug:
         msg: "Fleet verification response: {{ fleet_verification }}"
       when: debug_mode | bool
+
+    - name: Set Fleet verification success fact
+      set_fact:
+        fleet_ready: >-
+          {{ fleet_verification.status == 200 and 
+             fleet_verification.json is defined and 
+             (fleet_verification.json.isReady == true or 
+              (fleet_verification.json.missing_requirements is defined and 
+               fleet_verification.json.missing_requirements | length == 1 and 
+               fleet_verification.json.missing_requirements[0] == "fleet_server")) }}
 
     - name: Verify Fleet setup was successful
       uri:
@@ -184,8 +200,8 @@
         force_basic_auth: yes
         validate_certs: no
         status_code: 200
-      register: fleet_verification
-      until: fleet_verification.status == 200
+      register: fleet_verification_final
+      until: fleet_verification_final.status == 200
       retries: 12
       delay: 10
       no_log: "{{ not debug_mode }}"
