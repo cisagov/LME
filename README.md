@@ -31,12 +31,28 @@ For LME's 2.0 release, we’re introducing several new features and architectura
 
 LME 2.0 is fully operational and built to deliver effective log management and threat detection. As part of our commitment to continuous improvement, future updates, including version 2.1, will introduce additional enhancements for scalability and deployment flexibility.
 
-## Questions:
-If you have found an issue with LME code or documentation, please submit a [GitHub issue](https://github.com/cisagov/lme/issues). For installation questions, please review all open and closed issues to see if it's addressed. If not, then submit a [GitHub issue](https://github.com/cisagov/lme/issues) using the Bug Template, ensuring that you provide all the requested information.
+## Questions and Community Engagement:
 
-For general LME questions or suggestions, please visit [GitHub Discussions](https://github.com/cisagov/lme/discussions) to add a discussion post.
+We encourage users to connect and engage with the LME community via [GitHub Discussions](https://github.com/cisagov/lme/discussions). 
 
-## Share Your Feedback:
+If you’re troubleshooting your installation, be sure to utilize our [troubleshooting documentation](/docs/markdown/reference/troubleshooting.md).
+
+If you have a question regarding LME (technical matters, installation issues, service bugs, etc.) or just general 
+questions, please utilize [GitHub Discussions](https://github.com/cisagov/lme/discussions). Before starting a new discussion be sure to view 
+previously submitted questions to see if you question has already been addressed. If it has not, 
+feel free to submit a new discussion and the technical team will do their best to answer you in a 
+timely fashion.
+
+If you believe you have found a bug or issue with LME code or documentation, please submit a  [GitHub issue](https://github.com/cisagov/lme/issues). 
+Please review current issues to see if the problem you are experiencing has been previously addressed or has an open issue.
+
+If you would like to connect with the LME technical team in a 1:1 support session, please fill out
+this form. In these sessions we can help users troubleshoot technical issues they are encountering
+with their installation and receive feedback from users regarding the tool and improvements that 
+can be made. Please note that the availability of these sessions is dependent on the technical 
+team’s availability, and it may take a few weeks for us to reach out to you for scheduling.
+
+### Share Your Feedback:
 Your input is essential to the continuous improvement of LME and to ensure it best meets your needs. Take a few moments to complete our [LME Feedback Survey](https://forms.office.com/g/TNytTeexG0). Together, we can improve LME's ability to secure your organization!
 
 
@@ -62,7 +78,9 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 For more precise understanding of LME's architecture please see our [architecture documentation](/docs/markdown/reference/architecture.md).
 
 ### Description:
-LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We’ve integrated Wazuh,  Elastic, and ElastAlert open source tools to provide log management, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and enables you to scale as your logging needs evolve.
+LME runs on Ubuntu 22.04 and 24.04. To execute services, LME leverages Podman containers for security, performance, and scalability. 
+We’ve integrated Wazuh,  Elastic, and ElastAlert open source tools to provide log management, endpoint security monitoring, alerting, and data visualization capabilities. 
+This modular, flexible architecture supports efficient log storage, search, and threat detection, and enables you to scale as your logging needs evolve.
 
 ### How does LME work?:
 
@@ -72,11 +90,12 @@ Important pieces to understand from an LME user perspective:
 
 1. **Collecting**: Logs are collected via  agents  
   - **Wazuh Agents**: Enables Endpoint Detection and Response (EDR) on client systems, providing advanced security features like intrusion detection and anomaly detection. For more information, see [Wazuh's agent documentation](https://github.com/wazuh/wazuh-agent). 
-  - **Elastic Agents**: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications. For more information, see [Elastic's agent documentation](https://github.com/elastic/elastic-agent).
+  - **Elastic Agents**: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications. For more information, see [Elastic's agent documentation](https://github.com/elastic/elastic-agent).  
+   
 2. **Viewing**: Logs are viewable in dashboards via kibana  
   - [Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
-
-3. **Alerting**: Creating notifications for logs organizations want to  configurable via Elastalert:
+   
+3. **Alerting**: Creating notifications for logs organizations want to  configurable via Elastalert  
   -  [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html) is an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
  
 ### What firewall rules do I need to setup?:
@@ -101,6 +120,8 @@ The main prerequisite is setting up hardware for your Ubuntu server, which shoul
 - 128GB of dedicated storage for LME’s Elasticsearch database.
 
 If you need to run LME with less than 16GB of RAM or minimal hardware, please follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide [here](/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage).
+
+Ideally if your server is going to have hundreds of clients connecting to it, you will need far more resources dedicated to the LME instance, please see [our documentation for an expanded discussion around scaling LME](/docs/markdown/prerequisites.md#scaling-the-solution).
 
 We estimate that you should allow half an hour to complete the entire installation process. The following time table of real recorded times will provide you a reference of how long the installation may take to complete.
 
@@ -359,14 +380,14 @@ We're doing our best to have regular updates that add new and/or requested featu
 3. [Backups](/docs/markdown/maintenance/backups.md): Customizing backups of logs for your organizations own compliance needs.
 4. [Custom log types](/docs/markdown/agents/elastic-agent-mangement.md#lme-elastic-agent-integration-example): using elastic agents built in [integrations](https://www.elastic.co/guide/en/integrations/current/index.html) ingest a log type specific to your organization.
  
-# 5. Documentation:
+## 5. Documentation:
 
-## Logging Guidance
+### Logging Guidance
  - [LME in the Cloud](/docs/markdown/logging-guidance/cloud.md)
  - [Log Retention](/docs/markdown/logging-guidance/retention.md)
  - [Filtering](/docs/markdown/logging-guidance/filtering.md)
 
-## Reference: 
+### Reference: 
  - [FAQ](/docs/markdown/reference/faq.md) 
  - [Dashboard Descriptions](/docs/markdown/reference/dashboard-descriptions.md)
  - [Security Model](/docs/markdown/reference/security-model.md)
@@ -375,7 +396,7 @@ We're doing our best to have regular updates that add new and/or requested featu
  - [Password Maintenance](/docs/markdown/reference/passwords.md)
  - [Troubleshooting](/docs/markdown/reference/troubleshooting.md)
 
-## Maintenance:
+### Maintenance:
  - [Alerting](/docs/markdown/maintenance/elastalert-rules.md)
  - [Backups](/docs/markdown/maintenance/backups.md)  
  - [Certificates](/docs/markdown/maintenance/certificates.md) 
@@ -387,7 +408,7 @@ We're doing our best to have regular updates that add new and/or requested featu
    - [Upgrading 1x -> 2x](/scripts/upgrade/README.md) 
    - [Upgrading Future 2.x](/docs/markdown/maintenance/upgrading.md)
 
-## Agents: 
+### Agents: 
 Here is documentation on agent configuration and management.
  - [Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
  - Wazuh:
@@ -395,16 +416,16 @@ Here is documentation on agent configuration and management.
    - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
    - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
     
-## Endpoint Tools:
+### Endpoint Tools:
 To make best use of the agents, complement them with utilities that generate forensically relevant data to analyze and support detections.
 Consider adding them to Windows/Linux.
 
-### Windows:
+#### Windows:
  - [Sysmon (manual install)](/docs/markdown/endpoint-tools/install-sysmon.md)
-### Linux:
+#### Linux:
  - [Auditd](/docs/markdown/endpoint-tools/install-auditd.md)
 
-# 6. Developer notes:
+## 6. Developer notes:
 Git clone and git checkout your development branch on the server:
 
 ```bash
@@ -429,10 +450,10 @@ ansible-playbook -K ./ansible/install_lme_local.yml -e "clone_dir=/path/to/clone
 ```
 In the `BECOME password` prompt enter the password for your user you would normally give `sudo`, so the playbook is able to sudo as expected.
 
-## Installation details:
+### Installation details:
 Below we've documented in more detail what exactly occurs during the installation and post-installation ansible scripts.
 
-### Steps performed in automated install: 
+#### Steps performed in automated install: 
 
 1. Setup /opt/lme and check for sudo access. Configure other required directories/files.
 2. **Setup password information**: Configures the password vault and other configuration for the service user passwords.  
@@ -472,7 +493,7 @@ To start all of LME:
 sudo -i systemctl start lme.service
 ```
 
-### Other Post-Install Setup: 
+#### Other Post-Install Setup: 
 A few other things are needed and you're all set to go. 
 1. Setting up Elasticfleet
 2. Fixing a few issues with Wazuh (in a future release this won't be necessary)
