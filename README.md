@@ -145,9 +145,10 @@ We estimate that you should allow half an hour to complete the entire installati
 | Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
 ## 3. Downloading and Installing LME
-This guide provides step-by-step instructions for downloading, configuring, and installing LME on an Ubuntu 22.04 server.
+This guide provides step-by-step instructions for downloading, configuring, and installing LME on an Ubuntu server.
 
 **Note:** LME has been extensively tested on Ubuntu 22.04. While it can run on other Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
+We have done initial testing on 24.04, and suggest using that if you run into issues setting up on 22.04.
 
 **Upgrading**:
 If you are upgrading from an older version of LME to LME 2.0, please see our [upgrade documentation](/docs/markdown/maintenance/upgrading.md).
@@ -295,6 +296,8 @@ To view the service user passwords, run the following command:
 
 **NOTE: Manually changing these passwords in the encrypted file, or via others means (I.E. manually changing the elastic logon password in Kibana) will break connectivity between containers.**
 For more information about passwords, see [here](/docs/markdown/reference/passwords.md).
+
+If you would like to use a different password to login to the user interface, we suggest creating a new user to do this following [Elastic's documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/user-profile.html).
 
 ### Starting and Stopping LME:
 To manage the LME services, use the following commands:
