@@ -47,7 +47,7 @@ If you believe you have found a bug or issue with LME code or documentation, ple
 Please review current issues to see if the problem you are experiencing has been previously addressed or has an open issue.
 
 If you would like to connect with the LME technical team in a 1:1 support session, please fill out
-this form. In these sessions we can help users troubleshoot technical issues they are encountering
+[this form](https://forms.office.com/g/CfecMqCvFN). In these sessions we can help users troubleshoot technical issues they are encountering
 with their installation and receive feedback from users regarding the tool and improvements that 
 can be made. Please note that the availability of these sessions is dependent on the technical 
 team’s availability, and it may take a few weeks for us to reach out to you for scheduling.
@@ -296,8 +296,6 @@ To view the service user passwords, run the following command:
 
 **NOTE: Manually changing these passwords in the encrypted file, or via others means (I.E. manually changing the elastic logon password in Kibana) will break connectivity between containers.**
 For more information about passwords, see [here](/docs/markdown/reference/passwords.md).
-
-If you would like to use a different password to login to the user interface, we suggest creating a new user to do this following [Elastic's documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/user-profile.html).
 
 ### Starting and Stopping LME:
 To manage the LME services, use the following commands:
