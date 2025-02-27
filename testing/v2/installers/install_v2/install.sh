@@ -30,7 +30,7 @@ echo "Checking ubuntu version"
 ssh -o StrictHostKeyChecking=no $user@$hostname 'cat /etc/os-release'
 
 echo "Updating apt"
-ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo apt-get update'
+ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo rm -rf /var/lib/apt/lists/* && sudo mkdir -p /var/lib/apt/lists/partial && sudo apt-get clean && sudo apt-get update'
 
 echo "Checking ansible and python version"
 ssh -o StrictHostKeyChecking=no $user@$hostname 'apt-cache policy ansible python3-pip python3-venv'
