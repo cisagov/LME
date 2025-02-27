@@ -39,7 +39,7 @@ ssh -o StrictHostKeyChecking=no $user@$hostname 'apt-cache policy ansible python
 echo "Installing ansible"
 ssh -o StrictHostKeyChecking=no $user@$hostname '
 echo "Adding universe repository..."
-sudo add-apt-repository -y -q universe
+sudo add-apt-repository -y universe
 echo "Updating package lists..."
 sudo apt-get update
 echo "Installing required packages..."
