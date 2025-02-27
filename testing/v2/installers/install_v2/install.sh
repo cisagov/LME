@@ -37,7 +37,18 @@ ssh -o StrictHostKeyChecking=no $user@$hostname 'apt-cache policy ansible python
 
 
 echo "Installing ansible"
-ssh -o StrictHostKeyChecking=no $user@$hostname 'sudo add-apt-repository universe -y && sudo apt-get update && sudo apt-get -y install ansible python3-pip python3-venv git && sudo locale-gen en_US.UTF-8 && sudo update-locale'
+ssh -o StrictHostKeyChecking=no $user@$hostname '
+echo "Adding universe repository..."
+sudo add-apt-repository -y -q universe
+echo "Updating package lists..."
+sudo apt-get update
+echo "Installing required packages..."
+sudo DEBIAN_FRONTEND=noninteractive apt-get -V -y install ansible python3-pip python3-venv git
+echo "Generating locale..."
+sudo locale-gen en_US.UTF-8
+echo "Updating locale..."
+sudo update-locale
+'
 
 echo "Checking out code"
 ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git"
