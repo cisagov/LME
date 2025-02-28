@@ -263,14 +263,14 @@ ok: [localhost] => {
 To populate the dashboards with data, you need to install agents. Detailed guides for deploying Wazuh and Elastic agents are available in the following documents:
 
  - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
- - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
+ - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-management.md)
 
 
 ### 6. Installing Sysmon (Windows Clients Only)
 For Windows clients, installing Sysmon is essential to obtain comprehensive logs and ensure proper data visualization in the dashboards. Follow these steps to install Sysmon on each Windows client machine:
 
 1. Download and unzip the LME folder on the Windows client.
-2. Run the following command in an Administrator PowerShell session from inside the unzipped folder:
+2. Run the following command in an Administrator PowerShell session from inside the unzipped folder (You can also see it here on [github](/scripts/install_sysmon.ps1)):
    ```powershell
    .\scripts\install_sysmon.ps1
    ```
@@ -282,7 +282,7 @@ Set-ExecutionPolicy Unrestricted
 
 ## 4. Next Steps
 
-Refer to the common questions below and consult our [documentation](#4-documentation) for additional information.
+Refer to the common questions below and consult our [documentation](#5-documentation) for additional information.
 
 ### Retrieving Passwords: 
 Navigate to the LME directory:
