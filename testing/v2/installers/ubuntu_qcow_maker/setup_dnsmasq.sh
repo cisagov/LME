@@ -15,6 +15,17 @@ print_usage() {
     echo "  -h, --help             Display this help message"
 }
 
+# Function to check if dnsmasq is already running with our configuration
+check_dnsmasq_running() {
+    # Look for dnsmasq process with our specific configuration
+    # Using ps and grep, excluding the grep process itself
+    if ps ax | grep -v grep | grep dnsmasq | grep -q "listen-address $START_IP.*dhcp-range $RANGE_START,$RANGE_END"; then
+        echo "Found dnsmasq running with the correct configuration"
+        return 0  # dnsmasq is running with our configuration
+    fi
+    return 1  # dnsmasq is not running or not configured as we need
+}
+
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -42,7 +53,27 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Check if dnsmasq is already running with our configuration
+if check_dnsmasq_running; then
+    echo "dnsmasq is already running with the correct IP range ($RANGE_START to $RANGE_END)"
+    exit 0
+fi
+
+# If we get here, either dnsmasq isn't running or it's running with wrong configuration
+# We'll let minimega handle stopping any existing instance and starting a new one
+
 # Set up dnsmasq for all VMs
+echo "Starting dnsmasq with IP range $RANGE_START to $RANGE_END..."
 /opt/minimega/bin/minimega -e "dnsmasq start $START_IP $RANGE_START $RANGE_END"
 
-echo "dnsmasq has been set up for the IP range $RANGE_START to $RANGE_END"
+# Wait a moment for dnsmasq to start
+sleep 2
+
+# Verify the setup was successful
+if check_dnsmasq_running; then
+    echo "dnsmasq has been successfully set up for the IP range $RANGE_START to $RANGE_END"
+    exit 0
+else
+    echo "Failed to start dnsmasq. Please check the logs for errors."
+    exit 1
+fi
