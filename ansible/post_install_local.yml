@@ -143,10 +143,10 @@
         headers: "{{ headers }}"
         body_format: json
         body: {}
-        status_code: [200, 409]  # 409 means already set up
+        status_code: [200, 409]  
       register: fleet_setup
-      until: fleet_setup.status in [200, 409]
-      retries: 48  # Increase to 8 minutes
+      until: fleet_setup.status in [200]
+      retries: 48  
       delay: 20
       no_log: "{{ not debug_mode }}"
 
