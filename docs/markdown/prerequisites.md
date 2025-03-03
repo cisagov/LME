@@ -102,4 +102,3 @@ Please see our cloud documentation for a discussion on firewalls [LME in the Clo
 
 You must ensure that the client machine you want to monitor can reach the main LME ports as described in the ReadMe [Required Ports section](/README.md#required-ports).
 
-
