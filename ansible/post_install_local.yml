@@ -132,6 +132,54 @@
       delay: 20    # Increase delay between retries
       no_log: "{{ not debug_mode }}"
 
+    - name: Debug Kibana status
+      debug:
+        msg: "Kibana status: {{ kibana_status.json.status }}"
+      when: debug_mode | bool
+
+    - name: Wait for Elasticsearch to be fully ready
+      uri:
+        url: "{{ local_es_url }}/_cluster/health"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: es_health
+      until: >
+        es_health.status == 200 and 
+        es_health.json.status in ["green", "yellow"] and
+        es_health.json.number_of_nodes == 1
+      retries: 60
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Elasticsearch health
+      debug:
+        msg: "Elasticsearch health: {{ es_health.json }}"
+      when: debug_mode | bool
+
+    - name: Wait for Fleet API to be available
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_api_check
+      until: fleet_api_check.status == 200
+      retries: 30
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet API check
+      debug:
+        msg: "Fleet API check response: {{ fleet_api_check }}"
+      when: debug_mode | bool
+
     - name: Enable Fleet in Kibana
       uri:
         url: "{{ local_kbn_url }}/api/fleet/setup"
