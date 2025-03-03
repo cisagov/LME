@@ -16,9 +16,9 @@ fi
 # Perform the substitutions
 sed -i \
     -e "s/IPVAR=127.0.0.1/IPVAR=$IP0/" \
+    -e "s|LOCAL_KBN_URL=https://127.0.0.1:5601|LOCAL_KBN_URL=https://$IP0:5601|" \
+    -e "s|LOCAL_ES_URL=https://127.0.0.1:9200|LOCAL_ES_URL=https://$IP0:9200|" \
     "$ENV_FILE"
-    #-e "s|LOCAL_KBN_URL=https://127.0.0.1:5601|LOCAL_KBN_URL=https://$IP0:5601|" \
-    #-e "s|LOCAL_ES_URL=https://127.0.0.1:9200|LOCAL_ES_URL=https://$IP0:9200|" \
 
 echo "Substitutions completed in $ENV_FILE"
 
