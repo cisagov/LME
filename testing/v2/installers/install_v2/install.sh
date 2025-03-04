@@ -68,8 +68,8 @@ EOF
 echo "Running ansible installer"
 ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && ansible-playbook ansible/install_lme_local.yml"
 
-echo "Waiting 10 minutes for Kibana and Elasticsearch to start..."
-sleep 600
+# echo "Waiting 10 minutes for Kibana and Elasticsearch to start..."
+# sleep 600
 
 # Wait for services to start
 max_attempts=120
