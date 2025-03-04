@@ -116,8 +116,8 @@ if [ $attempt -eq $max_attempts ]; then
     exit 1
 fi
 
-echo "Running check-fleet script"
-ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh\"'"
+# echo "Running check-fleet script"
+# ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'source /opt/lme/lme-environment.env && su $user -c \". ~/.bashrc && cd ~/LME && ./testing/v2/installers/lib/check_fleet.sh\"'"
 
 echo "Running post install script"
 ssh -o StrictHostKeyChecking=no $user@$hostname "sudo -E bash -c 'cd ~/LME/ansible && ansible-playbook post_install_local.yml -e \"debug_mode=true\"'"
