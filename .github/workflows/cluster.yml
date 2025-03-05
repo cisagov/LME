@@ -106,13 +106,14 @@ jobs:
               cd /home/lme-user/LME/testing/v2/installers && \
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
-                -s ${{ env.IP_ADDRESS }}/32 \
+                -s 0.0.0.0/0 \
                 -vs Standard_D16_v4 \
                 -l ${{ inputs.azure_region || 'centralus' }} \
                 -ast 23:00 \
                 -y
             "
           
+                #-s ${{ env.IP_ADDRESS }}/32 \
                 #-vs Standard_E16_v4 \
 
       # - name: Install minimega on Azure instance
