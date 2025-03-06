@@ -7,7 +7,9 @@
 
 # Logging Made Easy 
 
-CISA's Logging Made Easy (LME) is a no cost, open source platform that centralizes log collection, enhances threat detection, and enables real-time alerting, helping small to medium-sized organizations secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security.
+CISA's Logging Made Easy (LME) is a no cost, open source platform that centralizes log collection, enhances threat detection, and enables real-time alerting, helping small to medium-sized organizations secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security. 
+
+Check out the LME introduction video [here](https://www.youtube.com/watch?v=AZFV6ZOLg7s).
 
 ## Who is Logging Made Easy for?
 
@@ -38,10 +40,7 @@ We encourage users to connect and engage with the LME community via [GitHub Disc
 If you’re troubleshooting your installation, be sure to utilize our [troubleshooting documentation](/docs/markdown/reference/troubleshooting.md).
 
 If you have a question regarding LME (technical matters, installation issues, service bugs, etc.) or just general 
-questions, please utilize [GitHub Discussions](https://github.com/cisagov/lme/discussions). Before starting a new discussion be sure to view 
-previously submitted questions to see if you question has already been addressed. If it has not, 
-feel free to submit a new discussion and the technical team will do their best to answer you in a 
-timely fashion.
+questions, please utilize [GitHub Discussions](https://github.com/cisagov/lme/discussions). Before starting a new discussion, please take a moment to review previously submitted questions to determine if your inquiry has already been addressed. If it has not, feel free to submit a new discussion and the technical team will do their best to answer you in a timely fashion.
 
 If you believe you have found a bug or issue with LME code or documentation, please submit a  [GitHub issue](https://github.com/cisagov/lme/issues). 
 Please review current issues to see if the problem you are experiencing has been previously addressed or has an open issue.
@@ -95,11 +94,11 @@ Important pieces to understand from an LME user perspective:
 2. **Viewing**: Logs are viewable in dashboards via kibana  
   - [Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
    
-3. **Alerting**: Creating notifications for logs organizations want to  configurable via Elastalert  
+3. **Alerting**: Setting up notifications for log monitoring with Elastalert 
   -  [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html) is an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
  
 ### What firewall rules do I need to setup?:
-Please see our doucmentation around cloud and firewall setup for more information on how you can [expose these ports](/docs/markdown/logging-guidance/cloud.md).
+Please see our documentation around cloud and firewall setup for more information on how you can [expose these ports](/docs/markdown/logging-guidance/cloud.md).
 
 Ports that need to be open on LME's server AND reachable by all clients from which you want to collect logs:  
  - Elasticsearch: *9200*
@@ -145,7 +144,11 @@ We estimate that you should allow half an hour to complete the entire installati
 | Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
 ## 3. Downloading and Installing LME
-This guide provides step-by-step instructions for downloading, configuring, and installing LME on an Ubuntu server.
+This guide provides step-by-step instructions for downloading, configuring, and installing LME on an Ubuntu server. 
+
+For visual learners, a LME installation video is also available [here](https://www.youtube.com/watch?v=LKD8sw6VuPw).
+
+In addition to this guide, a LME installation video is available [here](https://www.youtube.com/watch?v=LKD8sw6VuPw).
 
 **Note:** LME has been extensively tested on Ubuntu 22.04. While it can run on other Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
 We have done initial testing on 24.04, and suggest using that if you run into issues setting up on 22.04.
