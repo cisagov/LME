@@ -14,6 +14,7 @@
     delay_seconds: 10
     debug_mode: false
     installed_file: "/opt/lme/FLEET_SETUP_FINISHED"
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
 
   tasks:
     - name: Check if INSTALLED file exists
