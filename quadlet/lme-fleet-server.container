@@ -4,12 +4,12 @@ Description=Fleet Container Service
 Requires=lme-elasticsearch.service
 After=lme-elasticsearch.service lme-kibana.service
 PartOf=lme.service
+ConditionPathExists=!/opt/lme/FLEET_SETUP_FINISHED
 
 [Service]
 Restart=always
 TimeoutStartSec=5400
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
-ConditionPathExists=!/opt/lme/FLEET_SETUP_FINISHED
 
 [Install]
 WantedBy=default.target lme.service
