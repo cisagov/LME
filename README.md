@@ -199,7 +199,7 @@ Edit the `lme-environment.env` file to update the `IPVAR` variable with your ser
 IPVAR=127.0.0.1 # Replace with your server's IP address
 ```
 
-For example open and edit the file via nano: 
+For example, open and edit the file via nano:
 ```bash
 nano ./config/lme-environment.env
 ```

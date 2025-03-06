@@ -11,7 +11,7 @@ PASSWORD_FILE="/etc/lme/pass.sh"
 
 ### Grabbing Passwords: 
 To view the appropriate service user password run the following commands:
-```
+```bash
 #script:
 $CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
 
