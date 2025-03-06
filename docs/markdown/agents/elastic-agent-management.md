@@ -43,7 +43,7 @@ This guide will walk you through the process of enrolling an Elastic agent.
 
 8. **Execute the Command**
    - Run the command on the desired host.
-      - Recommend running each line individually so you can see a clear picture of the status of each command ran. The entire process will download an agent, unzip it, and install it.
+      - It is recommended to run each line individually so you can see the status of each command. The entire process will download an agent, unzip it, and install it.
 
 From Fleet you should see the agent enrolled now.
 
