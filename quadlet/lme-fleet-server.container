@@ -9,6 +9,7 @@ PartOf=lme.service
 Restart=always
 TimeoutStartSec=5400
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+ConditionPathExists=!/opt/lme/FLEET_SETUP_FINISHED
 
 [Install]
 WantedBy=default.target lme.service
