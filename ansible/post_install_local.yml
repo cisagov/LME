@@ -126,8 +126,7 @@
       register: kibana_status
       until: >
         kibana_status.status == 200 and 
-        kibana_status.json.status.overall.level == "available" and 
-        kibana_status.json.status.core.elasticsearch.level == "available"
+        kibana_status.json.status.overall.level == "available"
       retries: 60  
       delay: 20    # Increase delay between retries
       no_log: "{{ not debug_mode }}"
@@ -561,6 +560,33 @@
         path: "{{ installed_file }}"
         state: touch
       when: not installed_file_check.stat.exists
+
+    - name: Copy fleet-server quadlet file
+      copy:
+        src: "{{ clone_directory }}/quadlet/lme-fleet-server.container"
+        dest: "/etc/containers/systemd/lme-fleet-server.container"
+        owner: "root"
+        group: "root"
+        mode: '0644'
+      become: yes
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+      become: yes
+
+    - name: Start fleet-server service
+      systemd:
+        name: lme-fleet-server.service
+        state: started
+        enabled: yes
+      become: yes
+
+    - name: Wait for fleet-server to be ready
+      wait_for:
+        port: 8220
+        timeout: 300
+      become: yes
 
     - name: Wait for Fleet to be fully initialized
       uri:
