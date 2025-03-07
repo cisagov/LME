@@ -1,71 +1,133 @@
 <!DOCTYPE html>
-<html>
-    <head> 
-        <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en">
 
-        <title> Logging Made Easy </title>
-        <meta property="og:title" content="LME">
-        <meta property="og:locale" content="en_US">
-        <meta name="description" content="Logging Made Easy">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <link rel="stylesheet" href="assets/css/style.css">
-    </head>
+    <title>Logging Made Easy</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
 
-    <body>
-        <div class="wrapper">
-            <header>
-                <div class="side-nav">
-                    <img class="logo"src="pages/assets/imgs/lme-image.png" alt="Logo">
-                    <div class="version">v2.0</div>
-                    <div class="nav-links">
-                        <a href="../index.html">Overview</a>
-                        <a class= "active" href="installation-overview.html">Installation</a>
-                        <a href="documentation.html">Documentation</a>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <section>
+                <div class="body-text">
+                    <h1>Installation Overview</h1>
+                    <div class="nav-blocks">
+
+                        <div class="box">
+                            <a href="before-you-install.html">
+                                <h2>Before You Install</h2>
+                            </a>
+                            <ul class="nav-links">
+                                <a href="before-you-install.html">
+                                    <li>
+                                        What is LME
+                                    </li>
+                                </a>
+                                <a href="architecture.html">
+                                    <li>
+                                        Architecture
+                                    </li>
+                                </a>
+                                <a href="installation-prereqs.html">
+                                    <li>
+                                        Installation Prerequisites
+                                    </li>
+                                </a>
+                            </ul>
+                        </div>
+
+                        <div class="box">
+                            <a href="downloading-installing-configutation.html">
+                                <h2>Downloading, Installing, and Configuring LME</h2>
+                            </a>
+                            <ul class="nav-links">
+                                <a href="downloading-installing-configutation.html">
+                                    <li>
+                                        Download, Install, Configure
+                                    </li>
+                                </a>
+                                <li><a href="deploying-agents.html">Deploying Agents</a>
+                                    <ul>
+                                        <li>
+                                            <a href="deploying-agents-elasitc.html">Elastic</a>
+                                        </li>
+                                        <li>
+                                            <a href="deploying-agents-wazuh.html">Wazuh</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <a href="installing-sysmon.html">
+                                    <li>
+                                        [Windows Clients Only] Installing Sysmon
+                                    </li>
+                                </a>
+
+                            </ul>
+                            </a>
+                        </div>
+                        <div class="box">
+                            <a href="retrieving-passwords.html">
+                                <h2>After Installing</h2>
+                            </a>
+                            <ul class="nav-links">
+                                <a href="retrieving-passwords.html">
+                                    <li>Retrieving Passwords</li>
+                                </a>
+                                <a href="starting-and-stoping.html">
+                                    <li>Starting and Stopping LME</li>
+                                </a>
+                                <a href="">
+                                    <li>Customizing LME</li>
+                                </a>
+                                <ul>
+                                    <li>
+
+                                    </li>
+                                </ul>
+
+                                </li>
+                                </a>
+                                <a href="uninstall.html">
+                                    <li>Uninstalling LME</li>
+                                </a>
+                            </ul>
+                        </div>
+
                     </div>
                 </div>
-            </header>
-        <main>
-            <div class="nav-blocks">
-                <a href="prereqs.html">
-                    <div class="box">
-                        <h1>Prerequisites</h1>
-                    </div>
-                </a>
-                <a href="architecture.html">
-                    <div class="box">
-                        <h1>Architecture</h1>
-                    </div>
-                </a>
-        
-        
-                <a href="first-time-install.html">
-                    <div class="box" >
-                        <h1>Installing LME for the First Time</h1>
-                    </div>
-                </a>
-                <a href="upgrading.html">
-                    <div class="box">
-                        <h1>Upgrading to the Most Recent Version (2.0)</h1>
-                    </div>
-                </a>
-                <a href="deploying-agents.html">
-                    <div class="box">
-                        <h1>Deploying Agents</h1>
-                    </div>
-                </a>
-                <a href="password-encryption.html">
-                    <div class="box">
-                        <h1>Password Encryption</h1>
-                    </div>
-                </a>
-            </div>
+            </section>
         </main>
-            <footer>
-                
-            </footer>
-        </div>
-</main>
+        <footer>
+
+        </footer>
+    </div>
+    </main>
 
 </html>

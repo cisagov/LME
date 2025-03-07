@@ -1,15 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head> 
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title> Logging Made Easy </title>
+        <title>Logging Made Easy</title>
         <meta property="og:title" content="LME">
         <meta property="og:locale" content="en_US">
-        <meta name="description" content="Logging Made Easy">
-
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="assets/css/style.css">
     </head>
 
@@ -17,23 +18,78 @@
         <div class="wrapper">
             <header>
                 <div class="side-nav">
-                    <img class="logo"src="pages/assets/imgs/lme-image.png" alt="Logo">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
                     <div class="version">v2.0</div>
                     <div class="nav-links">
-                        <a href="index.html">Overview</a>
-                        <a href="pages/installation-overview.html">Installation</a>
-                        <a class="active" href="pages/documentation.html">Documentation</a>
+                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
                     </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
                 </div>
             </header>
         <main>
             <section>
                 <div class="body-text">
+                <h1>Architecture</h1>
+                    <p>LME runs on Ubuntu 22.04 and leverages Podman containers for security, performance, and scalability. We've integrated Wazuh, Elastic, and ElastAlert open source tools to provide log management, endpoint security monitoring, alerting, and data visualization capabilities. This modular, flexible architecture supports efficient log storage, search, and threat detection, and enables you to scale as your logging needs evolve.</p>
                     
+                    <h2>Diagram</h2>
+                    <img class="image" src="/docs/imgs/lme-architecture-v2.png" alt="LME Architecture Diagram">
+                    
+                    <h2>Containers</h2>
+                    <p>Containerization allows each component of LME to run independently, increasing system security, improving performance, and making troubleshooting easier.</p>
+                    <p>LME uses Podman as its container engine because it is more secure (by default) against container escape attacks than other engines like Docker. It's far more debug and programmer friendly. We're making use of Podman's unique features, such as Quadlets (Podman's systemd integration) and User Namespacing, to increase system security and operational efficiency.</p>
+                    
+                    <p>LME uses these containers:</p>
+                    <ul>
+                        <li><strong>Setup</strong>: Runs <code>/config/setup/init-setup.sh</code> based on the configuration of DNS defined in <code>/config/setup/instances.yml</code>. The script will create a certificate authority (CA), underlying certificates for each service, and initialize the admin accounts for Elasticsearch(user:<code>elastic</code>) and Kibana(user:<code>kibana_system</code>).</li>
+                        <li><strong>Elasticsearch</strong>: Runs LME's database and indexes all logs.</li>
+                        <li><strong>Kibana</strong>: The front end for querying logs, visualizing data, and managing fleet agents.</li>
+                        <li><strong>Elastic Fleet-Server</strong>: Executes an <a href="https://github.com/elastic/elastic-agent">elastic agent</a> in fleet-server mode. Coordinates elastic agents to gather client logs and status. Configuration is inspired by the <a href="https://github.com/peasead/elastic-container">elastic-container</a> project.</li>
+                        <li><strong>Wazuh-Manager</strong>: Allows LME to deploy and manage Wazuh agents.
+                            <ul>
+                                <li>Wazuh (open source) gives EDR (Endpoint Detection Response) with security dashboards to cover the security of all of the machines.</li>
+                            </ul>
+                        </li>
+                        <li><strong>LME-Frontend</strong> (<em>coming in a future release</em>): Will host an API and GUI that unifies the architecture behind one interface.</li>
+                    </ul>
+                    
+                    <h2>Required Ports</h2>
+                    <p>Ports required are as follows:</p>
+                    <ul>
+                        <li>Elasticsearch: <em>9200</em></li>
+                        <li>Kibana: <em>443, 5601</em></li>
+                        <li>Wazuh: <em>1514, 1515, 1516, 55000, 514</em></li>
+                        <li>Agent: <em>8220</em></li>
+                    </ul>
+                    <p><strong>Note</strong>: For Kibana, 5601 is the default port. We've also set Kibana to listen on 443 as well.</p>
+                    
+                    <h2>Agents and Agent Management</h2>
+                    <p>LME leverages both Wazuh and Elastic agents providing more comprehensive logging and security monitoring across various log sources. The agents gather critical data from endpoints and send it back to the LME server for analysis, offering organizations deeper visibility into their security posture. We also make use of the Wazuh Manager and Elastic Fleet for agent orchestration and management.</p>
+                    <ul>
+                        <li><strong>Wazuh Agents</strong>: Enables Endpoint Detection and Response (EDR) on client systems, providing advanced security features like intrusion detection and anomaly detection. For more information, see <a href="https://github.com/wazuh/wazuh-agent">Wazuh's agent documentation</a>.</li>
+                        <li><strong>Wazuh Manager</strong>: Responsible for managing Wazuh Agents across endpoints, and overseeing agent registration, configuration, and data collection, providing centralized control for monitoring security events and analyzing data.</li>
+                        <li><strong>Elastic Agents</strong>: Enhance log collection and management, allowing for greater control and customization in how data is collected and analyzed. Agents also feature a vast collection of integrations for many log types/applications. For more information, see <a href="https://github.com/elastic/elastic-agent">Elastic's agent documentation</a>.</li>
+                        <li><strong>Elastic Fleet</strong>: Manages Elastic Agents across your infrastructure, providing centralized control over agent deployment, configuration, and monitoring. It simplifies the process of adding and managing agents on various endpoints. ElasticFleet also supports centralized updates and policy management.</li>
+                    </ul>
+                    
+                    <h2>Alerting</h2>
+                    <p><a href="https://elastalert2.readthedocs.io/en/latest/index.html">ElastAlert</a> is an open-source alerting framework to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert's flexible rule system allows for custom alerts tailored to your organization's security monitoring needs, making it a critical component of the LME alerting framework.</p>
+                    
+                    <h2>Log Storage and Search</h2>
+                    <p>As the core component for log search and storage, <a href="https://www.elastic.co/elasticsearch">Elasticsearch</a> indexes and stores logs and detections collected from Elastic and Wazuh Agents, allowing for fast, real-time querying of security events. Elasticsearch enables users to search and filter large datasets efficiently, providing a powerful backend for data analysis and visualization in Kibana. Its scalability and flexibility make it essential for handling the high-volume log data generated across different endpoints within LME's architecture.</p>
+                    
+                    <h2>Data Visualization and Querying</h2>
+                    <p><a href="https://www.elastic.co/kibana">Kibana</a> is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME's centralized logging and security monitoring framework.</p>
+       
                 </div>
             </section>
         </main>
-  
-        </div>
-
+    </div>
+</body>
 </html>

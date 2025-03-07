@@ -34,23 +34,32 @@
             </header>
         <main>
             <section>
-              
                 <div class="body-text">
-                    <h1>Deploying Agents</h1>
-                    <p> 
-                        To populate the dashboards with data, you need to install agents. Detailed guides for deploying Wazuh and Elastic agents are available in the following documents:
-                    </p>
-                </div>
-                <div class="nav-blocks">
-                    <div class="box">
-                        <a href="deploying-agents-elastic.html"><h1>Deploying Elastic Agents</h1></a>
-                    </div>
-                    <div class="box">
-                        <a href="deploying-agents-wazuh.html"><h1>Deploying Elastic Wazuh</h1></a>
-                    </div>
+                    <h1>Starting and Stopping LME:</h1>
+                    <p>To manage the LME services, use the following commands:</p>
+                    <ul>
+                        <li>
+                            <p><strong>Stop all LME services:</strong></p>
+                            <pre><code class="lang-bash">sudo -<span class="hljs-selector-tag">i</span> systemctl stop lme.service
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Restart all LME services:</strong></p>
+                            <pre><code class="lang-bash">sudo -<span class="hljs-selector-tag">i</span> systemctl restart lme.service
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Start all LME services:</strong></p>
+                            <pre><code class="lang-bash">sudo -<span class="hljs-selector-tag">i</span> systemctl start lme.service
+</code></pre>
+                        </li>
+                    </ul>
+
                 </div>
             </section>
         </main>
     </div>
+    <script src="assets/js/copy-code.js"></script>
 </body>
+
 </html>

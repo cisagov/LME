@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Logging Made Easy</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <section>
+                <div class="body-text">
+                    <h2>Prerequisites</h2>
+                    <p>If you're unsure whether you meet the prerequisites for installing LME, please refer to our <a href="/docs/markdown/prerequisites.md">prerequisites documentation</a>.</p>
+                    
+                    <p>The main prerequisite is setting up hardware for your Ubuntu server, which should have at least:</p>
+                    <ul>
+                        <li>Two (2) processors</li>
+                        <li>16GB RAM</li>
+                        <li>128GB of dedicated storage for LME's Elasticsearch database.</li>
+                    </ul>
+                    
+                    <p>If you need to run LME with less than 16GB of RAM or minimal hardware, please follow our troubleshooting guide to configure Podman quadlets for reduced memory usage. We recommend setting Elasticsearch to an 8GB limit and Kibana to a 4GB limit. You can find the guide <a href="/docs/markdown/reference/troubleshooting.md#memory-in-containers-need-more-ramless-ram-usage">here</a>.</p>
+                    
+                    <p>Ideally if your server is going to have hundreds of clients connecting to it, you will need far more resources dedicated to the LME instance, please see <a href="/docs/markdown/prerequisites.md#scaling-the-solution">our documentation for an expanded discussion around scaling LME</a>.</p>
+                    
+                    <h3>Estimated Installation Times</h3>
+                    <p>We estimate that you should allow half an hour to complete the entire installation process. The following time table of real recorded times will provide you a reference of how long the installation may take to complete.</p>
+                    
+                    <table class="timeline-table">
+                        <thead>
+                            <tr>
+                                <th>Milestones</th>
+                                <th>Time</th>
+                                <th>Timeline</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Download LME</td>
+                                <td>0:31.49</td>
+                                <td>0:31.49</td>
+                            </tr>
+                            <tr>
+                                <td>Set Environment</td>
+                                <td>0:35.94</td>
+                                <td>1:06.61</td>
+                            </tr>
+                            <tr>
+                                <td>Install Ansible</td>
+                                <td>1:31.94</td>
+                                <td>2:38.03</td>
+                            </tr>
+                            <tr>
+                                <td>Installing LME Ansible Playbook</td>
+                                <td>4:03.63</td>
+                                <td>6:41.66</td>
+                            </tr>
+                            <tr>
+                                <td>All Containers Active</td>
+                                <td>6:41.66</td>
+                                <td>13:08.92</td>
+                            </tr>
+                            <tr>
+                                <td>Accessing Elastic</td>
+                                <td>0:38.97</td>
+                                <td>13:47.60</td>
+                            </tr>
+                            <tr>
+                                <td>Post-Install Ansible Playbook</td>
+                                <td>2:04.34</td>
+                                <td>15:51.94</td>
+                            </tr>
+                            <tr>
+                                <td>Deploy Linux Elastic Agent</td>
+                                <td>0:49.95</td>
+                                <td>16:41.45</td>
+                            </tr>
+                            <tr>
+                                <td>Deploy Windows Elastic Agent</td>
+                                <td>1:32.00</td>
+                                <td>18:13.40</td>
+                            </tr>
+                            <tr>
+                                <td>Deploy Linux Wazuh Agent</td>
+                                <td>1:41.99</td>
+                                <td>19:55.34</td>
+                            </tr>
+                            <tr>
+                                <td>Deploy Windows Wazuh Agent</td>
+                                <td>1:55.00</td>
+                                <td>21:51.22</td>
+                            </tr>
+                            <tr>
+                                <td>Download LME Zip on Windows</td>
+                                <td>2:22.43</td>
+                                <td>24:13.65</td>
+                            </tr>
+                            <tr>
+                                <td>Install Sysmon</td>
+                                <td>1:04.34</td>
+                                <td>25:17.99</td>
+                            </tr>
+                            <tr>
+                                <td>Windows Integration</td>
+                                <td>0:39.93</td>
+                                <td>25:57.27</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Logging Made Easy</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+
+        <main>
+            <section>
+                <div class="body-text">
+                    <h1>Deploying Wazuh Agents</h1>
+                    <ul>
+                        <li>See Official Wazuh Documentation <a href="https://documentation.wazuh.com/4.7/installation-guide/wazuh-agent/index.html">Wazuh agent install documentation</a>.</li>
+                    </ul>
+                    
+                    <p>This guide will walk you through the process of enrolling a Wazuh agent in the LME system.</p>
+                    
+                    <h2>Important Note</h2>
+                    <p>Ensure the Wazuh agent version you're installing is not newer than your Wazuh manager version, as this can cause compatibility issues.</p>
+                    
+                    <h2>Variables</h2>
+                    <p>Throughout this guide, we'll use the following variables. Replace these with your specific values:</p>
+                    <ul>
+                        <li><code class="inline">{WAZUH_AGENT_VERSION}</code>: The version of the Wazuh agent you're installing (e.g., 4.9.0-1)</li>
+                        <li><code class="inline">{WAZUH_MANAGER_IP}</code>: The IP address of your Wazuh manager (e.g., 10.0.0.2)</li>
+                    </ul>
+                    
+                    <p>You can get your wazuh version that you are running via the following command:</p>
+                    <pre><code class="lang-bash">sudo -i podman exec -it lme-wazuh-manager /var/ossec/bin/wazuh-control -j info | jq</code></pre>
+                    
+                    <p>Output should look similar to this:</p>
+                    <pre><code class="lang-json">{
+  "error": 0,
+  "data": [
+    {
+      "WAZUH_VERSION": "v4.7.5"
+    },
+    {
+      "WAZUH_REVISION": "40720"
+    },
+    {
+      "WAZUH_TYPE": "server"
+    }
+  ]
+}</code></pre>
+                    
+                    <p>Drop the v, and use <code class="inline">4.7.5-1</code>. You need to add a "-1" like wazuh expects.
+                    You can confirm the version is accurate with a list from wazuh's versions <a href="https://documentation.wazuh.com/current/installation-guide/packages-list.html">HERE</a></p>
+                    
+                    <h2>Steps to Enroll a Wazuh Agent (Windows)</h2>
+                    <ol>
+                        <li>
+                            <h3>Download the Wazuh Agent</h3>
+                            <ul>
+                                <li>Download the Wazuh agent MSI installer from the following URL:<pre><code>https://packages.wazuh.com/4.x/windows/wazuh-agent-{WAZUH_AGENT_VERSION}.msi</code></pre></li>
+                                <li>Replace <code class="inline">{WAZUH_AGENT_VERSION}</code> with the appropriate version number.</li>
+                                <li>You can also use the below powershell command: <pre><code class="lang-powershell"><span class="comment"># Replace the values with the values you have above</span>
+<span class="comment"># where {WAZUH_AGENT_VERSION}=4.7.5</span>
+<span class="comment"># where {WAZUH_MANAGER_IP}=10.1.0.5</span>
+Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.7.5-1.msi -OutFile wazuh-agent-4.7.5-1.msi;`
+Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MANAGER="10.1.0.5"' -Wait -NoNewWindow</code></pre>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <h3>Install the Wazuh Agent</h3>
+                            <ul>
+                                <li>Open a command prompt with administrator privileges.</li>
+                                <li>Navigate to the directory containing the downloaded MSI file.</li>
+                                <li>Run the following command to install the agent:<pre><code class="lang-powershell">wazuh-agent-{WAZUH_AGENT_VERSION}.msi /q WAZUH_MANAGER="{WAZUH_MANAGER_IP}"</code></pre>
+                                </li>
+                                <li>Replace <code class="inline">{WAZUH_AGENT_VERSION}</code> with the version you downloaded.</li>
+                                <li>Replace <code class="inline">{WAZUH_MANAGER_IP}</code> with the IP address of your Wazuh manager.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <h3>Verify Installation</h3>
+                            <ul>
+                                <li>After installation, the Wazuh agent service should start automatically.</li>
+                                <li>You can verify the service status in the Windows Services manager.</li>
+                                <li>Ensure the service starts if it doesn't start automatically. Run this in a powershell terminal:<pre><code class="lang-powershell">NET START Wazuh</code></pre>
+                                </li>
+                            </ul>
+                        </li>
+                    </ol>
+                    
+                    <h2>Steps to Enroll a Wazuh Agent (Debian-based Systems)</h2>
+                    <ol>
+                        <li>
+                            <h3>Add Wazuh GPG key</h3>
+                            <pre><code class="lang-bash">curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg</code></pre>
+                        </li>
+                        <li>
+                            <h3>Add Wazuh Repository</h3>
+                            <pre><code class="lang-bash">echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee -a /etc/apt/sources.list.d/wazuh.list</code></pre>
+                        </li>
+                        <li>
+                            <h3>Update package information</h3>
+                            <pre><code class="lang-bash">apt-get update</code></pre>
+                        </li>
+                        <li>
+                            <h3>Install Wazuh agent and configure Wazuh Manager IP variable</h3>
+                            <pre><code class="lang-bash">WAZUH_MANAGER="{WAZUH_MANAGER_IP}" apt-get install wazuh-agent={WAZUH_AGENT_VERSION} && sed -i 's/MANAGER_IP/{WAZUH_MANAGER_IP}/i' /var/ossec/etc/ossec.conf</code></pre>
+                            <p>For example: </p>
+                            <pre><code class="lang-bash">WAZUH_MANAGER=10.0.0.15 apt-get install wazuh-agent=4.7.5-1 && sed -i 's/MANAGER_IP/10.0.0.15/i' /var/ossec/etc/ossec.conf</code></pre>
+                        </li>
+                    </ol>
+                    
+                    <h2>Verifying Installation</h2>
+                    <p>After installation, you can check the status of the Wazuh agent:</p>
+                    <pre><code class="lang-bash">systemctl status wazuh-agent</code></pre>
+                    
+                    <h2>Troubleshooting</h2>
+                    <p>If it doesn't start attempt the following: </p>
+                    <pre><code class="lang-bash">systemctl daemon-reload
+systemctl enable wazuh-agent
+systemctl start wazuh-agent</code></pre>
+                    
+                    <ul>
+                        <li>If the agent fails to connect, check your firewall settings to ensure the necessary ports are open. <a href="https://documentation.wazuh.com/current/getting-started/architecture.html">Wazuh Ports Documentation</a></li>
+                        <li>Verify that the Wazuh manager IP address is correct and reachable from the agent. This is the IP address of your LME server running the containers.</li>
+                    </ul>
+                    
+                    <p>By following these steps, you should be able to successfully enroll Wazuh agents into your LME system. Remember to keep your agents updated, but always ensure compatibility with your Wazuh manager version.</p>
+                    
+                    <h2>Verifying Wazuh Agent Status</h2>
+                    <p>This guide provides steps to check the status of Wazuh agents in the LME setup. These commands can be run from the host system without needing to execute into the container.</p>
+                    
+                    <h2>Listing All Agents and Their Status</h2>
+                    <p>To get an overview of all registered agents and their current status:</p>
+                    <pre><code class="lang-bash">sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l</code></pre>
+                    
+                    <p>This command will display a list of all agents, including their ID, name, IP address, and current status (active, disconnected, never connected, etc.).</p>
+                    
+                    <h2>Checking Status of a Specific Agent</h2>
+                    <p>To check the detailed status of a specific agent:</p>
+                    <pre><code class="lang-bash">sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -i [agent_id]</code></pre>
+                    
+                    <p>Replace <code class="inline">[agent_id]</code> with the ID of the agent you want to check. This will provide more detailed information about the agent, including its last keep alive time, version, and operating system.</p>
+                    
+                    <p>This command gives you a quick overview of how many agents are active, disconnected, or never connected.</p>
+                    
+                    <p>See official Wazuh documentation for more steps on <a href="https://documentation.wazuh.com/current/user-manual/reference/tools/agent-control.html">agent_control</a></p>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>    
+</body>
+</html>

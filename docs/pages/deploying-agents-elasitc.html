@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Logging Made Easy</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <section>
+                <div class="body-text">
+
+<!-- [TODO] fix this page redundant? (the example at the bottom) information is confusing -->
+                    <h1 class="needs-changing">Elastic Agent Management - Enrollment Guide</h1>
+                    <p>This guide will walk you through the process of enrolling an Elastic agent.</p>
+                    <h2>Steps to Enroll an Agent</h2>
+                    <ol>
+                        <li>
+                            <p><strong>Access the Fleet Menu</strong></p>
+                            <ul>
+<!-- would be great to have a screen shot of the dashborad below to show the users what it should look like, with the things they are supposed to click on highlighted -->
+                                <li>Open the LME dashboard: <code class="inline">https://{SERVER_IP}</code>
+                                    <ul>
+                                        <li>Password information can be found in the <a
+                                                href="/README.md#retrieving-passwords">README</a>.</li>
+                                    </ul>
+                                </li>
+                                <li>Open the &quot;hamburger&quot; menu icon in the top left (three horizontal lines)
+                                </li>
+                                <li>Scroll down and select &quot;Fleet&quot; from the menu</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Add a New Agent</strong></p>
+                            <ul>
+                                <li>Click on the &quot;Add agent&quot; button</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Select the Policy</strong></p>
+                            <ul>
+                                <li>Ensure you select the appropriate policy for the agent</li>
+                                <li>For example, choose &quot;Endpoint Policy&quot; if you&#39;re adding an endpoint
+                                    device</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Enrollment Settings</strong></p>
+                            <ul>
+                                <li>Keep the &quot;Enroll in Fleet&quot; option selected</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Choose the Agent Type</strong></p>
+                            <ul>
+                                <li>Select the appropriate option based on your endpoint:<ul>
+                                        <li>Linux Tar</li>
+                                        <li>Mac</li>
+                                        <li>Windows (ensure you run this in a PowerShell prompt with administrator
+                                            privileges)</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Installation Command</strong></p>
+                            <ul>
+                                <li>You will be presented with an installation command for the selected platform</li>
+                                <li>Note: If you haven&#39;t added the LME certificates to your trusted store,
+                                    you&#39;ll need to modify the command</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Modify the Command If necessary(e.g.,if certificates have not been added to the
+                                    trusted store)</strong></p>
+                            <ul>
+                                <li>Add <code class="inline">--insecure</code> at the end of the ./elastic-agent install` command</li>
+                                <li>This is similar to clicking &quot;continue to website&quot; in a browser when you
+                                    get a certificate warning</li>
+                                <li>
+                                    <p>Example:</p>
+                                    <pre><code>./elastic-agent <span class="hljs-keyword">install</span> [-other-flags-youll-see] <span class="hljs-comment">--insecure</span>
+</code></pre>
+                                </li>
+                                <li>
+                                    <p>it should look like this screenshot:
+                                        <img src="/docs/imgs/insecure-powershell.png" alt="example-screenshot" class="image">
+                                    </p>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Execute the Command</strong></p>
+                            <ul>
+                                <li>Run the command on the desired host.<ul>
+                                        <li>Recommend running each line individually so you can see a clear picture of
+                                            the status of each command ran. The entire process will download an agent,
+                                            unzip it, and install it.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <p>From Fleet you should see the agent enrolled now.</p>
+                    <h2>LME Elastic Agent Integration Example</h2>
+                    <p>This guide will walk you through the process of adding a Windows integration to an agent policy
+                        in the LME system.</p>
+                    <h2>Steps to Add Windows Integration</h2>
+                    <ol>
+                        <li>
+                            <p><strong>Access Fleet and Agent Policies</strong></p>
+                            <ul>
+                                <li>Open the LME dashboard: <code>https://{SERVER_IP}</code>
+                                    <ul>
+                                        <li>Password information can be found in the <a
+                                                href="/README.md#retrieving-passwords">Readme</a>.</li>
+                                    </ul>
+                                </li>
+                                <li>Open the &quot;hamburger&quot; menu icon in the top left (three horizontal lines)
+                                </li>
+                                <li>Select &quot;Fleet&quot; from the menu</li>
+                                <li>Click on &quot;Agent policies&quot;</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Select the Target Policy</strong></p>
+                            <ul>
+                                <li>Choose the policy you want to add the integration to</li>
+                                <li>For example, select &quot;Endpoint Policy&quot;</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Add Integration</strong></p>
+                            <ul>
+                                <li>Click the &quot;Add integration&quot; button</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Choose Windows Integration</strong></p>
+                            <ul>
+                                <li>From the list of available integrations, select &quot;Windows&quot;</li>
+                                <li>Select &quot;add Windows&quot;</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Configure Windows Integration</strong></p>
+                            <ul>
+                                <li>Scroll down to review the options available</li>
+                                <li>You&#39;ll see various Windows logs and metrics that can be collected</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Customize Log Collection</strong></p>
+                            <ul>
+                                <li>Review the options set to on or off</li>
+                                <li>These options provide more choices for collecting Windows logs</li>
+                                <li>Important note: If you have Sysmon installed on your endpoints, ensure &quot;Sysmon
+                                    Operational&quot; is selected to collect Sysmon logs</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Configure Metrics Collection</strong></p>
+                            <ul>
+                                <li>You can choose to collect various metrics from your Windows endpoints</li>
+                                <li>Review and enable the metrics you&#39;re interested in monitoring</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Save and Deploy</strong></p>
+                            <ul>
+                                <li>After configuring your desired options, save the integration</li>
+                                <li>Deploy the changes to apply them to the agents using this policy</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <h2>Important Considerations</h2>
+                    <ul>
+                        <li><strong>Sysmon Integration</strong>: If you&#39;re using Sysmon for enhanced logging, make
+                            sure to enable the Sysmon Operational log collection.</li>
+                        <li><strong>Performance Impact</strong>: Be mindful that collecting more logs and metrics may
+                            impact endpoint performance. Balance your monitoring needs with system resources.</li>
+                        <li><strong>Regulatory Compliance</strong>: Consider any regulatory requirements you may have
+                            when selecting which logs and metrics to collect.</li>
+                        <li><strong>Storage Considerations</strong>: More data collection means more storage usage.
+                            Ensure your LME system has adequate storage capacity.</li>
+                        <li><strong>Review Regularly</strong>: Periodically review your integration settings to ensure
+                            they still meet your needs and adjust as necessary.</li>
+                    </ul>
+                    <p>By following these steps, you can effectively add and configure the Windows integration to your
+                        chosen agent policy in the LME system, allowing for comprehensive logging of your Windows
+                        endpoints.</p>
+                    <p>Apply these same steps to future integrations such as Auditd for Linux.</p>
+                    <h2 id="troubleshooting-agent-setup-">Troubleshooting Agent Setup:</h2>
+                    <p>The Elastic agent has multiple debugging commands that can be run to troubleshoot installs.
+                        Please see the link <a
+                            href="https://www.elastic.co/guide/en/fleet/current/elastic-agent-cmd-options.html">HERE</a>.
+                    </p>
+                    <p>In addition, you can use this <a
+                            href="https://www.elastic.co/guide/en/fleet/current/installation-layout.html">link</a> to
+                        navigate/find the directories for where Elastic agent is installed on the operating system.</p>
+                    <p>If there are issues with running the command involving a pipe file, the elastic endpoint service
+                        (a windows service started by the agent) is in a failed state, and retarting the machine will
+                        most likely fix it, check out this <a
+                            href="https://discuss.elastic.co/t/windows-pipe-elastic-agent-system-access-is-denied/316344">link</a>
+                        However, this isn&#39;t required if the agent is showing as healthy, only if you want to run
+                        other cli agent debugging commands.</p>
+
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+</body>
+
+</html>

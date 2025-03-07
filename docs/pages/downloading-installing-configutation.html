@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Logging Made Easy</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <section>
+                <div class="body-text">
+                    <h1> Downloading and Installing LME</h1>
+
+                    <p>This guide provides step-by-step instructions for downloading, configuring, and installing LME on
+                        an Ubuntu server.</p>
+                    <p><strong>Note:</strong> LME has been extensively tested on Ubuntu 22.04. While it can run on other
+                        Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
+                        We have done initial testing on 24.04, and suggest using that if you run into issues setting up
+                        on 22.04.</p>
+                    <p><strong>Upgrading</strong>:
+                        If you are upgrading from an older version of LME to LME 2.0, please see our <a
+                            href="/docs/markdown/maintenance/upgrading.md">upgrade documentation</a>.</p>
+                    <h2>1. Downloading LME</h2>
+                    <p>Follow these steps to download and set up LME:</p>
+                    <h3>1.1 Update System Packages</h3>
+                    <p>Update your package list and install the necessary tools:</p>
+                    <pre><code class="lang-bash">sudo apt <span class="hljs-keyword">update</span> &amp;&amp; sudo apt <span class="hljs-keyword">upgrade</span> -y
+</code></pre>
+                    <h3>1.2 Install Prerequisites</h3>
+                    <p>Install the required tools including Ansible:</p>
+                    <pre><code class="lang-bash">sudo apt <span class="hljs-keyword">install </span>curl <span class="hljs-keyword">jq </span>unzip ansible -y
+</code></pre>
+                    <h3>1.3 Download and Extract LME</h3>
+                    <p>Download the latest release of LME and extract it to <code class="inline">~/LME</code>:</p>
+                    <pre><code class="lang-bash"><span class="hljs-attribute">curl</span> -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r <span class="hljs-string">'.assets[0].browser_download_url'</span> | xargs -I {} <span class="hljs-attribute">sh</span> -c <span class="hljs-string">'curl -L -O {} &amp;&amp; unzip -d ~/LME $(basename {})'</span>
+</code></pre>
+                    <br>
+                    <h2>2. Configuration</h2>
+                    <p>Configure LME by following these steps:</p>
+                    <h3>2.1 Retrieve Server IP Address</h3>
+                    <p>Obtain your server&#39;s IP address, which will be used by clients to forward logs:</p>
+                    <pre><code class="lang-bash"><span class="hljs-attribute">hostname</span> -I | awk <span class="hljs-string">'{print <span class="hljs-variable">$1</span>}'</span>
+</code></pre>
+                    <h3>2.2 Set Up Environment Variables</h3>
+                    <p>Navigate to the LME directory:</p>
+                    <pre><code class="lang-bash"><span class="hljs-built_in">cd</span> ~/LME
+</code></pre>
+                    <p>Copy the example environment file:</p>
+                    <pre><code class="lang-bash">cp ./<span class="hljs-built_in">config</span>/example.env ./<span class="hljs-built_in">config</span>/lme-environment.env
+</code></pre>
+                    <p>Edit the <code class="inline">lme-environment.env</code> file to update the <code class="inline">IPVAR</code> variable with
+                        your server&#39;s IP address:</p>
+                    <pre><code class="lang-shell">IPVAR=<span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span> # Replace with your server's IP address
+</code></pre>
+                    <p>For example open and edit the file via nano: </p>
+                    <pre><code class="lang-bash">nano ./<span class="hljs-built_in">config</span>/lme-environment.env
+</code></pre>
+                    <br>
+                    <h2>3. Installation</h2>
+                    <p>Install LME by following these steps:</p>
+                    <h3>3.1 Execute the Installation Playbook</h3>
+                    <p>Run the Ansible playbook from within your LME directory to install LME:</p>
+                    <pre><code class="lang-bash">ansible-playbook .<span class="hljs-regexp">/ansible/i</span>nstall_lme_local.yml
+</code></pre>
+                    <p><span style="color:#d86e32"><strong>Note</strong>: The services may take a few minutes to start.
+                            Please be patient.</span></p>
+                    <h3>3.2 Verify Container Status</h3>
+                    <p>Check that the containers are running and healthy:</p>
+                    <pre><code class="lang-bash">sudo -<span class="hljs-selector-tag">i</span> podman ps --format <span class="hljs-string">"{{.Names}} {{.Status}}"</span>
+</code></pre>
+                    <p>Expected output:</p>
+                    <pre><code class="lang-shell">lme-elasticsearch Up <span class="hljs-number">19</span> hours (healthy)
+lme-wazuh-manager Up <span class="hljs-number">19</span> hours
+lme-kibana Up <span class="hljs-number">19</span> hours (healthy)
+lme-fleet-server Up <span class="hljs-number">19</span> hours
+lme-elastalert2 Up <span class="hljs-number">17</span> hours
+</code></pre>
+                    <p><strong>Note:</strong> If the output differs, refer to the <a
+                            href="/docs/markdown/reference/troubleshooting.md#installation-troubleshooting">troubleshooting
+                            guide</a>.</p>
+<br>
+                    <h2>4. Post-Installation Steps</h2>
+                    <h3>4.1 Execute the Post-Installation Playbook</h3>
+
+                    <p>Run the post-installation playbook:</p>
+                    <pre><code class="lang-bash">ansible-playbook .<span class="hljs-regexp">/ansible/</span>post_install_local.yml
+                            </code></pre>
+                    <p><span style="color:rgb(218, 4, 4)"><strong>Important</strong>: The post-install script sets up the password
+                            for a <code class="inline">readonly_user</code> account, intended for analysts who need to query
+                            Elasticsearch without administrative access. The script will output the password at the end.
+                            Ensure you save this password securely.</span></p>
+                    <p>Example output:</p>
+                    <pre><code class="lang-bash">TASK [DISPLAY NEW READONLY USER PASSWORD] <span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span><span class="hljs-strong">*****</span>
+                        
+                            ok: [localhost] =&gt; {
+                            <span class="hljs-code">    "msg": "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: oz9vLny0fB3HA8S2hH!FLZ06TvpaCq"</span>
+                            <span class="hljs-code">    }</span>
+                            
+                            <span class="hljs-code">    PLAY RECAP ********************************************************************************************************</span>
+                            <span class="hljs-code">    localhost                  : ok=27   changed=6    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0</span>
+                            </code></pre>
+                    <p><span style="color:#d86e32"><strong>Note:</strong> The password for the <code class="inline">readonly_user</code>
+                            will change each time this script is run. Run this script only when necessary, ideally just
+                            once.</span></p>
+
+
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+</body>
+
+</html>

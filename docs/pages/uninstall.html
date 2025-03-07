@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Logging Made Easy</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <section>
+                <div class="body-text">
+                    <h1>Uninstall LME</h1>
+                    <p>To completely uninstall LME&#39;s services and data, follow these steps. Note that dependencies
+                        will not be removed. You can consult the Ansible scripts to identify and remove the installed
+                        dependencies and created directories if desired.</p>
+                    <p><span style="color:red"><strong>Warning: This will delete all LME data and
+                                services.</strong></span></p>
+                    <h4 id="complete-uninstall">Complete Uninstall</h4>
+                    <ol>
+                        <li>
+                            <p><strong>Stop LME services:</strong></p>
+                            <pre><code class="lang-bash">sudo systemctl <span class="hljs-built_in">stop</span> lme*
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Reset systemd service states:</strong></p>
+                            <pre><code class="lang-bash">sudo systemctl <span class="hljs-keyword">reset</span>-<span class="hljs-keyword">failed</span>
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Remove all Podman volumes:</strong></p>
+                            <pre><code class="lang-bash">sudo -i podman <span class="hljs-keyword">volume</span><span class="bash"> rm <span class="hljs-_">-a</span></span>
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Remove all Podman secrets:</strong></p>
+                            <pre><code class="lang-bash">sudo -<span class="hljs-selector-tag">i</span> podman secret rm -a
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Delete LME directories:</strong></p>
+                            <pre><code class="lang-bash">sudo rm -rf <span class="hljs-regexp">/opt/</span>lme <span class="hljs-regexp">/etc/</span>lme <span class="hljs-regexp">/etc/</span>containers<span class="hljs-regexp">/systemd</span>
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Reset Podman <span style="color:red">(Do not run this if you have other Podman
+                                        containers)</span>:</strong></p>
+                            <pre><code class="lang-bash">sudo -i podman <span class="hljs-keyword">system</span> reset <span class="hljs-comment">--force</span>
+</code></pre>
+                        </li>
+                    </ol>
+                    <p><span style="color:red"><strong>Warning: This will delete all LME data and
+                                services.</strong></span></p>
+                    <h4 id="optional-uninstall-steps">Optional Uninstall Steps</h4>
+                    <ol>
+                        <li>
+                            <p><strong>Stop LME services:</strong></p>
+                            <pre><code class="lang-bash">sudo systemctl stop lme*
+sudo systemctl disable lme.service
+sudo -<span class="hljs-built_in">i</span> podman stop $(sudo -<span class="hljs-built_in">i</span> podman ps -aq)
+sudo -<span class="hljs-built_in">i</span> podman rm $(sudo -<span class="hljs-built_in">i</span> podman ps -aq)
+</code></pre>
+                        </li>
+                        <li>
+                            <p><strong>Delete LME volumes:</strong></p>
+                            <ul>
+                                <li>To delete only LME volumes:
+                                    <pre><code class="lang-bash">sudo -i podman volume ls --format <span class="hljs-comment">"{{.Name}}"</span> | grep lme | xargs podman volume rm
+</code></pre>
+                                </li>
+                                <li>To delete all volumes:
+                                    <pre><code class="lang-bash">sudo -i podman <span class="hljs-keyword">volume</span><span class="bash"> rm <span class="hljs-_">-a</span></span>
+</code></pre>
+                                </li>
+                            </ul>
+                        </li>
+                    </ol>
+
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+</body>
+
+</html>

@@ -1,150 +1,151 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Logging Made Easy</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+    </head>
 
-    <title> Logging Made Easy </title>
-    <meta property="og:title" content="LME">
-    <meta property="og:locale" content="en_US">
-    <meta name="description" content="Logging Made Easy">
-
-    <link rel="stylesheet" href="assets/css/style.css">
-</head>
-
-<body>
-    <div class="wrapper">
-        <header>
-            <div class="side-nav">
-                <img class="logo" src="pages/assets/imgs/lme-image.png" alt="Logo">
-                <div class="version">v2.0</div>
-                <div class="nav-links">
-                    <a href="../index.html">Overview</a>
-                    <a class="active" href="pages/installation-overview.html">Installation</a>
-                    <a href="pages/documentation.html">Documentation</a>
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
                 </div>
-            </div>
-        </header>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
         <main>
             <section>
                 <div class="body-text">
-            <h1>Upgrading for Existing LME Users</h1>
-            <p>
-                Currently the <b>only</b> upgrade path is from 1.4 to 2.0. We highly recommend upgrading to 1.4 if you
-                are using an earlier version as that is the only supported upgrade path defined in the link above.
-            </p>
-
-            <h1 id="upgrading-from-1x-to-2x">Upgrading from 1x to 2x</h1>
-            <p>Note: You don&#39;t have to upgrade to 2x, but this is the guide to do so. You can just do a fresh
-                install of 2x. You will want to skip to the uninstall section (Section 4) to clear your system of the
-                old version if you are not upgrading.</p>
-            <ol>
-                <li>
-                    <p>Checkout the latest version of the LME repository to your home directory</p>
-                    <pre><code class="language-bash">cd ~
-git clone https://github.com/cisagov/LME.git
-</code></pre>
-                </li>
-                <li>
-                    <p>Export indices:</p>
-                    <p> Note: <em>This may take some time witout feedback. Make sure it finishes successfully</em></p>
-                    <p> A successful completion looks like this:</p>
-                    <pre><code class="language-bash">Data and mappings export completed. Backup stored in: /lme_backup
+                    <h1 id="upgrading-from-1x-to-2x">Upgrading from 1x to 2x</h1>
+                    <p>Note: You don't have to upgrade to 2x, but this is the guide to do so. You can just do a
+                        fresh install of 2x. You will want to skip to the uninstall section (Section 4) to clear your
+                        system of the old version if you are not upgrading.</p>
+                    <ol>
+                        <li>Checkout the latest version of the LME repository to your home directory
+                            <pre><code class="lang-bash">cd ~
+git clone https://github.com/cisagov/LME.git</code></pre>
+                        </li>
+                        <li>
+                            <p>Export indices:</p>
+                            <p>Note: <em>This may take some time without feedback. Make sure it finishes
+                                    successfully</em></p>
+                            <p>A successful completion looks like this:</p>
+                            <pre><code class="lang-bash">Data and mappings export completed. Backup stored in: /lme_backup
 Files created:
 - /lme_backup/winlogbeat_data.json.gz
-- /lme_backup/winlogbeat_mappings.json.gz
-</code></pre>
-                    <p> Run this command to export the indices (this may take some time without feedback): </p>
-                    <pre><code class="language-bash">cd ~/LME/scripts/upgrade
-sudo ./export_1x.sh
-</code></pre>
-                </li>
-                <li>
-                    <p>Either export the dashboards or use the existing ones</p>
-                    <ul>
-                        <li>If you don&#39;t have custom dashboards, you can use the path to the existing ones in the
-                            following steps
-                            <pre><code class="language-bash">/opt/lme/Chapter 4 Files/dashboards/ or
-/opt/lme-old/Chapter 4 Files/dashboards/
-</code></pre>
+- /lme_backup/winlogbeat_mappings.json.gz</code></pre>
+                            <p>Run this command to export the indices (this may take some time without feedback):</p>
+                            <pre><code class="lang-bash">cd ~/LME/scripts/upgrade
+sudo ./export_1x.sh</code></pre>
                         </li>
-                        <li>If you have custom dashboards, you will need to export them and use that path:
-                            <pre><code class="language-bash"># Export all of the dashboards, it is the last option
+                        <li>Either export the dashboards or use the existing ones
+                            <ul>
+                                <li>If you don't have custom dashboards, you can use the path to the existing ones
+                                    in the following steps
+                                    <pre><code class="lang-bash">/opt/lme/Chapter 4 Files/dashboards/ or
+/opt/lme-old/Chapter 4 Files/dashboards/</code></pre>
+                                </li>
+                                <li>If you have custom dashboards, you will need to export them and use that path:
+                                    <pre><code class="lang-bash"><span class="comment"># Export all of the dashboards, it is the last option</span>
 cd ~/LME/scripts/upgrade/
 pip install -r requirements.txt
-export_dashboards.py -u elastic -p yourpassword
-</code></pre>
-                            <ul>
-                                <li>Your path to use for the importer will be:</li>
+export_dashboards.py -u elastic -p yourpassword</code></pre>
+                                    <ul>
+                                        <li>Your path to use for the importer will be:
+                                            <pre><code class="lang-bash">/yourhomedirectory/LME/scripts/upgrade/exported/</code></pre>
+                                        </li>
+                                    </ul>
+                                </li>
                             </ul>
-                            <pre><code class="language-bash">/yourhomedirectory/LME/scripts/upgrade/exported/
-</code></pre>
                         </li>
-                    </ul>
-                </li>
-                <li>
-                    <p>Uninstall old LME version </p>
-                    <pre><code class="language-bash">sudo su
-cd &quot;/opt/lme/Chapter 3 Files/&quot;
+                        <li>
+                            <p>Uninstall old LME version</p>
+                            <pre><code class="lang-bash">sudo su
+cd "/opt/lme/Chapter 3 Files/"
 ./deploy.sh uninstall
-<h1 id="go-back-to-your-user">Go back to your user</h1>
-<p>exit </p>
-<h1 id="if-you-are-using-docker-for-more-than-lme-you-want-to-keep-docker">If you are using docker for more than lme
-    (You want to keep docker)</h1>
-<p>sudo docker volume rm lme_esdata
-    sudo docker volume rm lme_logstashdata</p>
-<h1 id="if-you-are-only-using-docker-for-lme">If you are only using docker for lme</h1>
-<h1 id="remove-existing-volumes">Remove existing volumes</h1>
-<p>cd ~/LME/scripts/upgrade</p>
-<p>sudo su # Become root in the right directory
-    ./remove_volumes.sh</p>
-<h1 id="uninstall-docker">Uninstall Docker</h1>
-<p>./uninstall_docker.sh</p>
-<h1 id="rename-the-directory-to-make-room-for-the-new-install">Rename the directory to make room for the new install
-</h1>
-<p>mv /opt/lme /opt/lme-old
-    exit # Go back to regular user
-    </code></pre>
-                    </p>
-                </li>
-                <li>
-                    <p>Install LME version 2x</p>
-                    <pre><code class="language-bash">#***** Make sure you are running as normal user *****#
-sudo apt-get update &amp;&amp; sudo apt-get -y install ansible
 
-<h1 id="copy-the-environment-file">Copy the environment file</h1>
-<p>cp ~/LME/config/example.env ~/LME/config/lme-environment.env</p>
-<h1 id="edit-the-lme-environmentenv-and-change-all-the-passwords">Edit the lme-environment.env and change all the passwords</h1>
-<h1 id="vim-lmeconfiglme-environmentenv">vim ~/LME/config/lme-environment.env</h1>
-<h1 id="change-to-the-script-directory">Change to the script directory</h1>
-<p>cd ~/LME/ansible/</p>
-<p>ansible-playbook install_lme_local.yml</p>
-<h1 id="load-podman-into-your-environment">Load podman into your environment</h1>
-<p>. ~/.profile</p>
-<h1 id="have-the-full-paths-of-the-winlogbeat-files-that-you-exported-earlier-ready">Have the full paths of the winlogbeat files that you exported earlier ready</h1>
-<h1 id="lme_backupwinlogbeat_datajsongz">/lme_backup/winlogbeat_data.json.gz</h1>
-<h1 id="lme_backupwinlogbeat_mappingsjsongz">/lme_backup/winlogbeat_mappings.json.gz</h1>
-<p>cd ../scripts/</p>
-<h1 id="this-will-extract-the-secrets-from-the-environment-file-and-show-them-to-you-save-these-passwords">This will extract the secrets from the environment file and show them to you. Save these passwords.</h1>
-<p>. extract_secrets.sh -p</p>
-<h1 id="this-will-import-the-winlogbeat-data-and-mappings-use-the-elastic-password-from-above">This will import the winlogbeat data and mappings use the elastic password from above</h1>
-<p>./upgrade/import_1x.sh</p>
-<h1 id="use-the-path-from-above-dashboard-export-or-original-dashboards">Use the path from above dashboard export or original dashboards</h1>
-<h1 id="use-the-elastic-password-from-above-it-is-the-new-password-for-elastic">Use the elastic password from above. It is the new password for elastic</h1>
-<p>sudo ./upgrade/import_dashboards.sh -d /opt/lme-old/Chapter\ 4\ Files/dashboards/
-</code></pre>
-                    </p>
-                    <p> You will now want to do the rest of the installation instructions in the README at the root of
-                        the repo.
-                        Start with the section after running <code>ansible-playbook install_lme_local.yml</code></p>
-                </li>
-            </ol>
+<span class="comment"># Go back to your user</span>
+exit 
 
-</div>
-</section>
+<span class="comment"># If you are using docker for more than lme (You want to keep docker)</span>
+sudo docker volume rm lme_esdata
+sudo docker volume rm lme_logstashdata
+
+<span class="comment"># If you are only using docker for lme 
+# Remove existing volumes</span>
+cd ~/LME/scripts/upgrade
+
+<span class="comment"># Become root in the right directory</span>
+sudo su 
+./remove_volumes.sh
+
+<span class="comment"># Uninstall Docker</span>  
+./uninstall_docker.sh
+
+<span class="comment"># Rename the directory to make room for the new install</span>
+mv /opt/lme /opt/lme-old
+exit # Go back to regular user</code></pre>
+                        </li>
+                        <li>
+                            <p>Install LME version 2x</p>
+                            <pre><code class="lang-bash"><span class="comment">#***** Make sure you are running as normal user *****#</span>
+sudo apt-get update && sudo apt-get -y install ansible
+
+<span class="comment"># Copy the environment file</span>
+cp ~/LME/config/example.env ~/LME/config/lme-environment.env
+
+<span class="comment"># Edit the lme-environment.env and change all the passwords
+# vim ~/LME/config/lme-environment.env 
+
+# Change to the script directory</span>
+cd ~/LME/ansible/
+
+ansible-playbook install_lme_local.yml
+
+<span class="comment"># Load podman into your environment</span>
+. ~/.profile
+
+<span class="comment"># Have the full paths of the winlogbeat files that you exported earlier ready
+# /lme_backup/winlogbeat_data.json.gz
+# /lme_backup/winlogbeat_mappings.json.gz</span>
+
+cd ../scripts/
+
+<span class="comment"># This will extract the secrets from the environment file and show them to you. Save these passwords.</span>
+. extract_secrets.sh -p
+
+<span class="comment"># This will import the winlogbeat data and mappings use the elastic password from above</span>
+./upgrade/import_1x.sh
+
+<span class="comment"># Use the path from above dashboard export or original dashboards
+# Use the elastic password from above. It is the new password for elastic</span>
+sudo ./upgrade/import_dashboards.sh -d /opt/lme-old/Chapter\ 4\ Files/dashboards/</code></pre>
+                            <p>You will now want to complete the remainder of of the installation instructions beginning <a href="downloading-installing-configutation.html#:~:text=3.1%20Execute%20the%20Installation%20Playbook">here</a> and following the Installation and Post Installation steps in sections 3 and 4.
+                        </li>
+                    </ol>
+                </div>
+            </section>
         </main>
-        </div>
-
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+</body>
 </html>
