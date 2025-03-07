@@ -120,7 +120,7 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            sleep 90 && \
+            sleep 180 && \
             pwd && \
             ls -la && \
             cd /home/lme-user/LME/testing/v2/installers && \
