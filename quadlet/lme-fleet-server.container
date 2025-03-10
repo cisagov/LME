@@ -4,7 +4,7 @@ Description=Fleet Container Service
 Requires=lme-elasticsearch.service
 After=lme-elasticsearch.service lme-kibana.service
 PartOf=lme.service
-ConditionPathExists=!/opt/lme/FLEET_SETUP_FINISHED
+ConditionPathExists=/opt/lme/FLEET_SETUP_FINISHED
 
 [Service]
 Restart=always
