@@ -427,7 +427,7 @@ Consider adding them to Windows/Linux.
 #### Linux:
  - [Auditd](/docs/markdown/endpoint-tools/install-auditd.md)
 
-## 6. Developer notes:
+## 6. Developer Notes
 Git clone and git checkout your development branch on the server:
 
 ```bash
