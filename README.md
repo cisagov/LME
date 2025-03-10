@@ -416,7 +416,7 @@ Here is documentation on agent configuration and management.
  - Wazuh:
    - [Wazuh Configuration](/docs/markdown/maintenance/wazuh-configuration.md)
    - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
-   - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
+   - [Agent Management](/docs/markdown/agents/wazuh-agent-management.md)
     
 ### Endpoint Tools:
 To make best use of the agents, complement them with utilities that generate forensically relevant data to analyze and support detections.
