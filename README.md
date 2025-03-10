@@ -263,7 +263,7 @@ ok: [localhost] => {
 ### 5. Deploying Agents 
 To populate the dashboards with data, you need to install agents. Detailed guides for deploying Wazuh and Elastic agents are available in the following documents:
 
- - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
+ - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-management.md)
  - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-management.md)
 
 
