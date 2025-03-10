@@ -11,7 +11,7 @@ PASSWORD_FILE="/etc/lme/pass.sh"
 
 ### Grabbing Passwords: 
 To view the appropriate service user password run the following commands:
-```
+```bash
 #script:
 $CLONE_DIRECTORY/scripts/extract_secrets.sh -p #to print
 
@@ -39,7 +39,3 @@ A cli one liner to grab passwords (this also demonstrates how we're using Ansibl
 USER_NAME=wazuh_api
 sudo -i ansible-vault view /etc/lme/vault/$(sudo -i podman secret ls | grep $USER_NAME | awk '{print $1}')
 ```
-
-
-
-

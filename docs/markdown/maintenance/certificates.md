@@ -6,15 +6,16 @@ By default the installation will create certificates and this documentation desc
 ## Regenerating Self-Signed Certificates
 The easiest way to do this is to delete the `lme_certs` volume, and restart lme.service:
 
-This is destructive and not recommended,but there could be cases.
+This is destructive and not recommended, but there could be cases.
 ```bash
 sudo -i podman volume rm lme_certs
 sudo systemctl restart lme.service
 ```
 
 ## Using Your Own Certificates
-You can certificates signed by an existing root CA as part of the LME install by generating certificates manually with the correct settings and placing these within the required directory inside the LME folder. **NOTE: The default supported method of LME installation is to use the automatically created self-signed certificates, and we will be unable to support any problems that arise from generating the certificates manually incorrectly.**
+You can use certificates signed by an existing root CA as part of the LME install by generating certificates manually with the correct settings and placing these within the required directory inside the LME folder.
 
+**NOTE: The default supported method of LME installation is to use the automatically created self-signed certificates, and we will be unable to support any problems that arise from generating the certificates manually incorrectly.**
 
 ### Certificate Creation
 If you create certificates ensure their subject alt names allow for the ips/dns entries listed below, as well as the ips/domains you'll be connecting to the service as: 
@@ -52,7 +53,7 @@ instances:
       - "127.0.0.1"
 ```
 
-For example, the new kibana cert would need to support the above alternative names... you can also ensure its setup properly by viewing the current cert (assuming you've already mounted the `lme_certs` podman volume.
+For example, the new kibana cert would need to support the above alternative names. You can also ensure its setup properly by viewing the current cert (assuming you've already mounted the `lme_certs` podman volume).
 ```bash
 root@ubuntu:~$ cat /var/lib/containers/storage/volumes/lme_certs/_data/kibana/kibana.crt  | openssl x509 -text | grep -i Alternative -A 1
             X509v3 Subject Alternative Name:
