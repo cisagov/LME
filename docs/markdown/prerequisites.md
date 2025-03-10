@@ -54,6 +54,8 @@ Users must pay for hosting, bandwidth and time; for an estimate of server specs 
 To keep LME simple, our guide only covers single server setups.  Considering the differences across environments and scaling needs, we cannot provide an estimate of server resources beyond single server setups.
 It’s possible to scale the solution to multiple event collectors and ELK nodes, but that will require more experience with the technologies involved. However, we plan to publish documentation for scaling LME in the future.
 
+Please see the above blogpost from elastic for discussion on how to scale an elastic stack cluster. 
+
 ## Required infrastructure
 
 To begin installing LME, you will need access to the following servers or you will need to create them:
@@ -99,5 +101,3 @@ Servers can be either on premise, in a public cloud, or in a private cloud. It i
 Please see our cloud documentation for a discussion on firewalls [LME in the Cloud](/docs/markdown/loggging-guidance/cloud.md). 
 
 You must ensure that the client machine you want to monitor can reach the main LME ports as described in the ReadMe [Required Ports section](/README.md#required-ports).
-
-
