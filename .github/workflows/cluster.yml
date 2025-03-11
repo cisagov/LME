@@ -228,6 +228,11 @@ jobs:
             ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
           "
 
+      - name: Wait for LME installation to complete
+        run: |
+          echo "Waiting for LME installation to fully complete..."
+          sleep 300
+
       - name: Retrieve Elastic password 
         env:
           AZURE_IP: ${{ env.AZURE_IP }}
