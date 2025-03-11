@@ -11,7 +11,7 @@ Wazuh can automatically block IP addresses attempting SSH brute-force attacks us
 1. **Verify Default Script**:
    - Check for `firewall-drop` script in `/var/ossec/active-response/bin/` on Linux/Unix systems.
 
-2. **Configure Command in wazuh_manager.conf**: Note this command (firewall-drop) already exists. But you can create custom scripts located in the active response/bin path and add new commands into the .conf file located at wazuh_manger.conf located at /opt/lme/config/wazuh_cluster/wazuh_manager.conf
+2. **Configure Command in wazuh_manager.conf**: Note this command (firewall-drop) already exists. But you can create custom scripts located in the active response/bin path and add new commands into the .conf file located at wazuh_manager.conf located at /opt/lme/config/wazuh_cluster/wazuh_manager.conf
 
 
 
