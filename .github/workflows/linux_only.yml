@@ -133,19 +133,19 @@ jobs:
           pytest -v api_tests/linux_only/ selenium_tests/linux_only/'
         "
         
-    - name: Cleanup Azure resources
-      if: always()
-      env:
-        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
-        AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
-        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
-          az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
-        "
+    #- name: Cleanup Azure resources
+    #  if: always()
+    #  env:
+    #    AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    #    AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
+    #    AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+    #    AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    #  run: |
+    #    cd testing/v2/development
+    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+    #      az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
+    #      az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+    #    "
         
     - name: Stop and remove containers
       if: always()
