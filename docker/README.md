@@ -100,7 +100,7 @@ docker compose exec lme bash
 ```
 This will give you a root shell into the container and you can follow the instructions on the main readme about how 
 to check containers within the container. In the [main readme](https://github.com/cisagov/lme?tab=readme-ov-file#table-of-contents)  
-locate the "Verification Post-Install:" section and the directions that follow.
+locate the "Post installation steps" section and the sections that follow, to manage and access the system.
 
 ### Getting passwords for the users
 The passwords for the users are accessed by running the following command:
