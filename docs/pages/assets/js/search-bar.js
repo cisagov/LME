@@ -8,11 +8,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const pagesToIndex = [
       'index.html',
       'installation-overview.html',
-      'documentation.html',
       'before-you-install.html',
       'architecture.html',
       'installation-prereqs.html',
-      'downloading-installing-configutation.html',
+      'downloading-installing-configuration.html',
       'deploying-agents.html',
       'deploying-agents-elasitc.html',
       'deploying-agents-wazuh.html',
@@ -21,9 +20,27 @@ document.addEventListener('DOMContentLoaded', function() {
       'starting-and-stoping.html',
       'customizing-lme.html',
       'elast-alert-rule-writing.html',
+      'uninstall.html',
       'active-response.html',
+      'auditd.html',
       'backups.html',
-      'uninstall.html'
+      'certificates.html',
+      'cloud.html',
+      'configuration,html',
+      'dashboards.html',
+      'documentation.html',
+      'encryption-at-rest.html',
+      'faq.html',
+      'filtering.html',
+      'index-management.html',
+      'log-retention.html',
+      'password-encryption.html',
+      'security-model.html',
+      'sysmon-manual-install.html',
+      'troubleshooting.html',
+      'upgrading.html',
+      'volume-management.html',
+      'wazuh-connection.html'
     ];
     
     // Build search index
