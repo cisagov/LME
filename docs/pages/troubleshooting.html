@@ -262,9 +262,9 @@ systemctl --user restart lme.service</code></pre>
                         supplied visualizations.</p>
                     <p>Each dashboard and its visualization objects are contained within a NDJSON file (previously JSON)
                         and can be easily imported. The NDJSON files are in <a href="/dashboards">dashboards/</a>.</p>
-                    <p><img class="image" src="/docs/imgs/import.png" alt="Importing Objects"></p>
-                    <p><img class="image" src="/docs/imgs/import1.png" alt="Importing Objects"></p>
-                    <p><img class="image" src="/docs/imgs/import2.png" alt="Importing Objects"></p>
+                    <p><img class="image" src="../imgs/import.png" alt="Importing Objects"></p>
+                    <p><img class="image" src="../imgs/import1.png" alt="Importing Objects"></p>
+                    <p><img class="image" src="../imgs/import2.png" alt="Importing Objects"></p>
                     <p align="center">
                         Figure 4 - Steps to import objects
                     </p>
@@ -281,16 +281,16 @@ systemctl --user restart lme.service</code></pre>
                         winlogbeat index pattern is still set as the default within Kibana. To do this, see the steps
                         below:</p>
                     <p>Select &quot;Stack Management&quot; from the left-hand menu:</p>
-                    <p><img class="image" src="/docs/imgs/stack-management.png" alt="Check Default Index"></p>
+                    <p><img class="image" src="../imgs/stack-management.png" alt="Check Default Index"></p>
                     <p>Select &quot;Index Patterns&quot; under Kibana Stack Management:</p>
-                    <p><img class="image" src="/docs/imgs/index-patterns.png" alt="Check Default Index"></p>
+                    <p><img class="image" src="../imgs/index-patterns.png" alt="Check Default Index"></p>
                     <p>Verify that the &quot;Default&quot; label is set next to the <code>INDEX_NAME-*</code> Index
                         pattern:</p>
-                    <p><img class="image" src="/docs/imgs/default-winlogbeat.png" alt="Check Default Index"></p>
+                    <p><img class="image" src="../imgs/default-winlogbeat.png" alt="Check Default Index"></p>
                     <p>If this Index pattern is not selected as the default, this can be re-done by clicking on the
                         <code>INDEX_NAME-*</code> pattern and then selecting the following option in the subsequent
                         page:</p>
-                    <p><img class="image" src="/docs/imgs/default-index-pattern.png" alt="Set Default Index"></p>
+                    <p><img class="image" src="../imgs/default-index-pattern.png" alt="Set Default Index"></p>
                     <h3>Unhealthy Cluster Status</h3>
                     <p>There are several reasons why the cluster&#39;s health may be yellow or red, but a common cause
                         is unassigned replica shards. As LME is a single-node instance by default this is means that
@@ -323,7 +323,7 @@ systemctl --user restart lme.service</code></pre>
                         shows missing url for Fleet Server Host</h2>
                     <p>When trying to add Elastic Agent on host server, you may see <strong>Missing URL for Fleet Server
                             host</strong> as shown in screenshot below.</p>
-                    <p><img class="image" src="/docs/imgs/fleetservermissingurl.png" alt="Check Default Index"></p>
+                    <p><img class="image" src="../imgs/fleetservermissingurl.png" alt="Check Default Index"></p>
                     <p>This can happen when LME post install steps were run before <em>lme-fleet-server</em> displayed
                         status of <strong>Up</strong> when you check podman status.
                         Do make sure your post installation verification steps are completed.

@@ -70,25 +70,25 @@
                         interface.</p>
                     <p>First navigate to the &quot;Snapshot and Restore&quot; page under the
                         <code class="inline">Stack Management</code> tab:</p>
-                   <img src="../imgs/backup_pics/snapshot_and_restore.png" class="image" alt="Snapshot and Restore">
+                   <img class="iamge" src="../imgs/backup_pics/snapshot_and_restore.png" class="image" alt="Snapshot and Restore">
                     <p>Then create a repository by clicking the &quot;Register a repository&quot; button and
                         filling in the following screens:</p>
-                    <img src="../imgs/backup_pics/repository_1.png" class="image" alt="Repository one">
+                    <img class="iamge" src="../imgs/backup_pics/repository_1.png" class="image" alt="Repository one">
                     <p>The repository is named &quot;LME-backups,&quot; but you can choose any name. Select the
                         &quot;Shared file system&quot; repository type.</p>
                     <p>On the next screen, the file system location should be set to
                         <code class="inline">/usr/share/elasticsearch/backups</code>. The other fields can be left with the default
                         values, or modified as required.
                     </p>
-                    <img src="../imgs/backup_pics/repository_2.png" class="image" alt="Repository two">
+                    <img class="iamge" src="../imgs/backup_pics/repository_2.png" class="image" alt="Repository two">
                     <p>The repository will be created and will show in the list on the <code class="inline" >Stack  Management</code>
                         screen:</p>
-                    <img src="../imgs/backup_pics/repository_3.png" class="image" alt="Repository three">
+                    <img class="iamge" src="../imgs/backup_pics/repository_3.png" class="image" alt="Repository three">
 
                     <h3>Create a snapshot schedule policy</h3>
                     <p>You then need to create a policy for the backups. Select the &quot;Policies&quot; tab and
                         then click the &quot;Create a policy&quot; button as seen below:</p>
-                    <img src="../imgs/backup_pics/policy_1.png" class="image" alt="Policy One">
+                    <img class="iamge" src="../imgs/backup_pics/policy_1.png" class="image" alt="Policy One">
                     <p>On the next screen, pick a name for your new policy (&quot;lme-snapshots&quot; in this
                         example). For the snapshot name the value <code class="inline">&lt;lme-daily-{now/d}&gt;</code> will create
                         files with the prefix <code class="inline">lme-daily</code> and with the current date as a suffix. Make
@@ -96,17 +96,17 @@
                         your backup policy. Elasticsearch uses incremental snapshots for its backup,
                         and so only the previous day&#39;s logs will need to be snapshotted, which will help
                         minimize the performance impact.</p>
-                    <img src="../imgs/backup_pics/policy_2.png" class="image" alt="Policy Two">
+                    <img class="iamge" src="../imgs/backup_pics/policy_2.png" class="image" alt="Policy Two">
                     <p>Leave the next screen with its default values and click &quot;Next&quot;:</p>
-                    <img src="../imgs/backup_pics/policy_3.png" class="image" alt="Policy Three">
+                    <img class="iamge" src="../imgs/backup_pics/policy_3.png" class="image" alt="Policy Three">
                     <p>If desired, configure the next screen with the relevant retention settings based on your
                         available disk space and your backup policy and then click &quot;Next&quot;:</p>
-                    <img src="../imgs/backup_pics/policy_4.png" class="image" alt="Policy Four">
+                    <img class="iamge" src="../imgs/backup_pics/policy_4.png" class="image" alt="Policy Four">
                     <p>Review the new policy and click &quot;Create policy&quot;.</p>
-                    <img src="../imgs/backup_pics/policy_5.png" class="image" alt="Policy Five">
+                    <img class="iamge" src="../imgs/backup_pics/policy_5.png" class="image" alt="Policy Five">
                     <p>To test the new policy or to create the initial snapshot, you can
                         select the &quot;Run now&quot; option for the policy on the polices tab:</p>
-                    <img src="../imgs/backup_pics/policy_6.png" class="image" alt="Policy Six">
+                    <img class="iamge" src="../imgs/backup_pics/policy_6.png" class="image" alt="Policy Six">
 
                     <h2>Backup management</h2>
                     <p>Snapshots will now be periodically written to the volume <code class="inline">lme_backups</code>.</p>
@@ -130,30 +130,30 @@
                         below steps: </p>
                     <ol>
                         <li>Navigate to Stack-Management -&gt; Snapshot and Restore -&gt; Repositories:</li>
-                            <img src="../imgs/nav-bar.png" class="image" alt="NavBar">
-                                <img src="../imgs/snap-restore.png" class="image" alt="snaprestore"> 
+                            <img class="iamge" src="../imgs/nav-bar.png" class="image" alt="NavBar">
+                                <img class="iamge" src="../imgs/snap-restore.png" class="image" alt="snaprestore"> 
                         <li>Register a new repository following the same directions as above to reference the mounted
                             host directory at the container path. <a href="#Create-a-filesystem-repository">Create a
                                 filesystem repository</a></li>
                         <li>Verify the Repository is connected by hitting the <code class="inline">Verify Repository</code> button. You
-                            should see a similar prompt circled in blue below:<br><img src="../imgs/verify.png"
+                            should see a similar prompt circled in blue below:<br><img class="iamge" src="../imgs/verify.png"
                                 class="image" alt="verify"></li>
                         <li>Under snapshots you should now see your old lme backup in the <code>LMEBackups</code>
                             Repository:</li>
                             <br>
-                            <img src="../imgs/restore.png" class="image" alt="restore">
-                        <li>Restore using the logistics tab -&gt; settings -&gt; Review<br><img
+                            <img class="iamge" src="../imgs/restore.png" class="image" alt="restore">
+                        <li>Restore using the logistics tab -&gt; settings -&gt; Review<br><img class="iamge"
                                 src="../imgs/logistics.png" class="image" alt="logistics"></li>
                         <li>If you encounter the below error, you will need to change the index settings to successfully
                             restore your backups. You can either: (1) rename the indexes on the <code class="inline">logistics</code>
                             page, OR (2) close your current indexes that have name conflicts. Follow below for both
-                            options<br><img src="../imgs/error.png" class="image" alt="error"></li>
+                            options<br><img class="iamge" src="../imgs/error.png" class="image" alt="error"></li>
                     </ol>
                     <h2>Rename the indexes on import:</h2>
                     <ol>
                         <li>Usually all you&#39;ll want is the winlogbeat data, we can rename that as shown below. Make
                             sure you uncheck <code class="inline">restore aliases</code> otherwise Elastic will think you&#39;re
-                            restoring multiple indices (the old and the new renamed one).<br><img
+                            restoring multiple indices (the old and the new renamed one).<br><img class="iamge"
                                 src="../imgs/restore-details.png" class="image" alt="restore-details"></li>
                         <li>Restore just like in the above directions.</li>
                     </ol>
@@ -161,7 +161,7 @@
                     <ol>
                         <li>Navigate to <code class="inline">Stack-Management -&gt; Data -&gt; Index  Management</code> on the navbar.
                         </li>
-                        <li>Close the conflicting index that currently exists:<br><img src="../imgs/close-index.png"
+                        <li>Close the conflicting index that currently exists:<br><img class="iamge" src="../imgs/close-index.png"
                             class="image" alt="close"></li>
                     </ol>
 
