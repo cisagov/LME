@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TODO Change title to main heading on the page -->
+        <title>Auditd</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+<!-- [TODO] change active class based on page location -->
+                        <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1 id="installing-and-configuring-auditd-on-linux-systems">Installing and Configuring Auditd on Linux Systems</h1>
+                    <p>This guide will walk you through the process of installing auditd on Linux systems and configuring it with the rules provided by Neo23x0.</p>
+                    <h2 id="prerequisites">Prerequisites</h2>
+                    <ul>
+                    <li>Root or sudo access to the Linux system</li>
+                    <li>Internet connection to download necessary files</li>
+                    </ul>
+                    <h2 id="step-1-install-auditd">Step 1: Install Auditd</h2>
+                    <p>The installation process may vary depending on your Linux distribution. Here are instructions for common distributions:</p>
+                    <h3 id="for-ubuntu-debian-">For Ubuntu/Debian:</h3>
+                    <pre><code class="lang-bash">sudo apt <span class="hljs-keyword">update</span>
+                    sudo apt <span class="hljs-keyword">install</span> auditd audispd-plugins
+                    </code></pre>
+                    <h3 id="for-centos-rhel-">For CentOS/RHEL:</h3>
+                    <pre><code class="lang-bash">sudo yum <span class="hljs-keyword">install</span> <span class="hljs-keyword">audit</span> <span class="hljs-keyword">audit</span>-libs
+                    </code></pre>
+                    <h3 id="for-fedora-">For Fedora:</h3>
+                    <pre><code class="lang-bash">sudo dnf <span class="hljs-keyword">install</span> <span class="hljs-keyword">audit</span>
+                    </code></pre>
+                    <h2 id="step-2-download-neo23x0-audit-rules-these-are-used-as-an-example-you-can-write-your-own-rules-">Step 2: Download Neo23x0 Audit Rules (These are used as an example you can write your own rules)</h2>
+                    <ol>
+                    <li>Open a terminal window.</li>
+                    <li>Download the audit rules file:<pre><code class="lang-bash">sudo curl -o <span class="hljs-regexp">/etc/</span>audit<span class="hljs-regexp">/rules.d/</span>audit.rules https:<span class="hljs-regexp">//</span>raw.githubusercontent.com<span class="hljs-regexp">/Neo23x0/</span>auditd<span class="hljs-regexp">/master/</span>audit.rules
+                    </code></pre>
+                    </li>
+                    </ol>
+                    <h2 id="step-3-configure-auditd">Step 3: Configure Auditd</h2>
+                    <ol>
+                    <li><p>Open the main auditd configuration file:</p>
+                    <pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>audit<span class="hljs-regexp">/auditd.conf</span>
+                    </code></pre>
+                    </li>
+                    <li><p>Review and adjust the settings as needed.</p>
+                    </li>
+                    <li><p>Save and close the file (in nano, press Ctrl+X, then Y, then Enter).</p>
+                    </li>
+                    </ol>
+                    <h2 id="step-4-load-the-new-rules">Step 4: Load the New Rules</h2>
+                    <ol>
+                    <li><p>Load the new audit rules:</p>
+                    <pre><code class="lang-bash">sudo auditctl -R <span class="hljs-regexp">/etc/</span>audit<span class="hljs-regexp">/rules.d/</span>audit.rules
+                    </code></pre>
+                    </li>
+                    <li><p>Restart the auditd service:</p>
+                    <pre><code class="lang-bash"><span class="hljs-attribute">sudo service auditd restart</span>
+                    </code></pre>
+                    </li>
+                    </ol>
+                    <h2 id="step-5-verify-installation-and-rules">Step 5: Verify Installation and Rules</h2>
+                    <ol>
+                    <li><p>Check if auditd is running:</p>
+                    <pre><code class="lang-bash"><span class="hljs-attribute">sudo systemctl status auditd</span>
+                    </code></pre>
+                    </li>
+                    <li><p>Verify that the rules have been loaded:</p>
+                    <pre><code class="lang-bash">sudo auditctl <span class="hljs-_">-l</span>
+                    </code></pre>
+                    </li>
+                    </ol>
+                    <h2 id="step-6-test-audit-logging">Step 6: Test Audit Logging</h2>
+                    <ol>
+                    <li><p>Perform some actions that should trigger audit logs (e.g., accessing sensitive files, running specific commands).</p>
+                    </li>
+                    <li><p>Check the audit log for new entries:</p>
+                    <pre><code class="lang-bash"><span class="hljs-attribute">sudo ausearch -ts recent</span>
+                    </code></pre>
+                    </li>
+                    </ol>
+                    <h2 id="updating-audit-rules">Updating Audit Rules</h2>
+                    <p>To update the audit rules in the future:</p>
+                    <ol>
+                    <li>Download the latest <code>audit.rules</code> file from the Neo23x0 GitHub repository (or somewhere else).</li>
+                    <li>Replace the existing file:<pre><code class="lang-bash">sudo curl -o <span class="hljs-regexp">/etc/</span>audit<span class="hljs-regexp">/rules.d/</span>audit.rules https:<span class="hljs-regexp">//</span>raw.githubusercontent.com<span class="hljs-regexp">/Neo23x0/</span>auditd<span class="hljs-regexp">/master/</span>audit.rules
+                    </code></pre>
+                    </li>
+                    <li>Reload the rules and restart auditd:<pre><code class="lang-bash">sudo auditctl -R <span class="hljs-regexp">/etc/</span>audit<span class="hljs-regexp">/rules.d/</span>audit.rules
+                    sudo service auditd restart
+                    </code></pre>
+                    </li>
+                    </ol>
+                    <p>Adjust rules as needed to meet compliance requirements.</p>
+                    <p>You can now install the auditd elastic integration to collect auditd logs.</p>
+                    <h2 id="automated-installation-script">Automated Installation Script</h2>
+                    <p>For a more streamlined installation process, you can use the following bash script:</p>
+                    <pre><code class="lang-bash"><span class="hljs-meta">#!/bin/bash
+                    </span>
+                    <span class="hljs-built_in">set</span> <span class="hljs-_">-e</span>
+                    
+                    <span class="hljs-comment"># Ensure the script is run as root</span>
+                    <span class="hljs-keyword">if</span> [ <span class="hljs-string">"<span class="hljs-variable">$EUID</span>"</span> <span class="hljs-_">-ne</span> 0 ]; <span class="hljs-keyword">then</span>
+                        <span class="hljs-built_in">echo</span> <span class="hljs-string">"Please run as root."</span>
+                        <span class="hljs-built_in">exit</span> 1
+                    <span class="hljs-keyword">fi</span>
+                    
+                    <span class="hljs-comment"># Inform the user that auditd is being installed</span>
+                    <span class="hljs-built_in">echo</span> <span class="hljs-string">"Installing and configuring auditd, please wait..."</span>
+                    
+                    <span class="hljs-comment"># Determine the OS ID</span>
+                    <span class="hljs-keyword">if</span> [ <span class="hljs-_">-f</span> /etc/os-release ]; <span class="hljs-keyword">then</span>
+                        . /etc/os-release
+                        OS_ID=<span class="hljs-string">"<span class="hljs-variable">$ID</span>"</span>
+                    <span class="hljs-keyword">else</span>
+                        <span class="hljs-built_in">echo</span> <span class="hljs-string">"Cannot determine the operating system."</span>
+                        <span class="hljs-built_in">exit</span> 1
+                    <span class="hljs-keyword">fi</span>
+                    
+                    <span class="hljs-comment"># Install auditd based on the OS</span>
+                    <span class="hljs-keyword">case</span> <span class="hljs-string">"<span class="hljs-variable">$OS_ID</span>"</span> <span class="hljs-keyword">in</span>
+                        ubuntu|debian)
+                            apt update &gt; /dev/null 2&gt;&amp;1
+                            apt install -y auditd audispd-plugins &gt; /dev/null 2&gt;&amp;1
+                            ;;
+                        centos|rhel)
+                            yum install -y audit &gt; /dev/null 2&gt;&amp;1
+                            ;;
+                        fedora)
+                            dnf install -y audit &gt; /dev/null 2&gt;&amp;1
+                            ;;
+                        *)
+                            <span class="hljs-built_in">echo</span> <span class="hljs-string">"Unsupported OS: <span class="hljs-variable">$OS_ID</span>"</span>
+                            <span class="hljs-built_in">exit</span> 1
+                            ;;
+                    <span class="hljs-keyword">esac</span>
+                    
+                    <span class="hljs-comment"># Create the rules directory if it doesn't exist</span>
+                    mkdir -p /etc/audit/rules.d &gt; /dev/null 2&gt;&amp;1
+                    
+                    <span class="hljs-comment"># Download the audit rules</span>
+                    curl -o /etc/audit/rules.d/audit.rules https://raw.githubusercontent.com/Neo23x0/auditd/master/audit.rules &gt; /dev/null 2&gt;&amp;1
+                    
+                    <span class="hljs-comment"># Load the audit rules, suppressing output and errors</span>
+                    augenrules --load &gt; /dev/null 2&gt;&amp;1
+                    
+                    <span class="hljs-comment"># Restart the auditd service, suppressing output</span>
+                    systemctl restart auditd &gt; /dev/null 2&gt;&amp;1
+                    
+                    <span class="hljs-comment"># Notify the user of successful completion</span>
+                    <span class="hljs-built_in">echo</span> <span class="hljs-string">"auditd installed and rules applied successfully."</span>
+                    </code></pre>
+                    <p>To use this script:</p>
+                    <ol>
+                    <li>Save it to a file, e.g., <code>install_auditd.sh</code></li>
+                    <li>Make it executable: <code>chmod +x install_auditd.sh</code></li>
+                    <li>Run it with sudo: <code>sudo ./install_auditd.sh</code></li>
+                    </ol>
+                    
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="sysmon-manual-install.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Sysmon (Manual Install)</span>
+                </a>
+                 <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="[TODO]" class="nav-button next-button disabled">
+                    <span>[TODO]</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

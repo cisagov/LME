@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- TODO Change title to main heading on the page -->
+    <title>Security Model</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="assets/imgs/favicon.png">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <!-- [TODO] change active class based on page location -->
+                    <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search">
+                    <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1>LME Security Model</h1>
+                    <p>This document describes LME&#39;s security model from the perspective of the LME user.
+                        It will help users understand the security model and make informed decisions about how to deploy
+                        and manage LME given the constraints and assumptions in LME&#39;s design.</p>
+                    <h2>Operating System:</h2>
+                    <p>LME has been tested on Ubuntu 22.04, but in theory should support any unix operating system that
+                        can install the dependencies listed in the ReadMe. We assume your operating system is kept up to
+                        date and the linux kernel is up to date and patched.
+                        Failing to patch your operating system could leave your security infrastructure vulnerable.
+                        In addition, if a side channel or denial of service (DoS) attack is ever discovered at the
+                        operating system level, LME considers these attacks out of scope for something we can reasonably
+                        secure against. </p>
+                    <h2>Users:</h2>
+                    <ol>
+                        <li><strong>Root</strong>: Every Linux operating system has a root user. As the root user,
+                            ensure least privilege access to root following lockdown/hardening best practices (e.g.
+                            disabling root login, securing administrator access, disabling root over ssh <a
+                                href="https://wiki.archlinux.org/title/Security#Restricting_root">See More Details</a>).
+                        </li>
+                        <li><strong>Administrators (i.e. those with sudo access)</strong>: LME runs all its architecture
+                            through administrator services, so anyone with administrator access can access all LME data.
+                            Ensure only trusted users are given access to the <code class="inline">sudo</code> group. Administrators
+                            can start/stop LME services and also manage the service user passwords. Administrators
+                            control the master password to each server user.</li>
+                        <li><strong>Container User</strong>: These users run processes within the LME service container
+                            and should only be managed through &#39;podman exec&#39;. Their passwords are either
+                            initialized or locked, and they execute within their own user namespace. They are mostly
+                            abstracted away from the typical LME administrator. Some more information on <a
+                                href="https://www.man7.org/conf/meetup/understanding-user-namespaces--Google-Munich-Kerrisk-2019-10-25.pdf">User
+                                Namespaces</a> and <a
+                                href="https://www.redhat.com/sysadmin/rootless-podman-user-namespace-modes">Podman User
+                                Namespaces</a></li>
+                        <li><strong>Service User</strong>: These are the user/password combinations that administer,
+                            access, and update LME services via their respective APIs. All Service Users passwords are
+                            encrypted into individual Ansible Vault files, and encrypted using the master password. The
+                            Service User&#39;s password will only be decrypted as a Podman secret shared into the
+                            container via its environment. The users are: <code class="inline">elastic</code>,
+                            <code class="inline">kibana_system</code class="inline">, and <code>wazuh-wui</code>.</li>
+                    </ol>
+
+                    <h2>Services Containerized:</h2>
+                    <p>All services that make up LME (as documented in our <a
+                            href="architecture.html">diagram</a>)
+                        are configured to execute in Podman containers started via systemd services using Podman&#39;s
+                        internal quadlet orchestration system.
+                        The quadlets are installed into the system administrator&#39;s directory
+                        <code class="inline">/etc/containers/systemd/</code> and will start up under root&#39;s privileges (similar to
+                        other systemd root services). </p>
+                    <p>This ensures least privilege throughout the LME architecture: </p>
+                    <ol>
+                        <li>The master password file (used to encrypt service user passwords at rest) is owned by root.
+                        </li>
+                        <li>Eacher Service User password is encrypted with the above password, and only required service
+                            user password files are shared to each respective container.</li>
+                        <li>Even on a full container escape (where an adversary can execute code on the host, outside of
+                            the container), the rootuid of each service container, is a non-privileged userid on the
+                            host, so they cannot gain access to anything (file, network, password, etc...) they would
+                            have access to already in the container. </li>
+                    </ol>
+                </div>
+            </section>
+            <div class="page-navigation">
+        
+                <a href="dashboards.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Dashboards</span>
+                </a>
+    
+                <a href="architecture.html" class="nav-button next-button">
+                    <span>Architecture</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

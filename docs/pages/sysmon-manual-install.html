@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TODO Change title to main heading on the page -->
+        <title>Sysmon (Manual Install)</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+<!-- [TODO] change active class based on page location -->
+                        <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1 id="installing-sysmon-on-windows-machines">Installing Sysmon on Windows Machines</h1>
+                    <p>This guide will walk you through the process of installing Sysmon (System Monitor) on your Windows machine(s) using the SwiftOnSecurity configuration.</p>
+                    <h2 id="prerequisites">Prerequisites</h2>
+                    <ul>
+                    <li>Administrative access to the Windows machine</li>
+                    <li>Internet connection to download necessary files</li>
+                    </ul>
+                    <h2 id="step-1-download-sysmon">Step 1: Download Sysmon</h2>
+                    <ol>
+                    <li>Visit the official Microsoft Sysinternals Sysmon page: <a href="https://docs.microsoft.com/en-us/sysinternals/downloads/sysmon">https://docs.microsoft.com/en-us/sysinternals/downloads/sysmon</a></li>
+                    <li>Click on the &quot;Download Sysmon&quot; link to download the ZIP file</li>
+                    <li>Extract the contents of the ZIP file to a folder on your computer (e.g., <code>C:\Sysmon</code>)</li>
+                    </ol>
+                    <h2 id="step-2-download-swiftonsecurity-configuration">Step 2: Download SwiftOnSecurity Configuration</h2>
+                    <ol>
+                    <li>Open a web browser and go to: <a href="https://github.com/SwiftOnSecurity/sysmon-config/blob/master/sysmonconfig-export.xml">https://github.com/SwiftOnSecurity/sysmon-config/blob/master/sysmonconfig-export.xml</a></li>
+                    <li>Click the button to download raw content</li>
+                    <li>Save the file into the Sysmon directory</li>
+                    </ol>
+                    <h2 id="step-3-install-sysmon">Step 3: Install Sysmon</h2>
+                    <ol>
+                    <li>Open an elevated Command Prompt (Run as Administrator)</li>
+                    <li>Navigate to the folder where you extracted Sysmon:<pre><code><span class="hljs-built_in">cd</span> C:\Sysmon
+                    </code></pre></li>
+                    <li>Run the following command to install Sysmon with the SwiftOnSecurity configuration:<pre><code>sysmon<span class="hljs-selector-class">.exe</span> -accepteula -<span class="hljs-selector-tag">i</span> sysmonconfig-export.xml
+                    </code></pre></li>
+                    </ol>
+                    <h2 id="step-4-verify-installation">Step 4: Verify Installation</h2>
+                    <ol>
+                    <li>Open Event Viewer (you can search for it in the Start menu)</li>
+                    <li>Navigate to &quot;Applications and Services Logs&quot; &gt; &quot;Microsoft&quot; &gt; &quot;Windows&quot; &gt; &quot;Sysmon&quot; &gt; &quot;Operational&quot;</li>
+                    <li>You should see events being logged by Sysmon</li>
+                    </ol>
+                    <h2 id="updating-sysmon-configuration">Updating Sysmon Configuration</h2>
+                    <p>To update the Sysmon configuration in the future:</p>
+                    <ol>
+                    <li>Download the latest <code>sysmonconfig-export.xml</code> from the SwiftOnSecurity GitHub repository</li>
+                    <li>Open an elevated Command Prompt</li>
+                    <li>Navigate to the Sysmon folder</li>
+                    <li>Run the following command:<pre><code><span class="hljs-selector-tag">sysmon</span><span class="hljs-selector-class">.exe</span> <span class="hljs-selector-tag">-c</span> <span class="hljs-selector-tag">sysmonconfig-export</span><span class="hljs-selector-class">.xml</span>
+                    </code></pre></li>
+                    </ol>
+                    <h2 id="uninstalling-sysmon">Uninstalling Sysmon</h2>
+                    <p>If you need to uninstall Sysmon:</p>
+                    <ol>
+                    <li>Open an elevated Command Prompt</li>
+                    <li>Navigate to the Sysmon folder</li>
+                    <li>Run the following command:<pre><code>sysmon<span class="hljs-selector-class">.exe</span> -u
+                    </code></pre></li>
+                    </ol>
+                    <h2 id="additional-notes">Additional Notes</h2>
+                    <ul>
+                    <li>You can now enable sysmon log collection from the Windows elastic agent integration</li>
+                    <li>Use a shared folder, SCCM, GPO&#39;s, or other tools to install on large quantities of machines</li>
+                    </ul>
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="deploying-agents-wazuh.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Wazuh Agent Management</span>
+                </a>
+                 <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="auditd.html" class="nav-button next-button">
+                    <span>Auditd</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

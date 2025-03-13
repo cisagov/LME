@@ -5,13 +5,14 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Logging Made Easy</title>
+        <title>Elastic Agent Deployment</title>
         <meta property="og:title" content="LME">
         <meta property="og:locale" content="en_US">
         <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
         
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
     </head>
 
     <body>
@@ -21,8 +22,8 @@
                     <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
                     <div class="version">v2.0</div>
                     <div class="nav-links">
-                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
-                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a  href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a class="active" href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
                         <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
                     </div>
                 </div>
@@ -33,11 +34,18 @@
                 </div>
             </header>
         <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
             <section>
                 <div class="body-text">
 
 <!-- [TODO] fix this page redundant? (the example at the bottom) information is confusing -->
-                    <h1 class="needs-changing">Elastic Agent Management - Enrollment Guide</h1>
+                    <h1>Elastic Agent Management - Enrollment Guide</h1>
                     <p>This guide will walk you through the process of enrolling an Elastic agent.</p>
                     <h2>Steps to Enroll an Agent</h2>
                     <ol>
@@ -233,9 +241,22 @@
 
                 </div>
             </section>
+            <div class="page-navigation">
+
+                <a href="deploying-agents.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Deploying Agents</span>
+                </a>
+       
+                <a href="deploying-agents-wazuh.html" class="nav-button next-button">
+                    <span>Wazuh Agent Deployment</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
         </main>
     </div>
     <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
 </body>
 
 </html>

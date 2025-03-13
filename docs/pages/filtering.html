@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Filtering</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="assets/imgs/favicon.png">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <a  href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search">
+                    <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+                    <h1>Filtering logs:</h1>
+                    <p>Sometimes a log is not particularly useful or an aspect of LME cloud prove overly verbose (e.g.
+                        <a href="https://github.com/cisagov/LME/issues/22">Dashboard spamming events</a>). We try our
+                        best to make everything useful but cannot predict every possibility since all environments will
+                        be different. So to enable users to make LME more useful (and hopefully commit their own pull
+                        requests back with updates :) ),we document here how you can filter out logs in the:</p>
+                    <ol>
+                        <li>Dashboard</li>
+                        <li>Host logging utility (e.g. winlogbeat)</li>
+                        <li>Serverside (e.g. logstash)</li>
+                    </ol>
+                    <p>Have fun reading and applying these concepts </p>
+
+                    <h2>Dashboard</h2>
+                    <p>The below example shows how users can apply a filter to a search, and saved with a dashboard to
+                        filter out unneeded windows event log <a
+                            href="https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4624">4624</a>
+                        with a TargetUserName field that has a <code class="inline">$</code>. </p>
+                    <pre><code>{
+                      <span class="hljs-attr">"bool"</span>: {
+                        <span class="hljs-attr">"filter"</span>: [
+                          {
+                            <span class="hljs-attr">"match_phrase"</span>: {
+                              <span class="hljs-attr">"event.code"</span>: <span class="hljs-string">"4624"</span>
+                            }
+                          }
+                        ],
+                        <span class="hljs-attr">"must_not"</span>: [
+                          {
+                            <span class="hljs-attr">"regexp"</span>: {
+                              <span class="hljs-attr">"winlog.event_data.TargetUserName"</span>: <span class="hljs-string">".*$.*"</span>
+                            }
+                          }
+                        ]
+                      }
+                    }</code></pre>
+
+                    <p>To Add:</p>
+                    <ol>
+                        <li>Click the <code>Add filter</code>:</li>
+                        <li>Click <code>Edit as DSL</code> to add a regexp filter:</li>
+                    </ol>
+                    <p>Users can find many resources here and more relevant examples on stackoverflow:</p>
+                    <ul>
+                        <li><a
+                                href="https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html">Query DSL</a>
+                        </li>
+                        <li><a
+                                href="https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#query-string-syntax">Query string query</a>
+                        </li>
+                        <li><a
+                                href="https://www.elastic.co/guide/en/elasticsearch/reference/current/regexp-syntax.html">Regular expression syntax</a>
+                            ```</li>
+                    </ul>
+
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="log-retention.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Log Retention</span>
+                </a>
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="faq.html" class="nav-button next-button">
+                    <span>FAQ</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Backing up Logs</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="assets/imgs/favicon.png">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1>Backing up LME Logs</h1>
+                    <p>Logs are backed up using the built-in Elastic facilities. Out of the box,
+                        Elasticsearch supports backing up to filesystems. This is the only approach
+                        supported by LME. Other backup destinations are supported but these require
+                        separate plugins that are not supported by LME.</p>
+                        
+                    <h2>Approach</h2>
+                    <p>Backups are created using Elasticsearch snapshots. The initial snapshot will
+                        contain all of the current logs but subsequent backups will only contain changes
+                        since the last snapshot was taken. It is therefore possible to take regular
+                        backups without a significant effect on the system&#39;s performance and without
+                        consuming large amounts of disk space.</p>
+
+                    <h2 >Setting up a backup schedule</h2>
+                    <h3>Create a filesystem repository</h3>
+
+                    <p>LME sets up a Podman volume called <code class="inline">lme_backups</code> so that backups can be saved outside
+                        the container.</p>
+                    <p><strong>Note</strong>: If backup storage becomes an issue, LME team plans to add documentation
+                        soon for how to manage the size and storage location of backups</p>
+                    <p>You will need to create a repository for Elastic to use, which can be done through the Kibana
+                        interface.</p>
+                    <p>First navigate to the &quot;Snapshot and Restore&quot; page under the
+                        <code class="inline">Stack Management</code> tab:</p>
+                   <img src="/docs/imgs/backup_pics/snapshot_and_restore.png" class="image" alt="Snapshot and Restore">
+                    <p>Then create a repository by clicking the &quot;Register a repository&quot; button and
+                        filling in the following screens:</p>
+                    <img src="/docs/imgs/backup_pics/repository_1.png" class="image" alt="Repository one">
+                    <p>The repository is named &quot;LME-backups,&quot; but you can choose any name. Select the
+                        &quot;Shared file system&quot; repository type.</p>
+                    <p>On the next screen, the file system location should be set to
+                        <code class="inline">/usr/share/elasticsearch/backups</code>. The other fields can be left with the default
+                        values, or modified as required.
+                    </p>
+                    <img src="/docs/imgs/backup_pics/repository_2.png" class="image" alt="Repository two">
+                    <p>The repository will be created and will show in the list on the <code class="inline" >Stack  Management</code>
+                        screen:</p>
+                    <img src="/docs/imgs/backup_pics/repository_3.png" class="image" alt="Repository three">
+
+                    <h3>Create a snapshot schedule policy</h3>
+                    <p>You then need to create a policy for the backups. Select the &quot;Policies&quot; tab and
+                        then click the &quot;Create a policy&quot; button as seen below:</p>
+                    <img src="/docs/imgs/backup_pics/policy_1.png" class="image" alt="Policy One">
+                    <p>On the next screen, pick a name for your new policy (&quot;lme-snapshots&quot; in this
+                        example). For the snapshot name the value <code class="inline">&lt;lme-daily-{now/d}&gt;</code> will create
+                        files with the prefix <code class="inline">lme-daily</code> and with the current date as a suffix. Make
+                        sure your new repository is selected, and then configure a schedule in line with
+                        your backup policy. Elasticsearch uses incremental snapshots for its backup,
+                        and so only the previous day&#39;s logs will need to be snapshotted, which will help
+                        minimize the performance impact.</p>
+                    <img src="/docs/imgs/backup_pics/policy_2.png" class="image" alt="Policy Two">
+                    <p>Leave the next screen with its default values and click &quot;Next&quot;:</p>
+                    <img src="/docs/imgs/backup_pics/policy_3.png" class="image" alt="Policy Three">
+                    <p>If desired, configure the next screen with the relevant retention settings based on your
+                        available disk space and your backup policy and then click &quot;Next&quot;:</p>
+                    <img src="/docs/imgs/backup_pics/policy_4.png" class="image" alt="Policy Four">
+                    <p>Review the new policy and click &quot;Create policy&quot;.</p>
+                    <img src="/docs/imgs/backup_pics/policy_5.png" class="image" alt="Policy Five">
+                    <p>To test the new policy or to create the initial snapshot, you can
+                        select the &quot;Run now&quot; option for the policy on the polices tab:</p>
+                    <img src="/docs/imgs/backup_pics/policy_6.png" class="image" alt="Policy Six">
+
+                    <h2>Backup management</h2>
+                    <p>Snapshots will now be periodically written to the volume <code class="inline">lme_backups</code>.</p>
+                    <p>You can find the location on disk of these backups at: </p>
+                    <pre><code class="lang-bash">sudo -i 
+                    podman volume mount lme_backups
+                    cd /var/<span class="hljs-class"><span class="hljs-keyword">lib</span>/<span class="hljs-title">containers</span>/<span class="hljs-title">storage</span>/<span class="hljs-title">volumes</span>/<span class="hljs-title">lme_backups</span>/<span class="hljs-title">_data</span></span>
+                    ls</code></pre>
+
+                    <p>it should look somehting like this: </p>
+                    <pre><code class="lang-bash">root<span class="hljs-variable">@ubuntu</span><span class="hljs-symbol">:/var/lib/containers/storage/volumes/lme_backups/_data</span><span class="hljs-comment"># ls</span>
+                    index-<span class="hljs-number">0</span>  index.latest  indices  meta-cuPUnpl1S0Sx8IkPIWLoEA.dat  snap-cuPUnpl1S0Sx8IkPIWLoEA.dat</code></pre>
+                    <p>You can now save/backup/etc... however you would like</p>
+                    <p><strong>Make sure to unmount when done</strong></p>
+                    <pre><code class="lang-bash">podman <span class="hljs-keyword">volume</span><span class="bash"> unmount lme_backups</span></code></pre>
+                    <p>Manage these in line with your backup policies and processes.</p>
+
+                    <h2>Restoring a backup:</h2>
+                    <p>These steps will walk you through restoring backups assuming you have a new Elasticsearch
+                        instance with old log backups from a previous LME.<br>If you wish to restore a backup follow the
+                        below steps: </p>
+                    <ol>
+                        <li>Navigate to Stack-Management -&gt; Snapshot and Restore -&gt; Repositories:</li>
+                            <img src="/docs/imgs/nav-bar.png" class="image" alt="NavBar">
+                                <img src="/docs/imgs/snap-restore.png" class="image" alt="snaprestore"> 
+                        <li>Register a new repository following the same directions as above to reference the mounted
+                            host directory at the container path. <a href="#Create-a-filesystem-repository">Create a
+                                filesystem repository</a></li>
+                        <li>Verify the Repository is connected by hitting the <code class="inline">Verify Repository</code> button. You
+                            should see a similar prompt circled in blue below:<br><img src="/docs/imgs/verify.png"
+                                class="image" alt="verify"></li>
+                        <li>Under snapshots you should now see your old lme backup in the <code>LMEBackups</code>
+                            Repository:</li>
+                            <br>
+                            <img src="/docs/imgs/restore.png" class="image" alt="restore">
+                        <li>Restore using the logistics tab -&gt; settings -&gt; Review<br><img
+                                src="/docs/imgs/logistics.png" class="image" alt="logistics"></li>
+                        <li>If you encounter the below error, you will need to change the index settings to successfully
+                            restore your backups. You can either: (1) rename the indexes on the <code class="inline">logistics</code>
+                            page, OR (2) close your current indexes that have name conflicts. Follow below for both
+                            options<br><img src="/docs/imgs/error.png" class="image" alt="error"></li>
+                    </ol>
+                    <h2>Rename the indexes on import:</h2>
+                    <ol>
+                        <li>Usually all you&#39;ll want is the winlogbeat data, we can rename that as shown below. Make
+                            sure you uncheck <code class="inline">restore aliases</code> otherwise Elastic will think you&#39;re
+                            restoring multiple indices (the old and the new renamed one).<br><img
+                                src="/docs/imgs/restore-details.png" class="image" alt="restore-details"></li>
+                        <li>Restore just like in the above directions.</li>
+                    </ol>
+                    <h2>Close current indexes to enable importing the old:</h2>
+                    <ol>
+                        <li>Navigate to <code class="inline">Stack-Management -&gt; Data -&gt; Index  Management</code> on the navbar.
+                        </li>
+                        <li>Close the conflicting index that currently exists:<br><img src="/docs/imgs/close-index.png"
+                            class="image" alt="close"></li>
+                    </ol>
+
+
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

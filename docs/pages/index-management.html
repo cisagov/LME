@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TODO Change title to main heading on the page -->
+        <title>Index Management</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+<!-- [TODO] change active class based on page location -->
+                        <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1>Elasticsearch Index Lifecycle Overview</h1>
+                    <p>Elasticsearch uses Index Lifecycle Management (ILM) to manage data over time. There are four phases:</p>
+                    <ol>
+                    <li><p>Hot Phase</p>
+                    <ul>
+                    <li>Newest data</li>
+                    <li>Most active: frequent updates and searches</li>
+                    <li>Needs fastest access</li>
+                    </ul>
+                    </li>
+                    <li><p>Warm Phase</p>
+                    <ul>
+                    <li>Older data</li>
+                    <li>Less active: fewer updates, still searched</li>
+                    <li>Can be on slightly slower storage</li>
+                    </ul>
+                    </li>
+                    <li><p>Cold Phase</p>
+                    <ul>
+                    <li>Oldest data</li>
+                    <li>Rarely accessed, no updates</li>
+                    <li>Can be on slowest storage</li>
+                    </ul>
+                    </li>
+                    <li><p>Delete Phase</p>
+                    <ul>
+                    <li>Data no longer needed</li>
+                    <li>Removed from the system</li>
+                    </ul>
+                    </li>
+                    </ol>
+                    <p>Data moves through these phases based on what is called the Index Lifecycle Policy.</p>
+                    <h2>Creating a Lifecycle Policy</h2>
+                    <h3>Create Lifecycle Policy for Wazuh Indexes in Elasticsearch</h3>
+                    <ol>
+                    <li><p>Login to Kibana and go to Menu -&gt; Dev Tools</p>
+                    </li>
+                    <li><p>Create an ILM policy by copying and pasting the following code and then pressing the run button that looks like a &#39;play&#39; symbol:</p>
+                    </li>
+                    </ol>
+                    <pre><code class="lang-bash">PUT _ilm/policy/wazuh_alerts_cleanup_policy
+                    {
+                      <span class="hljs-string">"policy"</span>: {
+                        <span class="hljs-string">"phases"</span>: {
+                          <span class="hljs-string">"hot"</span>: {
+                            <span class="hljs-string">"min_age"</span>: <span class="hljs-string">"0ms"</span>,
+                            <span class="hljs-string">"actions"</span>: {}
+                          },
+                          <span class="hljs-string">"delete"</span>: {
+                            <span class="hljs-string">"min_age"</span>: <span class="hljs-string">"30d"</span>,
+                            <span class="hljs-string">"actions"</span>: {
+                              <span class="hljs-string">"delete"</span>: {}
+                            }
+                          }
+                        }
+                      }
+                    }</code></pre>
+                    <p>It will look like so:</p>
+                    <p><img class="image" src="https://github.com/user-attachments/assets/962c3f8e-4a7b-4037-beaf-ea2e597fbe2d" alt="image"></p>
+                    <ol>
+                    <li>Perform the same steps for the following snippets of code:</li>
+                    </ol>
+                    <pre><code class="lang-bash">PUT _index_template/wazuh_alerts_template
+                    {
+                      <span class="hljs-string">"index_patterns"</span>: [<span class="hljs-string">"wazuh-alerts-4.x-*"</span>],
+                      <span class="hljs-string">"template"</span>: {
+                        <span class="hljs-string">"settings"</span>: {
+                          <span class="hljs-string">"index.lifecycle.name"</span>: <span class="hljs-string">"wazuh_alerts_cleanup_policy"</span>
+                        }
+                      }
+                    }</code></pre>
+                    <pre><code class="lang-bash">PUT wazuh-alerts<span class="hljs-number">-4.</span>x-*/<span class="hljs-class">_settings
+                    </span>{
+                      <span class="hljs-string">"index.lifecycle.name"</span>: <span class="hljs-string">"wazuh_alerts_cleanup_policy"</span>
+                    }</code></pre>
+                    <p>This will create a policy, create a template that applies this policy to all new indices, and then also apply the policy to existing Wazuh indices.</p>
+                    <p><strong>NOTE: This is an example that will delete wazuh indices after 30 days. Adjust as needed.</strong></p>
+                    <h2>Elastic Endpoint Lifecyle policy</h2>
+                    <p>Your Elastic agent logs are managed by a policy called &quot;logs&quot;</p>
+                    <ol>
+                    <li><p>Navigate to Index Lifecycle policies, toggle the switch for &quot;Include managed system policies&quot; and then search for &quot;logs&quot;</p>
+                    </li>
+                    <li><p>Click to edit this policy. You will see warnings that editing a managed policy can break Kibana. Assuming you set your phases properly, you can ignore this warning. </p>
+                    </li>
+                    <li><p>By default, the setup &quot;rolls over&quot; when an index is 30 days old or exceeds 50 GB. Rollover renames the index and creates a new one to manage shard size without deleting the previous index I.E. logs-00001 rolls over to logs-00002. 00001 remains, its just not &#39;active&#39;</p>
+                    </li>
+                    <li><p>Set your Hot, Warm, Cold phase as you see fit. </p>
+                    </li>
+                    <li><p>After you turn on &quot;Cold Phase&quot; you must hit the trash can switch to turn on the delete phase. </p>
+                    </li>
+                    <li><p>After you apply these changes to your policy please allow it some time to take effect on all indices.</p>
+                    </li>
+                    </ol>
+                    <p><strong>Note</strong>: You can also just completely skip these steps and manually delete indices from the UI as you see fit / when needed.</p>
+                    <p><strong>Note</strong>: By default your rollover policy is set for 30 days. Do not set your &#39;delete&#39; phase to be shorter than your rollover phase. You need your active indices to rollover into inactive indices before you delete them.**</p>
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="encryption-at-rest.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Encryptyion at Rest</span>
+                </a>
+                 <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="volume-management.html" class="nav-button next-button">
+                    <span>Data Management: Volume Management</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

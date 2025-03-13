@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- TODO Change title to main heading on the page -->
+    <title>LME in the Cloud</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="assets/imgs/favicon.png">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search">
+                    <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+                    <h1>Logging Made Easy in the cloud</h1>
+                    <p>This page answers some common FAQ about deploying LME in the cloud. </p>
+
+                    <h2>Does LME run in the cloud?</h2>
+                    <p>Yes, LME is a client-server model and accommodates both on-premises and cloud deployments, allowing organizations to host LME on local or cloud service provider (CSP) infrastructure.</p>
+                    <h2>Deploying LME in the cloud for on prem systems</h2>
+                    <p>For LME agents to talk to LME in the cloud, you&#39;ll need to ensure the clients you want to monitor can communicate through: 1) the cloud firewall and 2) LME&#39; own server firewall.</p>
+                    <p><img class="image" src="/docs/imgs/lme-cloud.jpg" alt="cloud firewall"></p>
+                    <p>The easiest way is to make sure you can access these LME server ports from the on premise client:
+                    </p>
+                    <ul>
+                        <li>Wazuh Agent (<a
+                                href="https://documentation.wazuh.com/current/user-manual/agent/agent-enrollment/requirements.html">Agent
+                                Enrollment Requirements Documentation</a>): 1514,1515 </li>
+                        <li>Elastic Agent (<a
+                                href="https://www.elastic.co/guide/en/elastic-stack/current/installing-stack-demo-self.html#install-stack-self-elastic-agent">Agent
+                                Install Documentation</a>): 8220 (fleet commands), 9200 (input to elasticsearch)</li>
+                    </ul>
+                    <p>You&#39;ll need to make sure your Cloud firewall is setup to allow the ports above. On Azure,
+                        network security groups (NSG) run a firewall on your virtual machine;s network interfaces.
+                        You&#39;ll need to update your LME virtual machine&#39;s rules to allow inbound connections on
+                        the agent ports. Azure has a detailed guide for how to add security rules <a
+                            href="https://learn.microsoft.com/en-us/azure/virtual-network/manage-network-security-group?tabs=network-security-group-portal#create-a-security-rule">here</a>.
+                    </p>
+                    <h5> <strong><em>We highly suggest you do not open ANY PORT globally and restrict it based on your
+                                clients IP address or your client&#39;s subnets.*</em></strong></h5>
+                    <p>On LME, you&#39;ll want to make sure you have the firewall disabled (if you&#39;re using the
+                        cloud firewall as the main firewall):</p>
+                    <pre><code>lme-user<span class="hljs-variable">@ubuntu</span><span class="hljs-symbol">:~</span><span class="hljs-variable">$ </span>sudo ufw status
+                    <span class="hljs-symbol">Status:</span> inactive</code></pre>
+
+                    <p>or that you have the firewall rules enabled:</p>
+
+                    <pre><code><span class="hljs-symbol">lme</span>-user<span class="hljs-comment">@ubuntu:~$ sudo ufw status</span>
+                    <span class="hljs-symbol">Status</span>: active
+                    
+                    <span class="hljs-symbol">To</span>                         Action      From
+                    --                         ------      ----
+                    <span class="hljs-number">1514</span>                       ALLOW       Anywhere
+                    <span class="hljs-number">1515</span>                       ALLOW       Anywhere
+                    <span class="hljs-number">22</span>                         ALLOW       Anywhere
+                    <span class="hljs-number">8220</span>                       ALLOW       Anywhere
+                    <span class="hljs-number">1514</span> (<span class="hljs-built_in">v6</span>)                  ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)
+                    <span class="hljs-number">1515</span> (<span class="hljs-built_in">v6</span>)                  ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)
+                    <span class="hljs-number">22</span> (<span class="hljs-built_in">v6</span>)                    ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)
+                    <span class="hljs-number">8220</span> (<span class="hljs-built_in">v6</span>)                  ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)</code></pre>
+
+                
+                    <p>You can add the above ports to ufw via the following command: </p>
+                    <pre><code>sudo ufw allow <span class="hljs-number">1514</span>
+                    sudo ufw allow <span class="hljs-number">1515</span>
+                    sudo ufw allow <span class="hljs-number">8220</span>
+                    sudo ufw allow <span class="hljs-number">9200</span></code></pre>
+
+                    <p>If you want to use the Wazuh API, you&#39;ll also need to setup port 55000 to be allowed in:</p>
+
+                    <pre><code>sudo ufw allow <span class="hljs-number">55000</span></code></pre>
+                    <p>In addition, you&#39;ll need to setup rules to forward traffic to the container network and allow
+                        traffic to run on the container network:</p>
+                    <pre><code>ufw route allow <span class="hljs-keyword">in</span> <span class="hljs-keyword">on</span> eth0 <span class="hljs-keyword">out</span> <span class="hljs-keyword">on</span> podman1 <span class="hljs-keyword">to</span> <span class="hljs-literal">any</span> <span class="hljs-keyword">port</span> <span class="hljs-number">443</span>,<span class="hljs-number">1514</span>,<span class="hljs-number">1515</span>,<span class="hljs-number">5601</span>,<span class="hljs-number">8220</span>,<span class="hljs-number">9200</span> <span class="hljs-keyword">proto</span> tcp
+                    ufw route allow <span class="hljs-keyword">in</span> <span class="hljs-keyword">on</span> podman1</code></pre>
+
+                    <p>Theres a helpful stackoverflow article on <a
+                            href="https://stackoverflow.com/questions/70870689/configure-ufw-for-podman-on-port-443">Configuring
+                            UFW for podman on port 443</a>
+                        Your <code>podman1</code> interface name may be different. Check the output of your network
+                        interfaces by running the following command to check if your interface is also called podman1:
+                    </p>
+                    <pre><code>sudo -i podman network inspect lme | jq '<span class="hljs-built_in">map</span>(select(.<span class="hljs-attr">name</span> == <span class="hljs-string">"lme"</span>)) | <span class="hljs-built_in">map</span>(.network_interface) | .[]'</code></pre>
+                    <p>Your rules can be dumped and shown like so: </p>
+                    <pre><code>root@ubuntu:~<span class="hljs-comment"># ufw show added</span>
+                    Added <span class="hljs-keyword">user</span> rules (see 'ufw status' <span class="hljs-keyword">for</span> running firewall):
+                    ufw allow <span class="hljs-number">22</span>
+                    ufw allow <span class="hljs-number">1514</span>
+                    ufw allow <span class="hljs-number">1515</span>
+                    ufw allow <span class="hljs-number">8220</span>
+                    ufw route allow <span class="hljs-keyword">in</span> <span class="hljs-keyword">on</span> eth0 <span class="hljs-keyword">out</span> <span class="hljs-keyword">on</span> podman1 <span class="hljs-keyword">to</span> <span class="hljs-literal">any</span> <span class="hljs-keyword">port</span> <span class="hljs-number">443</span>,<span class="hljs-number">1514</span>,<span class="hljs-number">1515</span>,<span class="hljs-number">5601</span>,<span class="hljs-number">8220</span>,<span class="hljs-number">9200</span> <span class="hljs-keyword">proto</span> tcp
+                    ufw allow <span class="hljs-number">443</span>
+                    ufw allow <span class="hljs-keyword">in</span> <span class="hljs-keyword">on</span> podman1
+                    ufw allow <span class="hljs-number">9200</span>
+                    root@ubuntu:~<span class="hljs-comment">#</span></code></pre>
+                    <h3>Deploying LME for cloud infrastructure:</h3>
+                    <p>Every cloud setup is different. As long as the LME server is on the same network and able to talk
+                        to the machines you want to monitor, your deployment should run smoothly.</p>
+                    <h2>Other firewall rules</h2>
+                    <p>You may also want to access kibana from outside the cloud as well. You&#39;ll want to make sure
+                        you either allow port <code>5601</code> or port <code>443</code> inbound from the cloud firewall
+                        AND virtual machine firewall. </p>
+                    <pre><code>root<span class="hljs-variable">@ubuntu</span><span class="hljs-symbol">:/opt/lme</span><span class="hljs-comment"># sudo ufw allow 443</span>
+                    Rule added
+                    Rule added (v6)</code></pre>
+
+                    <pre><code><span class="hljs-symbol">root</span><span class="hljs-comment">@ubuntu:/opt/lme# sudo ufw status</span>
+                    <span class="hljs-symbol">Status</span>: active
+                    
+                    <span class="hljs-symbol">To</span>                         Action      From
+                    --                         ------      ----
+                    <span class="hljs-number">22</span>                         ALLOW       Anywhere
+                    <span class="hljs-number">1514</span>                       ALLOW       Anywhere
+                    <span class="hljs-number">1515</span>                       ALLOW       Anywhere
+                    <span class="hljs-number">8220</span>                       ALLOW       Anywhere
+                    <span class="hljs-number">443</span>                        ALLOW       Anywhere
+                    <span class="hljs-number">22</span> (<span class="hljs-built_in">v6</span>)                    ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)
+                    <span class="hljs-number">1514</span> (<span class="hljs-built_in">v6</span>)                  ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)
+                    <span class="hljs-number">1515</span> (<span class="hljs-built_in">v6</span>)                  ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)
+                    <span class="hljs-number">8220</span> (<span class="hljs-built_in">v6</span>)                  ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)
+                    <span class="hljs-number">443</span> (<span class="hljs-built_in">v6</span>)                   ALLOW       Anywhere (<span class="hljs-built_in">v6</span>)</code></pre>
+                    <h3>Don&#39;t lock yourself out AND enable the
+                        firewall</h3>
+                    <p>You also don&#39;t want to lock yourself out of ssh, so make sure to enable port 22!</p>
+                    <pre><code>sudo ufw allow <span class="hljs-number">22</span></code></pre>
+                    <p>Enable ufw:</p>
+                    <pre><code>sudo ufw <span class="hljs-built_in">enable</span></code></pre>
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="" class="nav-button prev-button disabled">
+                    <i class="fas fa-arrow-left"></i>
+                    <span></span>
+                </a>
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="log-retention.html" class="nav-button next-button">
+                    <span>Log Retention</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

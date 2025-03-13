@@ -5,13 +5,14 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Logging Made Easy</title>
+        <title>Upgrading LME</title>
         <meta property="og:title" content="LME">
         <meta property="og:locale" content="en_US">
         <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
         
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
     </head>
 
     <body>
@@ -21,9 +22,9 @@
                     <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
                     <div class="version">v2.0</div>
                     <div class="nav-links">
-                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a  href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
                         <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
-                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                        <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
                     </div>
                 </div>
                 <div class="nav-footer">
@@ -33,6 +34,13 @@
                 </div>
             </header>
         <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
             <section>
                 <div class="body-text">
                     <h1 id="upgrading-from-1x-to-2x">Upgrading from 1x to 2x</h1>
@@ -147,5 +155,6 @@ sudo ./upgrade/import_dashboards.sh -d /opt/lme-old/Chapter\ 4\ Files/dashboards
         </main>
     </div>
     <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
 </body>
 </html>

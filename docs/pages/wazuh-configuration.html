@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title>Wazuh Configuration</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+<!-- [TODO] change active class based on page location -->
+                        <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1 id="wazuh-configuration-management">Wazuh Configuration Management</h1>
+                    <h2 id="managing-wazuh-configuration-file">Managing Wazuh Configuration File</h2>
+                    <p>The Wazuh manager configuration file in the LME setup is located at:</p>
+                    <pre><code><span class="hljs-regexp">/opt/</span>lme<span class="hljs-regexp">/config/</span>wazuh_cluster<span class="hljs-regexp">/wazuh_manager.conf</span>
+                    </code></pre><p>This file is mounted into the Wazuh manager container running in Podman. Here&#39;s how to manage this configuration:</p>
+                    <h3 id="editing-the-configuration-file">Editing the Configuration File</h3>
+                    <ol>
+                    <li><p>Open the file with your preferred text editor (you may need sudo privileges):</p>
+                    <pre><code>sudo nano <span class="hljs-regexp">/opt/</span>lme<span class="hljs-regexp">/config/</span>wazuh_cluster<span class="hljs-regexp">/wazuh_manager.conf</span>
+                    </code></pre></li>
+                    <li><p>Make the necessary changes to the configuration file. Some important sections you might want to modify include:</p>
+                    <ul>
+                    <li><code>&lt;global&gt;</code>: Global settings for Wazuh</li>
+                    <li><code>&lt;ruleset&gt;</code>: Define rules and decoders</li>
+                    <li><code>&lt;syscheck&gt;</code>: File integrity monitoring settings</li>
+                    <li><code>&lt;rootcheck&gt;</code>: Rootkit detection settings</li>
+                    <li><code>&lt;wodle&gt;</code>: Wazuh modules configuration</li>
+                    </ul>
+                    </li>
+                    <li><p>Save the changes and exit the editor.</p>
+                    </li>
+                    </ol>
+                    <h3 id="applying-configuration-changes">Applying Configuration Changes</h3>
+                    <p>After modifying the configuration file, you need to restart the Wazuh manager service for the changes to take effect:</p>
+                    <ol>
+                    <li><p>Restart the Wazuh manager container:</p>
+                    <pre><code><span class="hljs-attribute">podman restart lme-wazuh-manager</span>
+                    </code></pre><p>or with systemctl</p>
+                    <pre><code><span class="hljs-selector-tag">sudo</span> <span class="hljs-selector-tag">systemctl</span> <span class="hljs-selector-tag">restart</span> <span class="hljs-selector-tag">lme-wazuh-manager</span><span class="hljs-selector-class">.service</span>
+                    </code></pre></li>
+                    <li><p>Check the status of the Wazuh manager to ensure it started successfully:</p>
+                    <pre><code><span class="hljs-attribute">podman logs lme-wazuh-manager</span>
+                    </code></pre></li>
+                    </ol>
+                    <p>This command will validate your configuration and report any errors.</p>
+                    <h3 id="best-practices">Best Practices</h3>
+                    <ol>
+                    <li><p>Always backup the configuration file before making changes:</p>
+                    <pre><code>sudo cp <span class="hljs-regexp">/opt/</span>lme<span class="hljs-regexp">/config/</span>wazuh_cluster<span class="hljs-regexp">/wazuh_manager.conf /</span>opt<span class="hljs-regexp">/lme/</span>config<span class="hljs-regexp">/wazuh_cluster/</span>wazuh_manager.conf.bak
+                    </code></pre></li>
+                    <li><p>Use comments in the configuration file to document your changes.</p>
+                    </li>
+                    <li><p>Test configuration changes in a non-production environment before applying them to your production setup.</p>
+                    </li>
+                    <li><p>Regularly review and update your Wazuh configuration to ensure it aligns with your current security needs and policies.</p>
+                    </li>
+                    </ol>
+                    <p>Remember to consult the <a href="https://documentation.wazuh.com/current/user-manual/reference/ossec-conf/index.html">official Wazuh documentation</a> for detailed information on all available configuration options.</p>
+                    
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="deploying-agents-elasitc.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Elastic Agents</span>
+                </a>
+                 <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="active-response.html" class="nav-button next-button">
+                    <span>Active Response</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

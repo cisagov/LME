@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Configuration</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="assets/imgs/favicon.png">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+
+                    <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search">
+                    <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1>General notes on custom configuration for LME</h1>
+                    <p>The configuration files are located in /config/. These steps will guide you through setting up
+                        LME.</p>
+                    <h2>Certificates and user Passwords:</h2>
+                    <ul>
+                        <li>instances.yml defines the certificates to be created.</li>
+                        <li>Shell scripts will initialize accounts and generate certificates. They run from the quadlet
+                            definitions lme-setup-accts and lme-setup-certs.</li>
+                    </ul>
+                    <h2>Podman Quadlet Configuration</h2>
+                    <ul>
+                        <li>Quadlet configuration for containers is located in /quadlet/. These map to the root systemd
+                            unit files but execute as non-privileged users.</li>
+                    </ul>
+
+                    <p>For more information on ways to customize LME for your use case visit our <a href="customizing-lme.html">customization documentation.</a></p>
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="[TODO]" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>[TODO]</span>
+                </a>
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="[TODO]" class="nav-button next-button">
+                    <span>[TODO]</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

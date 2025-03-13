@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Active Response</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="assets/imgs/favicon.png">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a class="active" href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+                    <h1>Example Setup for Wazuh Active Response</h1>
+                    <p>This guide summarizes how to configure Wazuh&#39;s active response to defend against SSH
+                        brute-force attacks.</p>
+                    <h2>Overview</h2>
+                    <p>Wazuh can automatically block IP addresses attempting SSH brute-force attacks using its active
+                        response module. This feature executes scripts on monitored endpoints when specific triggers
+                        occur.</p>
+                    <h2>Configuration Steps</h2>
+                    <ol>
+                        <li>
+                            <p><strong>Verify Default Script</strong>:</p>
+                            <ul>
+                                <li>Check for <code class="inline">firewall-drop</code> script in
+                                    <code class="inline">/var/ossec/active-response/bin/</code> on Linux/Unix systems.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Configure Command in wazuh_manager.conf</strong>: Note this command
+                                (firewall-drop) already exists. But you can create custom scripts located in the active
+                                response/bin path and add new commands into the .conf file located at wazuh_manger.conf
+                                located at /opt/lme/config/wazuh_cluster/wazuh_manager.conf</p>
+                        </li>
+                    </ol>
+                    <pre><code class="lang-xml"><span class="hljs-tag">&lt;<span class="hljs-name">command</span>&gt;</span>
+                         <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>firewall-drop<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
+                         <span class="hljs-tag">&lt;<span class="hljs-name">executable</span>&gt;</span>firewall-drop<span class="hljs-tag">&lt;/<span class="hljs-name">executable</span>&gt;</span>
+                         <span class="hljs-tag">&lt;<span class="hljs-name">timeout_allowed</span>&gt;</span>yes<span class="hljs-tag">&lt;/<span class="hljs-name">timeout_allowed</span>&gt;</span>
+                       <span class="hljs-tag">&lt;/<span class="hljs-name">command</span>&gt;</span></code></pre>
+                    <ol>
+                        <li>
+                            <p><strong>Set Up Active Response</strong>: Looks for the section that says
+                                &quot;active-response options here&quot; in the .conf file. Copy and paste the entire
+                                configuration below that commented out line. You can continue to add more active
+                                response configs below that line.</p>
+                            <pre><code class="lang-xml"><span class="hljs-tag">&lt;<span class="hljs-name">active-response</span>&gt;</span>
+                      <span class="hljs-tag">&lt;<span class="hljs-name">command</span>&gt;</span>firewall-drop<span class="hljs-tag">&lt;/<span class="hljs-name">command</span>&gt;</span>
+                      <span class="hljs-tag">&lt;<span class="hljs-name">location</span>&gt;</span>local<span class="hljs-tag">&lt;/<span class="hljs-name">location</span>&gt;</span>
+                      <span class="hljs-tag">&lt;<span class="hljs-name">rules_id</span>&gt;</span>5763<span class="hljs-tag">&lt;/<span class="hljs-name">rules_id</span>&gt;</span>
+                      <span class="hljs-tag">&lt;<span class="hljs-name">timeout</span>&gt;</span>180<span class="hljs-tag">&lt;/<span class="hljs-name">timeout</span>&gt;</span>
+                    <span class="hljs-tag">&lt;/<span class="hljs-name">active-response</span>&gt;</span></code></pre>
+                            <ul>
+                                <li>This configures a local response, triggering on rule 5763 (SSH brute-force
+                                    detection), with a 180-second block.</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p><strong>Restart Wazuh Manager</strong>:</p>
+                            <pre><code class="lang-bash"><span class="hljs-attribute">podman restart lme-wazuh-manager</span></code></pre>
+                        </li>
+                    </ol>
+                    <h2>How It Works</h2>
+                    <ul>
+                        <li>When rule 5763 triggers (detecting SSH brute-force attempts), the <code class="inline">firewall-drop</code>
+                            script executes.</li>
+                        <li>The script uses iptables to block the attacker&#39;s IP address for the specified timeout
+                            period.</li>
+                        <li>Wazuh logs the action in <code class="inline">/var/ossec/logs/active-responses.log</code>.</li>
+                    </ul>
+                    <h2>Monitoring</h2>
+                    <ul>
+                        <li>Wazuh dashboard displays alerts when rule 5763 triggers and when an active response occurs.
+                        </li>
+                        <li>The active response alert is typically associated with rule ID 651. These alerts will be
+                            displayed in Kibana in the wazuh alerts dashboard.</li>
+                    </ul>
+                    <h2>Testing</h2>
+                    <ol>
+                        <li>Use a tool like Hydra to simulate a brute-force attack, or you can attempt to SSH into the
+                            machine multiple times until it triggers. You will need eight failed SSH attempts to trigger
+                            Brute Force. (This can be adjusted in the ruleset manually)</li>
+                        <li>Verify that the attacker&#39;s IP is blocked by attempting to ping the target machine.</li>
+                    </ol>
+                    <h2>Custom Responses</h2>
+                    <ul>
+                        <li>You can create custom scripts for different actions.</li>
+                        <li>For custom scripts, ensure you create corresponding rules to analyze the generated logs.
+                        </li>
+                    </ul>
+                    <p>This setup provides an automated defense against SSH brute-force attacks, enhancing the security
+                        of your Linux/Unix systems monitored by Wazuh.</p>
+                    <p>See a list of Wazuh Rules that trigger here: <a
+                            href="https://github.com/wazuh/wazuh/tree/master/ruleset/rules">Wazuh Ruleset</a></p>
+                    <p>Consult Wazuh Documentation for more on active response configuration.</p>
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="customizing-lme.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Customizing LME</span>
+                </a>
+                 <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="backups.html" class="nav-button next-button">
+                    <span>Backing Up LME</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

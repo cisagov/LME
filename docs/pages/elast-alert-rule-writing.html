@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Logging Made Easy</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <a  href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a class="active" href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <section>
+                <div class="body-text">
+                    <h1>ElastAlert Rule Writing:</h1>
+                    <p>This page discusses how to add and implement alert notifications for detections and alerts that
+                        trigger in elastic and wazuh.
+                        The basic premise is that all data (logs and detections) will reach specific indices in
+                        elasticsearch, but you may want a way to get a notification in your communications systems on
+                        this activity. </p>
+                    <p>Elastalert enables this by providing hooks into email, slack, ms_teams, etc... (see a list of all
+                        alert types <a
+                            href="https://elastalert2.readthedocs.io/en/latest/alerts.html#alert-types">HERE</a>)</p>
+                    <!-- <h2 id="toc-">TOC:</h2> -->
+                    <h2>Alert Rule overview:</h2>
+                    <p>See a complete rule below. We discuss the components of it below. </p>
+                    <p>This is the complete rule for detecting when Windows Event Logs are cleared, one of LME&#39;s
+                        default rules.
+                        We will continue to add more with later editions of LME, and we welcome detection/alerts from
+                        the community as well. </p>
+                    <pre><code class="lang-yaml"><span class="hljs-attribute">name</span>: Windows Event Logs Cleared
+                    
+                    <span class="dts"><span class="hljs-meta"># Type of rule</span>
+                    <span class="hljs-symbol">type:</span> any
+                    
+                    <span class="hljs-meta"># Index pattern to search another example could be wazuh-*</span>
+                    <span class="hljs-symbol">index:</span> logs-*
+                    
+                    <span class="hljs-meta"># Elasticsearch query in DSL format</span>
+                    <span class="hljs-symbol">filter:</span>
+                      - query:
+                    <span class="hljs-symbol">      bool:</span>
+                    <span class="hljs-symbol">        must:</span>
+                              - terms:
+                                  event.action: [<span class="hljs-string">"audit-log-cleared"</span>, <span class="hljs-string">"Log clear"</span>]
+                              - term:
+                                  winlog.api: <span class="hljs-string">"wineventlog"</span>
+                    <span class="hljs-symbol">        must_not:</span>
+                              - term:
+                                  winlog.provider_name: <span class="hljs-string">"AD FS Auditing"</span>
+                    
+                    <span class="hljs-meta"># Alert when conditions are met</span>
+                    <span class="hljs-symbol">alert:</span>
+                      - <span class="hljs-string">"slack"</span>
+                    
+                    <span class="hljs-meta"># Slack alert details</span>
+                    <span class="hljs-symbol">slack_webhook_url:</span> <span class="hljs-string">"https://hooks.slack.com/services/EXAMPLE"</span> <span class="hljs-meta"># This is an example webhook to slack</span>
+                    
+                    <span class="hljs-meta"># Alert message format</span>
+                    <span class="hljs-symbol">alert_text:</span> |
+                      Windows Event Logs Cleared Detected!
+                    <span class="hljs-symbol">  Host:</span> {<span class="hljs-number">0</span>}
+                      Event Action: {<span class="hljs-number">1</span>}
+                      Winlog Provider Name: {<span class="hljs-number">2</span>}
+                    <span class="hljs-symbol">  Timestamp:</span> {<span class="hljs-number">3</span>}
+                    <span class="hljs-symbol">alert_text_args:</span>
+                      - host.name
+                      - event.action
+                      - winlog.provider_name
+                      - <span class="hljs-string">"@timestamp"</span>
+                    
+                    <span class="hljs-meta"># Alert text only, without additional metadata</span>
+                    <span class="hljs-symbol">alert_text_type:</span> alert_text_only
+                    
+                    <span class="hljs-meta"># Frequency for querying Elasticsearch</span>
+                    <span class="hljs-symbol">realert:</span>
+                    <span class="hljs-symbol">  minutes:</span> <span class="hljs-number">5</span>
+                    
+                    <span class="hljs-meta"># Optional timestamp field to use for events</span>
+                    <span class="hljs-symbol">timestamp_field:</span> <span class="hljs-string">"@timestamp"</span></span>
+                    </code></pre>
+
+                    <p>Now, let&#39;s break down each section of the rule:</p>
+
+                    <h3>Rule Name and Type</h3>
+                    <pre><code class="lang-yaml"><span class="hljs-keyword">name</span>: Windows Event Logs Cleared
+                    <span class="hljs-keyword">type</span>: <span class="hljs-built_in">any</span></code></pre>
+
+                    <ul>
+                        <li><strong>Name</strong>: Identifies the rule as detecting Windows Event Logs being cleared.
+                        </li>
+                        <li><strong>Type</strong>: Set to &quot;any&quot;, meaning the rule will trigger for any
+                            matching event, regardless of frequency.</li>
+                    </ul>
+
+                    <h3>Index Pattern</h3>
+                    <pre><code class="lang-yaml"><span class="hljs-symbol">index:</span> logs-*</code></pre>
+
+                    <p>This specifies which Elasticsearch indices to search. The pattern <code class="inline">logs-*</code> typically includes all log data indexed by Elastic. Could also be wazuh-*</p>
+
+                    <h3>Filter Conditions</h3>
+                    <pre><code class="lang-yaml"><span class="hljs-attribute">filter</span>:
+                      - <span class="hljs-attribute">query</span>:
+                          <span class="hljs-attribute">bool</span>:
+                            <span class="hljs-attribute">must</span>:
+                              - <span class="hljs-attribute">terms</span>:
+                                  event.<span class="hljs-attribute">action</span>: [<span class="hljs-string">"audit-log-cleared"</span>, <span class="hljs-string">"Log clear"</span>]
+                              - <span class="hljs-attribute">term</span>:
+                                  winlog.<span class="hljs-attribute">api</span>: <span class="hljs-string">"wineventlog"</span>
+                            <span class="hljs-attribute">must_not</span>:
+                              - <span class="hljs-attribute">term</span>:
+                                  winlog.<span class="hljs-attribute">provider_name</span>: <span class="hljs-string">"AD FS Auditing"</span></code></pre>
+                    <p>This section defines the criteria for triggering the alert:</p>
+                    <ul>
+                        <li>The <code class="inline">event.action</code> must be either &quot;audit-log-cleared&quot; or
+                            &quot;Log
+                            clear&quot;</li>
+                        <li>The <code class="inline">winlog.api</code> must be &quot;wineventlog&quot;</li>
+                        <li>The <code class="inline">winlog.provider_name</code> must not be &quot;AD FS Auditing&quot;
+                            (to exclude
+                            legitimate log clearing events from AD FS)</li>
+                    </ul>
+                    <p>Some helpful hints for building this filter can be found in elastic&#39;s query DSL <a
+                            href="https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html">docs</a>.
+                        In addition, we suggest working with a gpt model and the documentation for how to construct the
+                        query above.
+                        We&#39;ve found the AI models to produce good boilerplate that can be edited to suit your needs.
+                    </p>
+                    <h3>Alert Configuration</h3>
+                    <p>
+                        This configuration may be email, slack, or anything else. See official elastalert documentation <a href="https://elastalert2.readthedocs.io/en/latest/alerts.html">here.</a>
+                    </p>
+                    <pre><code class="lang-yaml">aler<span class="hljs-variable">t:</span>
+                      - <span class="hljs-string">"slack"</span>
+                    
+                    slack_webhook_ur<span class="hljs-variable">l:</span> <span class="hljs-string">"https://hooks.slack.com/services/EXAMPLE"</span> # This <span class="hljs-keyword">is</span> <span class="hljs-keyword">an</span> example webhook <span class="hljs-keyword">to</span> slack</code></pre>
+
+                    <h3>Alert Message Format</h3>
+                    <pre><code class="lang-yaml">alert_text: |
+                      Windows Event Logs Cleared Detected!
+                      Host: {0}
+                      Event Action: {1}
+                      Winlog Provider Name: {2}
+                      Timestamp: {3}
+                    alert_text_args:
+                      -<span class="ruby"> host.name
+                    </span>  -<span class="ruby"> event.action
+                    </span>  -<span class="ruby"> winlog.provider_name
+                    </span>  -<span class="ruby"> <span class="hljs-string">"@timestamp"</span>
+                    </span>
+                    alert_text_type: alert_text_only</code></pre>
+
+                    <p>This defines the content and format of the alert message:</p>
+                    <ul>
+                        <li>A warning message</li>
+                        <li>The name of the host where the event occurred</li>
+                        <li>The specific event action</li>
+                        <li>The Windows log provider name</li>
+                        <li>The timestamp of the event</li>
+                    </ul>
+                    <p>The <code class="inline">alert_text_type</code> is set to <code
+                            class="inline">alert_text_only</code>, meaning the alert will
+                        only include the specified text without additional metadata.</p>
+                    <p>The alert_test_args are used in the alert text. The arg&#39;s are fields in the json event. I.E.
+                        hostname will be 0. So, when the alert shows up in email or slack it will start with Host: {The
+                        Host Name Pulled from the JSON}. Review the json in Kibana to pull any fields you wanted added
+                        to your alert messages.</p>
+
+                    <h3>Alert Frequency</h3>
+                    <pre><code class="lang-yaml"><span class="hljs-symbol">realert:</span>
+                    <span class="hljs-symbol">  minutes:</span> <span class="hljs-number">5</span></code></pre>
+                    <p>This setting suppresses duplicate alerts for 5 minutes after an alert is sent, preventing alert fatigue. After 5 minutes it will trigger again, and only detect NEW events.</p>
+                   
+                    <h3>Timestamp Field</h3>
+                    <pre><code class="lang-yaml"><span class="hljs-symbol">timestamp_field:</span> <span class="hljs-string">"@timestamp"</span></code></pre>
+                    <p>This specifies that the rule should use the &quot;@timestamp&quot; field to determine the time of
+                        events.</p>
+
+                    <h2>Rule storage:</h2>
+                    <p>First we need to put the rule at the appropriate directory where elastalert expects all the
+                        rules.
+                        Elastalert is setup to use the following directories: </p>
+                    <pre><code class="lang-bash">root@ubuntu:~<span class="hljs-meta"># tree /opt/lme/config/elastalert2/</span>
+                    /opt/lme/<span class="hljs-built_in">config</span>/elastalert2/
+                    ├── <span class="hljs-built_in">config</span>.yaml
+                    ├── misc
+                    │   └── smtp_auth.yml
+                    └── rules
+                        ├── example-email-rule.yml
+                            └── windows_event_logs_cleared.yaml
+                    </code></pre>
+                    <ul>
+                        <li><code class="inline">/opt/lme/config/elastalert2/misc/</code>: is where you can store
+                            various files your
+                            alert type might require. For example, smtp alerts require a smtp_auth.yml file like
+                            we&#39;ve included as an example.</li>
+                        <li><code class="inline">/opt/lme/config/elastalert2/rules/</code>: is where you store your
+                            elastalert rules.
+                        </li>
+                        <li><code class="inline">/opt/lme/config/elastalert2/config.yaml</code>: is the configuration
+                            for elastalert.
+                            More options are available in their <a
+                                href="https://elastalert2.readthedocs.io/en/latest/configuration.html">documentation</a>.
+                        </li>
+                    </ul>
+                    <p>Any changes to the above files, will require a container restart for them to apply to the
+                        elastalert service. </p>
+                    <p><strong>WAIT</strong> to restart elastalert until you&#39;ve verified your rule in the next section.
+                    </p>
+                    <h2>Test and Deploy the rule:</h2>
+                    <p>Once you&#39;ve written your rule you can test it using the below command: </p>
+                    <pre><code class="lang-bash">podman run -it --rm --net lme --env-<span class="hljs-keyword">file</span>=<span class="hljs-regexp">/opt/</span>lme<span class="hljs-regexp">/lme-environment.env -e ES_HOST=lme-elasticsearch -e ES_PORT=9200 -e ES_USERNAME=elastic --secret elastic,type=env,target=ES_PASSWORD\
+                    -v /</span>opt<span class="hljs-regexp">/lme/</span>config<span class="hljs-regexp">/elastalert2/</span>config.yaml:<span class="hljs-regexp">/opt/</span>elastalert<span class="hljs-regexp">/config.yaml -v /</span>opt<span class="hljs-regexp">/lme/</span>config<span class="hljs-regexp">/elastalert2/</span>rules:<span class="hljs-regexp">/opt/</span>elastalert<span class="hljs-regexp">/rules -v /</span>opt<span class="hljs-regexp">/lme/</span>config<span class="hljs-regexp">/elastalert2/mi</span>sc:<span class="hljs-regexp">/opt/</span>elastalert<span class="hljs-regexp">/misc\
+                    --entrypoint elastalert-test-rule localhost/</span>elastalert2:LME_LATEST <span class="hljs-regexp">/opt/</span>elastalert<span class="hljs-regexp">/rules/</span>example-email-rule.yml
+                    </code></pre>
+                    <p>We&#39;ve wrapped the above command into a bash script: </p>
+                    <pre><code class="lang-bash"><span class="hljs-keyword">cd</span> ~/LME/
+                    ./scripts/elastalert-<span class="hljs-keyword">test</span>.<span class="hljs-keyword">sh</span> example-email-rule.yml
+                    </code></pre>
+                    <p>The input value is the filename of your rules saved to the rules directory at:
+                        <code class="inline">/opt/lme/config/elastalert2/rules/</code>
+                    </p>
+                    <p><strong>IMPORTANT:
+                        You should make sure the rule evaluates and runs successfully before adding it into elastalert,
+                        as elastalert will crash if the rule cannot be successfully parsed.</strong></p>
+                    <h2>Elastalert error and status logs:</h2>
+                    <p>You can find the logs for elastalert:</p>
+                    <ol>
+                        <li>
+                            <p>In the logs volume</p>
+                            <pre><code class="lang-bash">sudo -i 
+                    podman volume mount lme_elastalert2_logs
+                    cd /var/<span class="hljs-class"><span class="hljs-keyword">lib</span>/<span class="hljs-title">containers</span>/<span class="hljs-title">storage</span>/<span class="hljs-title">volumes</span>/<span class="hljs-title">lme_elastalert2_logs</span>/<span class="hljs-title">_data</span></span></code></pre>
+                        </li>
+                        <li>
+                            <p>You can also see errors and status from elastalert&#39;s running at: </p>
+                            <pre><code class="lang-bash">sudo -<span class="hljs-selector-tag">i</span> podman logs lme-elastalert</code></pre>
+                        </li>
+                        <li>
+                            <p>There are indexes inside elasticsearch where elastalert will write its data
+                                <code class="inline">elastalert_*</code>.
+                                To view these logs in discover create a new dataview:
+                            </p>
+                        </li>
+                        <li>Click the blue drop down to manage dataviews</li>
+                        <li>Select <code class="inline">create a data view</code>:</li>
+                    </ol>
+                    <p><img src="/docs/imgs/dashboard/dataview-create.png" class="image" alt="dataview1"></p>
+                    <ol>
+                        <li>Edit the data view with the anme you&#39;d like to call it, we suggest
+                            <code class="inline">elastalert</code>.
+                        </li>
+                        <li>Add the index pattern you want to match on: <code class="inline">elastalert*</code></li>
+                        <li>Click <code class="inline">save</code> at the bottom.</li>
+                    </ol>
+                    <p><img src="/docs/imgs/dashboard/elastalert-dataview.png" class="image" alt="dataview2"></p>
+
+                    <h2>Using Email and SMTP</h2>
+                    <p>We&#39;llve also provided an example smtp rule you can tune to your needs. </p>
+                    <p>Because elastalert doesn&#39;t support more modern authentication methods, you&#39;ll need to
+                        setup a username/password combination for your email user that will send the email. </p>
+                    <p>Gmail has a feature called an <code class="inline">app password</code> to setup a regular
+                        password for a user.
+                        Outlook and other email providers have a similar option.
+                        We suggest that you use an unprivileged account you make ONLY to send notifications to your
+                        regular email.</p>
+                    <p>You can follow google&#39;s instructions <a
+                            href="https://support.google.com/accounts/answer/185833?hl=en">here</a>, once done you
+                        should have a screen like this:
+                    </p>
+                        <img src="/docs/imgs/dashboard/app_password.png" class="image" alt="email">
+                    
+                    <p>Other providers should be similar.</p>
+                    <p>Finally you can setup the rule and smtp_auth.yml files like below, and put them at the
+                        directories shown in this tree command:</p>
+                    <pre><code class="lang-bash">root<span class="hljs-variable">@ubuntu</span><span class="hljs-symbol">:/opt/lme/config/elastalert2</span><span class="hljs-comment"># tree</span>
+                    .
+                    ├── misc
+                    │   └── smtp_auth.yml
+                    └── rules
+                        ├── example-email-rule.yml</code></pre>
+
+                    <h3>SMTP_AUTH.yml:</h3>
+
+                    <pre><code class="lang-yaml"><span class="hljs-meta">---</span>
+                    <span class="hljs-attr">user:</span> <span class="hljs-string">"loggingmadeeasy@gmail.com"</span>
+                    <span class="hljs-attr">password:</span> <span class="hljs-string">"giyq caym zqiw chje"</span>
+                    </code></pre>
+                    <h3 id="smtp_auth-yml-">SMTP_AUTH.yml:</h3>
+                    <pre><code class="lang-yaml"><span class="hljs-string">name:</span> EMAIL
+                    <span class="hljs-string">type:</span> frequency
+                    <span class="hljs-string">index:</span> wazuh-*
+                    <span class="hljs-string">num_events:</span> <span class="hljs-number">1</span>
+                    <span class="hljs-string">timeframe:</span>
+                    <span class="hljs-symbol">  minutes:</span> <span class="hljs-number">1</span>
+                    <span class="hljs-string">filter:</span>
+                    - <span class="hljs-string">query:</span>
+                    <span class="hljs-symbol">    match_phrase:</span>
+                          agent.<span class="hljs-string">ip:</span> <span class="hljs-string">"10.1.0.4"</span>
+                    <span class="hljs-string">alert:</span> email
+                    <span class="hljs-string">alert_text:</span> <span class="hljs-string">"ASDFASDF"</span>
+                    <span class="hljs-string">alert_text_type:</span> alert_text_only
+                    <span class="hljs-string">email:</span>
+                      - <span class="hljs-string">"loggingmadeeasy@gmail.com"</span>
+                    <span class="hljs-string">smtp_ssl:</span> <span class="hljs-literal">true</span>
+                    <span class="hljs-string">smtp_port:</span> <span class="hljs-number">465</span>
+                    <span class="hljs-string">smtp_host:</span> <span class="hljs-string">"smtp.gmail.com"</span>
+                    <span class="hljs-string">from_addr:</span> <span class="hljs-string">"elastalert@elastalert.com"</span>
+                    <span class="hljs-string">smtp_auth_file:</span> <span class="hljs-regexp">/opt/</span>elastalert<span class="hljs-regexp">/misc/</span>smtp_auth.yml</code></pre>
+
+                    <h2>Other options:</h2>
+                    <p>See ElastAlert2 documentation to tailor more specific alerts to your needs:</p>
+                    <p><a
+                            href="https://elastalert2.readthedocs.io/en/latest/index.html">https://elastalert2.readthedocs.io/en/latest/index.html</a>
+                    </p>
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="customizing-lme.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Customizing LME</span>
+                </a>
+                <a href="active-response.html" class="nav-button next-button">
+                    <span>Active Response</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

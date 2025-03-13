@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- TODO Change title to main heading on the page -->
+    <title>Log Retention</title>
+    <meta property="og:title" content="LME">
+    <meta property="og:locale" content="en_US">
+    <meta name="description"
+        content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="assets/imgs/favicon.png">
+</head>
+
+<body>
+    <div class="wrapper">
+        <header>
+            <div class="side-nav">
+                <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                <div class="version">v2.0</div>
+                <div class="nav-links">
+                    <!-- [TODO] change active class based on page location -->
+                    <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                    <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                </div>
+            </div>
+            <div class="nav-footer">
+                <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+            </div>
+        </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search">
+                    <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+                    <h1>Retention Settings</h1>
+                    <p>By default, LME will configure an index lifecycle policy that will delete
+                        indexes based on estimated disk usage. Initially, 80% of the disk will be used
+                        for the indices, with an assumption that a day of logs will use 1Gb of disk
+                        space.</p>
+                    <p>If you wish to adjust the number of days retained,do this in kibana.
+                        First, select the <code class="inline">lme_ilm_policy</code> from the &quot;Index Lifecycle Policies&quot;
+                        list:</p>
+                    <p><img class="image" src="/docs/imgs/retention_pics/retention_1.png" alt="Retention settings"></p>
+                    <p>Next, scroll to the bottom of the settings page and adjust the &quot;Delete phase&quot;
+                        setting as appropriate.</p>
+                    <p><img class="image" src="/docs/imgs/extra_beats_pics/update-retention.png"
+                            alt="Retention delete phase settings"></p>
+                    <p>Users must ensure that the retention period is appropriate for the
+                        disk space available. If disk space is exhausted then the solution will
+                        experience performance issues and new logs will not be recorded. By default,
+                        Elasticsearch will not allocate shards to any nodes that are using 85% or more
+                        of the available disk space. See <a
+                            href="https://www.elastic.co/guide/en/elasticsearch/reference/current/disk-allocator.html">the
+                            Elasticsearch
+                            documentation</a>
+                        (the <code class="inline">cluster.routing.allocation.disk.watermark.low</code> setting in particular) for
+                        more information.</p>
+                    <p>Click the &quot;save policy&quot; button and the new setting will apply to the LME indices.
+                        Immediately,ensure that the new policy does not result in unwanted data loss by
+                        reducing the retention period, which would cause existing logs to be deleted.</p>
+                </div>
+            </section>
+            <div class="page-navigation">
+                <a href="cloud.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>LME in the Cloud</span>
+                </a>
+                <a href="filtering.html" class="nav-button next-button">
+                    <span>Filtering</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

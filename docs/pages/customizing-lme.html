@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Deploying Agents</title>
+    <title>Customizing LME</title>
     <meta property="og:title" content="LME">
     <meta property="og:locale" content="en_US">
     <meta name="description"
@@ -45,45 +45,39 @@
             </div>
             <section>
                 <div class="body-text">
-                    <h1>Deploying Agents</h1>
-                    <p>
-                        To populate the dashboards with data, you need to install agents. Detailed guides for deploying
-                        Wazuh and Elastic agents are available in the following sections:
-                    </p>
+                    <h1>Customizing LME:</h1>
+                    <p>We&#39;re doing our best to have regular updates that add new and/or requested features. A few
+                        ideas for customizing your installation to your needs. Please see the appropriate section of our
+                        documentation for more information on each topic.</p>
+                    <ul>
+                        <li><a href="elast-alert-rule-writing.html">Alerting</a>: Adding custom
+                            notifications for triggered alerts using elastalert2</li>
+                        <li><a href="active-response.html">Active Response</a>: Creating
+                            custom wazuh active response actions to automatically respond to a malicious event wazuh
+                            detects. </li>
+                        <li><a href="backups.html">Backups</a>: Customizing backups of logs for
+                            your organizations own compliance needs.</li>
+                        <li><a
+                                href="deploying-agents-elasitc.html#lme-elastic-agent-integration-example:~:text=LME%20Elastic%20Agent%20Integration%20Example"">Custom
+                                log types</a>: using elastic agents built in <a
+                                href="https://www.elastic.co/guide/en/integrations/current/index.html">integrations</a>
+                            ingest a log type specific to your organization.</li>
+                    </ul>
 
-                    <div class="agent-navigation">
-                        <a href="deploying-agents-elasitc.html" class="agent-card">
-                           <div class="agent-content">
-                                <h2>Elastic Agent Deployment</h2>
-                                <p>Learn how to install and configure Elastic agents to collect logs from your systems.
-                                </p>
-                                <span class="view-guide-button">View Guide <i class="fas fa-arrow-right"></i></span>
-                            </div>
-                        </a>
-
-                        <a href="deploying-agents-wazuh.html" class="agent-card">
-                            
-                            <div class="agent-content">
-                                <h2>Wazuh Agent Deployment</h2>
-                                <p>Learn how to install and configure Wazuh agents for enhanced security monitoring.</p>
-                                <span class="view-guide-button">View Guide <i class="fas fa-arrow-right"></i></span>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-
-                
-                <div class="page-navigation">
-                    <a href="downloading-installing-configutation.html" class="nav-button prev-button">
-                        <i class="fas fa-arrow-left"></i>
-                        <span>Downloading, Installing and Configuring LME</span>
-                    </a>
-                    <a href="installing-sysmon.html" class="nav-button next-button">
-                        <span>[Windows Clients Only] Installing Sysmon</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
                 </div>
             </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="starting-and-stoping.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Starting and Stopping LME</span>
+                </a>
+            
+                <a href="" class="nav-button next-button disabled">
+                    <span>[TODO]</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
         </main>
     </div>
     <script src="assets/js/copy-code.js"></script>

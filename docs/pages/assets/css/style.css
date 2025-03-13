@@ -1,7 +1,7 @@
 /* Base styles */
 :root {
   --primary-color: #0066cc;
-  --secondary-color: #003366;
+  --secondary-color: #0F3F67;
   --accent-color: #50b3ff;
   --light-bg: #f8f9fa;
   --dark-text: #333;
@@ -27,6 +27,8 @@ body {
 main {
   width: 100%;
   background-color: white;
+  width: calc(100%-280px);
+  margin-left: 280px;
 }
 
 /* Layout */
@@ -42,26 +44,31 @@ header {
   box-shadow: var(--box-shadow);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  /* justify-content: space-between; */
+  position: fixed;
+  height: 100vh;
+  width: 280px;
+  left: 0;
+  right: 0;
+  z-index: 100;
 }
+
 
 .side-nav {
   padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow-y: auto;
+  height: calc(100vh-80px);
 }
 
 .logo {
   width: 85%;
   max-width: 200px;
   margin-bottom: 0.5rem;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  /* filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2)); */
 }
-
-/* .logo:hover {
-  transform: scale(1.02);
-} */
 
 .version {
   font-size: 0.9rem;
@@ -72,6 +79,8 @@ header {
   border-radius: 20px;
   margin: 0.75rem 0 1.5rem;
 }
+
+/* header/nav links in side bar */
 
 .nav-links {
   display: flex;
@@ -105,11 +114,17 @@ header a.active {
   text-decoration: none;
 }
 
+/* "footer" links/styling (sidebar) */
 .nav-footer {
   padding: 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin-top: auto;
-  position: sticky;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  background: var(--secondary-color);
+  width: 280px;
+  box-sizing: border-box;
+  z-index: 10;
 }
 
 .foot-link {
@@ -131,6 +146,88 @@ header a.active {
   margin-right: 8px;
   font-size: 0.9rem;
 }
+
+/* search bar functionality */
+.top-search-container {
+    position: relative;
+    float: right;
+    width: 500px;
+    margin: 15px 20px;
+  }
+  
+  .search-box {
+    display: flex;
+    width: 100%;
+  }
+  
+  #searchInput {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+    flex-grow: 1;
+    font-size: 14px;
+  }
+  
+  #searchButton {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  
+  #searchButton:hover {
+    background-color: var(--accent-color);
+  }
+  
+  .search-results {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 550px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 1000;
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+    text-align: left;
+  }
+  
+  .search-result-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .search-result-item:last-child {
+    border-bottom: none;
+  }
+  
+  .search-result-item a {
+    color: #0066cc;
+    font-weight: bold;
+    text-decoration: none;
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .search-result-item a:hover {
+    text-decoration: underline;
+  }
+  
+  .search-result-item p {
+    margin: 5px 10px;
+    font-size: 14px;
+    color: #555;
+  }
+  
+  mark {
+    background-color: yellow;
+    padding: 0 2px;
+  }
 
 /* Main Content */
 .body-text {
@@ -205,13 +302,7 @@ a:hover {
   color: var(--accent-color);
 }
 
-.needs-changing {
-  color: #e74c3c;
-  font-weight: bold;
-  text-decoration: wavy underline;
-}
-
-/* Code blocks */
+/* Code chunks*/
 pre {
   font-family: 'Consolas', 'Monaco', monospace;
   background-color: #f8f9fc;
@@ -229,6 +320,7 @@ code {
   font-size: 0.95rem;
 }
 
+/* Inline code chunks */
 .inline {
   padding: 0.2em 0.4em;
   margin: 0 0.2em;
@@ -238,10 +330,12 @@ code {
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
+/* Comments in codde chunks */
 .comment {
   color: #6686b8;
 }
 
+/* copy button w/in code chunks */
 .copy-button {
   position: absolute;
   top: 10px;
@@ -276,11 +370,157 @@ code {
   color: white;
 }
 
+/* images  */
 .image{
+    max-height: 750px;
     max-width: 85%;
 }
 
-/* Responsive design */
+/* previous/next buttons on bottom of page */
+.page-navigation {
+    display: flex;
+    justify-content: space-between;
+    padding: 2rem 10rem 3rem;
+    margin-top: 2rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+
+  }
+  
+  .nav-button {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    background-color: white;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: var(--transition);
+    text-decoration: none;
+  }
+  
+  .nav-button:hover {
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    box-shadow: var(--box-shadow);
+  }
+  
+  .prev-button {
+    padding-left: 1.2rem;
+  }
+
+  .prev-button:hover{
+    transform: translateX(-10px);
+  }
+  .next-button:hover{
+    transform: translateX(10px);
+  }
+  
+  .next-button {
+    padding-right: 1.2rem;
+  }
+  
+  .nav-button i {
+    font-size: 0.9rem;
+  }
+  
+  .prev-button i {
+    margin-right: 0.5rem;
+  }
+  
+  .next-button i {
+    margin-left: 0.5rem;
+  }
+  
+  /* Hide buttons if there's no previous/next page */
+  /* add disabled class to button when not needed on screen */
+  .prev-button.disabled,
+  .next-button.disabled {
+    opacity: 0;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+  
+  /* nav cards on deploying-agents.html */
+  .agent-navigation {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin: 2.5rem 0;
+  }
+  
+  .agent-card {
+    display: flex;
+    background-color: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    transition: var(--transition);
+    text-decoration: none;
+    color: var(--dark-text);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .agent-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+    border-color: var(--primary-color);
+  }
+  
+  .agent-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--secondary-color);
+    color: var(--light-text);
+    padding: 1.5rem;
+    font-size: 2rem;
+    min-width: 80px;
+  }
+  
+  .agent-content {
+    padding: 1.5rem;
+    flex: 1;
+  }
+  
+  .agent-content h2 {
+    color: var(--secondary-color);
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1.5rem;
+    position: relative;
+  }
+  
+  .agent-content p {
+    margin-bottom: 1.25rem;
+    color: #555;
+    font-size: 1rem;
+  }
+  
+  .view-guide-button {
+    display: inline-block;
+    color: var(--primary-color);
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+  
+  .agent-card:hover .view-guide-button {
+    color: var(--accent-color);
+  }
+  
+  .view-guide-button i {
+    margin-left: 0.5rem;
+    transition: transform 0.2s ease;
+  }
+  
+  .agent-card:hover .learn-more i {
+    transform: translateX(4px);
+  }
+  
+ 
+
 @media screen and (max-width: 1024px) {
   .body-text {
     padding: 2rem 3rem;
@@ -293,16 +533,23 @@ code {
   }
   
   header {
-    min-width: 100%;
-    max-width: 100%;
+    position:relative;
+    width:100%;
+    height: auto;
+    min-height: unset;
+  }
+  main{
+    width:100%;
+    margin-left: 0;
   }
   
   .side-nav {
     padding: 1.5rem;
+    height:auto;
   }
   
   .nav-links {
-    flex-direction: row;
+    flex-direction: column;
     justify-content: center;
     flex-wrap: wrap;
     margin-top: 1rem;
@@ -318,6 +565,8 @@ code {
   }
   
   .nav-footer {
+    position:static;
+    width: 100%;
     flex-direction: row;
     justify-content: center;
     flex-wrap: wrap;
@@ -325,6 +574,18 @@ code {
   
   .foot-link {
     margin: 0.25rem 0.5rem;
+  }
+  .agent-navigation {
+    grid-template-columns: 1fr;
+  }
+  
+  .agent-card {
+    flex-direction: column;
+  }
+  
+  .agent-icon {
+    width: 100%;
+    min-height: 100px;
   }
 }
 

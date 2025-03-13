@@ -5,13 +5,14 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Logging Made Easy</title>
+        <title>Documentation</title>
         <meta property="og:title" content="LME">
         <meta property="og:locale" content="en_US">
         <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
         
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
     </head>
 
     <body>
@@ -21,9 +22,9 @@
                     <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
                     <div class="version">v2.0</div>
                     <div class="nav-links">
-                        <a class="active" href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
                         <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
-                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                        <a  class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
                     </div>
                 </div>
                 <div class="nav-footer">
@@ -33,16 +34,234 @@
                 </div>
             </header>
         <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
             <section>
                 <div class="body-text">
-                    
+                    <h1>Documentation Overview</h1>
+                    <div class="nav-blocks">
+
+                        <div class="box">
+                            
+                                <h2>Logging Guidance</h2>
+                           
+                            <ul class="nav-links">
+                                <a href="cloud.html">
+                                    <li>
+                                        LME in the Cloud
+                                    </li>
+                                </a>
+                                <a href="log-retention.html">
+                                    <li>
+                                       Log Retention
+                                    </li>
+                                </a>
+                                <a href="filtering.html">
+                                    <li>
+                                        Filtering
+                                    </li>
+                                </a>
+                            </ul>
+                        </div>
+
+                        <div class="box">
+                            
+                                <h2>Reference</h2>
+                           
+                            <ul class="nav-links">
+                                <a href="faq.html">
+                                    <li>
+                                        FAQ
+                                    </li>
+                                </a>
+                                <a href="dashboards.html">
+                                    <li>Dashboard Descriptions</li>
+                                </a>
+                                <a href="security-model.html">
+                                    <li>
+                                        Security Model
+                                    </li>
+                                </a>
+                                <a href="architecture.html">
+                                    <li>
+                                        Architecture
+                                    </li>
+                                </a>
+                                <a href="configuration.html">
+                                    <li>
+                                        Configuration and Customization Options
+                                    </li>
+                                </a>
+                                <a href="password-encryption.html">
+                                    <li>
+                                        Password Encryption and Maintenance
+                                    </li>
+                                </a>
+                                <a href="troubleshooting.html">
+                                    <li>
+                                        Troubleshooting
+                                    </li>
+                                        <ul>
+                                            <a href="troubleshooting.html#:~:text=Troubleshooting%20LME%20Install-,Installation%20Troubleshooting,-Make%20sure%20to">
+                                                <li>
+                                                    Installation Troubleshooting
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=Post%2DInstallation%20Troubleshooting">
+                                                <li>
+                                                    Post-Installation Troubleshooting
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=be%20a%20bug.-,Logging%20Issues,-Space%20issues%20during">
+                                                <li>
+                                                    Logging Issues
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=Container%20Troubleshooting%3A">
+                                                <li>
+                                                    Container Troubleshooting
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=Elastic%20troubleshooting%20steps">
+                                                <li>
+                                                    Elastic Troubleshooting
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=the%20subsequent%20page%3A-,Unhealthy%20Cluster%20Status,-There%20are%20several">
+                                                <li>
+                                                   Unhealthy Cluster Status
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=FLEET%20SERVER%20%2D%20ADD%20AGENT%20shows%20missing%20url%20for%20Fleet%20Server%20Host">
+                                                <li>
+                                                   Fleet Server Issues
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=fix%20the%20problem.-,Start/Stop%20LME%3A,-Re%2DIndexing%20Errors">
+                                                <li>
+                                                  Start/Stop
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=lme.service-,Using%20API,-Changing%20elastic%20Username">
+                                                <li>
+                                                  Using API
+                                                </li>
+                                            </a>
+                                            <a href="troubleshooting.html#:~:text=Issues%20installing%20Elastic%20Agent">
+                                                <li>
+                                                  Elastic Agent Issues
+                                                </li>
+                                            </a>
+                                        
+                                            
+                                        </ul>
+                                </a>
+                                
+                            </ul>
+                            </a>
+                        </div>
+                        <div class="box">
+                            <!-- <a href=""> -->
+                                <h2>Maintenance</h2>
+                            <!-- </a> -->
+                            <ul class="nav-links">
+                                <a href="elast-alert-rule-writing.html">
+                                    <li>Alerting</li>
+                                </a>
+                                <a href="backups.html">
+                                    <li>Backups</li>
+                                </a>
+                                <a href="certificates.html">
+                                    <li>Certificates</li>
+                                </a>
+                                <a href="encryption-at-rest.html">
+                                    <li>Encryption at Rest</li>
+                                </a>
+                                
+                                <li>Data Management</li>
+                                
+                                <ul>
+                                    <a href="index-management.html">
+                                        <li>
+                                            Index Management
+                                        </li>
+                                    </a>
+                                    <a href="">
+                                        <li>
+                                            Volume Managment
+                                        </li>
+                                    </a>
+                                </ul>
+                                <a href="upgrading.html">
+                                <li>Upgrading</li>
+                                </a>
+                        
+                            </ul>
+                        </div>
+                        <div class="box">
+                            <!-- <a href=""> -->
+                                <h2>Agents</h2>
+                            <!-- </a> -->
+                            <ul class="nav-links">
+                                <a href="deploying-agents-elasitc.html">
+                                    <li>
+                                        Elastic Agents
+                                    </li>
+                                </a>
+                                <!-- <a href=""> -->
+                                    <li>Wazuh
+                                    <ul>
+                                <!-- </a> -->
+                                <a href="wazuh-configuration.html">
+                                    <li>
+                                        Wazuh Configuration
+                                    </li>
+                                </a>
+                                <a href="active-response.html">
+                                    <li>
+                                        Active Response
+                                    </li>
+                                </a>
+                                <a href="deploying-agents-wazuh.html">
+                                    <li>
+                                        Agent Management
+                                    </li>
+                                </ul>
+                            </li>
+                                </a>
+                            </ul>
+                            
+                        </div>
+
+                        <div class="box">
+                            
+                            <h2>Endpoints</h2>
+                       
+                        <ul class="nav-links">
+                            <a href="sysmon-manual-install.html">
+                                <li>
+                                    Sysmon (manual install)
+                                </li>
+                            </a>
+                            <a href="auditd.html">
+                                <li>
+                                   Linux Users: Auditd
+                                </li>
+                            </a>
+                        </ul>
+                    </div>
+                    </div>
                 </div>
             </section>
         </main>
-            <footer>
-                
-            </footer>
-        </div>
-</main>
+           </div>
+           <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+           </body>
 
 </html>

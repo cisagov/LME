@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head> 
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TODO Change title to main heading on the page -->
+        <title>Volume Management</title>
+        <meta property="og:title" content="LME">
+        <meta property="og:locale" content="en_US">
+        <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
+        
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
+    </head>
+
+    <body>
+        <div class="wrapper">
+            <header>
+                <div class="side-nav">
+                    <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
+                    <div class="version">v2.0</div>
+                    <div class="nav-links">
+<!-- [TODO] change active class based on page location -->
+                        <a  href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                    </div>
+                </div>
+                <div class="nav-footer">
+                    <a class="foot-link" href="https://github.com/cisagov/LME">LME on GitHub</a>
+                    <a class="foot-link" href="https://www.cisa.gov/resources-tools/services/logging-made-easy">CISA</a>
+                    <a class="foot-link" href="mailto:CyberSharedServices@cisa.dhs.gov">Contact Us</a>
+                </div>
+            </header>
+        <main>
+            <div class="top-search-container">
+                <div class="search-box">
+                  <input type="text" id="searchInput" placeholder="Search">
+                  <button id="searchButton"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <section>
+                <div class="body-text">
+
+                    <h1 id="podman-volumes-the-basics">Podman Volumes: The Basics</h1>
+                    <p>A Podman volume is a mechanism for storing container data directly on the host machine. When you create a volume and attach it to a container, Podman sets up a dedicated directory on your host system. Any data the container writes to this mounted volume is actually written to this host directory. This means that even if you stop, remove, or replace the container, the data remains intact on your host machine. You can then mount this same volume to a new container, allowing it to access all the previously stored data. This also allows you to have one volume on a host machine that you can mount to multiple containers. For instance our certs volume which is used across all containers.</p>
+                    <p>You will see volumes in our quadlets and they will look something like this:</p>
+                    <pre><code class="lang-bash">/path/on/host/<span class="hljs-symbol">:/path/in/container/</span>
+                    </code></pre>
+                    <p>On the left of the colon would be a path or file on the host machine that is persisted inside the running container (the path on the right of the colon).</p>
+                    <p><strong>NOTE: If you do not have a volume assigned to a certain path or file, it will not be persisted. This means restarting a container will blow away any changes you&#39;ve made on the running container. We&#39;ve made sure all required files by default are already volumes.</strong></p>
+                    <h1 id="podman-volume-management-for-lme">Podman Volume Management for LME</h1>
+                    <p>Managing disk usage is crucial for maintaining the health and performance of your LME installation. Here&#39;s how you can monitor and manage the disk space used by Podman volumes.</p>
+                    <h3 id="check-volume-location-on-host-machine">Check Volume Location on Host Machine</h3>
+                    <p>You can check the location of your volumes on the host machine by running the following command:</p>
+                    <pre><code class="lang-bash">podman <span class="hljs-keyword">volume</span><span class="bash"> inspect &lt;volume_name&gt;</span>
+                    </code></pre>
+                    <p>To get a list of volumes you can run:</p>
+                    <pre><code class="lang-bash">podman <span class="hljs-keyword">volume</span><span class="bash"> ls</span>
+                    </code></pre>
+                    <h3 id="checking-overall-disk-usage">Checking Overall Disk Usage</h3>
+                    <p>To check the overall disk usage on your system, use the <code>df</code> command:</p>
+                    <pre><code class="lang-bash"><span class="hljs-attribute">df -h</span>
+                    </code></pre>
+                    <p>This will show you the disk usage for all mounted filesystems. Look for the filesystem that contains your home directory (usually <code>/</code>).</p>
+                    <h3 id="checking-podman-volume-usage">Checking Podman Volume Usage</h3>
+                    <p>By default Podman volumes are stored in your home directory under <code>~/.local/share/containers/storage/volumes/</code>. To check the disk usage of this specific directory:</p>
+                    <pre><code class="lang-bash">sudo du -sh ~<span class="hljs-regexp">/.local/</span>share<span class="hljs-regexp">/containers/</span>storage<span class="hljs-regexp">/volumes/</span>
+                    </code></pre>
+                    <p>This command will show you the total size of all Podman volumes.</p>
+                    <p>To see a breakdown of individual volume sizes:</p>
+                    <pre><code class="lang-bash">sudo du -sh ~<span class="hljs-regexp">/.local/</span>share<span class="hljs-regexp">/containers/</span>storage<span class="hljs-regexp">/volumes/</span>*
+                    </code></pre>
+                    <h3 id="using-podman-s-built-in-tools">Using Podman&#39;s Built-in Tools</h3>
+                    <p>Podman provides a built-in command to check disk usage of containers, images, and volumes:</p>
+                    <pre><code class="lang-bash">podman <span class="hljs-keyword">system</span> df -v
+                    </code></pre>
+                    <p>This command will show you:</p>
+                    <ul>
+                    <li>A summary of disk usage by images, containers, and volumes</li>
+                    <li>A detailed breakdown of each volume&#39;s size</li>
+                    </ul>
+                    <h3 id="managing-volume-space">Managing Volume Space</h3>
+                    <p>If you find that your volumes are using too much space, consider the following steps:</p>
+                    <ol>
+                    <li>Review the data in large volumes to see if any can be cleaned up or archived.</li>
+                    <li>For log volumes (like <code>lme_wazuh_logs</code>), consider implementing log rotation if not already in place.</li>
+                    <li>For database volumes (like <code>lme_esdata01</code>), check if data can be optimized or old indices can be removed. Index management is key for space management with this volume as this will end up your largest volume as elasticsearch collects all your logs and stores them here.</li>
+                    <li>Use Podman&#39;s prune commands to remove unused volumes:<pre><code class="lang-bash">podman <span class="hljs-keyword">volume</span><span class="bash"> prune</span>
+                    </code></pre>
+                    <strong>Be careful with this command as it will remove all unused volumes.</strong></li>
+                    </ol>
+                    <p>Remember to always backup important data before performing any cleanup operations.</p>
+                    <h3 id="viewing-elasticsearch-index-sizes">Viewing Elasticsearch Index Sizes</h3>
+                    <p>As discussed earlier lme_esdata01 will store all your logs in indexes. </p>
+                    <p>To view all your Elasticsearch indexes and their sizes in Kibana:</p>
+                    <ol>
+                    <li>Login to Kibana</li>
+                    <li>Click the &quot;hamburger&quot; menu button top left.</li>
+                    <li>Scroll down to Stack Management</li>
+                    <li>Click &quot;Index Management&quot;</li>
+                    <li>Check the option to &quot;Include Hidden Indices&quot;</li>
+                    </ol>
+                    <p>You should now see all your indexes and their sizes:</p>
+                    <p><img src="https://github.com/user-attachments/assets/f32741af-e77c-4bec-9e3d-268c25d65323" alt="image"></p>
+                    <h3 id="editing-files-in-podman-volumes-and-bind-mounts">Editing Files in Podman Volumes and Bind Mounts</h3>
+                    <p>When you edit files that are made available to containers through Podman volumes or bind mounts, these changes are immediately reflected in the running containers. This creates a direct link between files on the host system and within the container&#39;s filesystem. In the LME setup, many configuration files use this principle. For example, the Wazuh Manager configuration file (ossec.conf) is actually located at <code>/opt/lme/config/wazuh_cluster/wazuh_manager.conf</code> on the host and is bind-mounted into the container. </p>
+                    <p>When you edit this file on the host, the changes are instantly visible to the Wazuh manager process inside the container. You could then restart the Wazuh Manager container using:</p>
+                    <pre><code class="lang-bash"><span class="hljs-selector-tag">sudo</span> <span class="hljs-selector-tag">systemctl</span> <span class="hljs-selector-tag">restart</span> <span class="hljs-selector-tag">lme-wazuh-manager</span><span class="hljs-selector-class">.service</span>
+                    </code></pre>
+                    <p>Now your changes will be implemented into the running Wazuh Manager container.</p>
+                    <h1 id="backup-volumes">Backup Volumes</h1>
+                    <p>Remember that your volumes will be ALL your important data for LME that is persisted. You may want to back this data up to an external hard drive or NAS. Some general steps for doing so:</p>
+                    <p><strong>Stop all containers before performing a backup</strong></p>
+                    <p>To external hard drive:</p>
+                    <ol>
+                    <li>Connect external hard drive to your system.</li>
+                    <li>Mount the hard drive.</li>
+                    <li>Copy volume data from your Podman volume directory to the mounted drive.</li>
+                    <li>Safely unmount the drive when finished if desired.</li>
+                    </ol>
+                    <p>To network storage:</p>
+                    <ol>
+                    <li>Mount/Connect to your network storage.</li>
+                    <li>Copy volume data from your Podman volume directory to the network storage.</li>
+                    <li>Disconnect/Unmount from the network storage if desired.</li>
+                    </ol>
+                    <p>Example command you might use to copy all volumes to a mounted drive:</p>
+                    <pre><code class="lang-bash">rsync -av ~<span class="hljs-regexp">/.local/</span>share<span class="hljs-regexp">/containers/</span>storage<span class="hljs-regexp">/volumes/</span> <span class="hljs-regexp">/mnt/</span>nas<span class="hljs-regexp">/podman_volume_backup/</span>
+                    </code></pre>
+                    <p><strong>Note</strong>: Ensure you use your drive&#39;s documentation for connecting/mounting to an Ubuntu instance.**</p>
+                    
+
+                </div>
+            </section>
+            <div class="page-navigation">
+                <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="index-management.html" class="nav-button prev-button">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Data Management: Index Management</span>
+                </a>
+                 <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
+                <a href="upgrading.html" class="nav-button next-button">
+                    <span>Upgrading</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </main>
+    </div>
+    <script src="assets/js/copy-code.js"></script>
+    <script src="assets/js/search-bar.js"></script>
+</body>
+
+</html>

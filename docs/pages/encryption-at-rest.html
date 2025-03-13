@@ -4,14 +4,15 @@
         <meta charset="UTF-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-
-        <title>Installing Sysmon</title>
+<!-- TODO Change title to main heading on the page -->
+        <title>Encryption at Rest</title>
         <meta property="og:title" content="LME">
         <meta property="og:locale" content="en_US">
         <meta name="description" content="Logging Made Easy - CISA's open source platform for centralized log collection and threat detection">
         
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="icon" href="assets/imgs/favicon.png">
     </head>
 
     <body>
@@ -21,9 +22,10 @@
                     <img class="logo" src="assets/imgs/lme-image.png" alt="Logging Made Easy Logo">
                     <div class="version">v2.0</div>
                     <div class="nav-links">
+<!-- [TODO] change active class based on page location -->
                         <a href="\docs\index.html"><i class="fas fa-info-circle"></i> About</a>
-                        <a class="active" href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
-                        <a href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
+                        <a href="installation-overview.html"><i class="fas fa-download"></i> Installation</a>
+                        <a class="active" href="documentation.html"><i class="fas fa-book"></i> Documentation</a>
                     </div>
                 </div>
                 <div class="nav-footer">
@@ -42,35 +44,27 @@
             </div>
             <section>
                 <div class="body-text">
-                    <h1> Installing Sysmon (Windows Clients Only)</h1>
-                    <p>For Windows clients, installing Sysmon is essential to obtain comprehensive logs and ensure
-                        proper data visualization in the dashboards. Follow these steps to install Sysmon on each
-                        Windows client machine:</p>
-                    <ol>
-                        <li>Download and unzip the LME folder on the Windows client.</li>
-                        <li>Run the following command in an Administrator PowerShell session from inside the unzipped
-                            folder (You can also see it here on <a href="/scripts/install_sysmon.ps1">github</a>):
-                            <pre><code class="lang-powershell">.<span class="hljs-symbol">\s</span>cripts<span class="hljs-symbol">\i</span>nstall_sysmon.ps1
-</code></pre>
-                        </li>
-                    </ol>
-                    <p>You may need to temporarily set the PowerShell script execution policy to
-                        &quot;Unrestricted&quot; to allow the execution of downloaded scripts. Use the following command
-                        to do so:</p>
-                    <pre><code class="lang-powershell"><span class="hljs-keyword">Set</span>-ExecutionPolicy <span class="hljs-comment">Unrestricted</span>
-</code></pre>
+
+                    <h1>Encryption at rest option for users.md</h1>
+                    <p>To ensure encryption at rest for all data managed by Elastic Cloud Enterprise, the hosts running Elastic Cloud Enterprise must be configured with disk-level encryption, such as dm-crypt. Elastic Cloud Enterprise does not implement encryption at rest out of the box.</p>
+                    <p>Since Elastic doesn&#39;t support data encryption at rest, it provides a paid option outside of disk-level encryption available to users. This option is called X-pack.</p>
+                    <p>The X-pack security feature provides a secure and compliant way to protect data in Elasticsearch.</p>
+                    <p>X-pack has a 30-day trial and once trial is over, users might need to acquire a platinum license to keep using some of the X-pack features including data encryption. For more information, see:</p>
+                    <p><a href="https://www.elastic.co/guide/en/cloud-enterprise/current/ece-securing-considerations.html#:~:text=To%20ensure%20encryption%20at%20rest,encrypted%20at%20rest%20as%20well">Elastic Security Considerations - Encryption</a></p>
+                    <p><a href="https://opster.com/guides/elasticsearch/security/x-pack/#:~:text=X%2DPack%20is%20an%20Elastic,features%20you%20want%20to%20use">Deep Dive into X-Pack Elasticsearch: Advanced Features and Implementation</a></p>
+                    
 
                 </div>
             </section>
             <div class="page-navigation">
                 <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
-                <a href="deploying-agents.html" class="nav-button prev-button">
+                <a href="certificates.html" class="nav-button prev-button">
                     <i class="fas fa-arrow-left"></i>
-                    <span>Deploying Agents</span>
+                    <span>Certificates</span>
                 </a>
                  <!-- [TODO] INSERT ROUTING FOR PREVIOUS PAGE IF APPLICABLE, ADD "disabled" CLASS IF NOT -->
-                <a href="retrieving-passwords.html" class="nav-button next-button">
-                    <span>Retrieving Passwords</span>
+                <a href="data-management.html" class="nav-button next-button">
+                    <span>Data Management: Index Management</span>
                     <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
