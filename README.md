@@ -69,7 +69,7 @@ Your input is essential to the continuous improvement of LME and to ensure it be
     1. [Retrieving Passwords](#retrieving-passwords)
     2. [Starting and Stopping LME](#starting-and-stopping-lme)
     3. [Uninstall LME](#uninstall-lme)
-5. [Documentation:](#5-documentation)
+5. [Documentation](#5-documentation)
 6. [Developer Notes](#6-developer-notes)
 
 
@@ -263,7 +263,7 @@ ok: [localhost] => {
 ### 5. Deploying Agents 
 To populate the dashboards with data, you need to install agents. Detailed guides for deploying Wazuh and Elastic agents are available in the following documents:
 
- - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
+ - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-management.md)
  - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-management.md)
 
 
@@ -380,9 +380,9 @@ We're doing our best to have regular updates that add new and/or requested featu
 1. [Alerting](/docs/markdown/maintenance/elastalert-rules.md): Adding custom notifications for triggered alerts using elastalert2
 2. [Active Response](/docs/markdown/agents/wazuh-active-response.md): Creating custom wazuh active response actions to automatically respond to a malicious event wazuh detects. 
 3. [Backups](/docs/markdown/maintenance/backups.md): Customizing backups of logs for your organizations own compliance needs.
-4. [Custom log types](/docs/markdown/agents/elastic-agent-mangement.md#lme-elastic-agent-integration-example): using elastic agents built in [integrations](https://www.elastic.co/guide/en/integrations/current/index.html) ingest a log type specific to your organization.
+4. [Custom log types](/docs/markdown/agents/elastic-agent-management.md#lme-elastic-agent-integration-example): using elastic agents built in [integrations](https://www.elastic.co/guide/en/integrations/current/index.html) ingest a log type specific to your organization.
  
-## 5. Documentation:
+## 5. Documentation
 
 ### Logging Guidance
  - [LME in the Cloud](/docs/markdown/logging-guidance/cloud.md)
@@ -412,11 +412,11 @@ We're doing our best to have regular updates that add new and/or requested featu
 
 ### Agents: 
 Here is documentation on agent configuration and management.
- - [Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
+ - [Elastic-Agent](/docs/markdown/agents/elastic-agent-management.md)
  - Wazuh:
    - [Wazuh Configuration](/docs/markdown/maintenance/wazuh-configuration.md)
    - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
-   - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
+   - [Agent Management](/docs/markdown/agents/wazuh-agent-management.md)
     
 ### Endpoint Tools:
 To make best use of the agents, complement them with utilities that generate forensically relevant data to analyze and support detections.
@@ -427,7 +427,7 @@ Consider adding them to Windows/Linux.
 #### Linux:
  - [Auditd](/docs/markdown/endpoint-tools/install-auditd.md)
 
-## 6. Developer notes:
+## 6. Developer Notes
 Git clone and git checkout your development branch on the server:
 
 ```bash
