@@ -107,12 +107,22 @@ jobs:
               python3 ./azure/build_azure_linux_network.py \
                 -g pipe-${{ env.UNIQUE_ID }} \
                 -s ${{ env.IP_ADDRESS }}/32 \
-                -vs Standard_E8_v4 \
+                -vs Standard_E16d_v4 \
                 -l ${{ inputs.azure_region || 'centralus' }} \
                 -ast 23:00 \
                 -y
             "
-          
+                #-s ${{ env.IP_ADDRESS }}/32 \
+                #-s 0.0.0.0/0 \
+
+                # VM Size comparison by RAM-to-CPU ratio:
+                # | VM Size           | vCPUs | RAM (GiB) | RAM-to-CPU Ratio |
+                # |-------------------|-------|-----------|------------------|
+                # | Standard_E16d_v4  | 16    | 128       | 8:1              |
+                # | Standard_E8d_v4   | 8     | 64        | 8:1              |
+                # | Standard_D16_v4   | 16    | 64        | 4:1              |
+                # | Standard_E16_v4   | 16    | 128       | 8:1              |
+
       - name: Install minimega on Azure instance
         run: |
           cd testing/v2/development
@@ -213,11 +223,18 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            sleep 240 && \
+            pwd && \
+            ls -la && \
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
           "
 
+      - name: Wait for LME installation to complete
+        run: |
+          echo "Waiting for LME installation to fully complete..."
+          sleep 300
 
       - name: Retrieve Elastic password 
         env:

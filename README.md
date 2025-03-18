@@ -7,7 +7,9 @@
 
 # Logging Made Easy 
 
-CISA's Logging Made Easy (LME) is a no cost, open source platform that centralizes log collection, enhances threat detection, and enables real-time alerting, helping small to medium-sized organizations secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security.
+CISA's Logging Made Easy (LME) is a no cost, open source platform that centralizes log collection, enhances threat detection, and enables real-time alerting, helping small to medium-sized organizations secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security. 
+
+Check out the LME introduction video [here](https://www.youtube.com/watch?v=AZFV6ZOLg7s).
 
 ## Who is Logging Made Easy for?
 
@@ -38,10 +40,7 @@ We encourage users to connect and engage with the LME community via [GitHub Disc
 If you’re troubleshooting your installation, be sure to utilize our [troubleshooting documentation](/docs/markdown/reference/troubleshooting.md).
 
 If you have a question regarding LME (technical matters, installation issues, service bugs, etc.) or just general 
-questions, please utilize [GitHub Discussions](https://github.com/cisagov/lme/discussions). Before starting a new discussion be sure to view 
-previously submitted questions to see if you question has already been addressed. If it has not, 
-feel free to submit a new discussion and the technical team will do their best to answer you in a 
-timely fashion.
+questions, please utilize [GitHub Discussions](https://github.com/cisagov/lme/discussions). Before starting a new discussion, please take a moment to review previously submitted questions to determine if your inquiry has already been addressed. If it has not, feel free to submit a new discussion and the technical team will do their best to answer you in a timely fashion.
 
 If you believe you have found a bug or issue with LME code or documentation, please submit a  [GitHub issue](https://github.com/cisagov/lme/issues). 
 Please review current issues to see if the problem you are experiencing has been previously addressed or has an open issue.
@@ -70,7 +69,7 @@ Your input is essential to the continuous improvement of LME and to ensure it be
     1. [Retrieving Passwords](#retrieving-passwords)
     2. [Starting and Stopping LME](#starting-and-stopping-lme)
     3. [Uninstall LME](#uninstall-lme)
-5. [Documentation:](#5-documentation)
+5. [Documentation](#5-documentation)
 6. [Developer Notes](#6-developer-notes)
 
 
@@ -95,11 +94,11 @@ Important pieces to understand from an LME user perspective:
 2. **Viewing**: Logs are viewable in dashboards via kibana  
   - [Kibana](https://www.elastic.co/kibana) is the visualization and analytics interface in LME, providing users with tools to visualize and monitor log data stored in Elasticsearch. It enables the creation of custom dashboards and visualizations, allowing users to easily track security events, detect anomalies, and analyze trends. Kibana's intuitive interface supports real-time insights into the security posture of an organization, making it an essential tool for data-driven decision-making in LME’s centralized logging and security monitoring framework.
    
-3. **Alerting**: Creating notifications for logs organizations want to  configurable via Elastalert  
+3. **Alerting**: Setting up notifications for log monitoring with Elastalert 
   -  [ElastAlert](https://elastalert2.readthedocs.io/en/latest/index.html) is an open-source alerting framework, to automate alerting based on data stored in Elasticsearch. It monitors Elasticsearch for specific patterns, thresholds, or anomalies, and generates alerts when predefined conditions are met. This provides proactive detection of potential security incidents, enabling faster response and investigation. ElastAlert’s flexible rule system allows for custom alerts tailored to your organization’s security monitoring needs, making it a critical component of the LME alerting framework. 
  
 ### What firewall rules do I need to setup?:
-Please see our doucmentation around cloud and firewall setup for more information on how you can [expose these ports](/docs/markdown/logging-guidance/cloud.md).
+Please see our documentation around cloud and firewall setup for more information on how you can [expose these ports](/docs/markdown/logging-guidance/cloud.md).
 
 Ports that need to be open on LME's server AND reachable by all clients from which you want to collect logs:  
  - Elasticsearch: *9200*
@@ -145,7 +144,9 @@ We estimate that you should allow half an hour to complete the entire installati
 | Windows Integration 		 	| 0:39.93 	| 25:57.27 	|
 
 ## 3. Downloading and Installing LME
-This guide provides step-by-step instructions for downloading, configuring, and installing LME on an Ubuntu server.
+This guide provides step-by-step instructions for downloading, configuring, and installing LME on an Ubuntu server. 
+
+For visual learners, an LME installation video is also available [here](https://www.youtube.com/watch?v=LKD8sw6VuPw).
 
 **Note:** LME has been extensively tested on Ubuntu 22.04. While it can run on other Unix-like systems, we recommend sticking with Ubuntu 22.04 for the best experience.
 We have done initial testing on 24.04, and suggest using that if you run into issues setting up on 22.04.
@@ -198,7 +199,7 @@ Edit the `lme-environment.env` file to update the `IPVAR` variable with your ser
 IPVAR=127.0.0.1 # Replace with your server's IP address
 ```
 
-For example open and edit the file via nano: 
+For example, open and edit the file via nano:
 ```bash
 nano ./config/lme-environment.env
 ```
@@ -225,9 +226,10 @@ Expected output:
 lme-elasticsearch Up 19 hours (healthy)
 lme-wazuh-manager Up 19 hours
 lme-kibana Up 19 hours (healthy)
-lme-fleet-server Up 19 hours
 lme-elastalert2 Up 17 hours
 ```
+
+**Note**: Fleet server will only run after the post-installation script
 
 **Note:** If the output differs, refer to the [troubleshooting guide](/docs/markdown/reference/troubleshooting.md#installation-troubleshooting).
 
@@ -258,11 +260,26 @@ ok: [localhost] => {
 ```
 <span style="color:orange">**Note:** The password for the `readonly_user` will change each time this script is run. Run this script only when necessary, ideally just once.</span>
 
+#### 4.2 Verify Container Status
+Check that the containers are running and healthy:
+```bash
+sudo -i podman ps --format "{{.Names}} {{.Status}}"
+```  
+
+Expected output:
+```shell
+lme-elasticsearch Up 29 minutes (healthy)
+lme-elastalert2 Up 29 minutes
+lme-wazuh-manager Up 29 minutes (healthy)
+lme-kibana Up 29 minutes (healthy)
+lme-fleet-server Up 26 minutes
+```
+
 
 ### 5. Deploying Agents 
 To populate the dashboards with data, you need to install agents. Detailed guides for deploying Wazuh and Elastic agents are available in the following documents:
 
- - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-mangement.md)
+ - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-management.md)
  - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-management.md)
 
 
@@ -379,9 +396,9 @@ We're doing our best to have regular updates that add new and/or requested featu
 1. [Alerting](/docs/markdown/maintenance/elastalert-rules.md): Adding custom notifications for triggered alerts using elastalert2
 2. [Active Response](/docs/markdown/agents/wazuh-active-response.md): Creating custom wazuh active response actions to automatically respond to a malicious event wazuh detects. 
 3. [Backups](/docs/markdown/maintenance/backups.md): Customizing backups of logs for your organizations own compliance needs.
-4. [Custom log types](/docs/markdown/agents/elastic-agent-mangement.md#lme-elastic-agent-integration-example): using elastic agents built in [integrations](https://www.elastic.co/guide/en/integrations/current/index.html) ingest a log type specific to your organization.
+4. [Custom log types](/docs/markdown/agents/elastic-agent-management.md#lme-elastic-agent-integration-example): using elastic agents built in [integrations](https://www.elastic.co/guide/en/integrations/current/index.html) ingest a log type specific to your organization.
  
-## 5. Documentation:
+## 5. Documentation
 
 ### Logging Guidance
  - [LME in the Cloud](/docs/markdown/logging-guidance/cloud.md)
@@ -411,11 +428,11 @@ We're doing our best to have regular updates that add new and/or requested featu
 
 ### Agents: 
 Here is documentation on agent configuration and management.
- - [Elastic-Agent](/docs/markdown/agents/elastic-agent-mangement.md)
+ - [Elastic-Agent](/docs/markdown/agents/elastic-agent-management.md)
  - Wazuh:
    - [Wazuh Configuration](/docs/markdown/maintenance/wazuh-configuration.md)
    - [Active Response](/docs/markdown/agents/wazuh-active-response.md)
-   - [Agent Management](/docs/markdown/agents/wazuh-agent-mangement.md)
+   - [Agent Management](/docs/markdown/agents/wazuh-agent-management.md)
     
 ### Endpoint Tools:
 To make best use of the agents, complement them with utilities that generate forensically relevant data to analyze and support detections.
@@ -426,7 +443,7 @@ Consider adding them to Windows/Linux.
 #### Linux:
  - [Auditd](/docs/markdown/endpoint-tools/install-auditd.md)
 
-## 6. Developer notes:
+## 6. Developer Notes
 Git clone and git checkout your development branch on the server:
 
 ```bash
@@ -510,4 +527,3 @@ lme-wazuh-manager Up 48 minutes
 lme-kibana Up 36 minutes (healthy)
 lme-fleet-server Up 35 minutes
 ```
-
