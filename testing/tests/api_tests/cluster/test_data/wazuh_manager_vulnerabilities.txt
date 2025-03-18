@@ -1,0 +1,13 @@
+[
+  "base.tags",
+  "agent.id",
+  "host.os.family",
+  "host.os.full.text",
+  "host.os.version",
+  "package.name",
+  "package.version",
+  "vulnerability.id",
+  "vulnerability.description.text",
+  "vulnerability.severity",
+  "wazuh.cluster.name"
+]

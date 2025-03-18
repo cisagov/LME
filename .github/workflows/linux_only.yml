@@ -67,6 +67,7 @@ jobs:
               -ast 23:00 \
               -y
           "
+              #-vs Standard_E16d_v4 \
         
     - name: Install LME on Azure instance
       run: |
