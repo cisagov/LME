@@ -14,6 +14,7 @@
     delay_seconds: 10
     debug_mode: false
     installed_file: "/opt/lme/FLEET_SETUP_FINISHED"
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
 
   tasks:
     - name: Check if INSTALLED file exists
@@ -114,62 +115,158 @@
       when: debug_mode | bool
     #SETUP
 
-    - name: Wait for Kibana port to be available
-      wait_for:
-        host: "{{ ipvar }}"
-        port: "{{ kibana_port | int }}"
-        timeout: 120  # 2 minutes
-        sleep: 60    # Check every minute
-        msg: "Timeout waiting for Kibana port {{ kibana_port }} to become available"
-      register: kibana_port_check
-      until: kibana_port_check.state is defined and kibana_port_check.state == "started"
-      retries: 15
-      delay: 0
-      ignore_errors: no
-
-    - name: Debug wait_for results
-      debug:
-        msg: 
-          - "State: {{ kibana_port_check.state }}"
-          - "Full result: {{ kibana_port_check }}"
-      when: debug_mode | bool
-
-    - name: Wait for Fleet API to be ready
-      ansible.builtin.shell: |
-        attempt=0
-        max_attempts=30
-        delay=10
-        while [ $attempt -lt $max_attempts ]; do
-          response=$(curl -s -o /dev/null -w "%{http_code}" -k -u elastic:{{ elastic_password }} {{ local_kbn_url }}/api/fleet/agents/setup)
-          if [ "$response" = "200" ]; then
-            echo "Fleet API is ready. Proceeding with configuration..."
-            exit 0
-          fi
-          echo "Waiting for Fleet API to be ready..."
-          sleep $delay
-          attempt=$((attempt+1))
-        done
-        echo "Fleet API did not become ready within the expected time."
-        exit 1
-      args:
-        executable: /bin/bash
-      register: fleet_api_check
-      changed_when: false
+    - name: Wait for Kibana to be fully ready before Fleet setup
+      uri:
+        url: "{{ local_kbn_url }}/api/status"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: kibana_status
+      until: >
+        kibana_status.status == 200 and 
+        kibana_status.json.status.overall.level == "available"
+      retries: 60  
+      delay: 20    # Increase delay between retries
       no_log: "{{ not debug_mode }}"
 
-    - name: Display Fleet API check result
+    - name: Debug Kibana status
       debug:
-        var: fleet_api_check.stdout_lines
+        msg: "Kibana status: {{ kibana_status.json.status }}"
+      when: debug_mode | bool
 
-    - name: Confirm Fleet API is ready
+    - name: Wait for Elasticsearch to be fully ready
+      uri:
+        url: "{{ local_es_url }}/_cluster/health"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: es_health
+      until: >
+        es_health.status == 200 and 
+        es_health.json.status in ["green", "yellow"] and
+        es_health.json.number_of_nodes == 1
+      retries: 60
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Elasticsearch health
       debug:
-        msg: "Fleet API is ready"
-      when: "'Fleet API is ready' in fleet_api_check.stdout"
+        msg: "Elasticsearch health: {{ es_health.json }}"
+      when: debug_mode | bool
 
-    - name: Fail if Fleet API is not ready
+    - name: Wait for Fleet API to be available
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_api_check
+      until: fleet_api_check.status == 200
+      retries: 30
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet API check
+      debug:
+        msg: "Fleet API check response: {{ fleet_api_check }}"
+      when: debug_mode | bool
+
+    - name: Enable Fleet in Kibana
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/setup"
+        method: POST
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers: "{{ headers }}"
+        body_format: json
+        body: {}
+        status_code: [200, 409]  
+      register: fleet_setup
+      until: fleet_setup.status in [200]
+      retries: 48  
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet setup response
+      debug:
+        msg: "Fleet setup response: {{ fleet_setup }}"
+      when: debug_mode | bool
+
+    - name: Wait for Fleet to be fully initialized
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_verification
+      until: >
+        fleet_verification.status == 200 and 
+        fleet_verification.json is defined and 
+        (fleet_verification.json.isReady == true or 
+         (fleet_verification.json.missing_requirements is defined and 
+          fleet_verification.json.missing_requirements | length == 1 and 
+          fleet_verification.json.missing_requirements[0] == "fleet_server"))
+      retries: 45
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet verification response
+      debug:
+        msg: "Fleet verification response: {{ fleet_verification }}"
+      when: debug_mode | bool
+
+    - name: Set Fleet verification success fact
+      set_fact:
+        fleet_ready: >-
+          {{ fleet_verification.status == 200 and 
+             fleet_verification.json is defined and 
+             (fleet_verification.json.isReady == true or 
+              (fleet_verification.json.missing_requirements is defined and 
+               fleet_verification.json.missing_requirements | length == 1 and 
+               fleet_verification.json.missing_requirements[0] == "fleet_server")) }}
+
+    - name: Verify Fleet setup was successful
+      uri:
+        url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: fleet_verification_final
+      until: fleet_verification_final.status == 200
+      retries: 12
+      delay: 10
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Fleet setup issues
+      debug:
+        msg: 
+          - "Fleet setup response: {{ fleet_setup }}"
+          - "Fleet verification response: {{ fleet_verification }}"
+      when: 
+        - debug_mode | bool
+        - (fleet_setup.status not in [200, 409]) or (fleet_verification.status != 200)
+
+    - name: Fail if Fleet setup was not successful
       fail:
-        msg: "Fleet API did not become ready within the expected time."
-      when: "'Fleet API is ready' not in fleet_api_check.stdout"
+        msg: "Fleet setup failed or could not be verified"
+      when: (fleet_setup.status not in [200, 409]) or (fleet_verification.status != 200)
 
     - name: Get CA fingerprint
       ansible.builtin.shell: |
@@ -193,26 +290,51 @@
         - ca_fingerprint.stdout is defined
         - debug_mode | bool
 
-    - name: Set Fleet server hosts
-      uri:
-        url: "{{ local_kbn_url }}/api/fleet/settings"
-        method: PUT
-        user: "{{ elastic_username }}"
-        password: "{{ elastic_password }}"
-        force_basic_auth: yes
-        validate_certs: no
-        headers: "{{ headers }}"
-        body_format: json
-        body:
-          fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
-      register: fleet_server_hosts_result
-      no_log: "{{ not debug_mode }}"
-      ignore_errors: yes
+    - name: Set and verify Fleet server hosts
+      block:
+        - name: Set Fleet server hosts
+          uri:
+            url: "{{ local_kbn_url }}/api/fleet/settings"
+            method: PUT
+            user: "{{ elastic_username }}"
+            password: "{{ elastic_password }}"
+            force_basic_auth: yes
+            validate_certs: no
+            headers: "{{ headers }}"
+            body_format: json
+            body: {
+              "fleet_server_hosts": ["https://{{ ipvar }}:{{ fleet_port }}"]
+            }
+            status_code: [200]
+          register: fleet_server_hosts_result
+          retries: 3
+          delay: 10
+          until: fleet_server_hosts_result.status == 200
 
-    - name: Debug Fleet server hosts result
-      debug:
-        var: fleet_server_hosts_result
-      when: fleet_server_hosts_result is defined and debug_mode | bool
+        - name: Verify Fleet server hosts were set correctly
+          fail:
+            msg: "Failed to set Fleet server hosts. Expected https://{{ ipvar }}:{{ fleet_port }} but got {{ fleet_server_hosts_result.json.item.fleet_server_hosts | default([]) }}"
+          when: >
+            fleet_server_hosts_result.json.item.fleet_server_hosts is not defined or
+            fleet_server_hosts_result.json.item.fleet_server_hosts[0] != "https://" + ipvar + ":" + fleet_port
+
+        - name: Debug Fleet server hosts result
+          debug:
+            msg: "Fleet server hosts successfully set to {{ fleet_server_hosts_result.json.item.fleet_server_hosts }}"
+          when: debug_mode | bool
+
+      rescue:
+        - name: Debug failure
+          debug:
+            msg: 
+              - "Failed to set or verify Fleet server hosts"
+              - "PUT response: {{ fleet_server_hosts_result | default({}) }}"
+          when: debug_mode | bool
+        
+        - name: Fail with detailed message
+          fail:
+            msg: "Failed to set or verify Fleet server hosts. Check debug output for details."
+
 
     - name: Set Fleet default output hosts
       uri:
@@ -283,7 +405,7 @@
       register: kibana_status
       until: kibana_status.status == 200 and kibana_status.json.status.overall.level == "available"
       retries: 36  # With a 10 second delay, this gives us 6 minutes total
-      delay: 10 
+      delay: 10
       no_log: "{{ not debug_mode }}"
 
     - name: Debug Kibana status
@@ -296,43 +418,14 @@
         msg: "Kibana did not become ready within the expected time. Status: {{ kibana_status | default('unknown') }}"
       when: kibana_status.status is not defined or kibana_status.status != 200
 
-    - name: Wait for Fleet API to be ready
-      ansible.builtin.shell: |
-        attempt=0
-        max_attempts=30
-        delay=10
-        while [ $attempt -lt $max_attempts ]; do
-          response=$(curl -s -o /dev/null -w "%{http_code}" -k -u elastic:{{ elastic_password }} {{ local_kbn_url }}/api/fleet/agents/setup)
-          if [ "$response" = "200" ]; then
-            echo "Fleet API is ready. Proceeding with configuration..."
-            exit 0
-          fi
-          echo "Waiting for Fleet API to be ready..."
-          sleep $delay
-          attempt=$((attempt+1))
-        done
-        echo "Fleet API did not become ready within the expected time."
-        exit 1
-      register: fleet_api_check
-      changed_when: false
-      no_log: "{{ not debug_mode }}"
-
-    - name: Display Fleet API check result
+    - name: Debug Fleet configuration status
       debug:
-        var: fleet_api_check.stdout_lines
-
-    - name: Confirm Fleet API is ready
-      debug:
-        msg: "Fleet API is ready"
-      when: "'Fleet API is ready' in fleet_api_check.stdout"
-
-    - name: Fail if Fleet API is not ready
-      fail:
-        msg: "Fleet API did not become ready within the expected time."
-      when: "'Fleet API is ready' not in fleet_api_check.stdout"
+        msg: 
+          - "Fleet server hosts result: {{ fleet_server_hosts_result }}"
+          - "Fleet output hosts result: {{ fleet_output_hosts_result }}"
+      when: debug_mode | bool
 
     - name: Create Endpoint Policy
-      # TODO: This might need to check if the system is running before creating the policy
       uri:
         url: "{{ local_kbn_url }}/api/fleet/agent_policies?sys_monitoring=true"
         method: POST
@@ -358,7 +451,7 @@
 
     - name: Debug endpoint_policy_result
       debug:
-        var: endpoint_policy_result 
+        var: endpoint_policy_result
 
     - name: Set policy ID fact for new policy
       set_fact:
@@ -380,12 +473,13 @@
 
     - name: Debug existing_policies
       debug:
-        var: existing_policies 
+        var: existing_policies
+
 
     - name: Set policy ID fact for existing policy
       set_fact:
         policy_id: "{{ item.id }}"
-      when: 
+      when:
         - endpoint_policy_result.status == 409
         - item.name == 'Endpoint Policy'
       loop: "{{ existing_policies.json['items'] | list }}"
@@ -467,6 +561,33 @@
         path: "{{ installed_file }}"
         state: touch
       when: not installed_file_check.stat.exists
+
+    - name: Copy fleet-server quadlet file
+      copy:
+        src: "{{ clone_directory }}/quadlet/lme-fleet-server.container"
+        dest: "/etc/containers/systemd/lme-fleet-server.container"
+        owner: "root"
+        group: "root"
+        mode: '0644'
+      become: yes
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+      become: yes
+
+    - name: Start fleet-server service
+      systemd:
+        name: lme-fleet-server.service
+        state: started
+        enabled: yes
+      become: yes
+
+    - name: Wait for fleet-server to be ready
+      wait_for:
+        port: 8220
+        timeout: 300
+      become: yes
 
     - name: Wait for Fleet to be fully initialized
       uri:
@@ -1023,37 +1144,43 @@
       when: result.status is not defined or result.status != 200
 
     #TODO: --cacert "{{ ansible_env.HOME }}/.local/share/containers/storage/volumes/lme_certs/_data/ca/ca.crt"
-    - name: Create readonly role using curl
-      shell: >
-        curl -X POST "{{ local_es_url }}/_security/role/readonly_role"
-        -u "{{ elastic_username }}:{{ elastic_password }}"
-        -k
-        -H "Content-Type: application/json"
-        -d '{
-              "indices": [
-                {
-                  "names": ["*"],
-                  "privileges": ["read", "view_index_metadata"]
-                }
-              ],
-              "cluster": ["monitor"],
-              "applications": [
-                {
-                  "application": "kibana-.kibana",
-                  "privileges": ["read"],
-                  "resources": ["*"]
-                }
-              ]
-            }'
+    - name: Create readonly role using uri module
+      uri:
+        url: "{{ local_es_url }}/_security/role/readonly_role"
+        method: POST
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        body_format: json
+        body:
+          indices:
+            - names: ["*"]
+              privileges: ["read", "view_index_metadata"]
+          cluster: ["monitor"]
+          applications:
+            - application: "kibana-.kibana"
+              privileges: 
+                - "feature_discover.read"
+                - "feature_visualize.read"
+                - "feature_dashboard.read"
+                - "feature_canvas.read"
+                - "feature_maps.read"
+                - "feature_logs.read"
+                - "feature_infrastructure.read"
+                - "feature_apm.read"
+                - "feature_metrics.read"
+                - "feature_uptime.read"
+              resources: ["*"]
+        status_code: [200, 201]
       register: role_creation_result
       when: result.status is defined and result.status == 200
 
     - name: Display role creation result
       debug:
-        msg: "Role creation output: {{ role_creation_result.stdout | default('Role creation skipped') }}"
+        msg: "Role creation output: {{ role_creation_result }}"
 
     #maybe check for each in the shell script below?
-    - name: Register a variable, ignore errors and continue
+    - name: Generate random password for readonly user
       shell: |
         source /root/.profile 
         password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
@@ -1066,23 +1193,25 @@
 
 
     #TODO: --cacert "{{ ansible_env.HOME }}/.local/share/containers/storage/volumes/lme_certs/_data/ca/ca.crt"
-    - name: Create readonly user using curl
-      shell: >
-        curl -X POST "{{ local_es_url }}/_security/user/readonly_user"
-        -u "{{ elastic_username }}:{{ elastic_password }}"
-        -kL
-        -H "Content-Type: application/json"
-        -d '{
-              "password": "{{ read_only_password.stdout }}",
-              "roles": ["readonly_role"],
-              "full_name": "Read Only User"
-            }'
+    - name: Create readonly user using uri module
+      uri:
+        url: "{{ local_es_url }}/_security/user/readonly_user"
+        method: POST
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        body_format: json
+        body:
+          password: "{{ read_only_password.stdout }}"
+          roles: ["readonly_role"]
+          full_name: "Read Only User"
+        status_code: [200, 201]
       register: user_creation_result
       when: result.status is defined and result.status == 200
 
     - name: Display user creation result
       debug:
-        msg: "User creation output: {{ user_creation_result.stdout | default('User creation skipped') }}"
+        msg: "User creation output: {{ user_creation_result }}"
 
     - name: DISPLAY NEW READONLY USER PASSWORD
       debug:
