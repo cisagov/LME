@@ -17,5 +17,3 @@
     - role: podman
       tags: ['system', 'all']
     
-    - role: wazuh
-      tags: ['system', 'all'] 
