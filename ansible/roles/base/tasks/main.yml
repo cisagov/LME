@@ -1,0 +1,22 @@
+---
+# Include OS-specific tasks based on distribution
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "default.yml"
+
+- name: Include OS-specific tasks
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "common.yml"
+
+# Include common setup tasks that apply to all distributions
+- name: Include common directory setup tasks
+  include_tasks: setup_directories.yml
+
+- name: Include password setup tasks
+  include_tasks: setup_passwords.yml 

@@ -1,0 +1,85 @@
+---
+# Dashboard setup tasks for podman role
+
+- name: Read lme-environment.env file
+  ansible.builtin.slurp:
+    src: /opt/lme/lme-environment.env
+  register: lme_env_content
+
+- name: Set environment variables
+  ansible.builtin.set_fact:
+    env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+  loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+  when: item != '' and not item.startswith('#')
+
+- name: Source extract_secrets
+  ansible.builtin.shell: |
+    set -a
+    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+    echo "elastic=$elastic"
+    echo "wazuh=$wazuh"
+    echo "kibana_system=$kibana_system"
+    echo "wazuh_api=$wazuh_api"
+  args:
+    executable: /bin/bash
+  register: extract_secrets_vars
+  no_log: "{{ not debug_mode }}"
+
+- name: Set secret variables
+  ansible.builtin.set_fact:
+    env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+  loop: "{{ extract_secrets_vars.stdout_lines }}"
+  no_log: "{{ not debug_mode }}"
+
+- name: Set playbook variables
+  ansible.builtin.set_fact:
+    local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    elastic_password: "{{ env_dict.elastic | default('') }}"
+
+- name: Expand clone directory path
+  set_fact:
+    absolute_clone_dir: "{{ clone_directory | expanduser }}"
+
+- name: Check if source dashboards directory exists
+  stat:
+    path: "{{ absolute_clone_dir }}/dashboards"
+  register: source_dashboard_dir
+
+- name: Fail if source directory doesn't exist
+  fail:
+    msg: "Source dashboards directory {{ source_dashboard_dir.stat.path }} doesn't exist"
+  when: not source_dashboard_dir.stat.exists
+
+- name: Copy dashboards files to /opt/lme/dashboards
+  copy:
+    src: "{{ source_dashboard_dir.stat.path }}/"
+    dest: /opt/lme/dashboards/
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+
+# Elastic Dashboards
+- name: Get list of Elastic dashboards
+  find:
+    paths: "/opt/lme/dashboards/elastic"
+    patterns: "*.ndjson"
+  register: elastic_dashboards
+
+- name: Upload Elastic dashboards to Kibana
+  shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "https://127.0.0.1:5601/api/saved_objects/_import?overwrite=true"'
+  loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
+  no_log: "{{ not debug_mode }}"
+
+# Wazuh Dashboards
+- name: Get list of Wazuh dashboards
+  find:
+    paths: "/opt/lme/dashboards/wazuh"
+    patterns: "*.ndjson"
+  register: wazuh_dashboards
+
+- name: Upload Wazuh dashboards to Kibana
+  shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "https://127.0.0.1:5601/api/saved_objects/_import?overwrite=true"'
+  loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
+  no_log: "{{ not debug_mode }}" 

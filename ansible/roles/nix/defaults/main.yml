@@ -1,0 +1,4 @@
+---
+# Default variables for Nix role
+clone_directory: "~/LME"
+install_user: "{{ ansible_user_id }}" 

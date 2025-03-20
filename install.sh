@@ -8,10 +8,12 @@ NC='\033[0m' # No Color
 
 # Default playbook location - can be overridden with command line argument
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PLAYBOOK_PATH="./ansible/install_lme_local.yml"
+#PLAYBOOK_PATH="./ansible/install_lme_local.yml"
+PLAYBOOK_PATH="./ansible/site.yml"
 CUSTOM_IP=""
 HAS_SUDO_ACCESS=""
 IPVAR=""
+DEBUG_MODE="false"
 
 # Environment variables for non-interactive mode
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
@@ -25,6 +27,7 @@ usage() {
     echo "OPTIONS:"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./playbook.yml)"
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
+    echo "  -d, --debug                   Enable debug mode for verbose output"
     echo "  -h, --help                    Show this help message"
     echo
     echo "Environment Variables:"
@@ -45,6 +48,10 @@ while [[ $# -gt 0 ]]; do
         -i|--ip)
             CUSTOM_IP="$2"
             shift 2
+            ;;
+        -d|--debug)
+            DEBUG_MODE="true"
+            shift
             ;;
         -h|--help)
             usage
@@ -91,8 +98,13 @@ detect_distro() {
 install_ansible() {
     echo -e "${YELLOW}Installing Ansible...${NC}"
     
+    # Set noninteractive mode for apt-based installations
+    export DEBIAN_FRONTEND=noninteractive
+    
     case $DISTRO in
         ubuntu|debian|linuxmint|pop)
+            # Set timezone non-interactively
+            sudo ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
             sudo apt update
             sudo apt install -y software-properties-common
             sudo apt-add-repository --yes --update ppa:ansible/ansible
@@ -311,6 +323,12 @@ run_playbook() {
         ANSIBLE_OPTS=""
     fi
     
+    # Add debug mode if enabled
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo -e "${YELLOW}Debug mode enabled - verbose output will be shown${NC}"
+        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true"
+    fi
+    
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
     if [ -f "./inventory" ]; then
@@ -321,28 +339,6 @@ run_playbook() {
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Main installation playbook completed successfully!${NC}"
-        
-        # Run the post-install playbook
-        echo -e "${YELLOW}Running post-installation playbook...${NC}"
-        POST_INSTALL_PLAYBOOK="./ansible/post_install_local.yml"
-        
-        if [ -f "$POST_INSTALL_PLAYBOOK" ]; then
-            if [ -f "./inventory" ]; then
-                ansible-playbook -i inventory "$POST_INSTALL_PLAYBOOK" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
-            else
-                ansible-playbook "$POST_INSTALL_PLAYBOOK" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
-            fi
-            
-            if [ $? -eq 0 ]; then
-                echo -e "${GREEN}✓ Post-installation playbook completed successfully!${NC}"
-            else
-                echo -e "${RED}✗ Post-installation playbook failed.${NC}"
-                exit 1
-            fi
-        else
-            echo -e "${RED}✗ Post-installation playbook not found at $POST_INSTALL_PLAYBOOK${NC}"
-            exit 1
-        fi
     else
         echo -e "${RED}✗ Main installation playbook failed.${NC}"
         exit 1

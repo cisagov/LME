@@ -1,0 +1,11 @@
+---
+# Default variables that can be overridden
+clone_directory: "~/LME"
+storage_runroot: "/run/containers/storage"
+storage_graphroot: "/var/lib/containers/storage"
+
+# Default packages that apply to all distributions if not overridden
+common_packages:
+  - curl
+  - wget
+  - gnupg2 

@@ -54,10 +54,10 @@ COPY docker/22.04/lme-setup.service /etc/systemd/system/
 
 RUN chmod 644 /etc/systemd/system/lme-setup.service
 
-COPY ansible/install_lme_local.yml /root/LME/ansible/
-COPY config/example.env /root/LME/config/lme-environment.env
+#COPY ansible/install_lme_local.yml /root/LME/ansible/
+#COPY config/example.env /root/LME/config/lme-environment.env
 
-RUN ansible-playbook /root/LME/ansible/install_lme_local.yml --tags base
+#RUN ansible-playbook /root/LME/ansible/install_lme_local.yml --tags base
 
 # Enable the service
 RUN systemctl enable lme-setup.service

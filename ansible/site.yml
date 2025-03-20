@@ -1,0 +1,24 @@
+---
+- name: Configure LME
+  hosts: localhost
+  connection: local
+  become: no
+  vars:
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    debug_mode: "{{ debug_mode | default(false) }}"
+  
+  roles:
+    - role: base
+      tags: ['base', 'all']
+    
+    - role: nix
+      tags: ['base', 'all']
+    
+    - role: podman
+      tags: ['system', 'all']
+    
+    - role: elastic
+      tags: ['system', 'all']
+    
+    - role: wazuh
+      tags: ['system', 'all'] 

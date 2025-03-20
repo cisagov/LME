@@ -1,0 +1,47 @@
+---
+# Include OS-specific variables
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "default.yml"
+
+# Include OS-specific tasks
+- name: Include OS-specific tasks
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "common.yml"
+
+# These tasks are common to all distributions
+- name: Update PATH for Ansible execution
+  set_fact:
+    ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
+
+- name: Update PATH in user's profile
+  lineinfile:
+    path: "~/.profile"
+    line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+    create: yes
+
+- name: Update PATH in root's profile 
+  lineinfile:
+    path: "/root/.profile"
+    line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+    create: yes
+  become: yes
+
+- name: Update PATH in user's bashrc
+  lineinfile:
+    path: "~/.bashrc"
+    line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+    create: yes
+
+- name: Update PATH in root's bashrc
+  lineinfile:
+    path: "/root/.bashrc"
+    line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
+    create: yes
+  become: yes 

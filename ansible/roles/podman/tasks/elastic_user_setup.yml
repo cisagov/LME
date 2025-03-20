@@ -1,0 +1,122 @@
+---
+# Elasticsearch/Kibana user setup tasks for podman role
+
+- name: Read lme-environment.env file
+  ansible.builtin.slurp:
+    src: /opt/lme/lme-environment.env
+  register: lme_env_content
+
+- name: Set environment variables
+  ansible.builtin.set_fact:
+    env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+  loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+  when: item != '' and not item.startswith('#')
+
+- name: Source extract_secrets
+  ansible.builtin.shell: |
+    set -a
+    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+    echo "elastic=$elastic"
+    echo "wazuh=$wazuh"
+    echo "kibana_system=$kibana_system"
+    echo "wazuh_api=$wazuh_api"
+  args:
+    executable: /bin/bash
+  register: extract_secrets_vars
+  no_log: "{{ not debug_mode }}"
+
+- name: Set secret variables
+  ansible.builtin.set_fact:
+    env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+  loop: "{{ extract_secrets_vars.stdout_lines }}"
+  no_log: "{{ not debug_mode }}"
+
+- name: Set playbook variables
+  ansible.builtin.set_fact:
+    local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    elastic_password: "{{ env_dict.elastic | default('') }}"
+
+# Create Read-Only User
+- name: Wait for Elasticsearch to be ready
+  uri:
+    url: "{{ local_es_url }}"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: result
+  until: result.status is defined and result.status == 200
+  retries: 60
+  delay: 10
+  ignore_errors: yes
+
+- name: Check if Elasticsearch is ready
+  fail:
+    msg: "Elasticsearch is not ready after 10 minutes. Please check the LME service and Elasticsearch logs."
+  when: result.status is not defined or result.status != 200
+
+- name: Create readonly role using uri module
+  uri:
+    url: "{{ local_es_url }}/_security/role/readonly_role"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    body_format: json
+    body:
+      indices:
+        - names: ["*"]
+          privileges: ["read", "view_index_metadata"]
+      cluster: ["monitor"]
+      applications:
+        - application: "kibana-.kibana"
+          privileges: 
+            - "feature_discover.read"
+            - "feature_visualize.read"
+            - "feature_dashboard.read"
+            - "feature_canvas.read"
+            - "feature_maps.read"
+            - "feature_logs.read"
+            - "feature_infrastructure.read"
+            - "feature_apm.read"
+            - "feature_metrics.read"
+            - "feature_uptime.read"
+          resources: ["*"]
+    status_code: [200, 201]
+  register: role_creation_result
+  when: result.status is defined and result.status == 200
+
+- name: Generate random password for readonly user
+  shell: |
+    source /root/.profile 
+    password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+    echo -n $password
+  register: read_only_password
+  become: yes
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+
+- name: Create readonly user using uri module
+  uri:
+    url: "{{ local_es_url }}/_security/user/readonly_user"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    body_format: json
+    body:
+      password: "{{ read_only_password.stdout }}"
+      roles: ["readonly_role"]
+      full_name: "Read Only User"
+    status_code: [200, 201]
+  register: user_creation_result
+  when: result.status is defined and result.status == 200
+
+- name: Display readonly user credentials
+  debug:
+    msg: "Read-only user created. Username: readonly_user, Password: {{ read_only_password.stdout }}"
+  no_log: "{{ not debug_mode }}" 

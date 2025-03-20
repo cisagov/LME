@@ -1,0 +1,17 @@
+---
+# Ubuntu-specific Nix setup
+
+- name: Add user to nix-users group
+  user:
+    name: "{{ install_user }}"
+    groups: nix-users
+    append: yes
+  become: yes
+
+- name: Add Nix channel
+  command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+  become: yes
+
+- name: Update Nix channel
+  command: nix-channel --update
+  become: yes 

@@ -7,8 +7,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     rm -rf /opt/lme/lme-environment.env
     
     # Copy environment file if it doesn't exist
-
-    . /root/LME/docker/22.04/environment.sh    
+    source /root/LME/docker/22.04/environment.sh    
 
     # Update IPVAR in the environment file with the passed HOST_IP
     if [ ! -z "$HOST_IP" ]; then
@@ -22,7 +21,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     export NON_INTERACTIVE=true
     export AUTO_CREATE_ENV=true
     export AUTO_IP=${IPVAR:-127.0.0.1}
-    ./install.sh
+    ./install.sh --debug
 
     # Create flag file to indicate initialization is complete
     touch "$INIT_FLAG"

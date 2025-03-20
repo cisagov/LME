@@ -1,0 +1,8 @@
+---
+# Common tasks that apply to all distributions
+
+- name: Ensure common packages are installed
+  package:
+    name: "{{ common_packages }}"
+    state: present
+  become: yes 

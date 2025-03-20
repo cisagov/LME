@@ -1,0 +1,444 @@
+---
+# Fleet setup tasks for podman role
+
+- name: Read lme-environment.env file
+  ansible.builtin.slurp:
+    src: /opt/lme/lme-environment.env
+  register: lme_env_content
+
+- name: Set environment variables
+  ansible.builtin.set_fact:
+    env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+  loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+  when: item != '' and not item.startswith('#')
+
+- name: Source extract_secrets
+  ansible.builtin.shell: |
+    set -a
+    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+    echo "elastic=$elastic"
+    echo "wazuh=$wazuh"
+    echo "kibana_system=$kibana_system"
+    echo "wazuh_api=$wazuh_api"
+  args:
+    executable: /bin/bash
+  register: extract_secrets_vars
+  no_log: "{{ not debug_mode }}"
+
+- name: Set secret variables
+  ansible.builtin.set_fact:
+    env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+  loop: "{{ extract_secrets_vars.stdout_lines }}"
+  no_log: "{{ not debug_mode }}"
+
+- name: Set playbook variables
+  ansible.builtin.set_fact:
+    ipvar: "{{ env_dict.IPVAR | default('') }}"
+    local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+    local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
+    stack_version: "{{ env_dict.STACK_VERSION | default('') }}"
+    cluster_name: "{{ env_dict.CLUSTER_NAME | default('') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    elasticsearch_username: "{{ env_dict.ELASTICSEARCH_USERNAME | default('') }}"
+    kibana_fleet_username: "{{ env_dict.KIBANA_FLEET_USERNAME | default('') }}"
+    indexer_username: "{{ env_dict.INDEXER_USERNAME | default('') }}"
+    api_username: "{{ env_dict.API_USERNAME | default('') }}"
+    license: "{{ env_dict.LICENSE | default('') }}"
+    es_port: "{{ env_dict.ES_PORT | default('') }}"
+    kibana_port: "{{ env_dict.KIBANA_PORT | default('') }}"
+    fleet_port: "{{ env_dict.FLEET_PORT | default('') }}"
+    mem_limit: "{{ env_dict.MEM_LIMIT | default('') }}"
+    elastic_password: "{{ env_dict.elastic | default('') }}"
+    wazuh_password: "{{ env_dict.wazuh | default('') }}"
+    kibana_system_password: "{{ env_dict.kibana_system | default('') }}"
+    wazuh_api_password: "{{ env_dict.wazuh_api | default('') }}"
+
+- name: Debug - Display set variables (sensitive information redacted)
+  debug:
+    msg:
+      - "ipvar: {{ ipvar }}"
+      - "local_kbn_url: {{ local_kbn_url }}"
+      - "local_es_url: {{ local_es_url }}"
+      - "elastic_username: {{ elastic_username }}"
+      - "stack_version: {{ stack_version }}"
+      - "cluster_name: {{ cluster_name }}"
+      - "elasticsearch_username: {{ elasticsearch_username }}"
+      - "kibana_fleet_username: {{ kibana_fleet_username }}"
+      - "indexer_username: {{ indexer_username }}"
+      - "api_username: {{ api_username }}"
+      - "license: {{ license }}"
+      - "es_port: {{ es_port }}"
+      - "kibana_port: {{ kibana_port }}"
+      - "fleet_port: {{ fleet_port }}"
+      - "mem_limit: {{ mem_limit }}"
+      - "elastic password is set: {{ elastic_password | length > 0 }}"
+      - "wazuh password is set: {{ wazuh_password | length > 0 }}"
+      - "kibana_system password is set: {{ kibana_system_password | length > 0 }}"
+      - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
+  when: debug_mode | bool
+
+- name: Wait for Kibana to be fully ready before Fleet setup
+  uri:
+    url: "{{ local_kbn_url }}/api/status"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: kibana_status
+  until: >
+    kibana_status.status == 200 and 
+    kibana_status.json.status.overall.level == "available"
+  retries: 60  
+  delay: 20
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Kibana status
+  debug:
+    msg: "Kibana status: {{ kibana_status.json.status }}"
+  when: debug_mode | bool
+
+- name: Wait for Elasticsearch to be fully ready
+  uri:
+    url: "{{ local_es_url }}/_cluster/health"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: es_health
+  until: >
+    es_health.status == 200 and 
+    es_health.json.status in ["green", "yellow"] and
+    es_health.json.number_of_nodes == 1
+  retries: 60
+  delay: 20
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Elasticsearch health
+  debug:
+    msg: "Elasticsearch health: {{ es_health.json }}"
+  when: debug_mode | bool
+
+- name: Wait for Fleet API to be available
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: fleet_api_check
+  until: fleet_api_check.status == 200
+  retries: 30
+  delay: 20
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Fleet API check
+  debug:
+    msg: "Fleet API check response: {{ fleet_api_check }}"
+  when: debug_mode | bool
+
+- name: Enable Fleet in Kibana
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/setup"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+    body_format: json
+    body: {}
+    status_code: [200, 409]  
+  register: fleet_setup
+  until: fleet_setup.status in [200]
+  retries: 48  
+  delay: 20
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Fleet setup response
+  debug:
+    msg: "Fleet setup response: {{ fleet_setup }}"
+  when: debug_mode | bool
+
+- name: Get CA fingerprint
+  ansible.builtin.shell: |
+    set -a
+    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+    set +a
+    /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
+  args:
+    executable: /bin/bash
+  register: ca_fingerprint
+  changed_when: false
+  become: yes
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug CA fingerprint
+  debug:
+    var: ca_fingerprint.stdout
+  when: debug_mode | bool
+
+- name: Set Fleet server hosts
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/settings"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
+    status_code: [200]
+  register: fleet_server_hosts_result
+  retries: 3
+  delay: 10
+  until: fleet_server_hosts_result.status == 200
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Fleet server hosts result
+  debug:
+    msg: "Fleet server hosts successfully set to {{ fleet_server_hosts_result.json.item.fleet_server_hosts }}"
+  when: debug_mode | bool
+
+- name: Set Fleet default output hosts
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/outputs/fleet-default-output"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      hosts: ["https://{{ ipvar }}:9200"]
+  register: fleet_output_hosts_result
+  until: fleet_output_hosts_result.status == 200
+  retries: 12
+  delay: 30
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+- name: Debug Fleet output hosts result
+  debug:
+    var: fleet_output_hosts_result
+  when: debug_mode | bool
+
+- name: Set Fleet default output CA trusted fingerprint
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/outputs/fleet-default-output"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      ca_trusted_fingerprint: "{{ ca_fingerprint.stdout }}"
+  register: fleet_output_fingerprint_result
+  until: fleet_output_fingerprint_result.status == 200
+  retries: 12
+  delay: 30
+  no_log: "{{ not debug_mode }}"
+
+- name: Set Fleet default output SSL verification mode
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/outputs/fleet-default-output"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      config_yaml: "ssl.verification_mode: certificate"
+  register: fleet_output_ssl_result
+  no_log: "{{ not debug_mode }}"
+
+- name: Create Endpoint Policy
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/agent_policies?sys_monitoring=true"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      name: "Endpoint Policy"
+      description: ""
+      namespace: "default"
+      monitoring_enabled: ["logs", "metrics"]
+      inactivity_timeout: 1209600
+    timeout: 600
+    status_code: [200, 409]
+  register: endpoint_policy_result
+  until: endpoint_policy_result.status in [200, 409]
+  retries: 12
+  delay: 30
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug endpoint_policy_result
+  debug:
+    var: endpoint_policy_result
+  when: debug_mode | bool
+
+- name: Set policy ID fact for new policy
+  set_fact:
+    policy_id: "{{ endpoint_policy_result.json.item.id }}"
+  when: endpoint_policy_result.status == 200
+
+- name: Get existing policy ID if creation failed
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/agent_policies"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+  register: existing_policies
+  when: endpoint_policy_result.status == 409
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug existing_policies
+  debug:
+    var: existing_policies
+  when: debug_mode | bool
+
+- name: Set policy ID fact for existing policy
+  set_fact:
+    policy_id: "{{ item.id }}"
+  when:
+    - endpoint_policy_result.status == 409
+    - item.name == 'Endpoint Policy'
+  loop: "{{ existing_policies.json['items'] | list }}"
+
+- name: Debug policy ID
+  debug:
+    var: policy_id
+  when: debug_mode | bool
+
+- name: Get Endpoint package version
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/epm/packages/endpoint"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+  register: endpoint_package_result
+  no_log: "{{ not debug_mode }}"
+
+- name: Create Elastic Defend package policy
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/package_policies"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "8.15.3"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+    body_format: json
+    timeout: 600
+    status_code: [200, 409]
+    body:
+      name: "Elastic Defend"
+      description: ""
+      namespace: "default"
+      policy_id: "{{ policy_id }}"
+      enabled: true
+      inputs:
+        - enabled: true
+          streams: []
+          type: "ENDPOINT_INTEGRATION_CONFIG"
+          config:
+            _config:
+              value:
+                type: "endpoint"
+                endpointConfig:
+                  preset: "EDRComplete"
+      package:
+        name: "endpoint"
+        title: "Elastic Defend"
+        version: "{{ endpoint_package_result.json.item.version }}"
+  register: elastic_defend_policy_result
+  until: elastic_defend_policy_result.status in [200, 409]
+  retries: 12
+  delay: 30
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+- name: Debug Fleet configuration status
+  debug:
+    msg: 
+      - "Fleet server hosts result: {{ fleet_server_hosts_result }}"
+      - "Fleet output hosts result: {{ fleet_output_hosts_result }}"
+      - "Fleet output fingerprint result: {{ fleet_output_fingerprint_result }}"
+      - "Fleet output SSL result: {{ fleet_output_ssl_result }}"
+      - "Endpoint policy result: {{ endpoint_policy_result }}"
+      - "Elastic Defend policy result: {{ elastic_defend_policy_result }}"
+  when: debug_mode | bool 
+
+- name: Create FLEET_SETUP_FINISHED file
+  file:
+    path: /opt/lme/FLEET_SETUP_FINISHED
+    state: touch
+    mode: '0644'
+  become: yes
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Start fleet-server service
+  systemd:
+    name: lme-fleet-server.service
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Wait for fleet-server to be ready
+  wait_for:
+    port: 8220
+    timeout: 300
+  become: yes 
