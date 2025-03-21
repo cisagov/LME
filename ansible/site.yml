@@ -2,7 +2,7 @@
 - name: Configure LME
   hosts: localhost
   connection: local
-  become: yes
+  become: no
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     debug_mode: "{{ debug_mode | default(false) }}"

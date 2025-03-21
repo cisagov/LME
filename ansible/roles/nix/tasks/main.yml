@@ -44,4 +44,9 @@
     path: "/root/.bashrc"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
-  become: yes 
+  become: yes
+
+- name: Source updated PATH
+  shell: source ~/.profile
+  args:
+    executable: /bin/bash 

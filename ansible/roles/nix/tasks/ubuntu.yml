@@ -8,10 +8,21 @@
     append: yes
   become: yes
 
+- name: Install Nix
+  shell: |
+    sh <(curl -L https://nixos.org/nix/install) --daemon
+  args:
+    creates: /nix
+  become: yes
+
 - name: Add Nix channel
   command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
   become: yes
 
 - name: Update Nix channel
   command: nix-channel --update
+  become: yes
+
+- name: Install required packages
+  command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
   become: yes 
