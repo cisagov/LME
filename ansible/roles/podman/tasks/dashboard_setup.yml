@@ -6,6 +6,7 @@
     src: /opt/lme/lme-environment.env
   register: lme_env_content
   become: yes
+
 - name: Set environment variables
   ansible.builtin.set_fact:
     env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
@@ -24,6 +25,7 @@
     executable: /bin/bash
   register: extract_secrets_vars
   no_log: "{{ not debug_mode }}"
+  become: yes
 
 - name: Set secret variables
   ansible.builtin.set_fact:
@@ -51,6 +53,15 @@
     msg: "Source dashboards directory {{ source_dashboard_dir.stat.path }} doesn't exist"
   when: not source_dashboard_dir.stat.exists
 
+- name: Ensure /opt/lme/dashboards directory exists
+  file:
+    path: /opt/lme/dashboards
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0750'
+  become: yes
+
 - name: Copy dashboards files to /opt/lme/dashboards
   copy:
     src: "{{ source_dashboard_dir.stat.path }}/"
@@ -66,20 +77,23 @@
     paths: "/opt/lme/dashboards/elastic"
     patterns: "*.ndjson"
   register: elastic_dashboards
+  become: yes
 
 - name: Upload Elastic dashboards to Kibana
   shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "https://127.0.0.1:5601/api/saved_objects/_import?overwrite=true"'
   loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
   no_log: "{{ not debug_mode }}"
-
+  become: yes
 # Wazuh Dashboards
 - name: Get list of Wazuh dashboards
   find:
     paths: "/opt/lme/dashboards/wazuh"
     patterns: "*.ndjson"
   register: wazuh_dashboards
+  become: yes
 
 - name: Upload Wazuh dashboards to Kibana
   shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}"  "https://127.0.0.1:5601/api/saved_objects/_import?overwrite=true"'
   loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
   no_log: "{{ not debug_mode }}" 
+  become: yes
