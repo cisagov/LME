@@ -1,5 +1,5 @@
 ---
-# Wazuh post-install tasks for podman role
+# Wazuh post-install tasks
 
 - name: Read lme-environment.env file
   ansible.builtin.slurp:

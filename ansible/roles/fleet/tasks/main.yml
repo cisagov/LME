@@ -1,5 +1,5 @@
 ---
-# Fleet setup tasks for podman role
+# Fleet setup tasks
 
 - name: Read lme-environment.env file
   ansible.builtin.slurp:
@@ -25,6 +25,7 @@
     executable: /bin/bash
   register: extract_secrets_vars
   no_log: "{{ not debug_mode }}"
+  become: yes
 
 - name: Set secret variables
   ansible.builtin.set_fact:
@@ -78,7 +79,8 @@
       - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
   when: debug_mode | bool
 
-- name: Wait for Kibana to be fully ready before Fleet setup
+# Wait for Kibana to be fully ready
+- name: Wait for Kibana to be fully ready
   uri:
     url: "{{ local_kbn_url }}/api/status"
     method: GET
@@ -91,7 +93,7 @@
   until: >
     kibana_status.status == 200 and 
     kibana_status.json.status.overall.level == "available"
-  retries: 60  
+  retries: 60
   delay: 20
   no_log: "{{ not debug_mode }}"
 
@@ -100,6 +102,7 @@
     msg: "Kibana status: {{ kibana_status.json.status }}"
   when: debug_mode | bool
 
+# Wait for Elasticsearch to be fully ready
 - name: Wait for Elasticsearch to be fully ready
   uri:
     url: "{{ local_es_url }}/_cluster/health"
@@ -123,6 +126,7 @@
     msg: "Elasticsearch health: {{ es_health.json }}"
   when: debug_mode | bool
 
+# Configure Fleet in Kibana
 - name: Wait for Fleet API to be available
   uri:
     url: "{{ local_kbn_url }}/api/fleet/agents/setup"
@@ -157,10 +161,10 @@
       Content-Type: "application/json"
     body_format: json
     body: {}
-    status_code: [200, 409]  
+    status_code: [200, 409]
   register: fleet_setup
   until: fleet_setup.status in [200]
-  retries: 48  
+  retries: 48
   delay: 20
   no_log: "{{ not debug_mode }}"
 
@@ -280,6 +284,7 @@
   register: fleet_output_ssl_result
   no_log: "{{ not debug_mode }}"
 
+# Create Endpoint Policy
 - name: Create Endpoint Policy
   uri:
     url: "{{ local_kbn_url }}/api/fleet/agent_policies?sys_monitoring=true"
@@ -351,6 +356,11 @@
     var: policy_id
   when: debug_mode | bool
 
+- name: Fail if policy ID is not set
+  fail:
+    msg: "Failed to get policy ID. Neither creation nor lookup of existing policy succeeded."
+  when: policy_id is not defined
+
 - name: Get Endpoint package version
   uri:
     url: "{{ local_kbn_url }}/api/fleet/epm/packages/endpoint"
@@ -408,24 +418,28 @@
   no_log: "{{ not debug_mode }}"
   ignore_errors: yes
 
-- name: Debug Fleet configuration status
+- name: Display results
   debug:
-    msg: 
-      - "Fleet server hosts result: {{ fleet_server_hosts_result }}"
-      - "Fleet output hosts result: {{ fleet_output_hosts_result }}"
-      - "Fleet output fingerprint result: {{ fleet_output_fingerprint_result }}"
-      - "Fleet output SSL result: {{ fleet_output_ssl_result }}"
-      - "Endpoint policy result: {{ endpoint_policy_result }}"
-      - "Elastic Defend policy result: {{ elastic_defend_policy_result }}"
-  when: debug_mode | bool 
+    var: "{{ item }}"
+  loop:
+    - fleet_server_hosts_result
+    - fleet_output_hosts_result
+    - fleet_output_fingerprint_result
+    - fleet_output_ssl_result
+    - endpoint_policy_result
+    - elastic_defend_policy_result
+  when: debug_mode | bool
 
 - name: Create FLEET_SETUP_FINISHED file
   file:
-    path: /opt/lme/FLEET_SETUP_FINISHED
+    path: "/opt/lme/FLEET_SETUP_FINISHED"
     state: touch
+    owner: "root"
+    group: "root"
     mode: '0644'
   become: yes
 
+# Setup Fleet Server
 - name: Reload systemd daemon
   systemd:
     daemon_reload: yes
@@ -442,4 +456,29 @@
   wait_for:
     port: 8220
     timeout: 300
-  become: yes 
+  become: yes
+
+- name: Wait for Fleet to be fully initialized
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/agents/setup"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: fleet_status
+  until: fleet_status.status == 200
+  retries: 36
+  delay: 10
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Fleet status
+  debug:
+    var: fleet_status
+  when: debug_mode | bool
+
+- name: Fail if Fleet is not ready
+  fail:
+    msg: "Fleet did not become ready within the expected time. Status: {{ fleet_status | default('unknown') }}"
+  when: fleet_status.status is not defined or fleet_status.status != 200 

@@ -1,5 +1,5 @@
 ---
-# Elasticsearch/Kibana user setup tasks for podman role
+# Elasticsearch setup tasks
 
 - name: Read lme-environment.env file
   ansible.builtin.slurp:
@@ -25,6 +25,7 @@
     executable: /bin/bash
   register: extract_secrets_vars
   no_log: "{{ not debug_mode }}"
+  become: yes
 
 - name: Set secret variables
   ansible.builtin.set_fact:
@@ -120,4 +121,10 @@
 - name: Display readonly user credentials
   debug:
     msg: "Read-only user created. Username: readonly_user, Password: {{ read_only_password.stdout }}"
-  no_log: "{{ not debug_mode }}" 
+  no_log: "{{ not debug_mode }}"
+
+# Change elastic user password
+- name: Change elastic user password
+  shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "Content-Type: application/json" -d "{\"password\":\"{{ elastic_password }}\"}" "https://127.0.0.1:9200/_security/user/elastic/_password"'
+  no_log: "{{ not debug_mode }}"
+  become: yes 

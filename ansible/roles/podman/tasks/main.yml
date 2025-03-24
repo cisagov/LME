@@ -59,19 +59,3 @@
 # Include quadlet setup tasks
 - name: Setup quadlets for podman
   include_tasks: quadlet_setup.yml
-
-# Include fleet setup tasks
-- name: Setup fleet for podman
-  include_tasks: fleet_setup.yml
-
-# Include dashboard setup tasks
-- name: Setup dashboards
-  include_tasks: dashboard_setup.yml
-
-# Include Wazuh post-install tasks
-- name: Setup Wazuh post-install
-  include_tasks: wazuh_post_install.yml
-
-# Include Elasticsearch/Kibana user setup tasks
-- name: Setup Elasticsearch/Kibana users
-  include_tasks: elastic_user_setup.yml
