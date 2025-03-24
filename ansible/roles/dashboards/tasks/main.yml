@@ -169,7 +169,18 @@
   become: yes
 
 - name: Upload Elastic dashboards to Kibana
-  shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}" "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"'
+  uri:
+    url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-xsrf: "true"
+    body_format: raw
+    body: "{{ lookup('file', item) }}"
+    src: "{{ item }}"
   loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
   no_log: "{{ not debug_mode }}"
   become: yes
@@ -189,7 +200,18 @@
   become: yes
 
 - name: Upload Wazuh dashboards to Kibana
-  shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "kbn-xsrf: true" -F file=@"{{ item }}" "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"'
+  uri:
+    url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-xsrf: "true"
+    body_format: raw
+    body: "{{ lookup('file', item) }}"
+    src: "{{ item }}"
   loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
   no_log: "{{ not debug_mode }}"
   become: yes
