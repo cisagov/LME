@@ -62,14 +62,53 @@
     mode: '0750'
   become: yes
 
-- name: Copy dashboards files to /opt/lme/dashboards
+- name: Ensure /opt/lme/dashboards/elastic directory exists
+  file:
+    path: /opt/lme/dashboards/elastic
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0750'
+  become: yes
+
+- name: Ensure /opt/lme/dashboards/wazuh directory exists
+  file:
+    path: /opt/lme/dashboards/wazuh
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0750'
+  become: yes
+
+- name: Copy Elastic dashboards files
   copy:
-    src: "{{ source_dashboard_dir.stat.path }}/"
-    dest: /opt/lme/dashboards/
+    src: "{{ source_dashboard_dir.stat.path }}/elastic/"
+    dest: /opt/lme/dashboards/elastic/
     owner: "{{ install_user }}"
     group: "{{ install_user }}"
     mode: '0644'
   become: yes
+
+- name: Copy Wazuh dashboards files
+  copy:
+    src: "{{ source_dashboard_dir.stat.path }}/wazuh/"
+    dest: /opt/lme/dashboards/wazuh/
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+
+- name: Debug - List copied Elastic dashboards
+  find:
+    paths: "/opt/lme/dashboards/elastic"
+    patterns: "*.ndjson"
+  register: elastic_dashboards_debug
+  become: yes
+
+- name: Debug - Display Elastic dashboard paths
+  debug:
+    var: elastic_dashboards_debug.files
+  when: debug_mode | bool
 
 # Wait for Kibana to be ready
 - name: Wait for Kibana to be fully ready
