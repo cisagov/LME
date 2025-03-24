@@ -169,7 +169,7 @@
   become: yes
 
 - name: Read Elastic dashboard files
-  slurp:
+  ansible.builtin.slurp:
     src: "{{ item }}"
     encoding: utf-8
   loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
@@ -207,7 +207,7 @@
   become: yes
 
 - name: Read Wazuh dashboard files
-  slurp:
+  ansible.builtin.slurp:
     src: "{{ item }}"
     encoding: utf-8
   loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
