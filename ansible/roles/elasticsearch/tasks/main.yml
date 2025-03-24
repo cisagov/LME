@@ -67,6 +67,7 @@
     user: "{{ elastic_username }}"
     password: "{{ elastic_password }}"
     validate_certs: no
+    force_basic_auth: yes
     body_format: json
     body:
       indices:
@@ -109,6 +110,7 @@
     user: "{{ elastic_username }}"
     password: "{{ elastic_password }}"
     validate_certs: no
+    force_basic_auth: yes
     body_format: json
     body:
       password: "{{ read_only_password.stdout }}"

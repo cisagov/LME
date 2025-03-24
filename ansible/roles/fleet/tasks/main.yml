@@ -471,7 +471,6 @@
   until: fleet_status.status == 200
   retries: 36
   delay: 10
-  no_log: "{{ not debug_mode }}"
 
 - name: Debug Fleet status
   debug:
@@ -481,4 +480,19 @@
 - name: Fail if Fleet is not ready
   fail:
     msg: "Fleet did not become ready within the expected time. Status: {{ fleet_status | default('unknown') }}"
-  when: fleet_status.status is not defined or fleet_status.status != 200 
+  when: fleet_status.status is not defined or fleet_status.status != 200
+
+- name: Debug - Display secret variables
+  debug:
+    msg:
+      - "elastic={{ elastic_password }}"
+      - "wazuh={{ wazuh_password }}"
+      - "kibana_system={{ kibana_system_password }}"
+      - "wazuh_api={{ wazuh_api_password }}"
+  when: debug_mode | bool
+  no_log: "{{ not debug_mode }}"
+
+- name: Display read-only user credentials
+  debug:
+    msg: "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: {{ read_only_password.stdout }}"
+  when: read_only_password is defined and read_only_password.stdout is defined 

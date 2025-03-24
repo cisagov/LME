@@ -7,13 +7,20 @@
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
   roles:
-    - base
-    - nix
-    - podman
-    - dashboards
-    - wazuh
-    - elasticsearch
-    - fleet
+    - role: base
+      tags: ['base', 'all']
+    - role: nix
+      tags: ['base', 'all']
+    - role: podman
+      tags: ['system', 'all']
+    - role: elasticsearch
+      tags: ['system', 'all']
+    - role: dashboards
+      tags: ['system', 'all']
+    - role: wazuh
+      tags: ['system', 'all']
+    - role: fleet
+      tags: ['system', 'all']
     
     # - role: wazuh
     #   tags: ['system', 'all']

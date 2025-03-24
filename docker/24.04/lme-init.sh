@@ -22,7 +22,7 @@ if [ ! -f "$INIT_FLAG" ]; then
     export NON_INTERACTIVE=true
     export AUTO_CREATE_ENV=true
     export AUTO_IP=${IPVAR:-127.0.0.1}
-    ./install.sh
+    ./install.sh --debug
     
     # Create flag file to indicate initialization is complete
     touch "$INIT_FLAG"
