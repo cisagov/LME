@@ -141,6 +141,33 @@
   register: elastic_dashboards
   become: yes
 
+- name: Debug - Show Elastic dashboard paths
+  debug:
+    msg: "Found Elastic dashboards: {{ elastic_dashboards.files | map(attribute='path') | list }}"
+  when: debug_mode | bool
+
+- name: Debug - Check if file exists
+  stat:
+    path: "/opt/lme/dashboards/elastic/user_security_2_0.ndjson"
+  register: file_check
+  become: yes
+
+- name: Debug - Show file check result
+  debug:
+    msg: "File check result: {{ file_check }}"
+  when: debug_mode | bool
+
+- name: Debug - List directory contents
+  command: ls -la /opt/lme/dashboards/elastic/
+  register: dir_list
+  become: yes
+
+- name: Debug - Show directory contents
+  debug:
+    msg: "Directory contents: {{ dir_list.stdout_lines }}"
+  when: debug_mode | bool
+  become: yes
+
 - name: Upload Elastic dashboards to Kibana
   uri:
     url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
