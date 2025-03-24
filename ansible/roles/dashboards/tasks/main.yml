@@ -168,6 +168,14 @@
   when: debug_mode | bool
   become: yes
 
+- name: Read Elastic dashboard files
+  slurp:
+    src: "{{ item }}"
+    encoding: utf-8
+  loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
+  register: elastic_dashboard_contents
+  become: yes
+
 - name: Upload Elastic dashboards to Kibana
   uri:
     url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
@@ -178,10 +186,9 @@
     validate_certs: no
     headers:
       kbn-xsrf: "true"
-    body_format: raw
-    body: "{{ lookup('file', item) }}"
-    src: "{{ item }}"
-  loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
+      Content-Type: "application/json"
+    body: "{{ item.item.content }}"
+  loop: "{{ elastic_dashboard_contents.results }}"
   no_log: "{{ not debug_mode }}"
   become: yes
   register: elastic_upload_result
@@ -199,6 +206,14 @@
   register: wazuh_dashboards
   become: yes
 
+- name: Read Wazuh dashboard files
+  slurp:
+    src: "{{ item }}"
+    encoding: utf-8
+  loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
+  register: wazuh_dashboard_contents
+  become: yes
+
 - name: Upload Wazuh dashboards to Kibana
   uri:
     url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
@@ -209,10 +224,9 @@
     validate_certs: no
     headers:
       kbn-xsrf: "true"
-    body_format: raw
-    body: "{{ lookup('file', item) }}"
-    src: "{{ item }}"
-  loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
+      Content-Type: "application/json"
+    body: "{{ item.item.content }}"
+  loop: "{{ wazuh_dashboard_contents.results }}"
   no_log: "{{ not debug_mode }}"
   become: yes
   register: wazuh_upload_result
