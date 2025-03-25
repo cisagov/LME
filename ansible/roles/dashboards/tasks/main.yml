@@ -174,8 +174,13 @@
         filename: "{{ elastic_dashboards.files[0].path | basename }}"
         content: "{{ elastic_dashboard_content.content | b64decode }}"
         mime_type: "application/json"
+    timeout: 120
   no_log: "{{ not debug_mode }}"
   register: elastic_upload_result
+  retries: 3
+  delay: 10
+  until: elastic_upload_result.status == 200
+  ignore_errors: yes
 
 - name: Debug Elastic dashboard upload results
   debug:
@@ -212,8 +217,13 @@
         filename: "{{ wazuh_dashboards.files[0].path | basename }}"
         content: "{{ wazuh_dashboard_content.content | b64decode }}"
         mime_type: "application/json"
+    timeout: 120
   no_log: "{{ not debug_mode }}"
   register: wazuh_upload_result
+  retries: 3
+  delay: 10
+  until: wazuh_upload_result.status == 200
+  ignore_errors: yes
 
 - name: Debug Wazuh dashboard upload results
   debug:
