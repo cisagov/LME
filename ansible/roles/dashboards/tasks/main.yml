@@ -168,14 +168,6 @@
   when: debug_mode | bool
   become: yes
 
-- name: Read Elastic dashboard files
-  ansible.builtin.slurp:
-    src: "{{ item }}"
-    encoding: utf-8
-  loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
-  register: elastic_dashboard_contents
-  become: yes
-
 - name: Upload Elastic dashboards to Kibana
   uri:
     url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
@@ -186,9 +178,13 @@
     validate_certs: no
     headers:
       kbn-xsrf: "true"
-      Content-Type: "application/json"
-    body: "{{ item.item.content }}"
-  loop: "{{ elastic_dashboard_contents.results }}"
+    body_format: form-multipart
+    body:
+      file:
+        filename: "{{ item | basename }}"
+        content: "{{ lookup('file', item) }}"
+        mime_type: "application/json"
+  loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
   no_log: "{{ not debug_mode }}"
   become: yes
   register: elastic_upload_result
@@ -206,14 +202,6 @@
   register: wazuh_dashboards
   become: yes
 
-- name: Read Wazuh dashboard files
-  ansible.builtin.slurp:
-    src: "{{ item }}"
-    encoding: utf-8
-  loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
-  register: wazuh_dashboard_contents
-  become: yes
-
 - name: Upload Wazuh dashboards to Kibana
   uri:
     url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
@@ -224,9 +212,13 @@
     validate_certs: no
     headers:
       kbn-xsrf: "true"
-      Content-Type: "application/json"
-    body: "{{ item.item.content }}"
-  loop: "{{ wazuh_dashboard_contents.results }}"
+    body_format: form-multipart
+    body:
+      file:
+        filename: "{{ item | basename }}"
+        content: "{{ lookup('file', item) }}"
+        mime_type: "application/json"
+  loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
   no_log: "{{ not debug_mode }}"
   become: yes
   register: wazuh_upload_result
