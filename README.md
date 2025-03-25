@@ -52,7 +52,7 @@ can be made. Please note that the availability of these sessions is dependent on
 team’s availability, and it may take a few weeks for us to reach out to you for scheduling.
 
 ### Share Your Feedback:
-Your input is essential to the continuous improvement of LME and to ensure it best meets your needs. Take a few moments to complete our [LME Feedback Survey](https://forms.office.com/g/TNytTeexG0). Together, we can improve LME's ability to secure your organization!
+Your input is essential to the continuous improvement of LME and to ensure it best meets your needs. Take a few moments to complete our [LME Feedback Survey](https://cisasurvey.gov1.qualtrics.com/jfe/form/SV_dcbiVB58HTvJOhE). Together, we can improve LME's ability to secure your organization!
 
 
 ## Table of Contents:
@@ -226,9 +226,10 @@ Expected output:
 lme-elasticsearch Up 19 hours (healthy)
 lme-wazuh-manager Up 19 hours
 lme-kibana Up 19 hours (healthy)
-lme-fleet-server Up 19 hours
 lme-elastalert2 Up 17 hours
 ```
+
+**Note**: Fleet server will only run after the post-installation script
 
 **Note:** If the output differs, refer to the [troubleshooting guide](/docs/markdown/reference/troubleshooting.md#installation-troubleshooting).
 
@@ -258,6 +259,21 @@ ok: [localhost] => {
     
 ```
 <span style="color:orange">**Note:** The password for the `readonly_user` will change each time this script is run. Run this script only when necessary, ideally just once.</span>
+
+#### 4.2 Verify Container Status
+Check that the containers are running and healthy:
+```bash
+sudo -i podman ps --format "{{.Names}} {{.Status}}"
+```  
+
+Expected output:
+```shell
+lme-elasticsearch Up 29 minutes (healthy)
+lme-elastalert2 Up 29 minutes
+lme-wazuh-manager Up 29 minutes (healthy)
+lme-kibana Up 29 minutes (healthy)
+lme-fleet-server Up 26 minutes
+```
 
 
 ### 5. Deploying Agents 

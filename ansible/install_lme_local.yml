@@ -6,6 +6,8 @@
   vars:
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "root"
+    storage_runroot: "{{ storage_runroot | default('/run/containers/storage') }}"
+    storage_graphroot: "{{ storage_graphroot | default('/var/lib/containers/storage') }}"
   tags: ['base', 'all']
 
   tasks:
@@ -226,9 +228,8 @@
         content: |
           [storage]
           driver = "overlay"
-          runroot =  "/run/containers/storage"
-          graphroot = "/var/lib/containers/storage"
-
+          runroot = "{{ storage_runroot | default('/run/containers/storage') }}"
+          graphroot = "{{ storage_graphroot | default('/var/lib/containers/storage') }}"
           [storage.options.overlay]
           mount_program = "/usr/bin/fuse-overlayfs"
 
@@ -321,7 +322,6 @@
         state: restarted
         daemon_reload: yes
       become: yes
-      
   tasks:
     - name: Ensure Nix daemon is running
       systemd:
@@ -336,7 +336,7 @@
         timeout: 10
       when: ansible_play_hosts_all.index(inventory_hostname) == 0
 
-    - name: Install Podman using Nix 
+    - name: Install Podman using Nix
       command: nix-env -iA nixpkgs.podman
       become: yes
       environment:
