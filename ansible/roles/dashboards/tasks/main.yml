@@ -105,11 +105,6 @@
   register: elastic_dashboards_debug
   become: yes
 
-- name: Debug - Display Elastic dashboard paths
-  debug:
-    var: elastic_dashboards_debug.files
-  when: debug_mode | bool
-
 # Wait for Kibana to be ready
 - name: Wait for Kibana to be fully ready
   uri:
@@ -141,20 +136,9 @@
   register: elastic_dashboards
   become: yes
 
-- name: Debug - Show Elastic dashboard paths
+- name: Debug - Show Elastic dashboard paths before slurp
   debug:
-    msg: "Found Elastic dashboards: {{ elastic_dashboards.files | map(attribute='path') | list }}"
-  when: debug_mode | bool
-
-- name: Debug - Check if file exists
-  stat:
-    path: "/opt/lme/dashboards/elastic/user_security_2_0.ndjson"
-  register: file_check
-  become: yes
-
-- name: Debug - Show file check result
-  debug:
-    msg: "File check result: {{ file_check }}"
+    msg: "About to read files: {{ elastic_dashboards.files | map(attribute='path') | list }}"
   when: debug_mode | bool
 
 - name: Debug - List directory contents
@@ -170,9 +154,8 @@
 
 - name: Read Elastic dashboard files
   ansible.builtin.slurp:
-    src: "{{ item }}"
-  register: elastic_dashboard_contents
-  loop: "{{ elastic_dashboards.files | map(attribute='path') | list }}"
+    src: "{{ elastic_dashboards.files[0].path }}"
+  register: elastic_dashboard_content
   become: yes
 
 - name: Upload Elastic dashboards to Kibana
@@ -188,10 +171,9 @@
     body_format: form-multipart
     body:
       file:
-        filename: "{{ item.item | basename }}"
-        content: "{{ item.content | b64decode }}"
+        filename: "{{ elastic_dashboards.files[0].path | basename }}"
+        content: "{{ elastic_dashboard_content.content | b64decode }}"
         mime_type: "application/json"
-  loop: "{{ elastic_dashboard_contents.results }}"
   no_log: "{{ not debug_mode }}"
   register: elastic_upload_result
 
@@ -210,9 +192,8 @@
 
 - name: Read Wazuh dashboard files
   ansible.builtin.slurp:
-    src: "{{ item }}"
-  register: wazuh_dashboard_contents
-  loop: "{{ wazuh_dashboards.files | map(attribute='path') | list }}"
+    src: "{{ wazuh_dashboards.files[0].path }}"
+  register: wazuh_dashboard_content
   become: yes
 
 - name: Upload Wazuh dashboards to Kibana
@@ -228,10 +209,9 @@
     body_format: form-multipart
     body:
       file:
-        filename: "{{ item.item | basename }}"
-        content: "{{ item.content | b64decode }}"
+        filename: "{{ wazuh_dashboards.files[0].path | basename }}"
+        content: "{{ wazuh_dashboard_content.content | b64decode }}"
         mime_type: "application/json"
-  loop: "{{ wazuh_dashboard_contents.results }}"
   no_log: "{{ not debug_mode }}"
   register: wazuh_upload_result
 

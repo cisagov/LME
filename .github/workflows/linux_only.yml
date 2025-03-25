@@ -62,11 +62,12 @@ jobs:
             python3 ./azure/build_azure_linux_network.py \
               -g pipe-${{ env.UNIQUE_ID }} \
               -s ${{ env.IP_ADDRESS }}/32 \
-              -vs Standard_E4d_v4 \
+              -vs Standard_B16s_v2 \
               -l westus \
               -ast 23:00 \
               -y
           "
+              #-vs Standard_E4d_v4 \
         
     - name: Install LME on Azure instance
       run: |
