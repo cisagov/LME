@@ -6,6 +6,12 @@
     update_cache: yes
   become: yes
 
+- name: Install common packages
+  apt:
+    name: "{{ common_packages }}"
+    state: present
+  become: yes
+
 - name: Install required Ubuntu packages
   apt:
     name: "{{ ubuntu_packages }}"

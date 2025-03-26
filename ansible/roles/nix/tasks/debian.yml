@@ -25,3 +25,7 @@
 - name: Update Nix channel
   command: nix-channel --update
   become: yes 
+
+- name: Install required packages
+  command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
+  become: yes 

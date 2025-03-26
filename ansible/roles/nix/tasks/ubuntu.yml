@@ -1,18 +1,17 @@
 ---
 # Ubuntu-specific Nix setup
 
-- name: Add user to nix-users group
-  user:
-    name: "{{ install_user }}"
-    groups: nix-users
-    append: yes
+- name: Update apt cache
+  apt:
+    update_cache: yes
   become: yes
 
-- name: Install Nix
-  shell: |
-    sh <(curl -L https://nixos.org/nix/install) --daemon
-  args:
-    creates: /nix
+- name: Install nix packages
+  apt:
+    name:
+      - nix-bin
+      - nix-setup-systemd
+    state: present
   become: yes
 
 - name: Add Nix channel
@@ -21,6 +20,13 @@
 
 - name: Update Nix channel
   command: nix-channel --update
+  become: yes
+
+- name: Add user to nix-users group
+  user:
+    name: "{{ install_user }}"
+    groups: nix-users
+    append: yes
   become: yes
 
 - name: Install required packages
