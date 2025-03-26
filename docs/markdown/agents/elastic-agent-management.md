@@ -81,6 +81,7 @@ This guide will walk you through the process of adding a Windows integration to 
    - Important note: If you have Sysmon installed on your endpoints, ensure "Sysmon Operational" is selected to collect Sysmon logs
 
 7. **Configure Metrics Collection**
+**NOTE: BE CAREFUL WITH METRICS. RECOMMENDATION IS TO ONLY USE ON SERVERS OR OTHER IMPORTANT ENDPOINTS NEEDING LIVE METRICS**
    - You can choose to collect various metrics from your Windows endpoints
    - Review and enable the metrics you're interested in monitoring
 
