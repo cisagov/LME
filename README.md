@@ -52,7 +52,7 @@ can be made. Please note that the availability of these sessions is dependent on
 team’s availability, and it may take a few weeks for us to reach out to you for scheduling.
 
 ### Share Your Feedback:
-Your input is essential to the continuous improvement of LME and to ensure it best meets your needs. Take a few moments to complete our [LME Feedback Survey](https://forms.office.com/g/TNytTeexG0). Together, we can improve LME's ability to secure your organization!
+Your input is essential to the continuous improvement of LME and to ensure it best meets your needs. Take a few moments to complete our [LME Feedback Survey](https://cisasurvey.gov1.qualtrics.com/jfe/form/SV_dcbiVB58HTvJOhE). Together, we can improve LME's ability to secure your organization!
 
 
 ## Table of Contents:
