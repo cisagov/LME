@@ -527,7 +527,7 @@
           inputs:
             - enabled: true
               streams: []
-              type: "endpoint"
+              type: "ENDPOINT_INTEGRATION_CONFIG"
               config:
                 _config:
                   value:
