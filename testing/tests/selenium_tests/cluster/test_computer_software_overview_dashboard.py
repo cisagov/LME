@@ -42,3 +42,7 @@ class TestComputerSoftwareOverviewDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Processes", ".euiDataGrid__focusWrap",".euiText")
         
+    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
+    def test_host_count(self, setup_login, kibana_url, timeout):
+        driver = setup_login
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Host Count", ".legacyMtrVis__container",".dummyVal")
