@@ -26,7 +26,6 @@ common_packages:
   - gnupg2
   - jq
   - uidmap
-  - python3-pexpect
 
 # Ubuntu-specific packages
 ubuntu_packages:
@@ -36,7 +35,19 @@ ubuntu_packages:
   - lsb-release
   - software-properties-common
   - fuse-overlayfs
-  - python3-pip
-  - python3-venv
   - build-essential
-  - git 
+  - git
+  - python3-pip  # Generic pip package
+  - python3-pexpect  # Generic pexpect package
+
+# Ubuntu 24.04 specific packages
+ubuntu_24_04_packages:
+  - python3.12
+  - python3.12-venv
+  - python3.12-dev
+
+# Ubuntu 22.04 specific packages
+ubuntu_22_04_packages:
+  - python3.10
+  - python3.10-venv
+  - python3.10-dev

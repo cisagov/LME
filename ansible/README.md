@@ -12,9 +12,9 @@ ansible/
 │   ├── dashboards/       # Kibana dashboard deployment
 │   ├── elasticsearch/    # Elasticsearch configuration
 │   ├── fleet/            # Fleet configuration
-│   ├── nix/              # Nix configuration
-│   ├── podman/           # Podman configuration
-│   ├── wazuh/            # Wazuh server configuration
+│   ├── nix/              # Nix package manager setup
+│   ├── podman/           # Podman container runtime setup
+│   └── wazuh/            # Wazuh server configuration
 └── scripts/
     └── extract_secrets.sh # Script to extract sensitive credentials
 ```
@@ -28,14 +28,10 @@ ansible/
   - Handles pre and post-deployment tasks
   - Manages the overall deployment flow
 
-- `inventory.yml`: Defines the target hosts and their groupings. It includes:
-  - Host definitions for the LME server
-  - Group definitions for different components
-  - Variables specific to each host/group
 
 ### Roles
 
-#### Common Role (`roles/base/`)
+#### Base Role (`roles/base/`)
 - Contains shared configurations and tasks used across all roles
 - Handles basic system setup and prerequisites
 - Manages common dependencies and configurations
@@ -46,35 +42,29 @@ ansible/
 - Includes retry logic for dashboard uploads
 - Manages dashboard import through Kibana API
 
-#### Elastic Role (`roles/elastic/`)
+#### Elasticsearch Role (`roles/elasticsearch/`)
 - Configures Elasticsearch server
 - Sets up security settings and users
 - Manages Elasticsearch indices and templates
 - Handles Elasticsearch service configuration
 
-#### Filebeat Role (`roles/filebeat/`)
-- Deploys and configures Filebeat agents
-- Sets up log collection from various sources
-- Configures output to Logstash
-- Manages Filebeat service
+#### Fleet Role (`roles/fleet/`)
+- Configures Fleet server
+- Sets up Fleet agent management
+- Manages Fleet policies and configurations
+- Handles Fleet service setup
 
-#### Kibana Role (`roles/kibana/`)
-- Configures Kibana server
-- Sets up security and authentication
-- Manages Kibana service
-- Configures Kibana connection to Elasticsearch
+#### Nix Role (`roles/nix/`)
+- Installs and configures Nix package manager
+- Sets up multi-user installation
+- Manages Nix channels and packages
+- Configures Nix environment variables
 
-#### Logstash Role (`roles/logstash/`)
-- Deploys and configures Logstash
-- Sets up pipeline configurations
-- Manages log processing rules
-- Configures Logstash service
-
-#### Nginx Role (`roles/nginx/`)
-- Sets up Nginx as reverse proxy
-- Configures SSL/TLS
-- Manages access controls
-- Handles proxy settings for various services
+#### Podman Role (`roles/podman/`)
+- Installs and configures Podman container runtime
+- Sets up container storage configuration
+- Manages Podman service
+- Configures container networking
 
 #### Wazuh Role (`roles/wazuh/`)
 - Configures Wazuh server
@@ -82,14 +72,15 @@ ansible/
 - Manages Wazuh service
 - Configures Wazuh API
 
-#### Wazuh Agent Role (`roles/wazuh-agent/`)
-- Deploys Wazuh agents to target systems
-- Configures agent settings
-- Manages agent registration
-- Handles agent service
+### Scripts
 
+- `scripts/extract_secrets.sh`: Utility script that:
+  - Extracts sensitive credentials from the environment
+  - Provides secure access to required secrets
+  - Used by various roles for authentication
 
 ## Usage
+
 1. Ensure you have Ansible installed and configured
 1. Run the main playbook:
    ```bash
@@ -97,17 +88,20 @@ ansible/
    ```
 
 ## Variables
+
 Key variables are defined in:
 - Role-specific `defaults/main.yml` files for default values
 - `group_vars/` for group-specific configurations
 
 ## Security
+
 - Sensitive credentials are managed through environment variables
 - SSL/TLS is configured for secure communications
 - Access controls are implemented at various levels
 - Secrets are extracted securely using the provided script
 
 ## Troubleshooting
+
 - Enable debug mode by setting `debug_mode: true` in inventory
 - Check role-specific logs in `/var/log/`
 - Review Ansible output with increased verbosity:

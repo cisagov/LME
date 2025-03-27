@@ -407,6 +407,26 @@
                 type: "endpoint"
                 endpointConfig:
                   preset: "EDRComplete"
+            policy:
+              value:
+                windows:
+                  malware:
+                    mode: "off"
+                    blocklist: false
+                    on_write_scan: false
+                  antivirus_registration:
+                    mode: "sync_with_malware_prevent"
+                    enabled: false
+                mac:
+                  malware:
+                    mode: "off"
+                    blocklist: false
+                    on_write_scan: false
+                linux:
+                  malware:
+                    mode: "off"
+                    blocklist: false
+                    on_write_scan: false    
       package:
         name: "endpoint"
         title: "Elastic Defend"

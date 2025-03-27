@@ -30,9 +30,9 @@ FROM base AS lme
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    systemd systemd-sysv lsb-release python3 python3-venv python3-pip \
+    systemd systemd-sysv lsb-release \
     zip git curl wget cron pkg-config libcairo2-dev libdbus-1-dev \
-    distro-info libgirepository1.0-dev ansible python3-apt \
+    distro-info libgirepository1.0-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
