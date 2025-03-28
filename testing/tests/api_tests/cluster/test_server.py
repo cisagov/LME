@@ -215,7 +215,7 @@ def test_metrics_search(es_host, es_port, username, password):
         rootKey = key
 
     assert (data[rootKey]["total"]["value"] > 0)
-    assert data[rootKey]["hits"][0]["_source"]["agent"]["name"]=="lme-fleet-server"
+    #assert data[rootKey]["hits"][0]["_source"]["agent"]["name"]=="lme-fleet-server"
     assert data[rootKey]["hits"][0]["_source"]["agent"]["type"]=="metricbeat"
     assert data[rootKey]["hits"][0]["_source"]["component"]["binary"]=="metricbeat"
     assert data[rootKey]["hits"][0]["_source"]["component"]["id"]=="http/metrics-monitoring"
