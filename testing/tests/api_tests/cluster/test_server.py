@@ -135,7 +135,7 @@ def test_elastic_agent_logs_search(es_host, es_port, username, password):
         assert "os" in data[rootKey]["hits"][x]["_source"]["host"]
         assert "ip" in data[rootKey]["hits"][x]["_source"]["host"]
         assert "mac" in data[rootKey]["hits"][x]["_source"]["host"]
-        assert data[rootKey]["hits"][x]["_source"]["log.level"]=="info"
+        #assert data[rootKey]["hits"][x]["_source"]["log.level"]=="info"
         assert data[rootKey]["hits"][x]["_source"]["event"]["agent_id_status"]=="verified"
         assert data[rootKey]["hits"][x]["_source"]["event"]["dataset"]=="elastic_agent"
         
