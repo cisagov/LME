@@ -14,12 +14,12 @@ class TestUserHRDashboard:
         login()
         yield driver
 
-    @pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
+    #@pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
     def test_filter_computers(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Computers", ".echChart",".xyChart__empty")
 
-    @pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
+    #@pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
     def test_filter_users(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Users", ".echChart",".xyChart__empty")
@@ -52,7 +52,7 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "HR - User activity title", ".visualization",".dummyval")
         
-    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
+    @pytest.mark.skip(reason="This dashboard panel is no longer available")
     def test_all_user_events_dayofweek_hourofday(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "All User Events by Day of Week, Hour of Day", ".echChart",".dummyval")

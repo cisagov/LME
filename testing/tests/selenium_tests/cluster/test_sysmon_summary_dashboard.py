@@ -50,3 +50,4 @@ class TestSysmonSummaryDashboard:
     def test_sysmon_events_code_reference(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Sysmon event code reference", ".visualization",".dummyval")
+        
