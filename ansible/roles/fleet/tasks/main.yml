@@ -136,7 +136,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     body_format: json
@@ -180,7 +180,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     body_format: json
@@ -207,7 +207,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     body_format: json
@@ -234,7 +234,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     body_format: json
@@ -255,7 +255,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     body_format: json
@@ -274,7 +274,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     body_format: json
@@ -311,7 +311,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
   register: existing_policies
@@ -350,7 +350,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
   register: endpoint_package_result
@@ -365,7 +365,7 @@
     force_basic_auth: yes
     validate_certs: no
     headers:
-      kbn-version: "8.15.3"
+      kbn-version: "{{ kibana_version }}"
       kbn-xsrf: "kibana"
       Content-Type: "application/json"
     body_format: json

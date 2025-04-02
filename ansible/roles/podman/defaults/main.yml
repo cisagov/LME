@@ -1,15 +1,8 @@
 ---
 # Default variables for podman role
 
-# Default paths
-clone_directory: "{{ clone_dir | default('~/LME') }}"
-
-# Default user for which to install podman
-install_user: "{{ ansible_user_id }}"
-
 # Default Nix daemon service name (will be overridden by OS-specific vars if needed)
 nix_daemon_service: "nix-daemon"
 
 # Other podman-specific configurations
-containers_storage_dir: "/var/lib/containers/storage"
-containers_storage_rundir: "/run/containers/storage" 
+# Note: storage paths are now defined in site.yml 

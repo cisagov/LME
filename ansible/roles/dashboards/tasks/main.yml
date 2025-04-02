@@ -124,6 +124,7 @@
 - name: Debug - List directory contents
   command: ls -la /opt/lme/dashboards/elastic/
   register: dir_list
+  when: debug_mode | bool
   become: yes
 
 - name: Debug - Show directory contents
