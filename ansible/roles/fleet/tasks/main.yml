@@ -13,26 +13,6 @@
   loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
   when: item != '' and not item.startswith('#')
 
-- name: Source extract_secrets
-  ansible.builtin.shell: |
-    set -a
-    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
-    echo "elastic=$elastic"
-    echo "wazuh=$wazuh"
-    echo "kibana_system=$kibana_system"
-    echo "wazuh_api=$wazuh_api"
-  args:
-    executable: /bin/bash
-  register: extract_secrets_vars
-  no_log: "{{ not debug_mode }}"
-  become: yes
-
-- name: Set secret variables
-  ansible.builtin.set_fact:
-    env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
-  loop: "{{ extract_secrets_vars.stdout_lines }}"
-  no_log: "{{ not debug_mode }}"
-
 - name: Set playbook variables
   ansible.builtin.set_fact:
     ipvar: "{{ env_dict.IPVAR | default('') }}"
@@ -50,10 +30,10 @@
     kibana_port: "{{ env_dict.KIBANA_PORT | default('') }}"
     fleet_port: "{{ env_dict.FLEET_PORT | default('') }}"
     mem_limit: "{{ env_dict.MEM_LIMIT | default('') }}"
-    elastic_password: "{{ env_dict.elastic | default('') }}"
-    wazuh_password: "{{ env_dict.wazuh | default('') }}"
-    kibana_system_password: "{{ env_dict.kibana_system | default('') }}"
-    wazuh_api_password: "{{ env_dict.wazuh_api | default('') }}"
+    elastic_password: "{{ global_secrets.elastic | default('') }}"
+    wazuh_password: "{{ global_secrets.wazuh | default('') }}"
+    kibana_system_password: "{{ global_secrets.kibana_system | default('') }}"
+    wazuh_api_password: "{{ global_secrets.wazuh_api | default('') }}"
 
 - name: Debug - Display set variables (sensitive information redacted)
   debug:
@@ -406,27 +386,7 @@
               value:
                 type: "endpoint"
                 endpointConfig:
-                  preset: "EDRComplete"
-            policy:
-              value:
-                windows:
-                  malware:
-                    mode: "off"
-                    blocklist: false
-                    on_write_scan: false
-                  antivirus_registration:
-                    mode: "sync_with_malware_prevent"
-                    enabled: false
-                mac:
-                  malware:
-                    mode: "off"
-                    blocklist: false
-                    on_write_scan: false
-                linux:
-                  malware:
-                    mode: "off"
-                    blocklist: false
-                    on_write_scan: false    
+                  preset: "DataCollection"
       package:
         name: "endpoint"
         title: "Elastic Defend"

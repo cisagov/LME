@@ -24,4 +24,4 @@
   include_tasks: setup_directories.yml
 
 - name: Include password setup tasks
-  include_tasks: setup_passwords.yml 
+  include_tasks: setup_passwords.yml

@@ -56,6 +56,10 @@
 - name: Setup containers for podman
   include_tasks: container_setup.yml
 
+# Extract and set global secrets after podman is installed
+- name: Include secrets setup tasks
+  include_tasks: setup_secrets.yml
+
 # Include quadlet setup tasks
 - name: Setup quadlets for podman
   include_tasks: quadlet_setup.yml

@@ -13,29 +13,10 @@
   loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
   when: item != '' and not item.startswith('#')
 
-- name: Source extract_secrets
-  ansible.builtin.shell: |
-    set -a
-    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
-    echo "elastic=$elastic"
-    echo "wazuh=$wazuh"
-    echo "kibana_system=$kibana_system"
-    echo "wazuh_api=$wazuh_api"
-  args:
-    executable: /bin/bash
-  register: extract_secrets_vars
-  no_log: "{{ not debug_mode }}"
-
-- name: Set secret variables
-  ansible.builtin.set_fact:
-    env_dict: "{{ env_dict | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
-  loop: "{{ extract_secrets_vars.stdout_lines }}"
-  no_log: "{{ not debug_mode }}"
-
 - name: Set playbook variables
   ansible.builtin.set_fact:
-    wazuh_password: "{{ env_dict.wazuh | default('') }}"
-    wazuh_api_password: "{{ env_dict.wazuh_api | default('') }}"
+    wazuh_password: "{{ global_secrets.wazuh | default('') }}"
+    wazuh_api_password: "{{ global_secrets.wazuh_api | default('') }}"
 
 # Fix Wazuh RBAC
 - name: Fix Wazuh RBAC
