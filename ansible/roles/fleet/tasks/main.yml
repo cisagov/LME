@@ -127,6 +127,15 @@
     msg: "Fleet API check response: {{ fleet_api_check }}"
   when: debug_mode | bool
 
+
+- name: Debug authentication credentials 
+  debug:
+    msg:
+      - "elastic_username: {{ elastic_username }}"
+      - "elastic_password is set: {{ elastic_password }}"
+      - "kibana_system_password is set: {{ kibana_system_password }}"
+  when: debug_mode | bool
+
 - name: Enable Fleet in Kibana
   uri:
     url: "{{ local_kbn_url }}/api/fleet/setup"
