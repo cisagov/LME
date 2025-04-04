@@ -127,15 +127,6 @@
     msg: "Fleet API check response: {{ fleet_api_check }}"
   when: debug_mode | bool
 
-
-- name: Debug authentication credentials 
-  debug:
-    msg:
-      - "elastic_username: {{ elastic_username }}"
-      - "elastic_password is set: {{ elastic_password }}"
-      - "kibana_system_password is set: {{ kibana_system_password }}"
-  when: debug_mode | bool
-
 - name: Enable Fleet in Kibana
   uri:
     url: "{{ local_kbn_url }}/api/fleet/setup"
@@ -465,6 +456,46 @@
   debug:
     var: fleet_status
   when: debug_mode | bool
+
+- name: Check Fleet agents endpoint contents
+  uri:
+    url: "{{ local_kbn_url }}/api/fleet/agents?page=1&perPage=20&kuery=status%3Aonline%20or%20(status%3Aerror%20or%20status%3Adegraded)%20or%20(status%3Aupdating%20or%20status%3Aunenrolling%20or%20status%3Aenrolling)%20or%20status%3Aoffline&sortField=enrolled_at&sortOrder=desc&showInactive=false&showUpgradeable=false&getStatusSummary=true&withMetrics=true"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-version: "{{ kibana_version }}"
+      kbn-xsrf: "kibana"
+      Content-Type: "application/json"
+      elastic-api-version: "2023-10-31"
+      x-elastic-internal-origin: "Kibana"
+    status_code: 200
+  register: fleet_agents_result
+  until: fleet_agents_result.status == 200 and fleet_agents_result.json.total > 0
+  retries: 24
+  delay: 30
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Fleet agents result
+  debug:
+    var: fleet_agents_result
+  when: debug_mode | bool
+
+- name: Verify Fleet agents response structure
+  assert:
+    that:
+      - fleet_agents_result.json is defined
+      - fleet_agents_result.json.items is defined
+      - fleet_agents_result.json.total is defined
+    fail_msg: "Fleet agents endpoint did not return the expected response structure"
+  register: fleet_agents_verification
+
+- name: Display Fleet agents summary
+  debug:
+    msg: "Fleet agents endpoint returned {{ fleet_agents_result.json.total }} total agents"
+  when: fleet_agents_verification is success
 
 - name: Fail if Fleet is not ready
   fail:
