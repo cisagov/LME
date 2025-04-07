@@ -1,21 +1,17 @@
 ---
 # Debian-specific Nix setup
 
-- name: Ensure Nix multi-user installation
-  shell: |
-    if ! command -v nix-env &>/dev/null; then
-      curl -L https://nixos.org/nix/install | sh -s -- --daemon
-    fi
-  args:
-    executable: /bin/bash
-    creates: /nix/var/nix/profiles/default/bin/nix-env
+- name: Update apt cache
+  apt:
+    update_cache: yes
   become: yes
 
-- name: Add user to nix-users group (create if it doesn't exist)
-  user:
-    name: "{{ install_user }}"
-    groups: "{{ 'nix-users' if 'nix-users' in ansible_facts.getent_group else 'nixbld' }}"
-    append: yes
+- name: Install nix packages
+  apt:
+    name:
+      - nix-bin
+      - nix-setup-systemd
+    state: present
   become: yes
 
 - name: Add Nix channel
@@ -24,7 +20,14 @@
 
 - name: Update Nix channel
   command: nix-channel --update
-  become: yes 
+  become: yes
+
+- name: Add user to nix-users group
+  user:
+    name: "{{ install_user }}"
+    groups: nix-users
+    append: yes
+  become: yes
 
 - name: Install required packages
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose

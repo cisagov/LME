@@ -10,6 +10,32 @@ common_packages:
   - jq
   - uidmap
 
+# Debian-specific packages
+debian_packages:
+  - locales
+  - ca-certificates
+  - sudo
+  - sshpass
+  - openssh-client
+  - systemd
+  - systemd-sysv
+  - lsb-release
+  - zip
+  - git
+  - cron
+  - pkg-config
+  - libcairo2-dev
+  - libdbus-1-dev
+  - distro-info
+  - libgirepository1.0-dev
+  - apt-transport-https
+  - gnupg
+  - software-properties-common
+  - fuse-overlayfs
+  - build-essential
+  - python3-pip  # Generic pip package
+  - python3-pexpect  # Generic pexpect package
+
 # Ubuntu-specific packages
 ubuntu_packages:
   - apt-transport-https
