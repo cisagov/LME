@@ -16,8 +16,8 @@ Readme.md
 ./docs/markdown/maintenance/volume-management.md
 ./docs/markdown/maintenance/vulnerability-scan-setup.md
 ./docs/markdown/maintenance/wazuh-configuration.md
-./docs/markdown/agents/elastic-agent-mangement.md
+./docs/markdown/agents/elastic-agent-management.md
 ./docs/markdown/agents/wazuh-active-response.md
-./docs/markdown/agents/wazuh-agent-mangement.md
+./docs/markdown/agents/wazuh-agent-management.md
 ./docs/markdown/endpoint-tools/install-auditd.md
 ./docs/markdown/endpoint-tools/install-sysmon.md
