@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=en_US.UTF-8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    locales ca-certificates sudo sshpass openssh-client \
+    locales ca-certificates sudo openssh-client \
     && locale-gen en_US.UTF-8 \
     && update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 \
     && while getent group $GROUP_ID > /dev/null 2>&1; do GROUP_ID=$((GROUP_ID + 1)); done \
@@ -30,14 +30,10 @@ WORKDIR $BASE_DIR
 # Lme stage with full dependencies
 FROM base AS lme
 
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    systemd systemd-sysv lsb-release \
-    zip git curl wget cron pkg-config libcairo2-dev libdbus-1-dev \
-    distro-info libgirepository1.0-dev \
+    systemd systemd-sysv \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
 
 RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     ls | grep -v systemd-tmpfiles-setup | xargs rm -f $1 && \
@@ -50,7 +46,6 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     rm -f /lib/systemd/system/anaconda.target.wants/* && \
     mkdir -p /etc/systemd/system/systemd-logind.service.d && \
     echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
-
 
 COPY docker/24.04/lme-setup.service /etc/systemd/system/
 

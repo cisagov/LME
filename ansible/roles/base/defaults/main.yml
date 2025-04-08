@@ -7,34 +7,22 @@ common_packages:
   - curl
   - wget
   - gnupg2
-  - jq
-  - uidmap
+  - sudo
+  - git
+  - openssh-client
 
 # Debian-specific packages
 debian_packages:
-  - locales
-  - ca-certificates
-  - sudo
-  - sshpass
-  - openssh-client
-  - systemd
-  - systemd-sysv
-  - lsb-release
-  - zip
-  - git
-  - cron
-  - pkg-config
-  - libcairo2-dev
-  - libdbus-1-dev
-  - distro-info
-  - libgirepository1.0-dev
   - apt-transport-https
+  - ca-certificates
   - gnupg
+  - lsb-release
   - software-properties-common
   - fuse-overlayfs
   - build-essential
-  - python3-pip  # Generic pip package
-  - python3-pexpect  # Generic pexpect package
+  - python3-pip  
+  - python3-pexpect
+  - locales
 
 # Ubuntu-specific packages
 ubuntu_packages:
@@ -45,9 +33,8 @@ ubuntu_packages:
   - software-properties-common
   - fuse-overlayfs
   - build-essential
-  - git
-  - python3-pip  # Generic pip package
-  - python3-pexpect  # Generic pexpect package
+  - python3-pip  
+  - python3-pexpect  
 
 # Ubuntu 24.04 specific packages
 ubuntu_24_04_packages:
