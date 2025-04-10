@@ -1,4 +1,4 @@
-name: Linux Only
+name: Docker Pipeline
 
 on:
   workflow_dispatch:
@@ -28,14 +28,12 @@ on:
       - '*'
 
 jobs:
-  build-and-test-linux-only:
+  build-and-deploy-docker:
     runs-on: self-hosted
     
     env:
       UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-      ES_PASSWORD: ""
-      KIBANA_PASSWORD: ""
       AZURE_IP: ""
       IP_ADDRESS: ""
 
@@ -83,75 +81,83 @@ jobs:
             python3 ./azure/build_azure_linux_network.py \
               -g pipe-${{ env.UNIQUE_ID }} \
               -s ${{ env.IP_ADDRESS }}/32 \
-              -vs Standard_B16s_v2 \
+              -vs Standard_D8s_v3 \
               -l ${{ inputs.azure_region || 'centralus' }} \
               -ast 23:00 \
               -y
           "
-              #-vs Standard_E4d_v4 \
         
-    - name: Install LME on Azure instance
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          sleep 60 &&
-          pwd && \
-          ls -la && \
-          cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
-        "
-
-    - name: Retrieve Elastic password 
+    - name: Retrieve Azure IP
       run: |
         cd testing/v2/development
         AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
         echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
-        echo "Azure IP:$AZURE_IP"
+        echo "Azure IP: $AZURE_IP"
         echo "Azure IP retrieved successfully"
-
-        ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
-        echo "::add-mask::$ES_PASSWORD"
-        echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
-        KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
-        echo "::add-mask::$KIBANA_PASSWORD"
-        echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
-        echo "Kibana password retrieved successfully."
-
         
-    - name: Install test requirements on Azure instance
+    - name: Retrieve Azure Password
+      run: |
+        cd testing/v2/development
+        AZURE_PASS=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt")
+        echo "AZURE_PASS=$AZURE_PASS" >> $GITHUB_ENV
+        echo "Azure Password retrieved successfully"
+        
+    - name: Copy SSH Key to Azure instance
       run: |
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ssh lme-user@\$IP_ADDRESS  'whoami && hostname && \
-          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-          sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
-          cd /home/lme-user/LME/testing/tests && \
+          ./lib/copy_ssh_key.sh ${{ env.AZURE_IP }} lme-user \"${{ env.AZURE_PASS }}\"
+        "
+        
+    - name: Clone repository on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS 'git clone https://github.com/username/LME.git && \
+          cd LME && \
+          git checkout ${{ env.BRANCH_NAME }} 
+        "
+
+    - name: Install Docker on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS 'chmod +x ~/LME/docker/install_latest_docker_in_ubuntu.sh && \
+            sudo ~/LME/docker/install_latest_docker_in_ubuntu.sh && \
+            sudo usermod -aG docker \$USER && \
+            sudo systemctl enable docker && \
+            sudo systemctl start docker'
+        "
+
+    - name: Deploy Docker containers on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS 'cd LME/docker/22.04 && \
+          echo \"HOST_UID=\$(id -u)\" > .env && \
+          echo \"HOST_GID=\$(id -g)\" >> .env && \
+          echo \"HOST_IP=\$(hostname -I | awk \"{print \\\$1}\")\" >> .env && \
+          sudo docker compose up -d'
+        "
+        
+    - name: Run tests on Docker containers
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS 'cd LME/testing/tests && \
           python3 -m venv venv && \
           source venv/bin/activate && \
-          pip install -r requirements.txt '
-        "
-    - name: Run tests on Azure instance
-      env:
-        ES_PASSWORD: ${{ env.ES_PASSWORD }}
-        elastic: ${{ env.ES_PASSWORD }}
-        KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
-        AZURE_IP: ${{ env.AZURE_IP }}
-      run: |
-        sleep 360
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
-          echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
-          echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
-          echo elastic=\"$ES_PASSWORD\" >> .env && \
-          cat .env && \
-          source venv/bin/activate && \
-          pytest -v api_tests/linux_only/ selenium_tests/linux_only/'
+          pip install -r requirements.txt && \
+          pytest -v api_tests/docker/ selenium_tests/docker/'
         "
         
     - name: Cleanup Azure resources
@@ -165,7 +171,7 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
-          az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+          az group delete --name docker-${{ env.UNIQUE_ID }} --yes --no-wait
         "
         
     - name: Stop and remove containers
@@ -173,4 +179,4 @@ jobs:
       run: |
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} down
-        docker system prune -af
+        docker system prune -af 
