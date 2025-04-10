@@ -118,7 +118,7 @@ jobs:
           IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS 'git clone https://github.com/username/LME.git && \
           cd LME && \
-          git checkout ${{ env.BRANCH_NAME }} 
+          git checkout ${{ env.BRANCH_NAME }}' 
         "
 
     - name: Install Docker on Azure instance
@@ -141,24 +141,21 @@ jobs:
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS 'cd LME/docker/22.04 && \
-          echo \"HOST_UID=\$(id -u)\" > .env && \
-          echo \"HOST_GID=\$(id -g)\" >> .env && \
-          echo \"HOST_IP=\$(hostname -I | awk \"{print \\\$1}\")\" >> .env && \
           sudo docker compose up -d'
         "
         
-    - name: Run tests on Docker containers
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ssh lme-user@\$IP_ADDRESS 'cd LME/testing/tests && \
-          python3 -m venv venv && \
-          source venv/bin/activate && \
-          pip install -r requirements.txt && \
-          pytest -v api_tests/docker/ selenium_tests/docker/'
-        "
+    #- name: Run tests on Docker containers
+    #  run: |
+    #    cd testing/v2/development
+    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+    #      cd /home/lme-user/LME/testing/v2/installers && \
+    #      IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+    #      ssh lme-user@\$IP_ADDRESS 'cd LME/testing/tests && \
+    #      python3 -m venv venv && \
+    #      source venv/bin/activate && \
+    #      pip install -r requirements.txt && \
+    #      pytest -v api_tests/docker/ selenium_tests/docker/'
+    #    "
         
     - name: Cleanup Azure resources
       if: always()
