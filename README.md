@@ -60,11 +60,10 @@ Your input is essential to the continuous improvement of LME and to ensure it be
 2. [Prerequisites](#2-prerequisites)
 3. [Downloading and Installing LME](#3-downloading-and-installing-lme)
     1. [Downloading LME](#1-downloading-lme)
-    2. [Configuration](#2-configuration)
-    3. [Installation](#3-installation)
-    4. [Post-Installation Steps](#4-post-installation-steps)
-    5. [Deploying Agents](#5-deploying-agents)
-    6. [Installing Sysmon](#6-installing-sysmon-windows-clients-only)
+    2. [Installation](#2-installation)
+    3. [Post-Installation Steps](#3-post-installation-steps)
+    4. [Deploying Agents](#4-deploying-agents)
+    5. [Installing Sysmon](#5-installing-sysmon-windows-clients-only)
 4. [Next Steps](#4-next-steps)
     1. [Retrieving Passwords](#retrieving-passwords)
     2. [Starting and Stopping LME](#starting-and-stopping-lme)
@@ -130,11 +129,10 @@ We estimate that you should allow half an hour to complete the entire installati
 | ------------- 			| ------------- | ------------- |
 | Download LME 				| 0:31.49 	| 0:31.49 	|
 | Set Environment 			| 0:35.94 	| 1:06.61 	|
-| Install Ansible 			| 1:31.94 	| 2:38.03 	|
+| Running installer			| 1:31.94 	| 2:38.03 	|
 | Installing LME Ansible Playbook 	| 4:03.63 	| 6:41.66 	|
 | All Containers Active 		| 6:41.66 	| 13:08.92 	|
 | Accessing Elastic 			| 0:38.97 	| 13:47.60 	|
-| Post-Install Ansible Playbook 	| 2:04.34 	| 15:51.94 	|
 | Deploy Linux Elastic Agent 		| 0:49.95 	| 16:41.45 	|
 | Deploy Windows Elastic Agent 		| 1:32.00 	| 18:13.40 	|
 | Deploy Linux Wazuh Agent 		| 1:41.99 	| 19:55.34 	|
@@ -163,59 +161,31 @@ Update your package list and install the necessary tools:
 sudo apt update && sudo apt upgrade -y
 ```
 
-#### 1.2 Install Prerequisites
-Install the required tools including Ansible:
-```bash
-sudo apt install curl jq unzip ansible -y
-```
-
-#### 1.3 Download and Extract LME
+#### 1.2 Download and Extract LME
 Download the latest release of LME and extract it to `~/LME`:
 ```bash
 curl -s https://api.github.com/repos/cisagov/LME/releases/latest | jq -r '.assets[0].browser_download_url' | xargs -I {} sh -c 'curl -L -O {} && unzip -d ~/LME $(basename {})'
 ```
 
-### 2. Configuration
-
-Configure LME by following these steps:
-
-#### 2.1 Retrieve Server IP Address
-Obtain your server's IP address, which will be used by clients to forward logs:
-```bash
-hostname -I | awk '{print $1}'
-```
-
-#### 2.2 Set Up Environment Variables
-Navigate to the LME directory:
-```bash
-cd ~/LME
-```
-Copy the example environment file:
-```bash
-cp ./config/example.env ./config/lme-environment.env
-```
-Edit the `lme-environment.env` file to update the `IPVAR` variable with your server's IP address:
-```shell
-IPVAR=127.0.0.1 # Replace with your server's IP address
-```
-
-For example, open and edit the file via nano:
-```bash
-nano ./config/lme-environment.env
-```
-
-
-### 3. Installation
+### 2. Installation
 Install LME by following these steps:
 
-#### 3.1 Execute the Installation Playbook
-Run the Ansible playbook from within your LME directory to install LME:
+#### 2.1 Install LME 
+Change directory to the LME directory in your home directory
 ```bash
-ansible-playbook ./ansible/install_lme_local.yml
+cd ~/LME
+./install.sh
 ```
+This will ask you for an IP address that the other machines will connect to. It will attempt to 
+identify the IP addresses of the machine and allow you to choose one. If it doesn't find the 
+one you are looking for, you can follow the prompts to put in a custom one.
+
+This installer will install ansible if you don't already have it installed and then it will proceed
+to run the ansible playbooks nessisary for your OS version.
+
 <span style="color:orange">**Note**: The services may take a few minutes to start. Please be patient.</span>
 
-#### 3.2 Verify Container Status
+#### 2.2 Verify Container Status
 Check that the containers are running and healthy:
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
@@ -223,23 +193,24 @@ sudo -i podman ps --format "{{.Names}} {{.Status}}"
 
 Expected output:
 ```shell
-lme-elasticsearch Up 19 hours (healthy)
-lme-wazuh-manager Up 19 hours
-lme-kibana Up 19 hours (healthy)
-lme-elastalert2 Up 17 hours
+lme-elasticsearch Up 20 minutes (healthy)
+lme-elastalert2 Up 20 minutes
+lme-wazuh-manager Up 20 minutes (healthy)
+lme-kibana Up 19 minutes (healthy)
+lme-fleet-server Up 14 minutes
 ```
 
-**Note**: Fleet server will only run after the post-installation script
+**Note**: Fleet server is the last one to start and may take extra time 
 
 **Note:** If the output differs, refer to the [troubleshooting guide](/docs/markdown/reference/troubleshooting.md#installation-troubleshooting).
 
 Proceed to Post-Installation steps.
 
-### 4. Post-Installation Steps
+### 3. Post-Installation Steps
 
 If you encounter any issues, refer to the post-installation [troubleshooting guide](/docs/markdown/reference/troubleshooting.md#post-installation-troubleshooting).
 
-#### 4.1 Execute the Post-Installation Playbook
+#### 3.1 Execute the Post-Installation Playbook
 Run the post-installation playbook:
 ```bash
 ansible-playbook ./ansible/post_install_local.yml
@@ -260,7 +231,7 @@ ok: [localhost] => {
 ```
 <span style="color:orange">**Note:** The password for the `readonly_user` will change each time this script is run. Run this script only when necessary, ideally just once.</span>
 
-#### 4.2 Verify Container Status
+#### 3.2 Verify Container Status
 Check that the containers are running and healthy:
 ```bash
 sudo -i podman ps --format "{{.Names}} {{.Status}}"
@@ -276,14 +247,14 @@ lme-fleet-server Up 26 minutes
 ```
 
 
-### 5. Deploying Agents 
+### 4. Deploying Agents 
 To populate the dashboards with data, you need to install agents. Detailed guides for deploying Wazuh and Elastic agents are available in the following documents:
 
  - [Deploy Wazuh Agent](/docs/markdown/agents/wazuh-agent-management.md)
  - [Deploying Elastic-Agent](/docs/markdown/agents/elastic-agent-management.md)
 
 
-### 6. Installing Sysmon (Windows Clients Only)
+### 5. Installing Sysmon (Windows Clients Only)
 For Windows clients, installing Sysmon is essential to obtain comprehensive logs and ensure proper data visualization in the dashboards. Follow these steps to install Sysmon on each Windows client machine:
 
 1. Download and unzip the LME folder on the Windows client.

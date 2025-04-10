@@ -8,7 +8,6 @@ NC='\033[0m' # No Color
 
 # Default playbook location - can be overridden with command line argument
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-#PLAYBOOK_PATH="./ansible/install_lme_local.yml"
 PLAYBOOK_PATH="./ansible/site.yml"
 CUSTOM_IP=""
 HAS_SUDO_ACCESS=""
@@ -25,9 +24,9 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo
     echo "OPTIONS:"
-    echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./playbook.yml)"
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
     echo "  -d, --debug                   Enable debug mode for verbose output"
+    echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
     echo "  -h, --help                    Show this help message"
     echo
     echo "Environment Variables:"
@@ -41,10 +40,6 @@ usage() {
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -p|--playbook)
-            PLAYBOOK_PATH="$2"
-            shift 2
-            ;;
         -i|--ip)
             CUSTOM_IP="$2"
             shift 2
@@ -52,6 +47,10 @@ while [[ $# -gt 0 ]]; do
         -d|--debug)
             DEBUG_MODE="true"
             shift
+            ;;
+        -p|--playbook)
+            PLAYBOOK_PATH="$2"
+            shift 2
             ;;
         -h|--help)
             usage
