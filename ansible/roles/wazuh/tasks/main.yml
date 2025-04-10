@@ -27,6 +27,6 @@
         - "{{ wazuh_password }}"
       ".*'wazuh-wui'.*":
         - "{{ wazuh_api_password }}"
-    timeout: 60
+    timeout: 240 
   become: yes
   no_log: "{{ not debug_mode }}" 
