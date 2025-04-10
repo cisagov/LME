@@ -107,7 +107,7 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
-          ./lib/copy_ssh_key.sh ${{ env.AZURE_IP }} lme-user \"${{ env.AZURE_PASS }}\"
+          ./lib/copy_ssh_key.sh ${{ env.AZURE_IP }} lme-user /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt
         "
         
     - name: Clone repository on Azure instance
