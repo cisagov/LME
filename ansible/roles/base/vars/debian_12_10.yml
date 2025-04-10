@@ -1,0 +1,3 @@
+---
+# Debian 12.10 specific variables
+package_manager: apt

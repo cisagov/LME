@@ -1,0 +1,11 @@
+---
+collections:
+  - name: community.general
+    version: ">=1.0.0"
+  - name: ansible.posix
+    version: ">=1.0.0"
+
+roles:
+  # You can add external roles here if needed
+  # - name: geerlingguy.docker
+  #   version: ">=4.0.0" 
