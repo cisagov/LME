@@ -23,9 +23,9 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  pull_request:
-    branches:
-      - '*'
+  # pull_request:
+  #   branches:
+  #     - '*'
 
 jobs:
   build-and-deploy-docker:
