@@ -43,13 +43,15 @@ read_password() {
     local prompt="$1"
     local password
     while true; do
+        # Read password without newline
         read -s -p "$prompt" password
-        echo
+        printf '\n' >&2  # Move cursor to next line
         read -s -p "Confirm password: " password_confirm
-        echo
+        printf '\n' >&2  # Move cursor to next line
         [ "$password" = "$password_confirm" ] && break
-        echo "Passwords do not match. Please try again."
+        echo "Passwords do not match. Please try again." >&2
     done
+    # Export password without any newlines
     export READ_PASSWORD="$password"
 }
 
@@ -124,19 +126,27 @@ chmod 600 "$USER_SECRETS_CONF"
 # Function to set and encrypt user password
 set_user_password() {
     local user="$1"
-    local password=$(read_password "Enter password for $user: ")
+    local password
     
+    # Read password without command substitution
+    read_password "Enter password for $user: "
+    password="$READ_PASSWORD"
+    
+    # Ensure vault directory exists and has correct permissions
     mkdir -p "$USER_VAULT_DIR"
     chmod 700 "$USER_VAULT_DIR"
     
     # Write password to file with secure permissions
-    echo "$password" > "$USER_VAULT_DIR/$user"
+    printf '%s' "$password" > "$USER_VAULT_DIR/$user"
     chmod 700 "$USER_VAULT_DIR/$user"
     
+    # Encrypt the password file
     ansible-vault encrypt "$USER_VAULT_DIR/$user"
     
-    echo "Password for $user has been set and encrypted."
-    echo "$password"
+    # Send success message to stderr instead of stdout
+    echo "Password for $user has been set and encrypted." >&2
+    # Return just the password to stdout without newline
+    printf '%s' "$password"
 }
 
 # Function to manage Podman secrets
@@ -147,8 +157,14 @@ manage_podman_secret() {
 
     case "$action" in
         create|update)
-            # Use process substitution to avoid writing to a file or showing the secret in ps output
-            podman secret create --driver shell --replace "$secret_name" <(echo "$secret_value")
+            # Debug output
+            echo "Setting secret $secret_name with length ${#secret_value}" >&2
+            # Create a temporary file for the secret
+            local temp_file=$(mktemp)
+            printf '%s' "$secret_value" > "$temp_file"
+            # Use the temporary file for the secret
+            podman secret create --driver shell --replace "$secret_name" "$temp_file"
+            rm -f "$temp_file"
             ;;
         delete)
             podman secret rm "$secret_name"
@@ -157,10 +173,45 @@ manage_podman_secret() {
             podman secret ls
             ;;
         *)
-            echo "Invalid action. Use 'create', 'update', 'delete', or 'list'."
+            echo "Invalid action. Use 'create', 'update', 'delete', or 'list'." >&2
             return 1
             ;;
     esac
+}
+
+# Function to ensure expect is installed
+ensure_expect_installed() {
+    if ! command -v expect >/dev/null 2>&1; then
+        echo "Installing expect..." >&2
+        if command -v apt-get >/dev/null 2>&1; then
+            apt-get update && apt-get install -y expect
+        elif command -v dnf >/dev/null 2>&1; then
+            dnf install -y expect
+        elif command -v yum >/dev/null 2>&1; then
+            yum install -y expect
+        else
+            echo "Could not install expect. Please install it manually." >&2
+            exit 1
+        fi
+    fi
+}
+
+# Function to reset elasticsearch password using expect
+reset_elasticsearch_password() {
+    local username="$1"
+    local password="$2"
+    
+    # Ensure expect is installed
+    ensure_expect_installed
+    
+    # Inform user about the process
+    echo "Resetting password in Elasticsearch container. This may take a few moments..."
+    
+    # Run expect script with password as argument
+    ./reset_elastic_password.exp "$username" "$password"
+    
+    # Confirm completion
+    echo "Password reset completed successfully."
 }
 
 # Main menu
@@ -171,6 +222,12 @@ man_page(){
   echo "-l: List Podman secrets"
   echo "-h: print this list"
 }
+
+# Show help menu if no arguments provided
+if [ $# -eq 0 ]; then
+    man_page
+    exit 0
+fi
 
 while getopts "isplc:h" opt; do
   case "$opt" in 
@@ -194,6 +251,10 @@ while getopts "isplc:h" opt; do
         password=$(set_user_password "$username")
         # Use command substitution to avoid echoing the password
         manage_podman_secret create "$username" "$(echo "$password")"
+        # If this is the elastic user, also reset the elasticsearch password
+        if [ "$username" = "elastic" ]; then
+            reset_elasticsearch_password "$username" "$password"
+        fi
         ;;
     p)
         if [ -z "secret_name" ];then
