@@ -123,6 +123,27 @@ EOF
 chmod 600 "$USER_SECRETS_CONF"
 }
 
+# Function to reset Wazuh password using expect script
+reset_wazuh_password() {
+    local username="$1"
+    local password="$2"
+    
+    # Only proceed if this is a Wazuh-related user
+    if [ "$username" = "wazuh" ] || [ "$username" = "wazuh_api" ]; then
+        echo "Resetting password in Wazuh container. This may take a few moments..."
+        
+        # Execute expect script to change the password
+        ./reset_wazuh_password.exp "$username" "$password"
+        
+        # Update both Podman secrets since both passwords are changed
+        manage_podman_secret create "wazuh" "$password"
+        manage_podman_secret create "wazuh_api" "$password"
+        
+        # Confirm completion
+        echo "Wazuh password reset completed."
+    fi
+}
+
 # Function to set and encrypt user password
 set_user_password() {
     local user="$1"
@@ -145,6 +166,7 @@ set_user_password() {
     
     # Send success message to stderr instead of stdout
     echo "Password for $user has been set and encrypted." >&2
+    
     # Return just the password to stdout without newline
     printf '%s' "$password"
 }
@@ -217,7 +239,7 @@ reset_elasticsearch_password() {
 # Main menu
 man_page(){
   echo "-i: Initialize all password environment variables and settings"
-  echo "-s: set_user: Set user password"
+  echo "-s [username]: Set user password (username is optional)"
   echo "-p: Manage Podman secret"
   echo "-l: List Podman secrets"
   echo "-h: print this list"
@@ -229,7 +251,7 @@ if [ $# -eq 0 ]; then
     exit 0
 fi
 
-while getopts "isplc:h" opt; do
+while getopts "isp:lch" opt; do
   case "$opt" in 
     i)
         #check connection
@@ -247,18 +269,29 @@ while getopts "isplc:h" opt; do
         set_podman_config
         ;;
     s)
-        read -p "Enter username: " username
+        if [ -n "$OPTARG" ]; then
+            username="$OPTARG"
+        else
+            read -p "Enter username: " username
+        fi
         password=$(set_user_password "$username")
         # Use command substitution to avoid echoing the password
         manage_podman_secret create "$username" "$(echo "$password")"
-        # If this is the elastic user, also reset the elasticsearch password
-        if [ "$username" = "elastic" ]; then
+        # If this is the elastic user or kibana_system user, also reset the elasticsearch password
+        if [ "$username" = "elastic" ] || [ "$username" = "kibana_system" ]; then
             reset_elasticsearch_password "$username" "$password"
+        fi
+
+        # If this is a Wazuh user, also reset the Wazuh password
+        if [ "$username" = "wazuh" ] || [ "$username" = "wazuh_api" ]; then
+            reset_wazuh_password "$username" "$password"
         fi
         ;;
     p)
-        if [ -z "secret_name" ];then
-          read -p "Enter secret name: " secret_name
+        if [ -n "$OPTARG" ]; then
+            secret_name="$OPTARG"
+        else
+            read -p "Enter secret name: " secret_name
         fi
         if [ -z "action" ];then
           read -p "Enter action (create/update/delete): " action
