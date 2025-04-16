@@ -1,6 +1,6 @@
 # LME Wazuh Agent Enrollment Guide
 
-- See Official Wazuh Documentation [Wazuh agent install documentation](https://documentation.wazuh.com/4.7/installation-guide/wazuh-agent/index.html).
+Reference the [Wazuh agent install documentation](https://documentation.wazuh.com/4.7/installation-guide/wazuh-agent/index.html) for official Wazuh installation information.
 
 This guide will walk you through the process of enrolling a Wazuh agent in the LME system.
 
@@ -15,7 +15,7 @@ Throughout this guide, we'll use the following variables. Replace these with you
 - `{WAZUH_AGENT_VERSION}`: The version of the Wazuh agent you're installing (e.g., 4.9.0-1)
 - `{WAZUH_MANAGER_IP}`: The IP address of your Wazuh manager (e.g., 10.0.0.2)
  
-You can get your wazuh version that you are running via the following command:
+Use the following command to retrieve the Wazuh version that you are running:
 ```bash
 sudo -i podman exec -it lme-wazuh-manager /var/ossec/bin/wazuh-control -j info | jq
 ```
@@ -37,8 +37,7 @@ Output should look similar to this:
   ]
 }
 ```
-drop the v, and use `4.7.5-1`. You need to add a "-1" like wazuh expects.
-You can confirm the version is accurate with a list from wazuh's versions [HERE](https://documentation.wazuh.com/current/installation-guide/packages-list.html)
+When using the Wazuh agent version variable, drop the v and add -1 at the end, as expected by Wazuh (e.g., `4.7.5-1`). You can verify the version's accuracy by cross-referencing it with Wazuh's [list of versions](https://documentation.wazuh.com/current/installation-guide/packages-list.html).
 
 ## Steps to Enroll a Wazuh Agent (***Windows***)
 
@@ -59,7 +58,7 @@ Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MAN
 
 2. **Install the Wazuh Agent**
    - Open a command prompt with administrator privileges.
-   - Navigate to the directory containing the downloaded MSI file.
+   - Navigate to the **directory containing the downloaded MSI file**.
    - Run the following command to install the agent:
      ```powershell
      wazuh-agent-{WAZUH_AGENT_VERSION}.msi /q WAZUH_MANAGER="{WAZUH_MANAGER_IP}"
@@ -70,30 +69,33 @@ Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MAN
 3. **Verify Installation**
    - After installation, the Wazuh agent service should start automatically.
    - You can verify the service status in the Windows Services manager.
-   - Ensure the service starts if it doesn't start automatically. Run this in a powershell terminal:
+   - Ensure the service starts. If it doesn't start automatically, run this in a powershell terminal:
    ```powershell
    NET START Wazuh
    ```
 
 
-## Steps to Enroll a Wazuh Agent (***Debian-based Systems***)
+## Steps to Enroll a Wazuh Agent (***Debian-Based Systems***)
 
-1. **Add Wazuh GPG key**
-   ```bash
-   curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
-   ```
+1.  **Open a command prompt**
+    - Open a command prompt with administrator privileges.
 
-2. **Add Wazuh repository**
+2.  **Add Wazuh GPG key**
+    ```bash
+    curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+    ```
+
+3. **Add Wazuh Repository**
    ```bash
    echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee -a /etc/apt/sources.list.d/wazuh.list
    ```
 
-3. **Update package information**
+4. **Update Package Information**
    ```bash
    apt-get update
    ```
 
-4. **Install Wazuh agent and configure Wazuh Manager IP variable**
+5. **Install Wazuh Agent and Configure Wazuh Manager IP Variable**
    ```bash
    WAZUH_MANAGER="{WAZUH_MANAGER_IP}" apt-get install wazuh-agent={WAZUH_AGENT_VERSION} && sed -i 's/MANAGER_IP/{WAZUH_MANAGER_IP}/i' /var/ossec/etc/ossec.conf
    ```
@@ -105,7 +107,7 @@ Start-Process msiexec.exe -ArgumentList '/i wazuh-agent-4.7.5-1.msi /q WAZUH_MAN
 
 ## Verifying Installation
 
-After installation, you can check the status of the Wazuh agent:
+After installation, check the status of the Wazuh agent.
 
 ```bash
 systemctl status wazuh-agent
@@ -113,14 +115,14 @@ systemctl status wazuh-agent
 
 ## Troubleshooting
 
-If it doesn't start attempt the following: 
+If the Wazuh agent doesn't start, attempt the following: 
 ```bash
 systemctl daemon-reload
 systemctl enable wazuh-agent
 systemctl start wazuh-agent
 ```
 
-- If the agent fails to connect, check your firewall settings to ensure the necessary ports are open. [Wazuh Ports Documentation](https://documentation.wazuh.com/current/getting-started/architecture.html)
+- If the agent fails to connect, check your firewall settings to ensure the necessary ports are open. Reference the [Wazuh Ports Documentation](https://documentation.wazuh.com/current/getting-started/architecture.html) for more information.
 - Verify that the Wazuh manager IP address is correct and reachable from the agent. This is the IP address of your LME server running the containers.
 
 By following these steps, you should be able to successfully enroll Wazuh agents into your LME system. Remember to keep your agents updated, but always ensure compatibility with your Wazuh manager version.
@@ -138,7 +140,7 @@ To get an overview of all registered agents and their current status:
 sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
 ```
 
-This command will display a list of all agents, including their ID, name, IP address, and current status (active, disconnected, never connected, etc.).
+This command will display a list of all agents, including their ID, name, IP address, and current status (e.g., active, disconnected, never connected).
 
 ## Checking Status of a Specific Agent
 
@@ -153,4 +155,4 @@ Replace `[agent_id]` with the ID of the agent you want to check. This will provi
 
 This command gives you a quick overview of how many agents are active, disconnected, or never connected.
 
-See official Wazuh documentation for more steps on [agent_control](https://documentation.wazuh.com/current/user-manual/reference/tools/agent-control.html)
+Reference [agent_control](https://documentation.wazuh.com/current/user-manual/reference/tools/agent-control.html) for more information on the agent_control program.
