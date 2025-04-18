@@ -57,13 +57,10 @@ sshpass -e scp elastic-agent-${VERSION}-${ARCHITECTURE}.zip ${USER}@${CLIENT_IP}
 
 ## Extract the archive
 echo "Extracting windows archive..."
-#./run_elevated_powershell.sh "New-Item -ItemType Directory -Path ./elastic-agent-${VERSION}-${ARCHITECTURE}; Expand-Archive -Path ./elastic-agent-${VERSION}-${ARCHITECTURE}.zip -DestinationPath ./"
 ./run_elevated_powershell.sh "Expand-Archive -Path ./elastic-agent-${VERSION}-${ARCHITECTURE}.zip -Force"
 
 ## Install Elastic Agent with automatic "yes" response
 echo "Installing elastic agent"
-#./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --non-interactive "
-#./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --force "
 ./run_elevated_powershell.sh "elastic-agent-8.15.3-windows-x86_64/elastic-agent-8.15.3-windows-x86_64/elastic-agent install --non-interactive --force --url=https://${HOST_IP}:$PORT --insecure --enrollment-token=${ENROLLMENT_TOKEN}"
 
 echo "Waiting for service to start..."

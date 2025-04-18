@@ -1,0 +1,7 @@
+---
+# Ubuntu 22.04 specific tasks
+- name: Install Ubuntu 22.04 specific packages
+  apt:
+    name: "{{ ubuntu_22_04_packages | default([]) }}"
+    state: present
+  become: yes

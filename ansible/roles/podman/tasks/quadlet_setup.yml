@@ -1,0 +1,50 @@
+---
+# Quadlet setup tasks for podman role
+
+- name: Copy config files /opt/lme/config
+  copy:
+    src: "{{ clone_directory }}/config/"
+    dest: /opt/lme/config/
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+
+- name: Create /etc/containers/systemd
+  file:
+    path: /etc/containers/systemd
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: '0744'
+  become: yes
+
+- name: Copy quadlet files to /etc/containers/systemd 
+  copy:
+    src: "{{ clone_directory }}/quadlet/"
+    dest: /etc/containers/systemd/
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: copy lme.service to /etc/systemd/system
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme.service"
+    dest: "/etc/systemd/system/lme.service"
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Start LME service
+  systemd:
+    name: lme.service
+    state: started
+    enabled: yes
+  become: yes 

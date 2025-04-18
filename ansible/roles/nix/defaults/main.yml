@@ -1,0 +1,3 @@
+---
+# Default variables for Nix role
+# Note: clone_directory and install_user are now defined in site.yml 

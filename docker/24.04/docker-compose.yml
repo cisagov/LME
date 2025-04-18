@@ -11,7 +11,7 @@ services:
     working_dir: /root
     volumes:
       - ../../../LME:/root/LME
-      - /sys/fs/cgroup:/sys/fs/cgroup:rslave
+      #- /sys/fs/cgroup:/sys/fs/cgroup:rslave
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
       - SYS_ADMIN

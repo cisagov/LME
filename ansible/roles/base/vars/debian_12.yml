@@ -1,0 +1,4 @@
+---
+# Debian 12 specific variables
+package_manager: apt
+debian_version: "12" 

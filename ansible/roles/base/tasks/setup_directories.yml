@@ -1,0 +1,94 @@
+---
+# Directory setup tasks
+
+- name: Expand clone_directory path
+  set_fact:
+    clone_directory: "{{ clone_directory | expanduser }}"
+
+- name: Ensure /opt/lme directory exists
+  file:
+    path: /opt/lme
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0700'
+  become: yes
+
+- name: Check if /opt/lme/lme-environment.env exists
+  stat:
+    path: "/opt/lme/lme-environment.env"
+  register: optenv_file 
+  become: yes
+
+- name: Check if lme-environment.env exists
+  stat:
+    path: "{{ clone_directory }}/config/lme-environment.env"
+  register: env_file
+
+- name: Fail if lme-environment.env doesn't exist (either in ./config OR /opt/lme)
+  fail:
+    msg: "lme-environment.env file not found in {{ clone_directory }}/config/. Please copy example.env to lme-environment.env in the config directory and edit it before running this playbook."
+  when: 
+    -  (not optenv_file.stat.exists) and (not env_file.stat.exists)
+
+- name: Copy lme-environment.env to /opt/lme (only if it doesn't exist)
+  command: "mv {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
+  become: yes
+  when: not optenv_file.stat.exists
+
+- name: Set correct permissions for lme-environment.env
+  file:
+    path: /opt/lme/lme-environment.env
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0600'
+  become: yes
+
+- name: Check sudo setup
+  command: sudo -n true
+  register: sudo_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Display sudo information
+  debug:
+    msg: "{{ 'Passwordless sudo is available.' if sudo_check.rc == 0 else 'Sudo will require a password for privileged operations.' }}"
+
+- name: Ensure sudo access
+  command: sudo -n true
+  changed_when: false
+
+- name: Setup /etc/subgid
+  lineinfile:
+    path: "/etc/subuid"
+    line: 'containers:165536:65536'
+    create: yes
+  become: yes
+
+- name: Setup /etc/subgid
+  lineinfile:
+    path: "/etc/subgid"
+    line: 'containers:165536:65536'
+    create: yes
+  become: yes
+
+- name: Create global config directory
+  file:
+    path: "{{ config_dir }}"
+    state: directory
+    mode: '0700'
+  become: yes
+
+- name: Create user config directory
+  file:
+    path: "{{ user_config_dir }}"
+    state: directory
+    mode: '0700'
+  become: yes
+
+- name: Create user vault directory
+  file:
+    path: "{{ user_vault_dir }}"
+    state: directory
+    mode: '0700'
+  become: yes 
