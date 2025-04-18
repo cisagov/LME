@@ -84,6 +84,7 @@ This guide will walk you through the process of adding a Windows integration to 
 6. **Configure Metrics Collection**
    - You can choose to collect various metrics from your Windows endpoints.
    - Review and enable the ***metrics*** you're interested in monitoring.
+     ## Add Note for Metrics considerations
 
 7. **Save and Deploy**
    - After configuring your desired options, click on the **Save and continue button**.
