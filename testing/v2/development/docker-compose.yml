@@ -13,14 +13,13 @@ services:
     working_dir: /root
     volumes:
       - ../../../../LME:/root/LME
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
       - SYS_ADMIN
-      - NET_ADMIN
-      - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
     privileged: true
+    user: root
     stop_signal: SIGRTMIN+3
     tmpfs:
       - /tmp
@@ -31,7 +30,8 @@ services:
       - LANG=en_US.UTF-8
       - LANGUAGE=en_US:en
       - LC_ALL=en_US.UTF-8
-    command: ["/lib/systemd/systemd"]
+      - container=docker
+    command: ["/lib/systemd/systemd", "--system"]
     ports:
       - "5601:5601"
       - "443:443"

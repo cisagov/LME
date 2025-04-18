@@ -1,0 +1,8 @@
+---
+# Ubuntu-specific tasks for podman setup
+
+- name: Enable linger for user
+  command: "loginctl enable-linger {{ install_user }}"
+  become: yes
+  changed_when: true
+  ignore_errors: true 

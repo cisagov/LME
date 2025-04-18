@@ -1,0 +1,7 @@
+---
+# Ubuntu 24.04 specific tasks
+- name: Install Ubuntu 24.04 specific packages
+  apt:
+    name: "{{ ubuntu_24_04_packages | default([]) }}"
+    state: present
+  become: yes

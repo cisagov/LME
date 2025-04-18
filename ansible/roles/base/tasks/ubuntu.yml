@@ -1,0 +1,35 @@
+---
+# Ubuntu-specific tasks for base role
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+  become: yes
+
+- name: Install common packages
+  apt:
+    name: "{{ common_packages }}"
+    state: present
+  become: yes
+
+- name: Install required Ubuntu packages
+  apt:
+    name: "{{ ubuntu_packages }}"
+    state: present
+  become: yes
+
+- name: Set timezone information
+  debconf:
+    name: tzdata
+    question: tzdata/Areas
+    value: "{{ timezone_area | default('Etc') }}"
+    vtype: select
+  become: yes
+
+- name: Set timezone city
+  debconf:
+    name: tzdata
+    question: tzdata/Zones/{{ timezone_area | default('Etc') }}
+    value: "{{ timezone_zone | default('UTC') }}"
+    vtype: select
+  become: yes 
