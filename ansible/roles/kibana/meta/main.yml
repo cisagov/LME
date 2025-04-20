@@ -1,6 +1,4 @@
 ---
 dependencies:
   - role: elasticsearch
-    tags: ['system', 'all']
-  - role: kibana
     tags: ['system', 'all'] 

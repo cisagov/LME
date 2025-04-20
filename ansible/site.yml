@@ -45,6 +45,8 @@
       tags: ['system', 'all']
     - role: elasticsearch
       tags: ['system', 'all']
+    - role: kibana
+      tags: ['system', 'all']
     - role: dashboards
       tags: ['system', 'all']
     - role: wazuh
