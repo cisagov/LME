@@ -31,7 +31,6 @@ LME is intended for organizations that:
 ![Architecture](https://mreeve-snl.github.io/docs-test/docs/imgs/lme-architecture-v2.png)
 
 ## Details: 
-
-For a more detailed overview: https://mreeve-snl.github.io/docs-test/docs/#1-what-is-lme
-For detailed instructions on installation: https://mreeve-snl.github.io/docs-test/docs/#3-downloading-and-installing-lme
-For detailed documentation: https://mreeve-snl.github.io/docs-test/docs/#5-documentation
+  - For a more detailed overview: https://mreeve-snl.github.io/docs-test/docs/#1-what-is-lme
+  - For detailed instructions on installation: https://mreeve-snl.github.io/docs-test/docs/#3-downloading-and-installing-lme
+  - For detailed documentation: https://mreeve-snl.github.io/docs-test/docs/#5-documentation
