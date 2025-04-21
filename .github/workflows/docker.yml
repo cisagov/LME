@@ -150,7 +150,7 @@ jobs:
             sudo systemctl start docker'
         "
 
-    - name: Deploy Docker containers on Azure instance
+    - name: Deploy Ubuntu 22.04 container on Azure instance
       run: |
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
@@ -161,18 +161,18 @@ jobs:
           ./check-lme-setup.sh'
         "
         
-    #- name: Run tests on Docker containers
-    #  run: |
-    #    cd testing/v2/development
-    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-    #      cd /home/lme-user/LME/testing/v2/installers && \
-    #      IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-    #      ssh lme-user@\$IP_ADDRESS 'cd LME/testing/tests && \
-    #      python3 -m venv venv && \
-    #      source venv/bin/activate && \
-    #      pip install -r requirements.txt && \
-    #      pytest -v api_tests/docker/ selenium_tests/docker/'
-    #    "
+    - name: Run tests on Ubuntu 22.04 container
+     run: |
+       cd testing/v2/development
+       docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+         cd /home/lme-user/LME/testing/v2/installers && \
+         IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+         ssh lme-user@\$IP_ADDRESS 'cd LME/testing/tests && \
+         python3 -m venv venv && \
+         source venv/bin/activate && \
+         pip install -r requirements.txt && \
+         pytest -v api_tests/docker/'
+       "
         
     - name: Cleanup Azure resources
       if: always()
