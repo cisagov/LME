@@ -41,6 +41,15 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4.1.1
       
+    - name: Get branch name
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+        else
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        fi
+
     - name: Set the environment for docker compose
       run: |
         cd testing/v2/development
@@ -116,9 +125,16 @@ jobs:
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ssh lme-user@\$IP_ADDRESS 'git clone https://github.com/username/LME.git && \
-          cd LME && \
-          git checkout ${{ env.BRANCH_NAME }}' 
+          ssh lme-user@\$IP_ADDRESS '
+            if [ ! -d LME ]; then
+              git clone https://github.com/cisagov/LME.git;
+            fi
+            cd LME
+            if [ \"${{ env.BRANCH_NAME }}\" != \"main\" ]; then
+              git fetch
+              git checkout ${{ env.BRANCH_NAME }}
+            fi
+          '
         "
 
     - name: Install Docker on Azure instance
