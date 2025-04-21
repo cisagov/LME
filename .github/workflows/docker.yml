@@ -115,7 +115,7 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS 'git clone https://github.com/username/LME.git && \
           cd LME && \
           git checkout ${{ env.BRANCH_NAME }}' 
@@ -126,7 +126,7 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS 'chmod +x ~/LME/docker/install_latest_docker_in_ubuntu.sh && \
             sudo ~/LME/docker/install_latest_docker_in_ubuntu.sh && \
             sudo usermod -aG docker \$USER && \
@@ -139,7 +139,7 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS 'cd LME/docker/22.04 && \
           sudo docker compose up -d'
         "
@@ -149,7 +149,7 @@ jobs:
     #    cd testing/v2/development
     #    docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
     #      cd /home/lme-user/LME/testing/v2/installers && \
-    #      IP_ADDRESS=\$(cat docker-${{ env.UNIQUE_ID }}.ip.txt) && \
+    #      IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
     #      ssh lme-user@\$IP_ADDRESS 'cd LME/testing/tests && \
     #      python3 -m venv venv && \
     #      source venv/bin/activate && \
@@ -168,7 +168,7 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
-          az group delete --name docker-${{ env.UNIQUE_ID }} --yes --no-wait
+          az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
         "
         
     - name: Stop and remove containers
