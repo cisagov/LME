@@ -55,6 +55,7 @@ jobs:
         cd testing/v2/development
         echo "HOST_UID=$(id -u)" > .env
         echo "HOST_GID=$(id -g)" >> .env
+        echo "HOST_IP=10.1.0.5" >> .env
         PUBLIC_IP=$(curl -s https://api.ipify.org)
         echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
 
@@ -150,6 +151,18 @@ jobs:
             sudo systemctl start docker'
         "
 
+    - name: Set .env for Ubuntu 22.04 container on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/docker/22.04
+            echo \"HOST_IP=10.1.0.5\" > .env
+          '
+        "
+
     - name: Deploy Ubuntu 22.04 container on Azure instance
       run: |
         cd testing/v2/development
@@ -175,6 +188,20 @@ jobs:
           pip install -r requirements.txt && \
           pytest -v api_tests/'
         "
+        
+    - name: Retrieve Elastic password from Ubuntu 22.04 container
+      run: |
+        cd testing/v2/development
+        ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/docker/22.04 && \
+            docker compose exec lme bash -c \"/home/lme-user/LME/scripts/extract_secrets.sh -q && echo \\\$elastic \"
+          '
+        " | tail -n 1 | tr -d '\n')
+        #echo "::add-mask::$ES_PASSWORD"
+        echo "ES_PASSWORD=$ES_PASSWORD"
+        echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
         
     - name: Cleanup Azure resources
       if: always()
