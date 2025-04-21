@@ -157,7 +157,8 @@ jobs:
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS 'cd LME/docker/22.04 && \
-          sudo docker compose up -d'
+          sudo docker compose up -d && \
+          ./check-lme-setup.sh'
         "
         
     #- name: Run tests on Docker containers
