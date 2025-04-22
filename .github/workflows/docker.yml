@@ -182,7 +182,7 @@ jobs:
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS '
             cd /home/lme-user/LME/docker/22.04 && \
-            docker compose exec lme bash -c \"/home/lme-user/LME/scripts/extract_secrets.sh -q && echo \\\$elastic \"
+            docker compose exec lme bash -c \"~/LME/scripts/extract_secrets.sh -q && echo \\\$elastic \"
           '
         " | tail -n 1 | tr -d '\n')
         #echo "::add-mask::$ES_PASSWORD"
@@ -197,7 +197,7 @@ jobs:
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS '
             cd /home/lme-user/LME/docker/22.04 && \
-            docker compose exec lme bash -c \"/home/lme-user/LME/scripts/extract_secrets.sh -q && echo \\\$kibana_system \"
+            docker compose exec lme bash -c \"~/LME/scripts/extract_secrets.sh -q && echo \\\$kibana_system \"
           '
         " | tail -n 1 | tr -d '\n')
         #echo "::add-mask::$KIBANA_PASSWORD"
