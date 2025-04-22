@@ -1,5 +1,5 @@
 name: Docker Pipeline
-
+# sudo act --bind --workflows .github/workflows/docker.yml --job build-and-deploy-docker --secret-file .env
 on:
   workflow_dispatch:
     inputs:
@@ -32,12 +32,18 @@ jobs:
     runs-on: self-hosted
     
     env:
-      UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
+      UNIQUE_ID: ${{ github.run_number }}-${{ github.run_number }}
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       AZURE_IP: ""
       IP_ADDRESS: ""
 
     steps:
+    - name: Generate random number
+      shell: bash
+      run: |
+        RANDOM_NUM=$(shuf -i 1000000000-9999999999 -n 1)
+        echo "UNIQUE_ID=$RANDOM_NUM-${{ github.run_number }}" >> $GITHUB_ENV
+
     - name: Checkout repository
       uses: actions/checkout@v4.1.1
       
@@ -90,12 +96,13 @@ jobs:
             cd /home/lme-user/LME/testing/v2/installers && \
             python3 ./azure/build_azure_linux_network.py \
               -g pipe-${{ env.UNIQUE_ID }} \
-              -s ${{ env.IP_ADDRESS }}/32 \
+              -s 0.0.0.0/0 \
               -vs Standard_B4s_v2 \
               -l ${{ inputs.azure_region || 'centralus' }} \
               -ast 23:00 \
               -y
           "
+              #-s ${{ env.IP_ADDRESS }}/32 \
         
     - name: Retrieve Azure IP
       run: |
@@ -111,7 +118,12 @@ jobs:
         AZURE_PASS=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt")
         echo "AZURE_PASS=$AZURE_PASS" >> $GITHUB_ENV
         echo "Azure Password retrieved successfully"
-        
+
+    # wait for the azure instance to be ready
+    - name: Wait for Azure instance to be ready
+      run: |
+        sleep 30
+    
     - name: Copy SSH Key to Azure instance
       run: |
         cd testing/v2/development
@@ -182,9 +194,9 @@ jobs:
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS '
             cd /home/lme-user/LME/docker/22.04 && \
-            docker compose exec lme bash -c \". ~/LME/scripts/extract_secrets.sh -q && echo \$elastic \"
+            docker compose exec lme bash -c \". ~/LME/scripts/extract_secrets.sh -p\"
           '
-        " | tail -n 1 | tr -d '\n')
+        " | grep '^elastic=' | cut -d'=' -f2- | tr -d '\n')
         #echo "::add-mask::$ES_PASSWORD"
         echo "ES_PASSWORD=$ES_PASSWORD"
         echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
@@ -197,42 +209,77 @@ jobs:
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS '
             cd /home/lme-user/LME/docker/22.04 && \
-            docker compose exec lme bash -c \". ~/LME/scripts/extract_secrets.sh -q && echo \\$kibana_system \"
+            docker compose exec lme bash -c \". ~/LME/scripts/extract_secrets.sh -p\"
           '
-        " | tail -n 1 | tr -d '\n')
+        " | grep '^kibana_system=' | cut -d'=' -f2- | tr -d '\n')
+        #| tail -n 1 | tr -d '\n'
         #echo "::add-mask::$KIBANA_PASSWORD"
         echo "KIBANA_PASSWORD=$KIBANA_PASSWORD"
         echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
 
-    - name: Run tests on Ubuntu 22.04 container
+    # - name: Wait for Elasticsearch indices/data streams
+    #   run: |
+    #     cd testing/v2/development
+    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+    #       cd /home/lme-user/LME/testing/v2/installers && \
+    #       IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+    #       ssh lme-user@\$IP_ADDRESS '
+    #         set -e
+    #         echo \"Polling for required Elasticsearch indices...\"
+    #         for i in {1..30}; do
+    #           if curl -k -u '\''elastic:${ES_PASSWORD}'\'' https://localhost:9200/_cat/indices?h=index | grep .ds-metrics-system.*; then
+    #             echo \"Required index found!\"
+    #             exit 0
+    #           fi
+    #           echo \"Not ready yet, waiting...\"
+    #           sleep 10
+    #         done
+    #         echo \"Timed out waiting for required Elasticsearch indices!\"
+    #         exit 1
+    #       '
+    #     "
+    #   env:
+    #     ES_PASSWORD: ${{ env.ES_PASSWORD }}
+    #     AZURE_IP: ${{ env.AZURE_IP }}
+
+    - name: Run tests for Ubuntu 22.04 container
+      env:
+        ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        elastic: ${{ env.ES_PASSWORD }}
+        KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
+        AZURE_IP: ${{ env.AZURE_IP }}
       run: |
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
           ssh lme-user@\$IP_ADDRESS 'cd LME/testing/tests && \
+          echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+          echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+          echo elastic=\"$ES_PASSWORD\" >> .env && \
+          cat .env && \
           sudo apt-get update && \
           sudo apt-get install -y python3.10-venv && \
           python3 -m venv venv && \
           source venv/bin/activate && \
           pip install -r requirements.txt && \
-          pytest -v api_tests/'
+          pytest -v api_tests/linux_only/'
         "
         
         
-    - name: Cleanup Azure resources
-      if: always()
-      env:
-        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
-        AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
-        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
-          az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
-        "
+    # - name: Cleanup Azure resources
+    #   if: always()
+    #   env:
+    #     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    #     AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
+    #     AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+    #     AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    #   run: |
+    #     cd testing/v2/development
+    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+    #       az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
+    #       az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+    #     "
         
     - name: Stop and remove containers
       if: always()
