@@ -37,6 +37,8 @@ usage() {
     exit 1
 }
 
+cd "$SCRIPT_DIR"
+
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
