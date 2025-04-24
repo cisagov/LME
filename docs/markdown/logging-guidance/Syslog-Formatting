@@ -1,0 +1,113 @@
+# Set Up Syslog Fowarding to LME with Elastic Agent TCP Integration
+
+Syslog forwarding in Logging Made Easy (LME) centralizes log data from network devices, making it easier to monitor activity, detect threats, troubleshoot issues, and meet compliance requirements.
+
+**Purpose**
+
+   - **Centralized Logging**: Collects logs from firewalls, routers, servers, and other devices, forwarding them to a central server--following best practices like those outlined by CrowdStrike.
+   - **Enhanced Visibility**: Provides a unified view of log data, giving administrators a comprehensive look at network security.
+   - **Improved Security**: Enables detection of suspicious behavior, identification of vulnerabilities, and quicker response to security incidents.
+   - **Compliance**: Supports adherence to regulatory logging and data retention standards.
+   - **Troubleshooting**: Helps diagnose network issues and improve performance by analyzing log patterns.
+
+**Benefits**
+
+   - **Reduced Admin Overhead**: Eliminates the need to manually gather and review logs from individual systems.
+   - **Streamlined Analysis**: Aggregates data across devices for easier event correlation and insight generation.
+   - **Stronger Security Posture**: Facilitates proactive threat detection and rapid incident response.
+   - **Continuous Monitoring**: Supports real-time alerts and dashboards for up-to-date network health insights.
+   - **Cost Efficiency**: Reduces dependency on multiple tools and manual processes, lowering overall operational costs.
+
+This guide will walk you through the steps to configure log monitoring with LME and streamline your log collection and anaysis process.
+
+## Configure the TCP Integration in Kibana
+
+1. **Log into Kibana on the **LME server**
+   - Navigate to **Kibana server**: :`https://{SERVER_IP}`
+   - Log in with username and password.
+
+2. **Access the Fleet Menu**
+   - Click on the **hamburger menu icon** in the top left corner (three horizontal lines).
+   - Scroll down and click on **Fleet**.
+
+3. **Access Fleet Server Policy**
+   - Click on the **Agent policies tab**.
+   - Click on the **Fleet-Server-Policy link**.
+
+4. **Add Integration**
+   - Click on the **Add integration button**.
+   - Click on **Custom** in the left panel.
+   - Click on the **Custom TCP Logs icon**.
+
+5. **Configure Settings**
+   - Click on the **Add Custom TCP Logs button**.
+   - Under the Configure integration section, click on the **Change defaults drop-down menu**.
+   - Provide the ***following information***:
+     - Listen Address: **0.0.0.0**
+     - Listen port: **5140**
+     - Dataset name: **tcp.syslog**
+     - Add ***appropriate tags*** (e.g., syslog)
+     - Enable **Syslog Parsing**
+     - Enable **Preserve Original Event**
+   - Click on the **Save and continue button**.
+
+## Update the Container Configuration
+
+1. Navigate to the **ubuntu server**.
+
+2. Modify the LME Fleet Server quadlet to expose the syslog port:
+   - **sudo nano /etc/containers/systemd/lme-fleet-server.container**
+
+3. Add port 5140 to PublishPort directive:
+   - **PublishPort=8220:8220,5140:5140**
+
+4. Reload systemd and then restart the container:
+   - **sudo systemctl daemon-reload**
+   - **sudo systemctl restart lme-fleet-server.service**
+
+5. Verify the port is listening:
+   - **sudo ss -tulpn | grep 5140**
+
+## Configure Rsyslog to Forward Logs
+
+1. Create a custom rsyslog configuration:
+   - **sudo nano /etc/rsyslog.d/60-forward-tcp.conf**
+
+2. Add forwarding directive:
+   - *.* @@lme-server-ip:5140
+   
+   **Note**: This is the IP address of your LME server. Ensure you can reach it from your device.
+
+3. Restart rsyslog:
+   - **sudo systemctl restart rsyslog**
+
+## Generate Test Events
+
+1. Create real system events to test the setup:
+   - **ssh nonexistentuser@localhost**
+
+## Verify in Kibana
+
+1. Generate **fake ssh failures** using ssh nonexistentuser@localhost on the endpoint.
+
+2. **Log into Kibana on the **LME server**
+   - Navigate to **Kibana server**: :`https://{SERVER_IP}`
+   - Log in with username and password.
+
+3. **Access the Discover Menu**
+   - Click on the **hamburger menu icon** in the top left corner (three horizontal lines).
+   - Click on **Discover**.
+
+4. Click on the **dataview logs drop-down menu** and then select logs-*.
+
+5. In the Filter your data search bar, search for SSH-related entries by typing **message:("Failed passowrd" OR "invalid user" OR "authentication failure")**.
+
+6. Confirm the failed login attempts were captured.
+
+## Create Visualizations
+
+1. Build a metric visualization for failed login attempts.
+
+2. In the Filter your data search bar, type **message:("Failed passowrd" OR "invalid user" OR "authentication failure")**.
+
+3. Add the visualization to the dashboard.
