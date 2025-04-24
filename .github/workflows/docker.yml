@@ -228,30 +228,30 @@ jobs:
         echo "KIBANA_PASSWORD=$KIBANA_PASSWORD"
         echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
 
-    - name: Wait for Elasticsearch indices/data streams
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          cd /home/lme-user/LME/testing/v2/installers && \
-          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ssh lme-user@\$IP_ADDRESS '
-            set -e
-            echo \"Polling for required Elasticsearch indices...\"
-            for i in {1..30}; do
-              if curl -k -u '\''elastic:${ES_PASSWORD}'\'' https://localhost:9200/_cat/indices?h=index | grep .ds-metrics-system.*; then
-                echo \"Required index found!\"
-                exit 0
-              fi
-              echo \"Not ready yet, waiting...\"
-              sleep 10
-            done
-            echo \"Timed out waiting for required Elasticsearch indices!\"
-            exit 1
-          '
-        "
-      env:
-        ES_PASSWORD: ${{ env.ES_PASSWORD }}
-        AZURE_IP: ${{ env.AZURE_IP }}
+    # - name: Wait for Elasticsearch indices/data streams
+    #   run: |
+    #     cd testing/v2/development
+    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+    #       cd /home/lme-user/LME/testing/v2/installers && \
+    #       IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+    #       ssh lme-user@\$IP_ADDRESS '
+    #         set -e
+    #         echo \"Polling for required Elasticsearch indices...\"
+    #         for i in {1..30}; do
+    #           if curl -k -u '\''elastic:${ES_PASSWORD}'\'' https://localhost:9200/_cat/indices?h=index | grep .ds-metrics-system.*; then
+    #             echo \"Required index found!\"
+    #             exit 0
+    #           fi
+    #           echo \"Not ready yet, waiting...\"
+    #           sleep 10
+    #         done
+    #         echo \"Timed out waiting for required Elasticsearch indices!\"
+    #         exit 1
+    #       '
+    #     "
+    #   env:
+    #     ES_PASSWORD: ${{ env.ES_PASSWORD }}
+    #     AZURE_IP: ${{ env.AZURE_IP }}
 
     - name: Run tests for Ubuntu 22.04 container
       env:
@@ -278,19 +278,19 @@ jobs:
         "
         
         
-    # - name: Cleanup Azure resources
-    #   if: always()
-    #   env:
-    #     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-    #     AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
-    #     AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
-    #     AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-    #   run: |
-    #     cd testing/v2/development
-    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-    #       az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
-    #       az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
-    #     "
+    - name: Cleanup Azure resources
+      if: always()
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
+          az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+        "
         
     - name: Stop and remove containers
       if: always()
