@@ -95,6 +95,80 @@ detect_distro() {
     echo -e "${GREEN}Detected distribution: ${DISTRO}${NC}"
 }
 
+# Function to wait for apt locks to be released
+wait_for_apt() {
+    local max_attempts=60  # Maximum number of attempts (10 minutes total)
+    local attempt=1
+    local max_kill_attempts=3  # Maximum number of kill attempts
+    local kill_attempt=0
+    
+    echo -e "${YELLOW}Waiting for apt locks to be released...${NC}"
+    
+    while [ $attempt -le $max_attempts ]; do
+        # First check if any apt/dpkg processes are running
+        if ! lsof /var/lib/apt/lists/lock >/dev/null 2>&1 && \
+           ! lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
+           ! lsof /var/lib/dpkg/lock >/dev/null 2>&1; then
+            echo -e "${GREEN}✓ Apt locks are free${NC}"
+            return 0
+        fi
+        
+        # If we've been waiting for a long time (30+ attempts), try to kill hung processes
+        if [ $attempt -gt 30 ] && [ $kill_attempt -lt $max_kill_attempts ]; then
+            kill_attempt=$((kill_attempt + 1))
+            echo -e "${YELLOW}Attempting to kill hung apt processes (attempt $kill_attempt of $max_kill_attempts)...${NC}"
+            # Find processes holding locks and kill them
+            for lock_file in /var/lib/apt/lists/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock; do
+                pid=$(lsof $lock_file 2>/dev/null | awk 'NR>1 {print $2}' | uniq)
+                if [ -n "$pid" ]; then
+                    echo -e "${YELLOW}Killing process $pid holding lock on $lock_file${NC}"
+                    sudo kill -9 $pid >/dev/null 2>&1 || true
+                fi
+            done
+            sleep 5  # Give it a moment to clean up after kill
+        fi
+        
+        echo -n "."
+        sleep 10
+        attempt=$((attempt + 1))
+    done
+    
+    echo -e "\n${RED}Error: Apt is still locked after 10 minutes. Please check system processes.${NC}"
+    return 1
+}
+
+# Function to run apt-get with retries
+apt_get_wrapper() {
+    local max_retries=5
+    local retry=0
+    local command=("$@")
+    local result=1
+    
+    while [ $retry -lt $max_retries ] && [ $result -ne 0 ]; do
+        if [ $retry -gt 0 ]; then
+            echo -e "${YELLOW}Retrying apt-get command (attempt $((retry+1)) of $max_retries)...${NC}"
+            # Wait for any locks before retrying
+            wait_for_apt || return 1
+        fi
+        
+        echo -e "${YELLOW}Running: ${command[*]}${NC}"
+        "${command[@]}"
+        result=$?
+        
+        if [ $result -ne 0 ]; then
+            retry=$((retry+1))
+            echo -e "${YELLOW}Command failed with exit code $result. Waiting before retry...${NC}"
+            sleep 10
+        fi
+    done
+    
+    if [ $result -ne 0 ]; then
+        echo -e "${RED}Command failed after $max_retries retries: ${command[*]}${NC}"
+    fi
+    
+    return $result
+}
+
 # Function to install Ansible on different distributions
 install_ansible() {
     echo -e "${YELLOW}Installing Ansible...${NC}"
@@ -105,8 +179,10 @@ install_ansible() {
     case $DISTRO in
         ubuntu|debian|linuxmint|pop)
             sudo ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
-            sudo apt update
-            sudo apt install -y ansible
+            wait_for_apt || exit 1
+            apt_get_wrapper sudo apt-get update
+            wait_for_apt || exit 1
+            apt_get_wrapper sudo apt-get install -y ansible
             ;;
         fedora)
             sudo dnf install -y ansible
