@@ -238,7 +238,7 @@ jobs:
     #         set -e
     #         echo \"Polling for required Elasticsearch indices...\"
     #         for i in {1..30}; do
-    #           if curl -k -u '\''elastic:${ES_PASSWORD}'\'' https://localhost:9200/_cat/indices?h=index | grep .ds-metrics-system.*; then
+    #           if curl -k -u '\''elastic:${ES_PASSWORD}'\'' https://localhost:9200/_cat/indices?h=index | grep .ds-metrics-elastic_agent.metricbeat-default; then
     #             echo \"Required index found!\"
     #             exit 0
     #           fi
@@ -260,6 +260,7 @@ jobs:
         KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
         AZURE_IP: ${{ env.AZURE_IP }}
       run: |
+        sleep 360
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           cd /home/lme-user/LME/testing/v2/installers && \
