@@ -228,31 +228,6 @@ jobs:
         echo "KIBANA_PASSWORD=$KIBANA_PASSWORD"
         echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
 
-    # - name: Wait for Elasticsearch indices/data streams
-    #   run: |
-    #     cd testing/v2/development
-    #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-    #       cd /home/lme-user/LME/testing/v2/installers && \
-    #       IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-    #       ssh lme-user@\$IP_ADDRESS '
-    #         set -e
-    #         echo \"Polling for required Elasticsearch indices...\"
-    #         for i in {1..30}; do
-    #           if curl -k -u '\''elastic:${ES_PASSWORD}'\'' https://localhost:9200/_cat/indices?h=index | grep .ds-metrics-elastic_agent.metricbeat-default; then
-    #             echo \"Required index found!\"
-    #             exit 0
-    #           fi
-    #           echo \"Not ready yet, waiting...\"
-    #           sleep 10
-    #         done
-    #         echo \"Timed out waiting for required Elasticsearch indices!\"
-    #         exit 1
-    #       '
-    #     "
-    #   env:
-    #     ES_PASSWORD: ${{ env.ES_PASSWORD }}
-    #     AZURE_IP: ${{ env.AZURE_IP }}
-
     - name: Run tests for Ubuntu 22.04 container
       env:
         ES_PASSWORD: ${{ env.ES_PASSWORD }}
@@ -276,6 +251,17 @@ jobs:
           source venv/bin/activate && \
           pip install -r requirements.txt && \
           pytest -v api_tests/linux_only/'
+        "
+
+    - name: Destroy Ubuntu 22.04 container on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS 'cd LME/docker/22.04 && \
+          sudo docker compose up -d \
+          '
         "
         
         
