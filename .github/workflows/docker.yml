@@ -255,7 +255,7 @@ jobs:
             echo \"elastic=$ES_PASSWORD\" >> .env
             source venv/bin/activate
             echo \"Running tests for container ${{ env.CONTAINER_TYPE }}\"
-            pytest -v api_tests/linux_only/
+            pytest -v api_tests/linux_only/ api_tests/selenium/
           '
         "
 
@@ -500,7 +500,7 @@ jobs:
               echo \"elastic=$ES_PASSWORD\" >> .env
               source venv/bin/activate
             echo \"Running tests for container ${{ env.CONTAINER_TYPE }}\"
-              pytest -v api_tests/linux_only/
+              pytest -v api_tests/linux_only/ api_tests/selenium/
             '
           "
           
@@ -745,7 +745,7 @@ jobs:
             echo \"elastic=$ES_PASSWORD\" >> .env
             source venv/bin/activate
             echo \"Running tests for container ${{ env.CONTAINER_TYPE }}\"
-            pytest -v api_tests/linux_only/
+            pytest -v api_tests/linux_only/ api_tests/selenium/
           '
         "
 
