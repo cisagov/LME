@@ -181,6 +181,8 @@ jobs:
             cd LME/testing/tests && \
             sudo apt-get update && \
             sudo apt-get install -y python3.10-venv && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             python3 -m venv venv && \
             source venv/bin/activate && \
             pip install -r requirements.txt
@@ -426,6 +428,8 @@ jobs:
             cd LME/testing/tests && \
             sudo apt-get update && \
             sudo apt-get install -y python3.10-venv && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             python3 -m venv venv && \
             source venv/bin/activate && \
             pip install -r requirements.txt
@@ -671,6 +675,8 @@ jobs:
             cd LME/testing/tests && \
             sudo apt-get update && \
             sudo apt-get install -y python3.10-venv && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             python3 -m venv venv && \
             source venv/bin/activate && \
             pip install -r requirements.txt
