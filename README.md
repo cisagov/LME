@@ -31,6 +31,5 @@ LME is intended for organizations that:
 ![Architecture](https://cisagov.github.io/lme-docs/docs/imgs/lme-architecture-v2.png)
 
 ## Details: 
-  - For a more detailed overview: https://cisagov.github.io/lme-docs/docs/#1-what-is-lme
-  - For detailed instructions on installation: https://cisagov.github.io/lme-docs/docs/#3-downloading-and-installing-lme
-  - For detailed documentation: https://cisagov.github.io/lme-docs/docs/#5-documentation
+  - For detailed overview and further documentation: https://cisagov.github.io/lme-docs/docs/
+  - For detailed instructions on installation: https://cisagov.github.io/lme-docs/docs/markdown/install/
