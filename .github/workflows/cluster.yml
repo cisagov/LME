@@ -46,6 +46,12 @@ jobs:
       MINIMEGA_PASSWORD: ${{ secrets.MINIMEGA_PASSWORD }}
 
     steps:
+      - name: Generate random number
+        shell: bash
+        run: |
+          RANDOM_NUM=$(shuf -i 1000000000-9999999999 -n 1)
+          echo "UNIQUE_ID=${RANDOM_NUM}_cluster_${{ github.run_number }}" >> $GITHUB_ENV
+          
       - name: Checkout repository
         uses: actions/checkout@v4.1.1
     

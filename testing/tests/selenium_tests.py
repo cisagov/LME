@@ -94,7 +94,7 @@ class UserSecurityTests(unittest.TestCase):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
     def test_dashboard_menu(self):
@@ -239,7 +239,7 @@ class UserHRTests(unittest.TestCase):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
     def test_dashboard_menu(self):
@@ -299,7 +299,7 @@ class SecurityDashboardSecurityLogTests(unittest.TestCase):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
     def test_dashboard_menu(self):
@@ -405,7 +405,7 @@ class ComputerSoftwareOverviewTests(unittest.TestCase):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "33f0d3b0-8b8a-11ea-b1c6-a5bf39283f12"
         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
     def test_dashboard_menu(self):
@@ -450,7 +450,7 @@ class SysmonSummaryTests(unittest.TestCase):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "d2c73990-e5d4-11e9-8f1d-73a2ea4cc3ed"
         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
     def test_total_number_of_sysmon_events_found(self):
@@ -490,7 +490,7 @@ class ProcessExplorerTests(unittest.TestCase):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "f2cbc110-8400-11ee-a3de-f1bc0525ad6c"
         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
     def test_process_spawns_over_time(self):
@@ -540,7 +540,7 @@ class ProcessExplorerTests(unittest.TestCase):
 #         # The dashboard ID is hard-coded in the ndjson file
 #         dashboard_id = "ac1078e0-8a32-11ea-8939-89f508ff7909"
 #         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-#         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+#         expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
 #         WebDriverWait(driver, args.timeout).until(expected_cond)
 
 #     def test_signals_overview(self):
@@ -571,7 +571,7 @@ class HealthCheckTests(unittest.TestCase):
         # The dashboard ID is hard-coded in the ndjson file
         dashboard_id = "51fe1470-fa59-11e9-bf25-8f92ffa3e3ec"
         driver.get(f"https://{args.domain}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, args.timeout).until(expected_cond)
 
     def test_total_hosts(self):
