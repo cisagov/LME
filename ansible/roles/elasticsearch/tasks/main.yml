@@ -1,6 +1,7 @@
 ---
 # Elasticsearch setup tasks
 
+
 - name: Set playbook variables
   ansible.builtin.set_fact:
     local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
