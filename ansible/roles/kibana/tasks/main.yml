@@ -1,0 +1,92 @@
+---
+# Kibana setup and verification tasks
+
+# REMOVED: Read lme-environment.env file
+# REMOVED: Set environment variables
+
+- name: Set playbook variables
+  ansible.builtin.set_fact:
+    local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    elastic_password: "{{ global_secrets.elastic | default('') }}"
+
+# Verify Kibana can connect to Elasticsearch with retry and restart
+- name: Set retry variables
+  set_fact:
+    max_retries: 3
+    current_retry: 0
+  vars:
+    current_retry: "{{ current_retry | int }}"
+
+- name: Verify Kibana connection to Elasticsearch with retry loop
+  block:
+    - name: Attempt to verify Kibana connection
+      uri:
+        url: "{{ local_kbn_url }}/api/status"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: kibana_status
+      until: >
+        kibana_status.status == 200 and 
+        kibana_status.json.status.overall.level == "available" and
+        kibana_status.json.status.core.elasticsearch.level == "available"
+      retries: 10
+      delay: 20
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug Kibana status
+      debug:
+        msg: "Kibana status: {{ kibana_status.json }}"
+      when: debug_mode | bool
+
+    - name: Check if connection failed
+      set_fact:
+        connection_failed: "{{ kibana_status.status != 200 or kibana_status.json.status.core.elasticsearch.level != 'available' }}"
+      when: kibana_status.status is defined
+
+  rescue:
+    - name: Increment retry counter
+      set_fact:
+        current_retry: "{{ (current_retry | int) + 1 }}"
+
+    - name: Debug retry attempt
+      debug:
+        msg: "Connection attempt {{ current_retry }} failed. Restarting Kibana service..."
+      when: debug_mode | bool
+
+    - name: Restart Kibana service
+      systemd:
+        name: lme-kibana.service
+        state: restarted
+      become: yes
+
+    - name: Wait for Kibana to be available after restart
+      uri:
+        url: "{{ local_kbn_url }}/api/status"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: kibana_status_after_restart
+      until: >
+        kibana_status_after_restart.status == 200 and 
+        kibana_status_after_restart.json.status.overall.level == "available" and
+        kibana_status_after_restart.json.status.core.elasticsearch.level == "available"
+      retries: 20
+      delay: 60
+      no_log: "{{ not debug_mode }}"
+
+    - name: Fail if max retries exceeded
+      fail:
+        msg: "Failed to establish Kibana connection to Elasticsearch after {{ max_retries }} attempts with service restarts"
+      when: (current_retry | int) >= max_retries
+
+    - name: Retry connection check
+      include_tasks: main.yml
+      when: (current_retry | int) < max_retries 

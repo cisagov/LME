@@ -1,0 +1,29 @@
+---
+# Include OS-specific variables
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}_{{ ansible_distribution_version | replace('.', '_') }}.yml"
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "default.yml"
+  tags: always
+
+# Include common OS tasks first
+- name: Include common OS tasks
+  include_tasks: "{{ ansible_distribution | lower }}.yml"
+  when: ansible_distribution is defined
+
+# Include version-specific tasks
+- name: Include version-specific tasks
+  include_tasks: "{{ ansible_distribution | lower }}_{{ ansible_distribution_version | replace('.', '_') }}.yml"
+  when: ansible_distribution is defined and ansible_distribution_version is defined
+
+# Include common setup tasks that apply to all distributions
+- name: Include common directory setup tasks
+  include_tasks: setup_directories.yml
+
+- import_tasks: ../../tasks/load_env.yml
+
+- name: Include password setup tasks
+  include_tasks: setup_passwords.yml

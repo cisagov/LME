@@ -1,0 +1,3 @@
+---
+# Ubuntu-specific variables for Nix role
+install_user: "{{ ansible_user_id }}" 

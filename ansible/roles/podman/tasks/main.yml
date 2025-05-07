@@ -1,0 +1,65 @@
+---
+# Include OS-specific variables
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "default.yml"
+
+# Include OS-specific tasks
+- name: Include OS-specific tasks
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+    - "common.yml"
+
+# These tasks are common for all distributions
+- name: Ensure Nix daemon is running
+  systemd:
+    name: "{{ nix_daemon_service }}"
+    state: started
+    enabled: yes
+  become: yes
+  notify: restart nix-daemon
+
+- name: Wait for Nix daemon to be ready
+  wait_for:
+    timeout: 10
+  when: ansible_play_hosts_all.index(inventory_hostname) == 0
+
+- name: Install Podman using Nix
+  command: nix-env -iA nixpkgs.podman
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}"
+  register: podman_install
+  retries: 3
+  delay: 5
+  until: podman_install is not failed
+  changed_when: "'installing' in podman_install.stdout | default('')"
+
+- name: Set sysctl limits 
+  command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
+  environment:
+    NON_ROOT_USER: "{{ install_user }}"
+  become: yes
+  changed_when: true
+
+- name: Link latest podman quadlet
+  command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
+  become: yes
+  changed_when: true
+
+# Include container setup tasks
+- name: Setup containers for podman
+  include_tasks: container_setup.yml
+
+# Extract and set global secrets after podman is installed
+- name: Include secrets setup tasks
+  include_tasks: setup_secrets.yml
+
+# Include quadlet setup tasks
+- name: Setup quadlets for podman
+  include_tasks: quadlet_setup.yml

@@ -1,0 +1,11 @@
+---
+# Debian 12.10 specific tasks
+
+# Include the base Debian tasks
+- name: Include base Debian tasks
+  include_tasks: debian.yml 
+- name: Install Debian 12.10 specific packages
+  apt:
+    name: "{{ debian_12_10_packages | default([]) }}"
+    state: present
+  become: yes

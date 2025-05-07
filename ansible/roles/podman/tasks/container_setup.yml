@@ -1,0 +1,106 @@
+---
+# Container setup tasks for podman role
+
+- name: Check if containers.txt exists
+  stat:
+    path: "{{ clone_directory }}/config/containers.txt"
+  register: containers_file
+  become: yes
+
+- name: Fail if containers.txt doesn't exist
+  fail:
+    msg: "containers.txt file not found in {{ clone_directory }}/config/"
+  when: not containers_file.stat.exists
+
+- name: set service user passwords
+  shell: |
+    source /root/.profile 
+    podman secret ls | grep -q elastic
+  register: result
+  become: yes
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+  #only fail on a real error
+  failed_when: result.rc != 0 and (result.rc == 1 and result.changed == false)
+  
+- name: Set podman secret passwords
+  shell: |
+    source /root/.profile 
+    password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+    while ! echo -n $password | grep -Eq '[$@!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30); echo $password;done
+    echo -n $password | podman secret create --driver shell --replace "{{ item }}" -
+  args:
+    executable: /bin/bash
+  loop: 
+    - elastic
+    - kibana_system
+    - wazuh_api
+    - wazuh
+  become: yes
+  ## only run this when
+  when: result.rc == 1
+
+- name: Check if policy.json exists
+  stat:
+    path: /etc/containers/policy.json
+  register: policy_file
+  become: yes
+
+- name: Add Container Image policy file
+  copy:
+    content: |
+      {
+          "default": [
+              {
+                  "type": "insecureAcceptAnything"
+              }
+          ]
+      }
+    dest: /etc/containers/policy.json
+  become: yes
+  when: not policy_file.stat.exists or policy_file.stat.size == 0
+  
+- name: Pull containers
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull {{ item }}
+  args:
+    executable: /bin/bash
+  loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
+  register: pull_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_result is not failed
+  ignore_errors: yes
+
+- name: Display container pull errors
+  debug:
+    msg: "Failed to pull container: {{ item.item }}"
+  loop: "{{ pull_result.results }}"
+  when: item is failed
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Tag containers
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+  args:
+    executable: /bin/bash
+  loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
+  register: tag_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: tag_result is not failed
+  ignore_errors: yes
+
+- name: Display container tag errors
+  debug:
+    msg: "Failed to tag container: {{ item.item }}"
+  loop: "{{ tag_result.results }}"
+  when: item is failed
+  loop_control:
+    label: "{{ item.item }}" 
