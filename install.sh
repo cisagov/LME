@@ -102,8 +102,11 @@ install_ansible() {
     
     case $DISTRO in
         ubuntu|debian|linuxmint|pop)
+            # Set timezone non-interactively
             sudo ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
             sudo apt update
+            sudo apt install -y software-properties-common
+            sudo apt-add-repository --yes --update ppa:ansible/ansible
             sudo apt install -y ansible
             ;;
         fedora)
