@@ -1,0 +1,177 @@
+---
+# Dashboard setup tasks
+
+- name: Set playbook variables
+  ansible.builtin.set_fact:
+    local_kbn_url: "{{ env_dict.LOCAL_KBN_URL | default('') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    elastic_password: "{{ global_secrets.elastic | default('') }}"
+
+- name: Expand clone directory path
+  set_fact:
+    absolute_clone_dir: "{{ clone_directory | expanduser }}"
+
+- name: Check if source dashboards directory exists
+  stat:
+    path: "{{ absolute_clone_dir }}/dashboards"
+  register: source_dashboard_dir
+
+- name: Fail if source directory doesn't exist
+  fail:
+    msg: "Source dashboards directory {{ source_dashboard_dir.stat.path }} doesn't exist"
+  when: not source_dashboard_dir.stat.exists
+
+- name: Ensure /opt/lme/dashboards directory exists
+  file:
+    path: /opt/lme/dashboards
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0750'
+  become: yes
+
+- name: Ensure /opt/lme/dashboards/elastic directory exists
+  file:
+    path: /opt/lme/dashboards/elastic
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0750'
+  become: yes
+
+- name: Ensure /opt/lme/dashboards/wazuh directory exists
+  file:
+    path: /opt/lme/dashboards/wazuh
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0750'
+  become: yes
+
+- name: Copy Elastic dashboards files
+  copy:
+    src: "{{ source_dashboard_dir.stat.path }}/elastic/"
+    dest: /opt/lme/dashboards/elastic/
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+
+- name: Copy Wazuh dashboards files
+  copy:
+    src: "{{ source_dashboard_dir.stat.path }}/wazuh/"
+    dest: /opt/lme/dashboards/wazuh/
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+
+- name: Debug - List copied Elastic dashboards
+  find:
+    paths: "/opt/lme/dashboards/elastic"
+    patterns: "*.ndjson"
+  register: elastic_dashboards_debug
+  become: yes
+
+# Elastic Dashboards
+- name: Get list of Elastic dashboards
+  find:
+    paths: "/opt/lme/dashboards/elastic"
+    patterns: "*.ndjson"
+  register: elastic_dashboards
+  become: yes
+
+- name: Debug - Show Elastic dashboard paths before slurp
+  debug:
+    msg: "About to read files: {{ elastic_dashboards.files | map(attribute='path') | list }}"
+  when: debug_mode | bool
+
+- name: Debug - List directory contents
+  command: ls -la /opt/lme/dashboards/elastic/
+  register: dir_list
+  when: debug_mode | bool
+  become: yes
+
+- name: Debug - Show directory contents
+  debug:
+    msg: "Directory contents: {{ dir_list.stdout_lines }}"
+  when: debug_mode | bool
+  become: yes
+
+- name: Read Elastic dashboard files
+  ansible.builtin.slurp:
+    src: "{{ elastic_dashboards.files[0].path }}"
+  register: elastic_dashboard_content
+  become: yes
+
+- name: Upload Elastic dashboards to Kibana
+  uri:
+    url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-xsrf: "true"
+    body_format: form-multipart
+    body:
+      file:
+        filename: "{{ elastic_dashboards.files[0].path | basename }}"
+        content: "{{ elastic_dashboard_content.content | b64decode }}"
+        mime_type: "application/json"
+    timeout: 120
+  no_log: "{{ not debug_mode }}"
+  register: elastic_upload_result
+  retries: 3
+  delay: 10
+  until: elastic_upload_result.status == 200
+  ignore_errors: yes
+
+- name: Debug Elastic dashboard upload results
+  debug:
+    var: elastic_upload_result
+  when: debug_mode | bool
+
+# Wazuh Dashboards
+- name: Get list of Wazuh dashboards
+  find:
+    paths: "/opt/lme/dashboards/wazuh"
+    patterns: "*.ndjson"
+  register: wazuh_dashboards
+  become: yes
+
+- name: Read Wazuh dashboard files
+  ansible.builtin.slurp:
+    src: "{{ wazuh_dashboards.files[0].path }}"
+  register: wazuh_dashboard_content
+  become: yes
+
+- name: Upload Wazuh dashboards to Kibana
+  uri:
+    url: "{{ local_kbn_url }}/api/saved_objects/_import?overwrite=true"
+    method: POST
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    headers:
+      kbn-xsrf: "true"
+    body_format: form-multipart
+    body:
+      file:
+        filename: "{{ wazuh_dashboards.files[0].path | basename }}"
+        content: "{{ wazuh_dashboard_content.content | b64decode }}"
+        mime_type: "application/json"
+    timeout: 120
+  no_log: "{{ not debug_mode }}"
+  register: wazuh_upload_result
+  retries: 3
+  delay: 10
+  until: wazuh_upload_result.status == 200
+  ignore_errors: yes
+
+- name: Debug Wazuh dashboard upload results
+  debug:
+    var: wazuh_upload_result
+  when: debug_mode | bool 

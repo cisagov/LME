@@ -1,0 +1,13 @@
+[Unit]
+Description=LME Setup Service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/LME
+ExecStart=/bin/bash -c /root/LME/docker/d12.10/lme-init.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

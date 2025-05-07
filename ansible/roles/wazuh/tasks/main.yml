@@ -1,0 +1,23 @@
+---
+# Wazuh post-install tasks
+
+# REMOVED: Read lme-environment.env file
+# REMOVED: Set environment variables
+
+- name: Set playbook variables
+  ansible.builtin.set_fact:
+    wazuh_password: "{{ global_secrets.wazuh | default('') }}"
+    wazuh_api_password: "{{ global_secrets.wazuh_api | default('') }}"
+
+# Fix Wazuh RBAC
+- name: Fix Wazuh RBAC
+  ansible.builtin.expect:
+    command: "{{ clone_directory }}/scripts/wazuh_rbac.sh"
+    responses:
+      ".*'wazuh'.*":
+        - "{{ wazuh_password }}"
+      ".*'wazuh-wui'.*":
+        - "{{ wazuh_api_password }}"
+    timeout: 240 
+  become: yes
+  no_log: "{{ not debug_mode }}" 
