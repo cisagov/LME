@@ -60,8 +60,8 @@ Enable some rules in Kibana Security. In this example we are enabling Windows al
 ### Available Notification Channels
 
 1. **Slack**
-   - Uncomment `- slack_alert_config` line in the `import:` section of the kibana_alerts.yml file.
    - Configuration file: ```/opt/lme/config/elastalert2/rules/slack_alert_config```
+   - Uncomment `- slack_alert_config` line in the `import:` section of the kibana_alerts.yml file.
    - Update the `slack_webhook_url` with your Slack webhook URL
 
 2. **Email**
