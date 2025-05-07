@@ -7,6 +7,7 @@
     # Common variables
     clone_directory: "{{ clone_dir | default('~/LME') }}"
     install_user: "{{ ansible_user_id }}"
+    debug_mode: false  # Default debug mode to false
     
     # Storage configuration
     storage_runroot: "/run/containers/storage"
@@ -43,6 +44,8 @@
     - role: podman
       tags: ['system', 'all']
     - role: elasticsearch
+      tags: ['system', 'all']
+    - role: kibana
       tags: ['system', 'all']
     - role: dashboards
       tags: ['system', 'all']

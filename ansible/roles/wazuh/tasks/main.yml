@@ -1,17 +1,8 @@
 ---
 # Wazuh post-install tasks
 
-- name: Read lme-environment.env file
-  ansible.builtin.slurp:
-    src: /opt/lme/lme-environment.env
-  register: lme_env_content
-  become: yes
-
-- name: Set environment variables
-  ansible.builtin.set_fact:
-    env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
-  loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
-  when: item != '' and not item.startswith('#')
+# REMOVED: Read lme-environment.env file
+# REMOVED: Set environment variables
 
 - name: Set playbook variables
   ansible.builtin.set_fact:

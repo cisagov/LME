@@ -12,6 +12,7 @@ common_packages:
   - openssh-client
   - expect
 
+
 # Debian-specific packages
 debian_packages:
   - apt-transport-https

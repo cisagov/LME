@@ -1,6 +1,7 @@
 ---
 # Dashboard setup tasks
 
+
 - name: Read lme-environment.env file
   ansible.builtin.slurp:
     src: /opt/lme/lme-environment.env
@@ -84,6 +85,7 @@
     patterns: "*.ndjson"
   register: elastic_dashboards_debug
   become: yes
+
 
 # Wait for Kibana to be ready
 - name: Wait for Kibana to be fully ready
