@@ -41,13 +41,13 @@ Enable some rules in Kibana Security. In this example we are enabling Windows al
    ```
 
 2. **Uncomment your preferred notification method in the import section**
-```
- import:
-# - "slack_alert_config.yaml"
-# - "email_alert_config.yaml"
-# - "teams_alert_config.yaml"
-# - "twilio_alert_config.yaml"
-```
+   ```
+   import:
+   # - "slack_alert_config.yaml"
+   # - "email_alert_config.yaml"
+   # - "teams_alert_config.yaml"
+   # - "twilio_alert_config.yaml"
+   ```
 3. **Edit the corresponding configuration file(s) for your chosen notification methods (I.E slack_alert_config as described below).**
 
 4. **Restart the service:**
