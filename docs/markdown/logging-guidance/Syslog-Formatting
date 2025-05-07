@@ -1,4 +1,4 @@
-# Set Up Syslog Fowarding to LME with Elastic Agent TCP Integration
+# Set Up Syslog Forwarding to LME with Elastic Agent TCP Integration
 
 Logging Made Easy (LME) primarily collects host-based logs through installed agents. However, many devices that are critical to monitoring network and infrastructure activity (e.g., firewalls, routers, switches) do not support agent deployment.
 
@@ -8,8 +8,8 @@ This guide provides instructions for setting up syslog forwarding to the LME ser
 
 ## Configure the TCP Integration in Kibana
 
-1. **Log into Kibana on the **LME server**
-   - Navigate to **Kibana server**: :`https://{SERVER_IP}`
+1. **Log into Kibana on the LME server**
+   - Navigate to **Kibana server**: `https://{SERVER_IP}`
    - Log in with username and password.
 
 2. **Access the Fleet Menu**
@@ -42,30 +42,41 @@ This guide provides instructions for setting up syslog forwarding to the LME ser
 1. Navigate to the **ubuntu server**.
 
 2. Modify the LME Fleet Server quadlet to expose the syslog port:
-   - **sudo nano /etc/containers/systemd/lme-fleet-server.container**
+```
+sudo nano /etc/containers/systemd/lme-fleet-server.container**
+```
 
 3. Add port 5140 to PublishPort directive:
-   - **PublishPort=8220:8220,5140:5140**
+```
+PublishPort=8220:8220,5140:5140
+```
 
 4. Reload systemd and then restart the container:
-   - **sudo systemctl daemon-reload**
-   - **sudo systemctl restart lme-fleet-server.service**
+```
+sudo systemctl daemon-reload
+sudo systemctl restart lme-fleet-server.service
+```
 
 5. Verify the port is listening:
-   - **sudo ss -tulpn | grep 5140**
-
+```
+sudo ss -tulpn | grep 5140**
+```
 ## Configure Rsyslog to Forward Logs
 
 1. Create a custom rsyslog configuration:
-   - **sudo nano /etc/rsyslog.d/60-forward-tcp.conf**
-
+```
+sudo nano /etc/rsyslog.d/60-forward-tcp.conf**
+```
 2. Add forwarding directive:
-   - *.* @@lme-server-ip:5140
-   
+```
+  *.* @@lme-server-ip:5140
+```  
    **Note**: This is the IP address of your LME server. Ensure you can reach it from your device.
 
 3. Restart rsyslog:
-   - **sudo systemctl restart rsyslog**
+```
+sudo systemctl restart rsyslog
+```
 
 ## Generate Test Events
 
@@ -76,8 +87,8 @@ This guide provides instructions for setting up syslog forwarding to the LME ser
 
 1. Generate **fake ssh failures** using ssh nonexistentuser@localhost on the endpoint.
 
-2. **Log into Kibana on the **LME server**
-   - Navigate to **Kibana server**: :`https://{SERVER_IP}`
+2. Log into **Kibana on the LME server**
+   - Navigate to **Kibana server**: `https://{SERVER_IP}`
    - Log in with username and password.
 
 3. **Access the Discover Menu**
@@ -86,7 +97,7 @@ This guide provides instructions for setting up syslog forwarding to the LME ser
 
 4. Click on the **dataview logs drop-down menu** and then select logs-*.
 
-5. In the Filter your data search bar, search for SSH-related entries by typing **message:("Failed passowrd" OR "invalid user" OR "authentication failure")**.
+5. In the Filter your data search bar, search for SSH-related entries by typing **message:("Failed password" OR "invalid user" OR "authentication failure")**.
 
 6. Confirm the failed login attempts were captured.
 
@@ -94,6 +105,6 @@ This guide provides instructions for setting up syslog forwarding to the LME ser
 
 1. Build a metric visualization for failed login attempts.
 
-2. In the Filter your data search bar, type **message:("Failed passowrd" OR "invalid user" OR "authentication failure")**.
+2. In the Filter your data search bar, type **message:("Failed password" OR "invalid user" OR "authentication failure")**.
 
 3. Add the visualization to the dashboard.
