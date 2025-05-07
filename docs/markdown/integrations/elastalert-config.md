@@ -60,20 +60,21 @@ Enable some rules in Kibana Security. In this example we are enabling Windows al
 ### Available Notification Channels
 
 1. **Slack**
+   - Uncomment `- slack_alert_config` line in the `import:` section of the kibana_alerts.yml file.
    - Configuration file: ```/opt/lme/config/elastalert2/rules/slack_alert_config```
    - Update the `slack_webhook_url` with your Slack webhook URL
 
 2. **Email**
    - Configuration file: ```/opt/lme/config/elastalert2/rules/email_alert_config```
-   - Uncomment the `- "email_alert_config.yaml"` line in the `import:` section of the main configuration
+   - Uncomment the `- "email_alert_config"` line in the `import:` section of the kibana_alerts.yml file
    - Update your SMTP authentication details in this file and credentials in ```/opt/lme/config/elastalert2/misc/smtp_auth.yml```
 
 3. **Microsoft Teams**
    - Configuration file: ```/opt/lme/config/elastalert2/rules/teams_alert_config```
-   - Uncomment the `- "teams_alert_config.yaml"` line in the `import:` section of the main configuration
+   - Uncomment the `- "teams_alert_config"` line in the `import:` section of the kibana_alerts.yml file
    - Add your MS Teams webhook URL in this file
 
 4. **SMS via Twilio**
    - Configuration file: ```/opt/lme/config/elastalert2/rules/twilio_alert_config```
-   - Uncomment the `- "twilio_alert_config.yaml"` line in the `import:` section of the main configuration
+   - Uncomment the `- "twilio_alert_config"` line in the `import:` section of the kibana_alerts.yml file
    - Update your Twilio authentication details
