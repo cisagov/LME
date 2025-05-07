@@ -52,9 +52,9 @@ Enable some rules in Kibana Security. In this example we are enabling Windows al
 
 4. **Restart the service:**
 
-```
-sudo systemctl restart lme-elastalert.service
-```
+   ```
+   sudo systemctl restart lme-elastalert.service
+   ```
 5. **Review official ElastAlert2 documentation for other configurations.**
 
 ### Available Notification Channels
