@@ -18,12 +18,12 @@ class TestPolicyChangesSystemActivityDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_rpc_connection_attempts(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "RPC Connection Attempts", ".expExpressionRenderer",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "RPC Connection Attempts", ".lnsExpressionRenderer",".dummyval")
       
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_exception_firewall_rules(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Added or Updated Exception Firewall Rules", ".expExpressionRenderer",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Added or Updated Exception Firewall Rules", ".lnsExpressionRenderer",".dummyval")
     
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_rpc_connections(self, setup_login, kibana_url, timeout):
@@ -33,32 +33,32 @@ class TestPolicyChangesSystemActivityDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_firewall_setting_changes(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Setting Changes", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Setting Changes", ".euiFlexGroup",".euiIcon")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_firewall_policy_changes(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Policy Changes", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Policy Changes", ".euiDataGrid",".euiIcon")
       
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_firewall_turned_on(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Turned On", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Turned On", ".euiDataGrid",".euiIcon")
     
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_firewall_turned_off(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Turned Off", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Firewall Turned Off", ".euiDataGrid",".euiIcon")
              
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_audit_policy_changes(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Audit Policy Changes", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Audit Policy Changes", ".euiDataGrid",".euiIcon")
     
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_kerberos_policy_changes(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Kerberos Policy Changes", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Kerberos Policy Changes", ".euiDataGrid",".euiIcon")
     
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_pc_start_up(self, setup_login, kibana_url, timeout):
@@ -73,9 +73,9 @@ class TestPolicyChangesSystemActivityDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_pc_startups(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "PC Startups", ".expExpressionRenderer",".euiText")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "PC Startups", ".lnsExpressionRenderer",".euiText")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_pc_shutdowns(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "PC Shutdowns", ".expExpressionRenderer",".euiText")                                  
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "PC Shutdowns", ".lnsExpressionRenderer",".euiText")                                  
