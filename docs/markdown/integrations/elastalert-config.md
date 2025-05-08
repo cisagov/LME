@@ -78,3 +78,30 @@ Enable some rules in Kibana Security. In this example we are enabling Windows al
    - Configuration file: ```/opt/lme/config/elastalert2/rules/twilio_alert_config```
    - Uncomment the `- "twilio_alert_config"` line in the `import:` section of the kibana_alerts.yml file
    - Update your Twilio authentication details
+
+## Managing Alert Noise
+
+While this integration monitors all Kibana security alerts, you can customize the alerts that trigger notifications to reduce noise and focus on what matters most to your organization:
+
+### In ElastAlert2 rule:
+
+Filter by Critical And High only:
+
+```yaml
+# Only trigger on critical and high severity alerts
+filter:
+- query:
+    query_string:
+      query: "kibana.alert.severity: (critical OR high)"
+```
+See ElastAlert2 Documentation for more query possibilities
+
+### In Kibana:
+
+- Disable noisy rules: If specific detection rules generate too many alerts, you can disable them in Kibana (Security → Rules → Detection Rules).
+- Create exceptions: Add exceptions to rules that trigger on legitimate activity in your environment.
+- Tune rule parameters: Adjust thresholds and parameters for individual rules to better match your environment.
+
+This decoupled approach lets you maintain comprehensive detection coverage in Kibana while controlling which alerts generate notifications through this singular ElastAlert2 rule.
+
+Also, see documentation on creating custom ElastAlert2 Rules if you want even more advanced control.
