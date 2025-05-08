@@ -73,6 +73,30 @@
   register: elastic_dashboards_debug
   become: yes
 
+
+# Wait for Kibana to be ready
+- name: Wait for Kibana to be fully ready
+  uri:
+    url: "{{ local_kbn_url }}/api/status"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: kibana_status
+  until: >
+    kibana_status.status == 200 and 
+    kibana_status.json.status.overall.level == "available"
+  retries: 60
+  delay: 20
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug Kibana status
+  debug:
+    msg: "Kibana status: {{ kibana_status.json.status }}"
+  when: debug_mode | bool
+
 # Elastic Dashboards
 - name: Get list of Elastic dashboards
   find:
