@@ -8,9 +8,9 @@ filter:
   - query_string:
       query: "kibana.alert.rule.name:*"
 realert:
-  minutes: 0
+  minutes: 20
 aggregation:
-  minutes: 0
+  minutes: 15
 
 #########################################################
 # ALERT CONFIGURATION
