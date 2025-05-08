@@ -10,6 +10,8 @@ common_packages:
   - sudo
   - git
   - openssh-client
+  - expect
+
 
 # Debian-specific packages
 debian_packages:
