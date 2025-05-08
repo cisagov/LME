@@ -94,7 +94,18 @@ filter:
     query_string:
       query: "kibana.alert.severity: (critical OR high)"
 ```
-See ElastAlert2 Documentation for more query possibilities
+See ElastAlert2 Documentation for more query possibilities.
+
+You can also adjust the trigger time in the rule in the elastalert2/config.yaml adjust time from 5 minutes to 30 as an example:
+
+```yaml
+run_every:
+  minutes: 30
+```
+
+This will still rollup all events that happened in that 30 minute timeframe, but you will only get one notification every 30 minutes.
+
+Again see ElastAlert2 Documentation for more advanced solutions here.
 
 ### In Kibana:
 
