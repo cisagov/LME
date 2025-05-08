@@ -1,0 +1,23 @@
+# Twilio SMS notification configuration
+# Important: This file should NOT have a .yml or .yaml extension
+
+alert:
+  - twilio
+twilio_account_sid: "12345"
+twilio_auth_token: "12345"
+twilio_from_number: "+15551234567"
+twilio_to_number: "+15559876543"
+alert_text_type: alert_text_only
+alert_text: |
+  Security Alert
+  Severity: {0}
+  Rule: {1}
+  Agent: {2}
+  Action: {3}
+  Timestamp: {4}
+alert_text_args:
+  - kibana.alert.severity
+  - kibana.alert.rule.name
+  - agent.name
+  - event.action
+  - kibana.alert.rule.execution.timestamp
