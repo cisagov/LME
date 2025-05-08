@@ -26,12 +26,12 @@ All configuration files are located in: ```/opt/lme/config/elastalert2/rules/```
 
 Enable some rules in Kibana Security. In this example we are enabling Windows alerts:
 
-1. **In Kibana go to Menu -> Security -> Rules**
-2. **Click Detection Rules**
-3. **Click Tags dropdown and type OS:Windows - then select it**
-4. **Click Select all 495 rules (Or however many there are)**
-5. **Click Bulk Actions - Enable**
-6. **Adjust rules as necessary. From here you can turn on other OS rules, turn of rules based on severity, and tune to your liking. These are the rules that trigger ElastAlert2 notifications. Be aware of that**
+1. **In Kibana go to Menu -> Security -> Rules.**
+2. **Click Detection Rules.**
+3. **Click Tags dropdown and type OS:Windows - then select it.**
+4. **Click Select all 495 rules (Or however many there are).**
+5. **Click Bulk Actions - Enable.**
+6. **Adjust rules as necessary. From here you can turn on other OS rules, turn of rules based on severity, and tune to your liking. These are the rules that trigger ElastAlert2 notifications. Be aware of that.**
 
 ## Enabling Notifications: 4 Simple Steps
 
