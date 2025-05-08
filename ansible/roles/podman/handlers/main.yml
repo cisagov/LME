@@ -1,0 +1,17 @@
+---
+# Handlers for the podman role
+- name: restart nix-daemon
+  systemd:
+    name: nix-daemon
+    state: restarted
+    daemon_reload: yes
+  become: yes
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+
+- name: restart nix service on RHEL/CentOS
+  systemd:
+    name: nix-daemon.service
+    state: restarted
+    daemon_reload: yes
+  become: yes  
+  when: ansible_os_family == 'RedHat' 

@@ -1,0 +1,8 @@
+---
+# Debian-specific variables for podman setup
+
+# User for which to install podman
+install_user: "{{ ansible_user_id }}"
+
+# Nix daemon service name for Debian
+nix_daemon_service: "nix-daemon" 
