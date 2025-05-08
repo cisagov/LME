@@ -134,7 +134,7 @@
   register: fleet_setup
   until: fleet_setup.status in [200]
   retries: 48
-  delay: 20
+  delay: 120 
   no_log: "{{ not debug_mode }}"
 
 - name: Debug Fleet setup response
@@ -439,7 +439,7 @@
   register: fleet_status
   until: fleet_status.status == 200
   retries: 36
-  delay: 10
+  delay: 30
 
 - name: Debug Fleet status
   debug:
@@ -462,9 +462,9 @@
       x-elastic-internal-origin: "Kibana"
     status_code: 200
   register: fleet_agents_result
-  until: fleet_agents_result.status == 200 and fleet_agents_result.json.total > 0
-  retries: 24
-  delay: 30
+  until: fleet_agents_result.status == 200 and fleet_agents_result.json.total > 0 and fleet_agents_result.json.statusSummary.online > 0
+  retries: 60
+  delay: 20
   no_log: "{{ not debug_mode }}"
 
 - name: Debug Fleet agents result
@@ -490,6 +490,37 @@
   fail:
     msg: "Fleet did not become ready within the expected time. Status: {{ fleet_status | default('unknown') }}"
   when: fleet_status.status is not defined or fleet_status.status != 200
+
+# Wait for metrics indices to be created
+- name: Wait for all required metrics indices to be created
+  uri:
+    url: "{{ local_es_url }}/_cat/indices/.ds-metrics-elastic_agent.*?h=index&format=json"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: [200, 404]
+  register: metrics_indices_result
+  until: >
+    metrics_indices_result.status == 200 and 
+    metrics_indices_result.json | length > 0 and
+    metrics_indices_result.json | map(attribute='index') | select('match', '.*metricbeat-default.*') | list | length > 0 and
+    metrics_indices_result.json | map(attribute='index') | select('match', '.*filebeat-default.*') | list | length > 0 and
+    metrics_indices_result.json | map(attribute='index') | select('match', '.*elastic_agent-default.*') | list | length > 0
+  retries: 90
+  delay: 20
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug metrics indices result
+  debug:
+    msg: 
+      - "Total indices found: {{ metrics_indices_result.json | length }}"
+      - "Metrics indices found: {{ metrics_indices_result.json | map(attribute='index') | list }}"
+      - "Metricbeat indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*metricbeat-default.*') | list }}"
+      - "Filebeat indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*filebeat-default.*') | list }}"
+      - "Agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*elastic_agent-default.*') | list }}"
+  when: debug_mode | bool and metrics_indices_result.status == 200
 
 - name: Debug - Display secret variables
   debug:
