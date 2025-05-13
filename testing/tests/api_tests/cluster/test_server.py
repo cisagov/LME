@@ -47,10 +47,10 @@ def test_host_search(es_host, es_port, username, password):
     assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]
     assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]    
     #assert (data[rootKey]["hits"][0]["_source"]["agent"]["name"] == "ubuntu-vm")    
-    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.15.5")   
+    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.15.3")   
     assert (data[rootKey]["hits"][0]["_source"]["data_stream"]["dataset"] == "system.cpu") 
     assert (data[rootKey]["hits"][0]["_source"]["ecs"]["version"] == "8.0.0") 
-    assert (data[rootKey]["hits"][0]["_source"]["elastic_agent"]["version"] == "8.15.5") 
+    assert (data[rootKey]["hits"][0]["_source"]["elastic_agent"]["version"] == "8.15.3") 
     assert (data[rootKey]["hits"][0]["_source"]["event"]["dataset"] == "system.cpu") 
     #assert (data[rootKey]["hits"][0]["_source"]["host"]["hostname"] == "ubuntu-vm") 
     assert (data[rootKey]["hits"][0]["_source"]["metricset"]["name"] == "cpu") 
@@ -136,12 +136,12 @@ def test_elastic_agent_logs_search(es_host, es_port, username, password):
         assert "type" in data[rootKey]["hits"][x]["_source"]["agent"]
         assert "ephemeral_id" in data[rootKey]["hits"][x]["_source"]["agent"]
         assert "version" in data[rootKey]["hits"][x]["_source"]["agent"]
-        assert data[rootKey]["hits"][x]["_source"]["agent"]["version"]=="8.15.5"
+        assert data[rootKey]["hits"][x]["_source"]["agent"]["version"]=="8.15.3"
         assert "log" in data[rootKey]["hits"][x]["_source"]
         assert "offset" in data[rootKey]["hits"][x]["_source"]["log"]
         assert "id" in data[rootKey]["hits"][x]["_source"]["elastic_agent"]
         assert "version" in data[rootKey]["hits"][x]["_source"]["elastic_agent"]
-        assert data[rootKey]["hits"][x]["_source"]["elastic_agent"]["version"]=="8.15.5"
+        assert data[rootKey]["hits"][x]["_source"]["elastic_agent"]["version"]=="8.15.3"
         assert "snapshot" in data[rootKey]["hits"][x]["_source"]["elastic_agent"]
         assert "message" in data[rootKey]["hits"][x]["_source"]
         assert "file.line" in data[rootKey]["hits"][x]["_source"]["log.origin"]
