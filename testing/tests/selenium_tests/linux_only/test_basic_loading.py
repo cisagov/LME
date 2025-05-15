@@ -30,7 +30,7 @@ class TestBasicLoading:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Dashboard Menu"
         selector = f'div[data-title="{panel_title}"]'

@@ -18,7 +18,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         #dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Security logs events"
         selector = f'div[data-title="{panel_title}"]'
@@ -32,7 +32,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         #dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Failed logon attempts"
         selector = f'div[data-title="{panel_title}"]'
@@ -46,7 +46,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         #dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Failed logon type codes"
         selector = f'div[data-title="{panel_title}"]'
@@ -61,7 +61,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         #dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Failed logon status codes"
         selector = f'div[data-title="{panel_title}"]'

@@ -1,0 +1,345 @@
+---
+- name: Upgrade LME
+  hosts: localhost
+  connection: local
+  become: no
+  vars:
+    # Common variables
+    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    install_user: "{{ ansible_user_id }}"
+    new_lme_version: "2.1.0"
+    
+    # Directory configuration
+    config_dir: "/etc/lme"
+    env_file_path: "/opt/lme/lme-environment.env"
+    
+    # Elasticsearch configuration
+    es_port: 9200
+    kibana_port: 5601
+    fleet_port: 8220
+    
+    # Container versions - will be derived from containers.txt
+    containers_file: "{{ playbook_dir }}/../config/containers.txt"
+    
+  tasks:
+    - name: Check if config containers file exists
+      stat:
+        path: "{{ containers_file }}"
+      register: containers_file_stat
+      
+    - name: Fail if containers file doesn't exist
+      fail:
+        msg: "Containers file not found at {{ containers_file }}"
+      when: not containers_file_stat.stat.exists
+      
+    - name: Read container versions from file
+      set_fact:
+        container_versions: "{{ lookup('file', containers_file).splitlines() }}"
+      
+    - name: Display container file contents
+      debug:
+        msg: "Container file contents: {{ container_versions }}"
+        
+    - name: Verify container file format
+      fail:
+        msg: |
+          The containers file at {{ containers_file }} does not contain the required container definitions.
+          Expected to find containers for elasticsearch, kibana, wazuh, and elastalert.
+          Please check the file format and contents.
+          
+          Current contents:
+          {% for container in container_versions %}
+          - {{ container }}
+          {% endfor %}
+      when: >
+        container_versions | select('search', 'elasticsearch') | list | length == 0 or
+        container_versions | select('search', 'kibana') | list | length == 0 or
+        container_versions | select('search', 'wazuh') | list | length == 0 or
+        container_versions | select('search', 'elastalert') | list | length == 0
+        
+    - name: Extract container versions
+      set_fact:
+        elasticsearch_image: "{{ container_versions | select('search', 'elasticsearch') | first }}"
+        kibana_image: "{{ container_versions | select('search', 'kibana') | first }}"
+        wazuh_image: "{{ container_versions | select('search', 'wazuh') | first }}"
+        elastalert_image: "{{ container_versions | select('search', 'elastalert') | first }}"
+        
+    - name: Extract version numbers
+      set_fact:
+        elasticsearch_version: "{{ elasticsearch_image | regex_replace('^.*:(.*)', '\\1') }}"
+        kibana_version: "{{ kibana_image | regex_replace('^.*:(.*)', '\\1') }}"
+        wazuh_version: "{{ wazuh_image | regex_replace('^.*:(.*)', '\\1') }}"
+        elastalert_version: "{{ elastalert_image | regex_replace('^.*:(.*)', '\\1') }}"
+        
+    - name: Display container versions
+      debug:
+        msg: |
+          Container versions from {{ containers_file }}:
+          - Elasticsearch: {{ elasticsearch_version }} ({{ elasticsearch_image }})
+          - Kibana: {{ kibana_version }} ({{ kibana_image }})
+          - Wazuh: {{ wazuh_version }} ({{ wazuh_image }})
+          - ElastAlert: {{ elastalert_version }} ({{ elastalert_image }})
+        
+    - name: Check if environment file exists
+      stat:
+        path: "{{ env_file_path }}"
+      register: env_file
+      
+    - name: Fail if environment file doesn't exist
+      fail:
+        msg: "Environment file not found at {{ env_file_path }}"
+      when: not env_file.stat.exists
+      
+    - name: Read environment file
+      include_tasks: tasks/load_env.yml
+      
+    - name: Set LME version if not present
+      lineinfile:
+        path: "{{ env_file_path }}"
+        line: "LME_VERSION={{ new_lme_version }}"
+        regexp: "^LME_VERSION="
+        state: present
+      become: yes
+      register: version_updated
+      
+    - name: Check current LME version
+      debug:
+        msg: "Current LME version: {{ env_dict.LME_VERSION | default('Not set') }}, upgrading to {{ new_lme_version }}"
+        
+    - name: Set current LME version variable
+      set_fact:
+        current_lme_version: "{{ env_dict.LME_VERSION | default('0.0.0') }}"
+    
+    - name: Check upgrade requirements
+      block:
+        - name: Check if upgrade is needed
+          shell: |
+            if [[ "{{ current_lme_version }}" == "Not set" || "{{ current_lme_version }}" == "0.0.0" ]]; then
+              # No version or unset version, upgrade needed
+              echo "Upgrade needed: No current version set"
+              exit 0
+            else
+              # Compare versions using sort -V (natural version sort)
+              if [[ "{{ current_lme_version }}" == "{{ new_lme_version }}" ]]; then
+                # Same version - no upgrade needed
+                exit 2
+              elif [[ "$(echo -e "{{ current_lme_version }}\n{{ new_lme_version }}" | sort -V | head -n 1)" == "{{ current_lme_version }}" ]]; then
+                # Current version is lower than new version
+                echo "Upgrade needed: Current version {{ current_lme_version }} is lower than new version {{ new_lme_version }}"
+                exit 0
+              else
+                # Current version is higher - downgrade not allowed
+                echo "ERROR: Downgrade not allowed. Current version {{ current_lme_version }} is higher than requested version {{ new_lme_version }}"
+                exit 3
+              fi
+            fi
+          args:
+            executable: /bin/bash
+          register: upgrade_check
+          changed_when: false
+          failed_when: upgrade_check.rc == 3
+          
+        - name: Print nice message for no upgrade needed
+          debug:
+            msg: "No upgrade needed: Current version ({{ current_lme_version }}) already matches target version ({{ new_lme_version }})"
+          when: upgrade_check.rc == 2
+          
+        - name: End playbook if no upgrade needed
+          meta: end_play
+          when: upgrade_check.rc == 2
+
+      rescue:
+        - name: Fail with clear downgrade message
+          fail:
+            msg: "ERROR: Downgrade not allowed. Current version {{ current_lme_version }} is higher than requested version {{ new_lme_version }}"
+        
+    - name: Prompt for backup confirmation
+      pause:
+        prompt: "It is recommended to backup your LME installation before upgrading. Do you want to run a backup now? (yes/no)"
+      register: backup_prompt
+      
+    - name: Display backup in progress message
+      debug:
+        msg: "Starting LME backup process. This may take a few minutes..."
+      when: backup_prompt.user_input | lower == 'yes'
+      
+    - name: Run backup if confirmed
+      shell: |
+        echo "Running backup with ansible-playbook {{ playbook_dir }}/backup_lme.yml ..."
+        # Run the playbook and capture last line for the backup location
+        BACKUP_OUTPUT=$(ansible-playbook {{ playbook_dir }}/backup_lme.yml)
+        echo "$BACKUP_OUTPUT"
+        # Extract backup location
+        BACKUP_LOCATION=$(echo "$BACKUP_OUTPUT" | grep "Backup location:" | tail -1 | sed 's/.*Backup location: //')
+        if [ -n "$BACKUP_LOCATION" ]; then
+          echo "========================================"
+          echo "Backup completed and stored at: $BACKUP_LOCATION"
+          echo "========================================"
+        fi
+      args:
+        executable: /bin/bash
+      register: backup_result
+      when: backup_prompt.user_input | lower == 'yes'
+      
+    - name: Display backup completion message
+      debug:
+        msg: "Backup process has completed. Check the output above for backup location details."
+      when: backup_prompt.user_input | lower == 'yes' and backup_result is success
+      
+    - name: Display backup command output
+      debug:
+        msg: "{{ backup_result.stdout_lines }}"
+        verbosity: 1
+      when: backup_prompt.user_input | lower == 'yes' and backup_result is defined
+        
+    - name: Stop LME service
+      systemd:
+        name: lme
+        state: stopped
+      become: yes
+      
+    - name: Wait for containers to stop
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: running_containers
+      become: yes
+      until: running_containers.stdout_lines | length == 0
+      retries: 12
+      delay: 5
+      ignore_errors: yes
+    
+    - name: Update containers.txt with new versions
+      copy:
+        content: |
+          {{ elasticsearch_image }}
+          docker.elastic.co/beats/elastic-agent:{{ elasticsearch_version }}
+          {{ kibana_image }}
+          {{ wazuh_image }}
+          {{ elastalert_image }}
+        dest: "{{ clone_directory }}/config/containers.txt"
+      register: containers_updated
+        
+    - name: Update STACK_VERSION in environment file
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^STACK_VERSION="
+        line: "STACK_VERSION={{ elasticsearch_version }}"
+      become: yes
+      register: stack_version_updated
+        
+    - name: Pull new container images
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman pull {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
+      register: pull_result
+      become: yes
+      retries: 3
+      delay: 5
+      until: pull_result is not failed
+      ignore_errors: yes
+      
+    - name: Display container pull errors
+      debug:
+        msg: "Failed to pull container: {{ item.item }}"
+      loop: "{{ pull_result.results }}"
+      when: item is failed
+      loop_control:
+        label: "{{ item.item }}"
+        
+    - name: Tag new containers
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+      args:
+        executable: /bin/bash
+      loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
+      register: tag_result
+      become: yes
+      retries: 3
+      delay: 5
+      until: tag_result is not failed
+      ignore_errors: yes
+      
+    - name: Display container tag errors
+      debug:
+        msg: "Failed to tag container: {{ item.item }}"
+      loop: "{{ tag_result.results }}"
+      when: item is failed
+      loop_control:
+        label: "{{ item.item }}"
+        
+    - name: Restart LME service
+      systemd:
+        name: "lme"
+        state: restarted
+      become: yes
+      tags: ['system']
+      
+    - name: Wait for containers to start
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: started_containers
+      become: yes
+      until: started_containers.stdout_lines | length > 0
+      retries: 12
+      delay: 5
+      ignore_errors: yes
+      
+    - name: Wait for services to be ready
+      pause:
+        seconds: 60
+        
+    - name: Verify services are running
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        LME_CONTAINERS=$(podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true)
+        CONTAINER_COUNT=$(echo "$LME_CONTAINERS" | wc -l)
+        echo "$LME_CONTAINERS"
+        if [ $CONTAINER_COUNT -ge 5 ]; then
+          echo "All expected LME services are running"
+          exit 0
+        else
+          echo "Only $CONTAINER_COUNT of 5 expected LME services are running"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      register: containers_status
+      become: yes
+      until: containers_status.rc == 0
+      retries: 15
+      delay: 10
+      
+    - name: Display running containers
+      debug:
+        msg: "{{ containers_status.stdout_lines }}"
+        
+    - name: Fail if not all services are running
+      fail:
+        msg: "Not all expected LME services are running. Only {{ containers_status.stdout_lines | select('match', '^lme') | list | length }} of 5 expected services were detected."
+      when: containers_status.rc != 0
+      
+    - name: Update LME version file
+      copy:
+        content: "{{ new_lme_version }}"
+        dest: "/etc/lme/version"
+      become: yes
+      
+    - name: Upgrade complete message
+      debug:
+        msg: |
+          LME has been successfully upgraded to version {{ new_lme_version }}.
+          
+          Container versions:
+          {% for container in container_versions %}
+          - {{ container }}
+          {% endfor %} 

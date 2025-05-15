@@ -1,0 +1,396 @@
+---
+- name: Rollback LME to Previous Version
+  hosts: localhost
+  connection: local
+  become: no
+  vars:
+    # Common variables
+    install_user: "{{ ansible_user_id }}"
+    lme_install_dir: "/opt/lme"
+    
+  tasks:
+    - name: Get Podman graphroot location
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman info --format "{{ '{{' }}.Store.GraphRoot{{ '}}' }}"
+      args:
+        executable: /bin/bash
+      register: podman_graphroot
+      become: yes
+      
+    - name: Set backup directory
+      set_fact:
+        backup_base_dir: "{{ backup_dir | default(podman_graphroot.stdout) }}"
+      
+    - name: Get list of available backups
+      find:
+        paths: "{{ backup_base_dir }}/backups"
+        patterns: "20*"
+        file_type: directory
+      register: available_backups
+      
+    - name: Debug backup paths
+      debug:
+        msg: "Found {{ available_backups.files | length }} backups in {{ backup_base_dir }}/backups"
+        
+    - name: Create backup list string
+      set_fact:
+        backup_list_str: >-
+          {% for backup in available_backups.files | sort(reverse=true) %}
+          {{ loop.index }}. {{ backup.path }}
+          {% endfor %}
+      
+    - name: Display available backups
+      command: printf "Available backups:\n%s\n" "{{ backup_list_str }}"
+      register: backup_display
+      
+    - name: Show backup list
+      debug:
+        msg: "{{ backup_display.stdout_lines }}"
+      
+    - name: Prompt for backup selection
+      pause:
+        prompt: |
+          Please enter the number of the backup to restore from (1-{{ available_backups.files | length }}):
+      register: backup_selection
+      
+    - name: Validate backup selection
+      fail:
+        msg: "Invalid selection. Please enter a number between 1 and {{ available_backups.files | length }}"
+      when: backup_selection.user_input | int < 1 or backup_selection.user_input | int > available_backups.files | length
+      
+    - name: Set selected backup path
+      set_fact:
+        backup_dir: "{{ (available_backups.files | sort(reverse=true))[backup_selection.user_input | int - 1].path }}"
+      
+    - name: Verify backup exists
+      stat:
+        path: "{{ backup_dir }}"
+      register: backup_stat
+      
+    - name: Fail if no backup found
+      fail:
+        msg: "No backup found at {{ backup_dir }}"
+      when: not backup_stat.stat.exists
+      
+    - name: Check for volume backups
+      stat:
+        path: "{{ backup_dir }}/volumes"
+      register: volume_backup_dir
+      
+    - name: Stop LME service
+      systemd:
+        name: lme
+        state: stopped
+      become: yes
+      
+    - name: Wait for containers to stop
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: running_containers
+      become: yes
+      until: running_containers.stdout_lines | length == 0
+      retries: 12
+      delay: 5
+      ignore_errors: yes
+      
+    - name: Rename current LME installation
+      shell: |
+        if [ -d "{{ lme_install_dir }}" ]; then
+          TIMESTAMP="{{ ansible_date_time.iso8601_basic_short }}"
+          BACKUP_PATH="{{ lme_install_dir }}_${TIMESTAMP}"
+          cp -a "{{ lme_install_dir }}" "${BACKUP_PATH}"
+          echo "Backup of current installation created successfully to ${BACKUP_PATH}"
+        else
+          echo "WARNING: No existing LME installation found at {{ lme_install_dir }}"
+        fi
+      args:
+        executable: /bin/bash
+      become: yes
+      register: current_lme_backup
+      
+    - name: Verify backup archive can be read
+      stat:
+        path: "{{ backup_dir }}/lme.tar.gz"
+        get_checksum: yes
+      register: lme_archive_check
+      become: yes
+      
+    - name: Validate backup archive
+      fail:
+        msg: "The LME backup archive doesn't exist or is not accessible: {{ backup_dir }}/lme.tar.gz"
+      when: not lme_archive_check.stat.exists or lme_archive_check.stat.size == 0
+      
+    - name: Remove the current installation if backup and validation succeeded
+      shell: |
+        if [ -d "{{ lme_install_dir }}" ]; then
+          rm -rf "{{ lme_install_dir }}"
+          echo "Removed current installation at {{ lme_install_dir }}"
+        fi
+      args:
+        executable: /bin/bash
+      become: yes
+      when: current_lme_backup is success and lme_archive_check.stat.exists
+      
+    - name: Create rollback status file
+      copy:
+        dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
+        content: |
+          Rollback started: {{ ansible_date_time.iso8601 }}
+          Original installation backup: {{ 'SUCCESS' if current_lme_backup is success else 'FAILED' }}
+          Rollback source: {{ backup_dir }}
+          Status: IN PROGRESS
+      become: yes
+      
+    - name: Restore LME installation
+      unarchive:
+        src: "{{ backup_dir }}/lme.tar.gz"
+        dest: /opt
+        remote_src: yes
+      become: yes
+      when: backup_stat.stat.exists
+      
+    - name: Extract version from backup status file
+      shell: |
+        if [ -f "{{ backup_dir }}/backup_status.txt" ]; then
+          grep "^LME version:" "{{ backup_dir }}/backup_status.txt" | cut -d':' -f2 | tr -d ' ' || echo "2.0.2"
+        else
+          echo "2.0.2"
+        fi
+      register: backup_version
+      become: yes
+
+    - name: Check for containers.txt file
+      stat:
+        path: "{{ lme_install_dir }}/config/containers.txt"
+      register: containers_file
+      become: yes
+      
+    - name: Pull containers
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman pull {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
+      register: pull_result
+      become: yes
+      retries: 3
+      delay: 5
+      until: pull_result is not failed
+      ignore_errors: yes
+      when: containers_file.stat.exists
+      
+    - name: Display container pull errors
+      debug:
+        msg: "Failed to pull container: {{ item.item }}"
+      loop: "{{ pull_result.results }}"
+      when: item is failed
+      loop_control:
+        label: "{{ item.item }}"
+      
+    - name: Tag containers
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+      args:
+        executable: /bin/bash
+      loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
+      register: tag_result
+      become: yes
+      retries: 3
+      delay: 5
+      until: tag_result is not failed
+      ignore_errors: yes
+      when: containers_file.stat.exists
+      
+    - name: Display container tag errors
+      debug:
+        msg: "Failed to tag container: {{ item.item }}"
+      loop: "{{ tag_result.results }}"
+      when: item is failed
+      loop_control:
+        label: "{{ item.item }}"
+      
+    - name: Restore volume backups if available
+      block:
+        - name: Get list of volume backups
+          find:
+            paths: "{{ backup_dir }}/volumes"
+            file_type: directory
+          register: volume_dirs
+          
+        - name: Display volumes to restore
+          debug:
+            msg: "Found {{ volume_dirs.files | length }} volume backups to restore"
+            
+        - name: Check backup volume directory structure
+          shell: |
+            if [ -d "{{ backup_dir }}/volumes" ]; then
+              find "{{ backup_dir }}/volumes" -type f -name "*.tar.gz" | sort
+            fi
+          args:
+            executable: /bin/bash
+          register: volume_backup_files_found
+          changed_when: false
+          
+        - name: Show found backup archives
+          debug:
+            msg: "Found backup archives: {{ volume_backup_files_found.stdout_lines }}"
+          
+        - name: Get volume names
+          set_fact:
+            volume_names: "{{ volume_dirs.files | map(attribute='path') | map('basename') | list }}"
+          
+        - name: Check if volume exists
+          shell: |
+            export PATH=$PATH:/nix/var/nix/profiles/default/bin
+            podman volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}" 2>/dev/null || echo ""
+          args:
+            executable: /bin/bash
+          loop: "{{ volume_names }}"
+          register: volume_paths
+          become: yes
+          
+        - name: Create missing volumes
+          shell: |
+            export PATH=$PATH:/nix/var/nix/profiles/default/bin
+            podman volume create "{{ item.item }}"
+          args:
+            executable: /bin/bash
+          loop: "{{ volume_paths.results }}"
+          when: item.stdout == ""
+          become: yes
+          
+        - name: Get volume paths
+          shell: |
+            export PATH=$PATH:/nix/var/nix/profiles/default/bin
+            podman volume inspect "{{ item.item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}"
+          args:
+            executable: /bin/bash
+          loop: "{{ volume_paths.results }}"
+          register: final_volume_paths
+          become: yes
+          
+        - name: Clear volume contents
+          shell: |
+            rm -rf "{{ item.stdout }}"/* || true
+          loop: "{{ final_volume_paths.results }}"
+          become: yes
+        
+        - name: Debug volume backup paths
+          debug:
+            msg: "Will restore {{ backup_dir }}/volumes/{{ item.item.item }}/data.tar.gz to {{ item.stdout }}"
+          loop: "{{ final_volume_paths.results }}"
+          
+        - name: Check if volume backup files exist
+          stat:
+            path: "{{ backup_dir }}/volumes/{{ item.item.item }}/data.tar.gz"
+          loop: "{{ final_volume_paths.results }}"
+          register: volume_backup_files
+          
+        - name: Display missing volume backups
+          debug:
+            msg: "Missing backup file: {{ backup_dir }}/volumes/{{ item.item.item }}/data.tar.gz"
+          loop: "{{ volume_backup_files.results }}"
+          when: not item.stat.exists
+         
+        - name: Extract volume backups
+          unarchive:
+            src: "{{ backup_dir }}/volumes/{{ item.item.item }}/data.tar.gz"
+            dest: "{{ item.stdout }}"
+            remote_src: yes
+          loop: "{{ final_volume_paths.results }}"
+          loop_control:
+            index_var: idx
+          when: volume_backup_files.results[idx].stat.exists
+          become: yes
+        
+      when: volume_backup_dir.stat is defined and volume_backup_dir.stat.exists
+      ignore_errors: yes
+      
+    - name: Start LME service
+      systemd:
+        name: lme
+        state: started
+      become: yes
+      register: service_start_result
+      
+    - name: Wait for containers to start
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: started_containers
+      become: yes
+      until: started_containers.stdout_lines | length > 0
+      retries: 12
+      delay: 5
+      ignore_errors: yes
+      
+    - name: Wait for services to be ready
+      pause:
+        seconds: 30
+      
+    - name: Verify services are running
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme"
+      args:
+        executable: /bin/bash
+      register: containers_status
+      become: yes
+      
+    - name: Display running containers
+      debug:
+        msg: "Running containers: {{ containers_status.stdout_lines }}"
+      
+    - name: Collect rollback results
+      set_fact:
+        install_status: "{{ 'Success' if backup_stat.stat.exists else 'Failed' }}"
+        volumes_status: "{{ 'Success' if volume_backup_files is defined and volume_backup_files.results | selectattr('stat.exists', 'eq', true) | list | length > 0 else 'Failed or not found' }}"
+        containers_status: "{{ 'Success' if containers_status.stdout_lines | length > 0 else 'Failed' }}"
+        volumes_restored_count: "{{ volume_backup_files.results | selectattr('stat.exists', 'eq', true) | list | length if volume_backup_files is defined else 0 }}"
+        volumes_total: "{{ volume_backup_files.results | length if volume_backup_files is defined else 0 }}"
+      
+    - name: Update rollback status file
+      copy:
+        dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
+        content: |
+          Rollback completed: {{ ansible_date_time.iso8601 }}
+          Original installation backup: {{ 'SUCCESS' if current_lme_backup is success else 'FAILED' }}
+          Rollback source: {{ backup_dir }}
+          
+          Restore status:
+          - LME installation: {{ install_status }}
+          - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
+          - Volumes: {{ volumes_status }} ({{ volumes_restored_count }}/{{ volumes_total }} restored)
+          - Service restart: {{ 'Success' if service_start_result is success else 'Failed' }}
+          - Containers running: {{ containers_status }}
+          
+          Overall status: {{ 'SUCCESS' if install_status == 'Success' and containers_status == 'Success' and service_start_result is success else 'PARTIAL - See details above' }}
+          
+          If this rollback was not successful, the original installation is available at: {{ lme_install_dir }}_{{ ansible_date_time.iso8601_basic_short }}
+      become: yes
+      
+    - name: Rollback complete message
+      debug:
+        msg: |
+          LME has been rolled back to the previous version.
+          Original installation backed up to: {{ lme_install_dir }}_{{ ansible_date_time.iso8601_basic_short }}
+          Restored from: {{ backup_dir }}
+          
+          Restore status:
+          - LME installation: {{ install_status }}
+          - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
+          - Volumes: {{ volumes_status }} ({{ volumes_restored_count }}/{{ volumes_total }} restored)
+          - Service restart: {{ 'Success' if service_start_result is success else 'Failed' }}
+          - Containers running: {{ containers_status }}
+          
+          Overall status: {{ 'SUCCESS' if install_status == 'Success' and containers_status == 'Success' and service_start_result is success else 'PARTIAL - See details above' }}
+          
+          A detailed status report has been saved to: /tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status 
