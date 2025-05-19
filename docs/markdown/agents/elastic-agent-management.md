@@ -29,7 +29,7 @@ This guide will walk you through the process of enrolling an Elastic agent.
    - Note: If you haven't added the LME certificates to your trusted store, you'll need to modify the command. 
 
 6. **Modify the Command if Necessary (e.g., if certificates have not been added to the trusted store)**
-   - Type `--insecure` at the end of the ./elastic-agent install` command.
+   - Type `--insecure` at the end of the `./elastic-agent install` command.
    - This is similar to clicking Continue to Website in a browser when you get a certificate warning.
    - Example:
      ```
