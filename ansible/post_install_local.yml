@@ -533,7 +533,7 @@
                   value:
                     type: "endpoint"
                     endpointConfig:
-                      preset: "EDRComplete"
+                      preset: "DataCollection"
           package:
             name: "endpoint"
             title: "Elastic Defend"

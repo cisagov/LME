@@ -87,6 +87,7 @@ This guide will walk you through the process of adding a Windows integration to 
 
      **Note: Enable metrics only on servers or critical systems that require live monitoring. Metrics are enabled by default with the Windows integration, so you must manually disable them if not needed. Metrics can quickly consume storage, especially across hundreds of endpoints, and may overwhelm workstations. To manage this, create a separate policy for critical systems and keep metrics disabled elsewhere.**
 
+
 7. **Save and Deploy**
    - After configuring your desired options, click on the **Save and continue button**.
    - Click on the **Add Elastic Agent to your hosts button**.
