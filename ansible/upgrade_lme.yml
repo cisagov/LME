@@ -93,23 +93,14 @@
     - name: Read environment file
       include_tasks: tasks/load_env.yml
       
-    - name: Set LME version if not present
-      lineinfile:
-        path: "{{ env_file_path }}"
-        line: "LME_VERSION={{ new_lme_version }}"
-        regexp: "^LME_VERSION="
-        state: present
-      become: yes
-      register: version_updated
-      
-    - name: Check current LME version
-      debug:
-        msg: "Current LME version: {{ env_dict.LME_VERSION | default('Not set') }}, upgrading to {{ new_lme_version }}"
-        
     - name: Set current LME version variable
       set_fact:
         current_lme_version: "{{ env_dict.LME_VERSION | default('0.0.0') }}"
-    
+
+    - name: Display current version information
+      debug:
+        msg: "Current LME version: {{ current_lme_version }}, target version: {{ new_lme_version }}"
+
     - name: Check upgrade requirements
       block:
         - name: Check if upgrade is needed
@@ -152,18 +143,12 @@
         - name: Fail with clear downgrade message
           fail:
             msg: "ERROR: Downgrade not allowed. Current version {{ current_lme_version }} is higher than requested version {{ new_lme_version }}"
-        
-    - name: Prompt for backup confirmation
-      pause:
-        prompt: "It is recommended to backup your LME installation before upgrading. Do you want to run a backup now? (yes/no)"
-      register: backup_prompt
-      
+
     - name: Display backup in progress message
       debug:
-        msg: "Starting LME backup process. This may take a few minutes..."
-      when: backup_prompt.user_input | lower == 'yes'
-      
-    - name: Run backup if confirmed
+        msg: "Starting mandatory LME backup process before upgrade. This may take a few minutes..."
+        
+    - name: Run backup
       shell: |
         echo "Running backup with ansible-playbook {{ playbook_dir }}/backup_lme.yml ..."
         # Run the playbook and capture last line for the backup location
@@ -179,19 +164,18 @@
       args:
         executable: /bin/bash
       register: backup_result
-      when: backup_prompt.user_input | lower == 'yes'
       
     - name: Display backup completion message
       debug:
         msg: "Backup process has completed. Check the output above for backup location details."
-      when: backup_prompt.user_input | lower == 'yes' and backup_result is success
+      when: backup_result is success
       
     - name: Display backup command output
       debug:
         msg: "{{ backup_result.stdout_lines }}"
         verbosity: 1
-      when: backup_prompt.user_input | lower == 'yes' and backup_result is defined
-        
+      when: backup_result is defined
+
     - name: Stop LME service
       systemd:
         name: lme
@@ -221,6 +205,14 @@
           {{ elastalert_image }}
         dest: "{{ clone_directory }}/config/containers.txt"
       register: containers_updated
+
+    - name: Copy containers.txt to /opt/lme/config
+      copy:
+        src: "{{ clone_directory }}/config/containers.txt"
+        dest: "/opt/lme/config/containers.txt"
+        remote_src: yes
+      become: yes
+      register: containers_copied
         
     - name: Update STACK_VERSION in environment file
       lineinfile:
@@ -328,6 +320,15 @@
         msg: "Not all expected LME services are running. Only {{ containers_status.stdout_lines | select('match', '^lme') | list | length }} of 5 expected services were detected."
       when: containers_status.rc != 0
       
+    - name: Update LME version in environment file
+      lineinfile:
+        path: "{{ env_file_path }}"
+        line: "LME_VERSION={{ new_lme_version }}"
+        regexp: "^LME_VERSION="
+        state: present
+      become: yes
+      register: version_updated
+      
     - name: Update LME version file
       copy:
         content: "{{ new_lme_version }}"
@@ -338,8 +339,6 @@
       debug:
         msg: |
           LME has been successfully upgraded to version {{ new_lme_version }}.
-          
+
           Container versions:
-          {% for container in container_versions %}
-          - {{ container }}
-          {% endfor %} 
+          {{ dict(range(1, container_versions|length + 1) | zip(container_versions)) }} 
