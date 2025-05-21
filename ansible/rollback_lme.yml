@@ -154,17 +154,17 @@
           debug:
             msg: "No LME volumes found to backup"
       
-    - name: Verify backup archive can be read
+    - name: Verify backup can be read
       stat:
-        path: "{{ backup_dir }}/lme.tar.gz"
-        get_checksum: yes
-      register: lme_archive_check
+        path: "{{ backup_dir }}/lme"
+        get_checksum: no
+      register: lme_backup_check
       become: yes
       
-    - name: Validate backup archive
+    - name: Validate backup directory
       fail:
-        msg: "The LME backup archive doesn't exist or is not accessible: {{ backup_dir }}/lme.tar.gz"
-      when: not lme_archive_check.stat.exists or lme_archive_check.stat.size == 0
+        msg: "The LME backup directory doesn't exist or is not accessible: {{ backup_dir }}/lme"
+      when: not lme_backup_check.stat.exists or not lme_backup_check.stat.isdir
       
     - name: Remove the current installation if backup and validation succeeded
       shell: |
@@ -175,7 +175,7 @@
       args:
         executable: /bin/bash
       become: yes
-      when: current_lme_backup is success and lme_archive_check.stat.exists
+      when: current_lme_backup is success and lme_backup_check.stat.exists
       
     - name: Create rollback status file
       copy:
@@ -188,12 +188,12 @@
       become: yes
       
     - name: Restore LME installation
-      unarchive:
-        src: "{{ backup_dir }}/lme.tar.gz"
-        dest: /opt
-        remote_src: yes
+      shell: "mkdir -p {{ lme_install_dir }}; cp -a {{ backup_dir }}/lme/. {{ lme_install_dir }}/; if [ $? -eq 0 ]; then echo 'LME installation restored successfully'; exit 0; else echo 'Failed to restore LME installation'; exit 1; fi"
+      args:
+        executable: /bin/bash
       become: yes
       when: backup_stat.stat.exists
+      register: restore_result
       
     - name: Extract version from backup status file
       shell: |
@@ -332,9 +332,18 @@
           shell: |
             export PATH=$PATH:/nix/var/nix/profiles/default/bin
             VOLUME_PATH=$(podman volume inspect "{{ item.item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
-            if [ -f "{{ backup_dir }}/volumes/{{ item.item }}/data.tar.gz" ]; then
-              tar xzf "{{ backup_dir }}/volumes/{{ item.item }}/data.tar.gz" -C "${VOLUME_PATH}"
-              echo "Restored {{ item.item }} to ${VOLUME_PATH}"
+            BACKUP_DIR="{{ backup_dir }}/volumes/{{ item.item }}/data"
+            
+            if [ -d "$BACKUP_DIR" ]; then
+              # Copy the backup data to the volume
+              cp -a "$BACKUP_DIR/." "$VOLUME_PATH/"
+              if [ $? -eq 0 ]; then
+                echo "Restored {{ item.item }} to ${VOLUME_PATH}"
+                exit 0
+              else
+                echo "Failed to restore {{ item.item }}"
+                exit 1
+              fi
             else
               echo "No backup found for {{ item.item }}"
               exit 1

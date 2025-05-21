@@ -99,16 +99,28 @@
           
         - name: Create date-based backup directory
           file:
-            path: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}"
+            path: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
             state: directory
             mode: '0755'
           become: yes
           
         - name: Create backup of LME installation
-          archive:
-            path: "{{ lme_install_dir }}"
-            dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme.tar.gz"
-            format: gz
+          shell: |
+            # Create the backup directory structure
+            mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
+            
+            # Copy the LME installation
+            cp -a "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/"
+            
+            if [ $? -eq 0 ]; then
+              echo "LME installation copied successfully"
+              exit 0
+            else
+              echo "Failed to copy LME installation"
+              exit 1
+            fi
+          args:
+            executable: /bin/bash
           become: yes
           register: lme_backup_result
           
@@ -176,6 +188,8 @@
             export PATH=$PATH:/nix/var/nix/profiles/default/bin
             VOLUME_PATH=$(podman volume inspect {{ item }} --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
             VOLUME_DIR="{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes/{{ item }}"
+            
+            # Create volume backup directory
             mkdir -p "$VOLUME_DIR"
             
             # Create a manifest of the volume contents
@@ -185,18 +199,23 @@
             echo -e "\nContents:" >> "$VOLUME_DIR/manifest.txt"
             find "$VOLUME_PATH" -type f -o -type d | sort >> "$VOLUME_DIR/manifest.txt"
             
-            # Create the backup archive
-            tar -czf "$VOLUME_DIR/data.tar.gz" -C "$VOLUME_PATH" .
-            
-            # Check if backup was successful
-            if [ $? -eq 0 ]; then
-              echo "SUCCESS" > "$VOLUME_DIR/backup_status.txt"
-              echo "Volume {{ item }} backed up successfully"
-              exit 0
+            # Copy the volume contents
+            if [ -d "$VOLUME_PATH" ] && [ "$(ls -A $VOLUME_PATH)" ]; then
+              cp -a "$VOLUME_PATH/." "$VOLUME_DIR/data/"
+              if [ $? -eq 0 ]; then
+                echo "SUCCESS" > "$VOLUME_DIR/backup_status.txt"
+                echo "Volume {{ item }} backed up successfully"
+                exit 0
+              else
+                echo "FAILED" > "$VOLUME_DIR/backup_status.txt"
+                echo "Failed to backup volume {{ item }}"
+                exit 1
+              fi
             else
-              echo "FAILED" > "$VOLUME_DIR/backup_status.txt"
-              echo "Failed to backup volume {{ item }}"
-              exit 1
+              echo "EMPTY" > "$VOLUME_DIR/backup_status.txt"
+              echo "Volume {{ item }} is empty, creating empty data directory"
+              mkdir -p "$VOLUME_DIR/data"
+              exit 0
             fi
           args:
             executable: /bin/bash
