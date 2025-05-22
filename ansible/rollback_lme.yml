@@ -8,6 +8,17 @@
     install_user: "{{ ansible_user_id }}"
     lme_install_dir: "/opt/lme"
     
+  # pre_tasks:
+  #   - name: Display backup in progress message
+  #     debug:
+  #       msg: "Creating backup of current installation before rollback. This may take a few minutes..."
+        
+  #   - name: Run backup
+  #     include_role:
+  #       name: backup_lme
+  #     vars:
+  #       skip_prompts: true  # Skip prompts during automated backup
+        
   tasks:
     - name: Get Podman graphroot location
       shell: |
