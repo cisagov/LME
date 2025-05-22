@@ -1,6 +1,6 @@
 # Proxy Installation Guide
 
-To enhance visibility into network activity and ensure comprehensive log collection, installing a proxy server is a practical first step. A proxy acts as an intermediary between users and the internet, allowing organizations to monitor, filter, and log outbound traffic in a centralized way. This guide walks you through the basic steps for installing and configuring a proxy server, helping you lay the groundwork for more effective logging and improved security posture.
+The following steps will guide you through installing LME environments where outbound internet access is routed through a proxy server. It outlines how to confiugre system-wide proxy settings, ensure package managers and LME components (e.g., Wazuh and the Elastic Stack) function correctly behind the proxy, and address common issues users may encounter.
 
 1. **Ensure Proxy Environment Variables are Set**
    - Define your proxy settings in the system environment so all outgoing traffic can route through it.
