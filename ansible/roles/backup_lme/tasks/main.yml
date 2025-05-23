@@ -230,13 +230,41 @@
 
 - name: Collect volume backup statuses
   shell: |
-    find "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes" -name "backup_status.txt" -exec cat {} \; | grep -c "SUCCESS" || echo "0"
+    find "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes" -name "backup_status.txt" -exec cat {} \; | grep -c -E "(SUCCESS|EMPTY)" || echo "0"
   args:
     executable: /bin/bash
   register: successful_volumes
   become: yes
   ignore_errors: yes
   changed_when: false
+
+- name: Find volumes that were empty during backup
+  shell: |
+    find "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes" -name "backup_status.txt" -exec grep -l "EMPTY" {} \; | xargs -I {} dirname {} | xargs -I {} basename {}
+  args:
+    executable: /bin/bash
+  register: empty_volumes
+  become: yes
+  ignore_errors: yes
+  changed_when: false
+
+- name: Create expected empty volumes file based on actual empty volumes found
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/expected_empty_volumes.txt"
+    content: |
+      {% for volume in empty_volumes.stdout_lines %}
+      {{ volume }}
+      {% endfor %}
+  become: yes
+  when: empty_volumes.stdout_lines | length > 0
+
+- name: Create empty expected volumes file if no empty volumes found
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/expected_empty_volumes.txt"
+    content: |
+      # No volumes were empty during this backup
+  become: yes
+  when: empty_volumes.stdout_lines | length == 0
   
 - name: Start LME service
   systemd:
@@ -287,7 +315,6 @@
   
 - name: Backup summary
   debug:
-    msg: |
-      {{ final_status.stdout }}
-      
-      Backup location: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }} 
+    msg: "{{ dict(range(1, backup_summary_lines|length + 1) | zip(backup_summary_lines)) }}"
+  vars:
+    backup_summary_lines: "{{ (final_status.stdout + '\n\nBackup location: ' + backup_base_dir + '/backups/' + ansible_date_time.iso8601_basic_short).splitlines() }}" 

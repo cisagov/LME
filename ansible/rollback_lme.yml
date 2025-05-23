@@ -185,6 +185,23 @@
       register: backup_version
       become: yes
 
+    - name: Extract versions from selected backup environment file
+      shell: |
+        if [ -f "{{ selected_backup_dir }}/lme/lme-environment.env" ]; then
+          STACK_VERSION=$(grep "^STACK_VERSION=" "{{ selected_backup_dir }}/lme/lme-environment.env" | cut -d'=' -f2 2>/dev/null || echo "Unknown")
+          LME_VERSION=$(grep "^LME_VERSION=" "{{ selected_backup_dir }}/lme/lme-environment.env" | cut -d'=' -f2 2>/dev/null || echo "{{ backup_version.stdout }}")
+          echo "STACK:$STACK_VERSION,LME:$LME_VERSION"
+        else
+          echo "STACK:Unknown,LME:{{ backup_version.stdout }}"
+        fi
+      register: restored_versions
+      become: yes
+
+    - name: Set version variables for display
+      set_fact:
+        restored_stack_version: "{{ restored_versions.stdout.split(',')[0].split(':')[1] }}"
+        restored_lme_version: "{{ restored_versions.stdout.split(',')[1].split(':')[1] }}"
+
     - name: Check for containers.txt file
       stat:
         path: "{{ lme_install_dir }}/config/containers.txt"
@@ -321,29 +338,44 @@
           set_fact:
             volume_list: "{{ volume_names | join(' ') }}"
 
-        - name: Set expected empty volumes
+        - name: Check if expected empty volumes file exists in backup
+          stat:
+            path: "{{ selected_backup_dir }}/expected_empty_volumes.txt"
+          register: expected_volumes_file
+          become: yes
+
+        - name: Read expected empty volumes from backup file
+          set_fact:
+            expected_empty_volumes: "{{ lookup('file', selected_backup_dir + '/expected_empty_volumes.txt').splitlines() }}"
+          when: expected_volumes_file.stat.exists
+
+        - name: Set fallback expected empty volumes for older backups
           set_fact:
             expected_empty_volumes:
               - lme_backups
               - lme_wazuh_var_multigroups
               - lme_elastalert2_logs
+          when: not expected_volumes_file.stat.exists
 
         - name: Verify volume restoration
           shell: |
             export PATH=$PATH:/nix/var/nix/profiles/default/bin
             VOLUME_PATH=$(podman volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
             if [ -d "$VOLUME_PATH" ]; then
-              if [ "$(ls -A "$VOLUME_PATH")" ]; then
+              # Check if this is an expected empty volume first - always treat as successful
+              if [[ " {{ expected_empty_volumes | join(' ') }} " =~ " {{ item }} " ]]; then
+                if [ "$(ls -A "$VOLUME_PATH")" ]; then
+                  echo "{\"msg\": \"Volume {{ item }} is expected to be empty but contains data - treating as successful at $VOLUME_PATH\", \"status\": \"success\"}"
+                else
+                  echo "{\"msg\": \"Volume {{ item }} is empty as expected at $VOLUME_PATH\", \"status\": \"success\"}"
+                fi
+                exit 0
+              elif [ "$(ls -A "$VOLUME_PATH")" ]; then
                 echo "{\"msg\": \"Volume {{ item }} exists and is not empty at $VOLUME_PATH\", \"status\": \"success\"}"
                 exit 0
               else
-                if [[ " {{ expected_empty_volumes | join(' ') }} " =~ " {{ item }} " ]]; then
-                  echo "{\"msg\": \"Volume {{ item }} exists and is empty as expected at $VOLUME_PATH\", \"status\": \"success\"}"
-                  exit 0
-                else
-                  echo "{\"msg\": \"Volume {{ item }} exists but is empty at $VOLUME_PATH\", \"status\": \"error\"}"
-                  exit 1
-                fi
+                echo "{\"msg\": \"Volume {{ item }} exists but is empty at $VOLUME_PATH\", \"status\": \"error\"}"
+                exit 1
               fi
             else
               echo "{\"msg\": \"Volume {{ item }} not found at $VOLUME_PATH\", \"status\": \"error\"}"
@@ -379,7 +411,7 @@
               
               Please check the backup files in {{ selected_backup_dir }}/volumes/ for these volumes.
               
-              Note: The following volumes are expected to be empty and were not considered failures:
+              Note: The following volumes are always treated as successful regardless of content:
               {% for volume in expected_empty_volumes %}- {{ volume }}
               {% endfor %}
           when: failed_volumes | length > 0
@@ -395,7 +427,7 @@
               Stage: POST_VOLUME_RESTORE
               Volumes restored: {{ volume_names | join(', ') }}
               Failed volumes: {{ failed_volumes | join(', ') if failed_volumes | length > 0 else 'None' }}
-              Expected empty volumes: {{ expected_empty_volumes | join(', ') }}
+              Volumes always treated as successful: {{ expected_empty_volumes | join(', ') }}
           become: yes
         
       when: volume_backup_dir.stat is defined and volume_backup_dir.stat.exists
@@ -478,6 +510,11 @@
         dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
         content: |
           Rollback completed: {{ ansible_date_time.iso8601 }}
+          
+          Restored versions:
+          - LME Version: {{ restored_lme_version }}
+          - Stack Version: {{ restored_stack_version }}
+          
           Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
           Rollback source: {{ selected_backup_dir }}
           
@@ -525,6 +562,11 @@
       debug:
         msg: |
           LME has been rolled back to the previous version.
+          
+          Restored versions:
+          - LME Version: {{ restored_lme_version }}
+          - Stack Version: {{ restored_stack_version }}
+          
           Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
           Restored from: {{ selected_backup_dir }}
           

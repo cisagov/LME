@@ -21,17 +21,6 @@
     # Container versions - will be derived from containers.txt
     containers_file: "{{ playbook_dir }}/../config/containers.txt"
     
-  pre_tasks:
-    - name: Display backup in progress message
-      debug:
-        msg: "Starting mandatory LME backup process before upgrade. This may take a few minutes..."
-        
-    - name: Run backup
-      include_role:
-        name: backup_lme
-      vars:
-        skip_prompts: true  # Skip prompts during automated backup
-        
   tasks:
     - name: Check if config containers file exists
       stat:
@@ -106,7 +95,7 @@
       
     - name: Set current LME version variable
       set_fact:
-        current_lme_version: "{{ env_dict.LME_VERSION | default('0.0.0') }}"
+        current_lme_version: "{{ env_dict.LME_VERSION | default('2.0.0') }}"
 
     - name: Display current version information
       debug:
@@ -116,7 +105,7 @@
       block:
         - name: Check if upgrade is needed
           shell: |
-            if [[ "{{ current_lme_version }}" == "Not set" || "{{ current_lme_version }}" == "0.0.0" ]]; then
+            if [[ "{{ current_lme_version }}" == "Not set" || "{{ current_lme_version }}" == "2.0.0" ]]; then
               # No version or unset version, upgrade needed
               echo "Upgrade needed: No current version set"
               exit 0
@@ -155,7 +144,18 @@
           fail:
             msg: "ERROR: Downgrade not allowed. Current version {{ current_lme_version }} is higher than requested version {{ new_lme_version }}"
 
-    - name: Stop LME service
+    - name: Display backup in progress message
+      debug:
+        msg: "Starting mandatory LME backup process before upgrade. This may take a few minutes..."
+        
+    - name: Run backup
+      include_role:
+        name: backup_lme
+      vars:
+        skip_prompts: true  # Skip prompts during automated backup
+        skip_service_restart: true  # Leave services stopped for upgrade operations
+
+    - name: Stop LME service  # Ensure service is stopped (backup with skip_service_restart=true already stopped it)
       systemd:
         name: lme
         state: stopped
@@ -174,17 +174,6 @@
       delay: 5
       ignore_errors: yes
     
-    - name: Update containers.txt with new versions
-      copy:
-        content: |
-          {{ elasticsearch_image }}
-          docker.elastic.co/beats/elastic-agent:{{ elasticsearch_version }}
-          {{ kibana_image }}
-          {{ wazuh_image }}
-          {{ elastalert_image }}
-        dest: "{{ clone_directory }}/config/containers.txt"
-      register: containers_updated
-
     - name: Copy containers.txt to /opt/lme/config
       copy:
         src: "{{ clone_directory }}/config/containers.txt"
