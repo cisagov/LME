@@ -245,6 +245,7 @@
   become: yes
   register: service_start_result
   ignore_errors: yes
+  when: not skip_service_restart | default(false)
   
 - name: Wait for containers to start
   shell: |
@@ -258,6 +259,13 @@
   retries: 12
   delay: 5
   ignore_errors: yes
+  when: not skip_service_restart | default(false)
+  
+- name: Set service restart variables when skipped
+  set_fact:
+    service_start_result: { "skipped": true, "msg": "Service restart skipped" }
+    started_containers: { "stdout_lines": [], "skipped": true }
+  when: skip_service_restart | default(false)
   
 - name: Update backup status file
   copy:
@@ -267,8 +275,8 @@
       LME installation: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
       Volumes: {{ successful_volumes.stdout | int }} of {{ podman_volumes.stdout_lines | length }} successful
       Failed volumes: {{ volume_backup.results | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0 else 'None' }}
-      Service restart: {{ 'SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED' }}
-      Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == podman_volumes.stdout_lines | length and service_start_result is success and started_containers.stdout_lines | length > 0 else 'PARTIAL - See details above' }}
+      Service restart: {{ 'SKIPPED - Services left stopped for rollback' if skip_service_restart | default(false) else ('SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED') }}
+      Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == podman_volumes.stdout_lines | length else 'PARTIAL - See details above' }}
   become: yes
   
 - name: Read final backup status

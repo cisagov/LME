@@ -8,17 +8,6 @@
     install_user: "{{ ansible_user_id }}"
     lme_install_dir: "/opt/lme"
     
-  # pre_tasks:
-  #   - name: Display backup in progress message
-  #     debug:
-  #       msg: "Creating backup of current installation before rollback. This may take a few minutes..."
-        
-  #   - name: Run backup
-  #     include_role:
-  #       name: backup_lme
-  #     vars:
-  #       skip_prompts: true  # Skip prompts during automated backup
-        
   tasks:
     - name: Get Podman graphroot location
       shell: |
@@ -31,7 +20,7 @@
       
     - name: Set backup directory
       set_fact:
-        backup_base_dir: "{{ backup_dir | default(podman_graphroot.stdout) }}"
+        backup_base_dir: "{{ podman_graphroot.stdout }}"
       
     - name: Get list of available backups
       find:
@@ -66,115 +55,49 @@
       
     - name: Set selected backup path
       set_fact:
-        backup_dir: "{{ backup_paths[backup_selection.user_input | int - 1] }}"
+        selected_backup_dir: "{{ backup_paths[backup_selection.user_input | int - 1] }}"
+      
+    - name: Display backup in progress message
+      debug:
+        msg: "Creating backup of current installation before rollback. This may take a few minutes..."
+        
+    - name: Run backup
+      include_role:
+        name: backup_lme
+      vars:
+        skip_prompts: true  # Skip prompts during automated backup
+        skip_service_restart: true  # Leave services stopped for rollback operations
+      register: backup_role_result
+      
+    - name: Set backup success variable for compatibility
+      set_fact:
+        current_lme_backup: "{{ backup_role_result }}"
       
     - name: Verify backup exists
       stat:
-        path: "{{ backup_dir }}"
+        path: "{{ selected_backup_dir }}"
       register: backup_stat
       
     - name: Fail if no backup found
       fail:
-        msg: "No backup found at {{ backup_dir }}"
+        msg: "No backup found at {{ selected_backup_dir }}"
       when: not backup_stat.stat.exists
       
     - name: Check for volume backups
       stat:
-        path: "{{ backup_dir }}/volumes"
+        path: "{{ selected_backup_dir }}/volumes"
       register: volume_backup_dir
-      
-    - name: Stop LME service
-      systemd:
-        name: lme
-        state: stopped
-      become: yes
-      
-    - name: Wait for containers to stop
-      shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
-      args:
-        executable: /bin/bash
-      register: running_containers
-      become: yes
-      until: running_containers.stdout_lines | length == 0
-      retries: 12
-      delay: 5
-      ignore_errors: yes
-      
-    - name: Rename current LME installation
-      shell: |
-        if [ -d "{{ lme_install_dir }}" ]; then
-          TIMESTAMP="{{ ansible_date_time.iso8601_basic_short }}"
-          BACKUP_PATH="{{ lme_install_dir }}_${TIMESTAMP}"
-          cp -a "{{ lme_install_dir }}" "${BACKUP_PATH}"
-          echo "Backup of current installation created successfully to ${BACKUP_PATH}"
-        else
-          echo "WARNING: No existing LME installation found at {{ lme_install_dir }}"
-        fi
-      args:
-        executable: /bin/bash
-      become: yes
-      register: current_lme_backup
-      
-    - name: Backup current volumes
-      block:
-        - name: Get list of current volumes
-          shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            podman volume ls --format "{{ '{{' }}.Name{{ '}}' }}" | grep "^lme_"
-          args:
-            executable: /bin/bash
-          register: current_volumes
-          become: yes
 
-        - name: Create volume backup directory
-          file:
-            path: "{{ backup_base_dir }}/backups/volumes_backup_{{ ansible_date_time.iso8601_basic_short }}"
-            state: directory
-          become: yes
-          when: current_volumes.stdout_lines | length > 0
-
-        - name: Backup each volume
-          shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            VOLUME_PATH=$(podman volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
-            BACKUP_DIR="{{ backup_base_dir }}/backups/volumes_backup_{{ ansible_date_time.iso8601_basic_short }}/{{ item }}"
-            mkdir -p "${BACKUP_DIR}"
-            if [ -d "$VOLUME_PATH" ] && [ "$(ls -A $VOLUME_PATH)" ]; then
-              mv "$VOLUME_PATH"/* "${BACKUP_DIR}/" 2>/dev/null || true
-              echo "Moved contents of volume {{ item }} to ${BACKUP_DIR} (will be deleted after restore)"
-            else
-              echo "Volume {{ item }} is empty or does not exist, skipping backup"
-            fi
-          args:
-            executable: /bin/bash
-          loop: "{{ current_volumes.stdout_lines }}"
-          become: yes
-          register: volume_backup_result
-          when: current_volumes.stdout_lines | length > 0
-
-        - name: Display volume backup results
-          debug:
-            msg: "{{ item.stdout_lines | join('\n') }}"
-          loop: "{{ volume_backup_result.results }}"
-          when: volume_backup_result is defined and item.stdout_lines | length > 0
-
-      rescue:
-        - name: Display error if no volumes found
-          debug:
-            msg: "No LME volumes found to backup"
-      
     - name: Verify backup can be read
       stat:
-        path: "{{ backup_dir }}/lme"
+        path: "{{ selected_backup_dir }}/lme"
         get_checksum: no
       register: lme_backup_check
       become: yes
       
     - name: Validate backup directory
       fail:
-        msg: "The LME backup directory doesn't exist or is not accessible: {{ backup_dir }}/lme"
+        msg: "The LME backup directory doesn't exist or is not accessible: {{ selected_backup_dir }}/lme"
       when: not lme_backup_check.stat.exists or not lme_backup_check.stat.isdir
       
     - name: Remove the current installation if backup and validation succeeded
@@ -193,13 +116,13 @@
         dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
         content: |
           Rollback started: {{ ansible_date_time.iso8601 }}
-          Original installation backup: {{ 'SUCCESS' if current_lme_backup is success else 'FAILED' }}
-          Rollback source: {{ backup_dir }}
+          Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+          Rollback source: {{ selected_backup_dir }}
           Status: IN PROGRESS
       become: yes
       
     - name: Restore LME installation
-      shell: "mkdir -p {{ lme_install_dir }}; cp -a {{ backup_dir }}/lme/. {{ lme_install_dir }}/; if [ $? -eq 0 ]; then echo 'LME installation restored successfully'; exit 0; else echo 'Failed to restore LME installation'; exit 1; fi"
+      shell: "mkdir -p {{ lme_install_dir }}; cp -a {{ selected_backup_dir }}/lme/. {{ lme_install_dir }}/; if [ $? -eq 0 ]; then echo 'LME installation restored successfully'; exit 0; else echo 'Failed to restore LME installation'; exit 1; fi"
       args:
         executable: /bin/bash
       become: yes
@@ -208,8 +131,8 @@
       
     - name: Extract version from backup status file
       shell: |
-        if [ -f "{{ backup_dir }}/backup_status.txt" ]; then
-          grep "^LME version:" "{{ backup_dir }}/backup_status.txt" | cut -d':' -f2 | tr -d ' ' || echo "2.0.2"
+        if [ -f "{{ selected_backup_dir }}/backup_status.txt" ]; then
+          grep "^LME version:" "{{ selected_backup_dir }}/backup_status.txt" | cut -d':' -f2 | tr -d ' ' || echo "2.0.2"
         else
           echo "2.0.2"
         fi
@@ -270,9 +193,10 @@
       
     - name: Restore volume backups if available
       block:
+        # Note: Services are already stopped from backup operation with skip_service_restart=true
         - name: Get list of volume backups
           find:
-            paths: "{{ backup_dir }}/volumes"
+            paths: "{{ selected_backup_dir }}/volumes"
             file_type: directory
           register: volume_dirs
           
@@ -286,26 +210,8 @@
           
         - name: Validate volume names exist
           fail:
-            msg: "No volume backups found in {{ backup_dir }}/volumes"
+            msg: "No volume backups found in {{ selected_backup_dir }}/volumes"
           when: volume_names | length == 0
-
-        - name: Stop LME service before volume restoration
-          systemd:
-            name: lme
-            state: stopped
-          become: yes
-
-        - name: Wait for containers to stop
-          shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
-          args:
-            executable: /bin/bash
-          register: running_containers
-          become: yes
-          until: running_containers.stdout_lines | length == 0
-          retries: 12
-          delay: 5
 
         - name: Remove existing volumes
           shell: |
@@ -343,7 +249,7 @@
           shell: |
             export PATH=$PATH:/nix/var/nix/profiles/default/bin
             VOLUME_PATH=$(podman volume inspect "{{ item.item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
-            BACKUP_DIR="{{ backup_dir }}/volumes/{{ item.item }}/data"
+            BACKUP_DIR="{{ selected_backup_dir }}/volumes/{{ item.item }}/data"
             
             if [ -d "$BACKUP_DIR" ]; then
               # Copy the backup data to the volume
@@ -425,7 +331,7 @@
               {% for volume in failed_volumes %}- {{ volume }}
               {% endfor %}
               
-              Please check the backup files in {{ backup_dir }}/volumes/ for these volumes.
+              Please check the backup files in {{ selected_backup_dir }}/volumes/ for these volumes.
               
               Note: The following volumes are expected to be empty and were not considered failures:
               {% for volume in expected_empty_volumes %}- {{ volume }}
@@ -437,8 +343,8 @@
             dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
             content: |
               Rollback started: {{ ansible_date_time.iso8601 }}
-              Original installation backup: {{ 'SUCCESS' if current_lme_backup is success else 'FAILED' }}
-              Rollback source: {{ backup_dir }}
+              Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+              Rollback source: {{ selected_backup_dir }}
               Status: IN PROGRESS
               Stage: POST_VOLUME_RESTORE
               Volumes restored: {{ volume_names | join(', ') }}
@@ -526,8 +432,8 @@
         dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
         content: |
           Rollback completed: {{ ansible_date_time.iso8601 }}
-          Original installation backup: {{ 'SUCCESS' if current_lme_backup is success else 'FAILED' }}
-          Rollback source: {{ backup_dir }}
+          Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+          Rollback source: {{ selected_backup_dir }}
           
           Restore status:
           - LME installation: {{ install_status }}
@@ -542,13 +448,13 @@
           If the rollback failed during installation:
           1. Stop the LME service: systemctl stop lme
           2. Remove the failed installation: rm -rf {{ lme_install_dir }}
-          3. Restore from backup: mv {{ lme_install_dir }}_{{ ansible_date_time.iso8601_basic_short }} {{ lme_install_dir }}
+          3. Restore the safety backup: cp -a {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/. {{ lme_install_dir }}/
           4. Start the service: systemctl start lme
           {% elif tag_result is failed %}
           If the rollback failed during container tagging:
           1. Stop the LME service: systemctl stop lme
           2. Remove the failed installation: rm -rf {{ lme_install_dir }}
-          3. Restore from backup: mv {{ lme_install_dir }}_{{ ansible_date_time.iso8601_basic_short }} {{ lme_install_dir }}
+          3. Restore the safety backup: cp -a {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/. {{ lme_install_dir }}/
           4. Start the service: systemctl start lme
           {% elif volumes_status != 'Success' %}
           If the rollback failed during volume restoration:
@@ -556,7 +462,7 @@
           2. For each volume:
              a. Remove the current volume: podman volume rm [volume_name]
              b. Create a new volume: podman volume create [volume_name]
-             c. Restore from backup: cp -a {{ backup_base_dir }}/backups/volumes_backup_{{ ansible_date_time.iso8601_basic_short }}/[volume_name]/* [volume_mountpoint]/
+             c. Restore from safety backup: cp -a {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes/[volume_name]/data/. [volume_mountpoint]/
           3. Start the service: systemctl start lme
           {% elif containers_status != 'Success' %}
           If the rollback failed during container startup:
@@ -566,16 +472,15 @@
           {% endif %}
 
           Cleanup instructions (after confirming successful rollback):
-          1. Remove the original installation backup: rm -rf {{ lme_install_dir }}_{{ ansible_date_time.iso8601_basic_short }}
-          2. Remove the original volumes backup: rm -rf {{ backup_base_dir }}/backups/volumes_backup_{{ ansible_date_time.iso8601_basic_short }}
+          1. Remove the safety backup created during rollback: rm -rf {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
       become: yes
       
     - name: Rollback complete message
       debug:
         msg: |
           LME has been rolled back to the previous version.
-          Original installation backed up to: {{ lme_install_dir }}_{{ ansible_date_time.iso8601_basic_short }}
-          Restored from: {{ backup_dir }}
+          Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+          Restored from: {{ selected_backup_dir }}
           
           Restore status:
           - LME installation: {{ install_status }}
