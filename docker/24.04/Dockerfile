@@ -47,11 +47,11 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     mkdir -p /etc/systemd/system/systemd-logind.service.d && \
     echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
 
-COPY docker/24.04/lme-setup.service /etc/systemd/system/
-
-RUN chmod 644 /etc/systemd/system/lme-setup.service
-
-# Enable the service
-RUN systemctl enable lme-setup.service
+#COPY docker/24.04/lme-setup.service /etc/systemd/system/
+#
+#RUN chmod 644 /etc/systemd/system/lme-setup.service
+#
+## Enable the service
+#RUN systemctl enable lme-setup.service
 
 CMD ["/lib/systemd/systemd"]
