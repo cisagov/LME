@@ -37,25 +37,71 @@
       set_fact:
         backup_paths: "{{ available_backups.files | sort(attribute='path') | map(attribute='path') | list }}"
 
-    - name: Show backup list
+    - name: Check if any backups are available
+      fail:
+        msg: |
+          No LME backups found in {{ backup_base_dir }}/backups
+
+          To create a backup before rollback, you can run:
+          ansible-playbook ansible/backup_lme.yml
+
+          Or check if the backup directory path is correct.
+          Current backup directory: {{ backup_base_dir }}/backups
+      when: backup_paths | length == 0
+
+    - name: Get stack version for each backup
+      shell: |
+        if [ -f "{{ item }}/lme/lme-environment.env" ]; then
+          STACK_VERSION=$(grep "^STACK_VERSION=" "{{ item }}/lme/lme-environment.env" | cut -d'=' -f2 2>/dev/null || echo "Unknown")
+          LME_VERSION=$(grep "^LME_VERSION=" "{{ item }}/lme/lme-environment.env" | cut -d'=' -f2 2>/dev/null)
+          if [ -z "$LME_VERSION" ]; then
+            LME_VERSION="2.0.x"
+          fi
+          echo "Stack: $STACK_VERSION, LME: $LME_VERSION"
+        else
+          echo "Unknown"
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ backup_paths }}"
+      register: backup_versions
+      become: yes
+
+    - name: Create backup info list
+      set_fact:
+        backup_info: "{{ backup_info | default([]) + [{'path': item.item, 'version': item.stdout, 'basename': item.item | basename}] }}"
+      loop: "{{ backup_versions.results }}"
+
+    - name: Create backup display list
+      set_fact:
+        backup_display_list: "{{ backup_display_list | default([]) + [item.basename + ' (Version: ' + item.version + ')'] }}"
+      loop: "{{ backup_info }}"
+      when: backup_info is defined and backup_info | length > 0
+
+    - name: Show backup list with versions
       debug:
-        msg: "{{ dict(range(1, backup_paths|length + 1) | zip(backup_paths)) }}"
+        msg: "{{ dict(range(1, backup_display_list|length + 1) | zip(backup_display_list)) }}"
+      when: backup_display_list is defined and backup_display_list | length > 0
       
     - name: Prompt for backup selection
       pause:
         prompt: |
-          Please enter the number of the backup to restore from (1-{{ available_backups.files | length }}):
+          Please enter the number of the backup to restore from (1-{{ backup_info | length }}):
           Note: Backups are sorted by date, with the newest backup at the bottom.
       register: backup_selection
+      when: backup_info is defined and backup_info | length > 0
       
     - name: Validate backup selection
       fail:
-        msg: "Invalid selection. Please enter a number between 1 and {{ available_backups.files | length }}"
-      when: backup_selection.user_input | int < 1 or backup_selection.user_input | int > available_backups.files | length
+        msg: "Invalid selection. Please enter a number between 1 and {{ backup_info | length }}"
+      when: 
+        - backup_info is defined and backup_info | length > 0
+        - backup_selection.user_input | int < 1 or backup_selection.user_input | int > backup_info | length
       
     - name: Set selected backup path
       set_fact:
-        selected_backup_dir: "{{ backup_paths[backup_selection.user_input | int - 1] }}"
+        selected_backup_dir: "{{ backup_info[backup_selection.user_input | int - 1].path }}"
+      when: backup_info is defined and backup_info | length > 0
       
     - name: Display backup in progress message
       debug:
