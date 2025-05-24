@@ -5,18 +5,33 @@
   apt:
     update_cache: yes
   become: yes
+  register: apt_update
+  retries: 60
+  delay: 10
+  until: apt_update is success
+  ignore_errors: "{{ ansible_check_mode }}"
 
 - name: Install common packages
   apt:
     name: "{{ common_packages }}"
     state: present
   become: yes
+  register: apt_install
+  retries: 60
+  delay: 10
+  until: apt_install is success
+  ignore_errors: "{{ ansible_check_mode }}"
 
 - name: Install required Ubuntu packages
   apt:
     name: "{{ ubuntu_packages }}"
     state: present
   become: yes
+  register: apt_install_ubuntu
+  retries: 60
+  delay: 10
+  until: apt_install_ubuntu is success
+  ignore_errors: "{{ ansible_check_mode }}"
 
 - name: Set timezone information
   debconf:
