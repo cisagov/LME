@@ -138,6 +138,41 @@
     executable: /bin/bash
   become: yes
   register: lme_backup_result
+
+- name: Create secret mapping file for rollback
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+    
+    # Create secret mapping file
+    MAPPING_FILE="{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/secret_mapping.txt"
+    
+    # Get current secret mappings from podman
+    echo "# LME Secret Mapping - Created: {{ ansible_date_time.iso8601 }}" > "$MAPPING_FILE"
+    echo "# Format: SECRET_NAME=VAULT_FILE_ID" >> "$MAPPING_FILE"
+    echo "" >> "$MAPPING_FILE"
+    
+    # Check if any secrets exist
+    if podman secret ls --format "{{ '{{' }}.Name{{ '}}' }}" | grep -q .; then
+      # Get secret mappings
+      podman secret ls --format "{{ '{{' }}.Name{{ '}}' }}={{ '{{' }}.ID{{ '}}' }}" | while read line; do
+        echo "$line" >> "$MAPPING_FILE"
+      done
+      echo "Secret mapping saved to $MAPPING_FILE"
+    else
+      echo "# No secrets found during backup" >> "$MAPPING_FILE"
+      echo "Warning: No Podman secrets found during backup"
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+  register: secret_mapping_result
+  ignore_errors: yes
+  
+- name: Display secret mapping result
+  debug:
+    msg: "{{ secret_mapping_result.stdout_lines }}"
+  when: secret_mapping_result.stdout_lines is defined
   
 - name: Get list of Podman volumes
   shell: |

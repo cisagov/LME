@@ -260,25 +260,87 @@
       when: backup_stat.stat.exists
       register: restore_result
       
-    - name: Refresh Podman secrets after vault restoration
+    - name: Restore Podman secrets from backup vault files
       shell: |
         export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+        # Use the backup password file for decryption
+        export ANSIBLE_VAULT_PASSWORD_FILE="{{ selected_backup_dir }}/etc_lme/pass.sh"
         
-        # Remove existing secrets to force refresh
+        # Remove existing secrets first
         for secret_id in $(podman secret ls --format "{{ '{{' }}.ID{{ '}}' }}"); do
           podman secret rm "$secret_id" 2>/dev/null || true
         done
         
-        # List vault files to trigger Podman to rediscover them
-        podman secret ls >/dev/null 2>&1 || true
+        # Check if secret mapping file exists in backup
+        MAPPING_FILE="{{ selected_backup_dir }}/secret_mapping.txt"
+        BACKUP_VAULT_DIR="{{ selected_backup_dir }}/etc_lme/vault"
         
-        echo "Podman secrets refreshed"
+        if [ -f "$MAPPING_FILE" ] && [ -d "$BACKUP_VAULT_DIR" ]; then
+          echo "Found secret mapping file and backup vault directory, restoring secrets..."
+          
+          # Read mapping file and recreate secrets from backup vault files
+          while IFS='=' read -r secret_name vault_file_id; do
+            # Skip comments and empty lines
+            if [[ "$secret_name" =~ ^#.*$ ]] || [[ -z "$secret_name" ]]; then
+              continue
+            fi
+            
+            # Check if vault file exists in backup
+            BACKUP_VAULT_FILE="$BACKUP_VAULT_DIR/$vault_file_id"
+            if [ -f "$BACKUP_VAULT_FILE" ]; then
+              echo "Restoring secret: $secret_name from backup vault file: $vault_file_id"
+              # Extract secret from backup vault file and create new secret
+              SECRET_VALUE=$(ansible-vault view "$BACKUP_VAULT_FILE")
+              if [ $? -eq 0 ] && [ -n "$SECRET_VALUE" ]; then
+                echo "$SECRET_VALUE" | podman secret create --driver shell --replace "$secret_name" -
+                if [ $? -eq 0 ]; then
+                  echo "Successfully restored secret: $secret_name"
+                else
+                  echo "Failed to create secret: $secret_name"
+                fi
+              else
+                echo "Failed to decrypt backup vault file for secret: $secret_name"
+              fi
+            else
+              echo "Warning: Backup vault file not found for secret $secret_name: $BACKUP_VAULT_FILE"
+            fi
+          done < "$MAPPING_FILE"
+          
+          echo "Secret restoration from backup completed"
+        else
+          echo "No secret mapping file or backup vault directory found, attempting fallback method..."
+          
+          # Fallback: Create secrets in standard order from backup vault files (for older backups)
+          if [ -d "$BACKUP_VAULT_DIR" ]; then
+            vault_files=($(ls "$BACKUP_VAULT_DIR" | grep -v "^$" | sort))
+            secret_names=("elastic" "kibana_system" "wazuh_api" "wazuh")
+            
+            for i in "${!secret_names[@]}"; do
+              if [ -f "$BACKUP_VAULT_DIR/${vault_files[$i]}" ]; then
+                echo "Creating secret ${secret_names[$i]} from backup vault file ${vault_files[$i]} (fallback method)"
+                SECRET_VALUE=$(ansible-vault view "$BACKUP_VAULT_DIR/${vault_files[$i]}")
+                if [ $? -eq 0 ] && [ -n "$SECRET_VALUE" ]; then
+                  echo "$SECRET_VALUE" | podman secret create --driver shell --replace "${secret_names[$i]}" -
+                else
+                  echo "Failed to decrypt backup vault file: ${vault_files[$i]}"
+                fi
+              fi
+            done
+          else
+            echo "Error: No backup vault directory found at $BACKUP_VAULT_DIR"
+          fi
+          
+          echo "Fallback secret creation from backup completed"
+        fi
+        
+        # Verify secrets were created
+        echo "Current secrets:"
+        podman secret ls
       args:
         executable: /bin/bash
       become: yes
       when: restore_result is success
-      register: secrets_refresh_result
+      register: secrets_restore_result
       ignore_errors: yes
       
     - name: Extract version from backup status file
@@ -659,6 +721,7 @@
           
           Restore status:
           - LME installation: {{ install_status }}
+          - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
           - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
           - Volumes: {{ volumes_status }}
           - Containers running: {{ containers_status }}
@@ -733,6 +796,7 @@
           
           Restore status:
           - LME installation: {{ install_status }}
+          - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
           - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
           - Volumes: {{ volumes_status }}
           - Containers running: {{ containers_status }}
