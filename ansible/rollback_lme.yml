@@ -103,9 +103,27 @@
         selected_backup_dir: "{{ backup_info[backup_selection.user_input | int - 1].path }}"
       when: backup_info is defined and backup_info | length > 0
       
+    - name: Get valid backup choice
+      pause:
+        prompt: |
+          {% if backup_choice_loop is defined and backup_choice_loop.user_input is defined %}
+          Invalid input '{{ backup_choice_loop.user_input }}'. Please enter y/yes or n/no.
+          {% endif %}
+          Do you want to create a safety backup of the current installation before rollback? (y/yes/n/no)
+          This is highly recommended in case the rollback fails.
+      register: backup_choice_loop
+      until: backup_choice_loop.user_input | lower in ['y', 'yes', 'n', 'no']
+      retries: 999
+      delay: 0
+      
+    - name: Set backup choice
+      set_fact:
+        backup_choice: "{{ backup_choice_loop.user_input | lower }}"
+      
     - name: Display backup in progress message
       debug:
-        msg: "Creating backup of current installation before rollback. This may take a few minutes..."
+        msg: "Creating safety backup of current installation before rollback. This may take a few minutes..."
+      when: backup_choice in ['y', 'yes']
         
     - name: Run backup
       include_role:
@@ -114,10 +132,38 @@
         skip_prompts: true  # Skip prompts during automated backup
         skip_service_restart: true  # Leave services stopped for rollback operations
       register: backup_role_result
+      when: backup_choice in ['y', 'yes']
       
-    - name: Set backup success variable for compatibility
+    - name: Set backup success variable for compatibility when backup is done
       set_fact:
         current_lme_backup: "{{ backup_role_result }}"
+      when: backup_choice in ['y', 'yes']
+      
+    - name: Stop LME service when backup is skipped
+      systemd:
+        name: lme
+        state: stopped
+      become: yes
+      when: backup_choice in ['n', 'no']
+      
+    - name: Wait for containers to stop when backup is skipped
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: running_containers_no_backup
+      become: yes
+      until: running_containers_no_backup.stdout_lines | length == 0
+      retries: 12
+      delay: 5
+      ignore_errors: yes
+      when: backup_choice in ['n', 'no']
+      
+    - name: Set backup success variable for compatibility when backup is skipped
+      set_fact:
+        current_lme_backup: { "skipped": true, "msg": "Backup skipped by user choice" }
+      when: backup_choice in ['n', 'no']
       
     - name: Verify backup exists
       stat:
@@ -155,25 +201,85 @@
       args:
         executable: /bin/bash
       become: yes
-      when: current_lme_backup is success and lme_backup_check.stat.exists
+      when: >
+        (
+          (backup_choice in ['y', 'yes'] and current_lme_backup is success) or
+          (backup_choice in ['n', 'no'] and current_lme_backup.skipped is defined)
+        ) and lme_backup_check.stat.exists
       
     - name: Create rollback status file
       copy:
         dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
         content: |
           Rollback started: {{ ansible_date_time.iso8601 }}
+          {% if backup_choice in ['y', 'yes'] %}
           Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+          {% else %}
+          Safety backup: SKIPPED by user choice
+          {% endif %}
           Rollback source: {{ selected_backup_dir }}
           Status: IN PROGRESS
       become: yes
       
-    - name: Restore LME installation
-      shell: "mkdir -p {{ lme_install_dir }}; cp -a {{ selected_backup_dir }}/lme/. {{ lme_install_dir }}/; if [ $? -eq 0 ]; then echo 'LME installation restored successfully'; exit 0; else echo 'Failed to restore LME installation'; exit 1; fi"
+    - name: Restore LME installation and vault files
+      shell: |
+        # Restore LME installation
+        mkdir -p {{ lme_install_dir }}
+        cp -a {{ selected_backup_dir }}/lme/. {{ lme_install_dir }}/
+        LME_RESTORE_STATUS=$?
+        
+        # Restore vault files if they exist in backup
+        if [ -d "{{ selected_backup_dir }}/etc_lme" ]; then
+          mkdir -p /etc/lme
+          cp -af {{ selected_backup_dir }}/etc_lme/. /etc/lme/
+          VAULT_RESTORE_STATUS=$?
+          
+          # Ensure proper permissions on restored vault files
+          chmod 700 /etc/lme
+          chmod 700 /etc/lme/vault
+          chmod 600 /etc/lme/vault/* 2>/dev/null || true
+          chmod 700 /etc/lme/pass.sh 2>/dev/null || true
+          chown -R root:root /etc/lme
+          
+          echo "Vault files restored from backup with proper permissions"
+        else
+          echo "No vault files found in backup (older backup format)"
+          VAULT_RESTORE_STATUS=0
+        fi
+        
+        if [ $LME_RESTORE_STATUS -eq 0 ] && [ $VAULT_RESTORE_STATUS -eq 0 ]; then
+          echo "LME installation and vault files restored successfully"
+          exit 0
+        else
+          echo "Failed to restore LME installation or vault files (LME: $LME_RESTORE_STATUS, Vault: $VAULT_RESTORE_STATUS)"
+          exit 1
+        fi
       args:
         executable: /bin/bash
       become: yes
       when: backup_stat.stat.exists
       register: restore_result
+      
+    - name: Refresh Podman secrets after vault restoration
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+        
+        # Remove existing secrets to force refresh
+        for secret_id in $(podman secret ls --format "{{ '{{' }}.ID{{ '}}' }}"); do
+          podman secret rm "$secret_id" 2>/dev/null || true
+        done
+        
+        # List vault files to trigger Podman to rediscover them
+        podman secret ls >/dev/null 2>&1 || true
+        
+        echo "Podman secrets refreshed"
+      args:
+        executable: /bin/bash
+      become: yes
+      when: restore_result is success
+      register: secrets_refresh_result
+      ignore_errors: yes
       
     - name: Extract version from backup status file
       shell: |
@@ -254,9 +360,34 @@
       loop_control:
         label: "{{ item.item }}"
       
+    - name: Ensure LME service is stopped before volume operations
+      systemd:
+        name: lme
+        state: stopped
+      become: yes
+      register: service_stop_for_volumes
+      
+    - name: Wait for all containers to stop before volume operations
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: running_containers_before_volumes
+      become: yes
+      until: running_containers_before_volumes.stdout_lines | length == 0
+      retries: 24
+      delay: 5
+      ignore_errors: yes
+      
+    - name: Display any containers still running
+      debug:
+        msg: "Warning: The following containers are still running: {{ running_containers_before_volumes.stdout_lines }}"
+      when: running_containers_before_volumes.stdout_lines | length > 0
+    
     - name: Restore volume backups if available
       block:
-        # Note: Services are already stopped from backup operation with skip_service_restart=true
+        # Note: Services are now guaranteed to be stopped before volume operations
         - name: Get list of volume backups
           find:
             paths: "{{ selected_backup_dir }}/volumes"
@@ -421,7 +552,11 @@
             dest: "/tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status"
             content: |
               Rollback started: {{ ansible_date_time.iso8601 }}
+              {% if backup_choice in ['y', 'yes'] %}
               Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+              {% else %}
+              Safety backup: SKIPPED by user choice
+              {% endif %}
               Rollback source: {{ selected_backup_dir }}
               Status: IN PROGRESS
               Stage: POST_VOLUME_RESTORE
@@ -515,7 +650,11 @@
           - LME Version: {{ restored_lme_version }}
           - Stack Version: {{ restored_stack_version }}
           
+          {% if backup_choice in ['y', 'yes'] %}
           Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+          {% else %}
+          Safety backup: SKIPPED by user choice
+          {% endif %}
           Rollback source: {{ selected_backup_dir }}
           
           Restore status:
@@ -527,17 +666,29 @@
           Overall status: {{ 'SUCCESS' if install_status == 'Success' and containers_status == 'Success' and service_start_result is success else 'PARTIAL - See details above' }}
           
           Recovery instructions:
+          {% if backup_choice in ['n', 'no'] %}
+          Note: No safety backup was created during this rollback.
+          If the rollback fails, you will need to restore from an existing backup or reinstall LME.
+          {% endif %}
           {% if install_status != 'Success' %}
           If the rollback failed during installation:
           1. Stop the LME service: systemctl stop lme
           2. Remove the failed installation: rm -rf {{ lme_install_dir }}
+          {% if backup_choice in ['y', 'yes'] %}
           3. Restore the safety backup: cp -a {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/. {{ lme_install_dir }}/
+          {% else %}
+          3. Restore from an existing backup or reinstall LME
+          {% endif %}
           4. Start the service: systemctl start lme
           {% elif tag_result is failed %}
           If the rollback failed during container tagging:
           1. Stop the LME service: systemctl stop lme
           2. Remove the failed installation: rm -rf {{ lme_install_dir }}
+          {% if backup_choice in ['y', 'yes'] %}
           3. Restore the safety backup: cp -a {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/. {{ lme_install_dir }}/
+          {% else %}
+          3. Restore from an existing backup or reinstall LME
+          {% endif %}
           4. Start the service: systemctl start lme
           {% elif volumes_status != 'Success' %}
           If the rollback failed during volume restoration:
@@ -545,7 +696,11 @@
           2. For each volume:
              a. Remove the current volume: podman volume rm [volume_name]
              b. Create a new volume: podman volume create [volume_name]
+          {% if backup_choice in ['y', 'yes'] %}
              c. Restore from safety backup: cp -a {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes/[volume_name]/data/. [volume_mountpoint]/
+          {% else %}
+             c. Restore from an existing backup or recreate the volume data
+          {% endif %}
           3. Start the service: systemctl start lme
           {% elif containers_status != 'Success' %}
           If the rollback failed during container startup:
@@ -554,8 +709,10 @@
           3. Try restarting the service: systemctl restart lme
           {% endif %}
 
+          {% if backup_choice in ['y', 'yes'] %}
           Cleanup instructions (after confirming successful rollback):
           1. Remove the safety backup created during rollback: rm -rf {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+          {% endif %}
       become: yes
       
     - name: Rollback complete message
@@ -567,7 +724,11 @@
           - LME Version: {{ restored_lme_version }}
           - Stack Version: {{ restored_stack_version }}
           
+          {% if backup_choice in ['y', 'yes'] %}
           Safety backup created at: {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
+          {% else %}
+          Safety backup: SKIPPED by user choice
+          {% endif %}
           Restored from: {{ selected_backup_dir }}
           
           Restore status:

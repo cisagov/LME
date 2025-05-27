@@ -144,9 +144,27 @@
           fail:
             msg: "ERROR: Downgrade not allowed. Current version {{ current_lme_version }} is higher than requested version {{ new_lme_version }}"
 
+    - name: Get valid backup choice
+      pause:
+        prompt: |
+          {% if backup_choice_loop is defined and backup_choice_loop.user_input is defined %}
+          Invalid input '{{ backup_choice_loop.user_input }}'. Please enter y/yes or n/no.
+          {% endif %}
+          Do you want to create a backup before upgrading? (y/yes/n/no)
+          This is highly recommended in case you need to rollback.
+      register: backup_choice_loop
+      until: backup_choice_loop.user_input | lower in ['y', 'yes', 'n', 'no']
+      retries: 999
+      delay: 0
+      
+    - name: Set backup choice
+      set_fact:
+        backup_choice: "{{ backup_choice_loop.user_input | lower }}"
+      
     - name: Display backup in progress message
       debug:
-        msg: "Starting mandatory LME backup process before upgrade. This may take a few minutes..."
+        msg: "Starting LME backup process before upgrade. This may take a few minutes..."
+      when: backup_choice in ['y', 'yes']
         
     - name: Run backup
       include_role:
@@ -154,12 +172,21 @@
       vars:
         skip_prompts: true  # Skip prompts during automated backup
         skip_service_restart: true  # Leave services stopped for upgrade operations
+      when: backup_choice in ['y', 'yes']
 
-    - name: Stop LME service  # Ensure service is stopped (backup with skip_service_restart=true already stopped it)
+    - name: Stop LME service when backup is skipped
       systemd:
         name: lme
         state: stopped
       become: yes
+      when: backup_choice in ['n', 'no']
+      
+    - name: Stop LME service when backup was done
+      systemd:
+        name: lme
+        state: stopped
+      become: yes
+      when: backup_choice in ['y', 'yes']
       
     - name: Wait for containers to stop
       shell: |

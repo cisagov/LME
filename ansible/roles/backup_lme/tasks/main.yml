@@ -112,15 +112,26 @@
   shell: |
     # Create the backup directory structure
     mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_lme"
     
     # Copy the LME installation
     cp -a "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/"
+    LME_COPY_STATUS=$?
     
-    if [ $? -eq 0 ]; then
-      echo "LME installation copied successfully"
+    # Copy the vault and password files from /etc/lme
+    if [ -d "/etc/lme" ]; then
+      cp -a "/etc/lme/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_lme/"
+      ETC_LME_COPY_STATUS=$?
+    else
+      echo "Warning: /etc/lme directory not found"
+      ETC_LME_COPY_STATUS=1
+    fi
+    
+    if [ $LME_COPY_STATUS -eq 0 ] && [ $ETC_LME_COPY_STATUS -eq 0 ]; then
+      echo "LME installation and vault files copied successfully"
       exit 0
     else
-      echo "Failed to copy LME installation"
+      echo "Failed to copy LME installation or vault files (LME: $LME_COPY_STATUS, /etc/lme: $ETC_LME_COPY_STATUS)"
       exit 1
     fi
   args:
@@ -300,10 +311,15 @@
     dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/backup_status.txt"
     content: |
       Backup completed: {{ ansible_date_time.iso8601 }}
-      LME installation: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
-      Volumes: {{ successful_volumes.stdout | int }} of {{ podman_volumes.stdout_lines | length }} successful
-      Failed volumes: {{ volume_backup.results | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0 else 'None' }}
-      Service restart: {{ 'SKIPPED - Services left stopped for rollback' if skip_service_restart | default(false) else ('SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED') }}
+      LME version: {{ current_version.stdout }}
+      
+      Backup status:
+      - LME installation: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
+      - Vault files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
+      - Volumes: {{ successful_volumes.stdout | int }} of {{ podman_volumes.stdout_lines | length }} successful
+      - Failed volumes: {{ volume_backup.results | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0 else 'None' }}
+      - Service restart: {{ 'SKIPPED - Services left stopped for rollback' if skip_service_restart | default(false) else ('SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED') }}
+      
       Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == podman_volumes.stdout_lines | length else 'PARTIAL - See details above' }}
   become: yes
   
