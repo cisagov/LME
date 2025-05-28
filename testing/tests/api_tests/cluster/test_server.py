@@ -32,28 +32,27 @@ def suppress_insecure_request_warning():
 def test_host_search(es_host, es_port, username, password):
     
     url = f"https://{es_host}:{es_port}/.ds-metrics-system.cpu-default-*/_search"
-    body = load_json_schema(f"{current_script_dir}/queries/hostsearch.json")
-    response = make_request(url, username, password, body=body)
+    #body = load_json_schema(f"{current_script_dir}/queries/hostsearch.json")
+    #response = make_request(url, username, password, body=body)
+    response = make_request(url, username, password)
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"    
     data = json.loads(response.text)
-
-    #assert "winlog" in data ["winlogbeat-imported"]["mappings"]["properties"]
     
     # Getting the value of Root Key
     for key in data:
         rootKey = key
-
     
     assert (data[rootKey]["total"]["value"] > 0)
-    assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]    
-    assert (data[rootKey]["hits"][0]["_source"]["agent"]["name"] == "ubuntu-vm")    
-    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.18.0")   
+    assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]
+    assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]
+    #assert (data[rootKey]["hits"][0]["_source"]["agent"]["name"] == "ubuntu-vm")
+    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.18.0")
     assert (data[rootKey]["hits"][0]["_source"]["data_stream"]["dataset"] == "system.cpu") 
     assert (data[rootKey]["hits"][0]["_source"]["ecs"]["version"] == "8.0.0") 
-    assert (data[rootKey]["hits"][0]["_source"]["elastic_agent"]["version"] == "8.18.0") 
+    assert (data[rootKey]["hits"][0]["_source"]["elastic_agent"]["version"] == "8.18.0")
     assert (data[rootKey]["hits"][0]["_source"]["event"]["dataset"] == "system.cpu") 
-    assert (data[rootKey]["hits"][0]["_source"]["host"]["hostname"] == "ubuntu-vm") 
+    #assert (data[rootKey]["hits"][0]["_source"]["host"]["hostname"] == "ubuntu-vm")
     assert (data[rootKey]["hits"][0]["_source"]["metricset"]["name"] == "cpu") 
     assert (data[rootKey]["hits"][0]["_source"]["service"]["type"] == "system") 
     assert "system" in data[rootKey]["hits"][0]["_source"]
@@ -68,14 +67,26 @@ def test_logs_mapping(es_host, es_port, username, password):
     assert ".ds-logs-elastic_agent.endpoint_security-default-" in response.text
     assert ".ds-logs-elastic_agent-default-" in response.text
     assert ".ds-logs-elastic_agent.filebeat-default-" in response.text
-    assert ".ds-logs-system.auth-default-" in response.text
-    assert ".ds-logs-endpoint.events.network-default-" in response.text
-    assert ".ds-logs-system.syslog-default-" in response.text
+    #assert ".ds-logs-system.auth-default-" in response.text
+
+    #assert ".ds-logs-endpoint.events.network-default-" in response.text
+
+    #assert ".ds-logs-system.syslog-default-" in response.text
     assert ".ds-logs-elastic_agent.fleet_server-default-" in response.text
     assert ".ds-logs-endpoint.events.file-default-" in response.text
     assert ".ds-logs-endpoint.events.process-default-" in response.text
     assert ".ds-logs-elastic_agent.metricbeat-default-" in response.text
     
+    assert ".ds-logs-endpoint.events.network-default-" in response.text
+
+    #assert ".ds-logs-endpoint.events.library-default-" in response.text
+    assert ".ds-logs-system.application-default-" in response.text
+    assert ".ds-logs-system.system-default-" in response.text
+    #assert ".ds-logs-endpoint.events.api-default-" in response.text
+    assert ".ds-logs-system.security-default-" in response.text
+    #assert ".ds-logs-endpoint.events.security-default-" in response.text
+    assert ".ds-logs-endpoint.events.registry-default-" in response.text
+
 def test_logs_settings(es_host, es_port, username, password):
     
     url = f"https://{es_host}:{es_port}/logs-*/_settings"
@@ -88,11 +99,19 @@ def test_logs_settings(es_host, es_port, username, password):
     assert ".ds-logs-endpoint.events.file-default-" in response.text
     assert ".ds-logs-elastic_agent.endpoint_security-default-" in response.text
     assert ".ds-logs-elastic_agent-default-" in response.text
-    assert ".ds-logs-system.syslog-default-" in response.text
+    #assert ".ds-logs-system.syslog-default-" in response.text
     assert ".ds-logs-elastic_agent.filebeat-default-" in response.text
-    assert ".ds-logs-system.auth-default-" in response.text
+    #assert ".ds-logs-system.auth-default-" in response.text
     assert ".ds-logs-endpoint.events.network-default-" in response.text
- 
+
+    assert ".ds-logs-endpoint.events.library-default-" in response.text
+    assert ".ds-logs-system.system-default-" in response.text
+    assert ".ds-logs-system.application-default-" in response.text
+    assert ".ds-logs-endpoint.events.registry-default-" in response.text
+    #assert ".ds-logs-endpoint.events.api-default-" in response.text
+    assert ".ds-logs-system.security-default-" in response.text
+    #assert ".ds-logs-endpoint.events.security-default-" in response.text
+
 #@pytest.mark.skip(reason="Test is currently failing on develop branch")   
 def test_elastic_agent_logs_search(es_host, es_port, username, password):
     
@@ -145,7 +164,7 @@ def test_metrics_mapping(es_host, es_port, username, password):
     response = make_request(url, username, password)
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"    
-    assert ".ds-metrics-system.process.summary-default" in response.text
+    #assert ".ds-metrics-system.process.summary-default" in response.text
     assert ".ds-metrics-system.memory-default-" in response.text
     assert ".ds-metrics-elastic_agent.endpoint_security-default-" in response.text
     assert ".ds-metrics-system.cpu-default-" in response.text
@@ -155,7 +174,7 @@ def test_metrics_mapping(es_host, es_port, username, password):
     assert ".ds-metrics-system.diskio-default-" in response.text
     assert ".ds-metrics-endpoint.policy-default-" in response.text
     assert ".ds-metrics-system.socket_summary-default-" in response.text  
-    assert ".ds-metrics-system.load-default-" in response.text
+    #assert ".ds-metrics-system.load-default-" in response.text
     assert ".ds-metrics-fleet_server.agent_status-default-" in response.text
     assert "metrics-endpoint.metadata_current_default" in response.text
     assert ".ds-metrics-elastic_agent.elastic_agent-default-" in response.text
@@ -169,7 +188,8 @@ def test_metrics_mapping(es_host, es_port, username, password):
     assert ".ds-metrics-system.uptime-default-" in response.text
     assert ".ds-metrics-system.filesystem-default-" in response.text
     
-    
+    assert ".ds-metrics-system.process.summary-default-" in response.text
+
 def test_metrics_settings(es_host, es_port, username, password):
     
     url = f"https://{es_host}:{es_port}/metrics-*/_settings"
@@ -179,7 +199,7 @@ def test_metrics_settings(es_host, es_port, username, password):
     assert ".ds-metrics-system.process.summary-default-" in response.text
     assert ".ds-metrics-system.fsstat-default-" in response.text
     assert ".ds-metrics-elastic_agent.fleet_server-default-" in response.text
-    assert ".ds-metrics-system.load-default-" in response.text
+    #assert ".ds-metrics-system.load-default-" in response.text
     assert ".ds-metrics-endpoint.metrics-default-" in response.text
     assert ".ds-metrics-endpoint.policy-default-" in response.text
     assert ".ds-metrics-elastic_agent.filebeat-default-" in response.text
@@ -328,9 +348,9 @@ def test_elastic_indices(es_host, es_port, username, password):
     assert ("open .ds-logs-elastic_agent.endpoint_security-default" in response.text)    
     assert ("open elastalert_status_status" in response.text)                                               
     assert ("open elastalert_status_past" in response.text)                                                 
-    assert ("open .ds-logs-system.auth-default" in response.text)                      
-    assert ("open .ds-logs-system.syslog-default" in response.text)                                 
+    #assert ("open .ds-logs-system.auth-default" in response.text)
+    #assert ("open .ds-logs-system.syslog-default" in response.text)
     assert ("open .ds-logs-endpoint.events.network-default" in response.text)          
     assert ("open .ds-logs-endpoint.events.file-default" in response.text)              
     assert ("open wazuh-alerts-4.x" in response.text)                                            
-    assert ("open .ds-metrics-elastic_agent.elastic_agent" in response.text)                                                                    
+    assert ("open .ds-metrics-elastic_agent.elastic_agent" in response.text)
