@@ -40,9 +40,11 @@ for img in $images; do
     syft "$img:LME_LATEST" -o spdx-json > "$output_path" 2>/dev/null
 done
 
-syft dir:${LME_BASE_PATH} -o spdx-json > "${SBOM_OUTPUT_DIR}/directory.${OUTPUT_FILETYPE}"
-
 echo "Stopping podman socket"
 pkill -f "podman system service"
+
+
+echo "Generating SBOM for LME Repository"
+syft dir:${LME_BASE_PATH} -o spdx-json > "${SBOM_OUTPUT_DIR}/directory.${OUTPUT_FILETYPE}"
 
 echo "SBOM generation completed. View generated SBOMs in ${SBOM_OUTPUT_DIR}."

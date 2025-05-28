@@ -32,7 +32,7 @@ All SBOM files will be saved to `output/`
 The script './generate-ansible-sbom.py' will generate an SBOM for the ansible install playbook.
 It will scan the playbook '../../ansible/install_lme_local.yml'
 
-This script requires the python package `pyyaml`. It will not be included in the sbom.
+This script requires the python package `pyyaml`.
 
 ```bash
 
