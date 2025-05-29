@@ -1,0 +1,20 @@
+# Microsoft Teams notification configuration
+# Important: This file should NOT have a .yml or .yaml extension
+
+alert:
+  - ms_teams
+ms_teams_webhook_url: "https://outlook.office.com/webhook/example"
+alert_text_type: alert_text_only
+alert_text: |
+  Security Alert
+  Severity: {0}
+  Rule: {1}
+  Agent: {2}
+  Action: {3}
+  Timestamp: {4}
+alert_text_args:
+  - kibana.alert.severity
+  - kibana.alert.rule.name
+  - agent.name
+  - event.action
+  - kibana.alert.rule.execution.timestamp
