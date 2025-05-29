@@ -17,7 +17,7 @@ aggregation:
 # Uncomment the alert types you want to use
 #########################################################
 
-# import: slack_alert_config
-# import: email_alert_config
-# import: teams_alert_config
-# import: twilio_alert_config
+#import: slack_alert_config
+#import: email_alert_config
+#import: teams_alert_config
+#import: twilio_alert_config
