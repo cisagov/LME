@@ -2,7 +2,7 @@
 - name: Rollback LME to Previous Version
   hosts: localhost
   connection: local
-  become: no
+  become: yes
   vars:
     # Common variables
     install_user: "{{ ansible_user_id }}"
@@ -16,7 +16,6 @@
       args:
         executable: /bin/bash
       register: podman_graphroot
-      become: yes
       
     - name: Set backup directory
       set_fact:
@@ -65,7 +64,6 @@
         executable: /bin/bash
       loop: "{{ backup_paths }}"
       register: backup_versions
-      become: yes
 
     - name: Create backup info list
       set_fact:
@@ -143,7 +141,6 @@
       systemd:
         name: lme
         state: stopped
-      become: yes
       when: backup_choice in ['n', 'no']
       
     - name: Wait for containers to stop when backup is skipped
@@ -153,7 +150,7 @@
       args:
         executable: /bin/bash
       register: running_containers_no_backup
-      become: yes
+      when: backup_choice in ['n', 'no']
       until: running_containers_no_backup.stdout_lines | length == 0
       retries: 12
       delay: 5
@@ -185,7 +182,6 @@
         path: "{{ selected_backup_dir }}/lme"
         get_checksum: no
       register: lme_backup_check
-      become: yes
       
     - name: Validate backup directory
       fail:
@@ -200,7 +196,6 @@
         fi
       args:
         executable: /bin/bash
-      become: yes
       when: >
         (
           (backup_choice in ['y', 'yes'] and current_lme_backup is success) or
@@ -219,7 +214,6 @@
           {% endif %}
           Rollback source: {{ selected_backup_dir }}
           Status: IN PROGRESS
-      become: yes
       
     - name: Restore LME installation and vault files
       shell: |
@@ -256,7 +250,6 @@
         fi
       args:
         executable: /bin/bash
-      become: yes
       when: backup_stat.stat.exists
       register: restore_result
       
@@ -338,7 +331,6 @@
         podman secret ls
       args:
         executable: /bin/bash
-      become: yes
       when: restore_result is success
       register: secrets_restore_result
       ignore_errors: yes
@@ -351,8 +343,7 @@
           echo "2.0.2"
         fi
       register: backup_version
-      become: yes
-
+      
     - name: Extract versions from selected backup environment file
       shell: |
         if [ -f "{{ selected_backup_dir }}/lme/lme-environment.env" ]; then
@@ -363,7 +354,6 @@
           echo "STACK:Unknown,LME:{{ backup_version.stdout }}"
         fi
       register: restored_versions
-      become: yes
 
     - name: Set version variables for display
       set_fact:
@@ -374,7 +364,6 @@
       stat:
         path: "{{ lme_install_dir }}/config/containers.txt"
       register: containers_file
-      become: yes
       
     - name: Pull containers
       shell: |
@@ -384,7 +373,6 @@
         executable: /bin/bash
       loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
       register: pull_result
-      become: yes
       retries: 3
       delay: 5
       until: pull_result is not failed
@@ -407,7 +395,6 @@
         executable: /bin/bash
       loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
       register: tag_result
-      become: yes
       retries: 3
       delay: 5
       until: tag_result is not failed
@@ -426,7 +413,6 @@
       systemd:
         name: lme
         state: stopped
-      become: yes
       register: service_stop_for_volumes
       
     - name: Wait for all containers to stop before volume operations
@@ -436,7 +422,6 @@
       args:
         executable: /bin/bash
       register: running_containers_before_volumes
-      become: yes
       until: running_containers_before_volumes.stdout_lines | length == 0
       retries: 24
       delay: 5
@@ -478,7 +463,6 @@
           args:
             executable: /bin/bash
           loop: "{{ volume_names }}"
-          become: yes
           register: volume_remove_result
 
         - name: Create new volumes
@@ -488,7 +472,6 @@
           args:
             executable: /bin/bash
           loop: "{{ volume_names }}"
-          become: yes
           register: volume_create_result
 
         - name: Get volume mount points
@@ -499,7 +482,6 @@
             executable: /bin/bash
           loop: "{{ volume_names }}"
           register: volume_paths
-          become: yes
 
         - name: Restore volume data
           shell: |
@@ -524,7 +506,6 @@
           args:
             executable: /bin/bash
           loop: "{{ volume_paths.results }}"
-          become: yes
           register: volume_restore_result
 
         - name: Set volume list for verification
@@ -535,7 +516,6 @@
           stat:
             path: "{{ selected_backup_dir }}/expected_empty_volumes.txt"
           register: expected_volumes_file
-          become: yes
 
         - name: Read expected empty volumes from backup file
           set_fact:
@@ -577,7 +557,6 @@
           args:
             executable: /bin/bash
           loop: "{{ volume_names }}"
-          become: yes
           register: volume_verify_result
           ignore_errors: yes
 
@@ -625,7 +604,6 @@
               Volumes restored: {{ volume_names | join(', ') }}
               Failed volumes: {{ failed_volumes | join(', ') if failed_volumes | length > 0 else 'None' }}
               Volumes always treated as successful: {{ expected_empty_volumes | join(', ') }}
-          become: yes
         
       when: volume_backup_dir.stat is defined and volume_backup_dir.stat.exists
       
@@ -633,7 +611,6 @@
       systemd:
         name: lme
         state: started
-      become: yes
       register: service_start_result
       
     - name: Wait for containers to start
@@ -643,7 +620,6 @@
       args:
         executable: /bin/bash
       register: started_containers
-      become: yes
       until: started_containers.stdout_lines | length > 0
       retries: 24
       delay: 10
@@ -666,7 +642,6 @@
       args:
         executable: /bin/bash
       register: container_status
-      become: yes
       changed_when: false
 
     - name: Display container status
@@ -688,7 +663,6 @@
       args:
         executable: /bin/bash
       register: containers_status
-      become: yes
       changed_when: false
 
     - name: Fail if not all services are running
@@ -776,8 +750,7 @@
           Cleanup instructions (after confirming successful rollback):
           1. Remove the safety backup created during rollback: rm -rf {{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}
           {% endif %}
-      become: yes
-      
+
     - name: Rollback complete message
       debug:
         msg: |

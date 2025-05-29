@@ -2,10 +2,10 @@
 - name: Upgrade LME
   hosts: localhost
   connection: local
-  become: no
+  become: yes
   vars:
     # Common variables
-    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
     new_lme_version: "2.1.0"
     
@@ -178,14 +178,12 @@
       systemd:
         name: lme
         state: stopped
-      become: yes
       when: backup_choice in ['n', 'no']
       
     - name: Stop LME service when backup was done
       systemd:
         name: lme
         state: stopped
-      become: yes
       when: backup_choice in ['y', 'yes']
       
     - name: Wait for containers to stop
@@ -195,7 +193,6 @@
       args:
         executable: /bin/bash
       register: running_containers
-      become: yes
       until: running_containers.stdout_lines | length == 0
       retries: 12
       delay: 5
@@ -206,7 +203,6 @@
         src: "{{ clone_directory }}/config/containers.txt"
         dest: "/opt/lme/config/containers.txt"
         remote_src: yes
-      become: yes
       register: containers_copied
         
     - name: Update STACK_VERSION in environment file
@@ -214,7 +210,6 @@
         path: "{{ env_file_path }}"
         regexp: "^STACK_VERSION="
         line: "STACK_VERSION={{ elasticsearch_version }}"
-      become: yes
       register: stack_version_updated
         
     - name: Pull new container images
@@ -225,7 +220,6 @@
         executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
       register: pull_result
-      become: yes
       retries: 3
       delay: 5
       until: pull_result is not failed
@@ -247,7 +241,6 @@
         executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
       register: tag_result
-      become: yes
       retries: 3
       delay: 5
       until: tag_result is not failed
@@ -265,7 +258,6 @@
       systemd:
         name: "lme"
         state: restarted
-      become: yes
       tags: ['system']
       
     - name: Wait for containers to start
@@ -275,7 +267,6 @@
       args:
         executable: /bin/bash
       register: started_containers
-      become: yes
       until: started_containers.stdout_lines | length > 0
       retries: 12
       delay: 5
@@ -301,7 +292,6 @@
       args:
         executable: /bin/bash
       register: containers_status
-      become: yes
       until: containers_status.rc == 0
       retries: 15
       delay: 10
@@ -321,14 +311,12 @@
         line: "LME_VERSION={{ new_lme_version }}"
         regexp: "^LME_VERSION="
         state: present
-      become: yes
       register: version_updated
       
     - name: Update LME version file
       copy:
         content: "{{ new_lme_version }}"
         dest: "/etc/lme/version"
-      become: yes
       
     - name: Upgrade complete message
       debug:

@@ -5,7 +5,7 @@
   become: no  # Default to no privilege escalation
   vars:
     # Common variables
-    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
     debug_mode: false  # Default debug mode to false
     
