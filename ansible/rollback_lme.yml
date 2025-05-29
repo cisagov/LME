@@ -9,12 +9,71 @@
     lme_install_dir: "/opt/lme"
     
   tasks:
-    - name: Get Podman graphroot location
+    - name: Determine podman command location
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman info --format "{{ '{{' }}.Store.GraphRoot{{ '}}' }}"
+        # Check multiple locations for podman
+        if command -v podman >/dev/null 2>&1; then
+          echo "podman"
+        elif [ -x "/nix/var/nix/profiles/default/bin/podman" ]; then
+          echo "/nix/var/nix/profiles/default/bin/podman"
+        elif [ -x "/usr/local/bin/podman" ]; then
+          echo "/usr/local/bin/podman"
+        else
+          echo "ERROR: podman command not found in any expected location" >&2
+          echo "Checked locations:" >&2
+          echo "- Standard PATH: $(which podman 2>/dev/null || echo 'not found')" >&2
+          echo "- Nix location: /nix/var/nix/profiles/default/bin/podman" >&2
+          echo "- Symlink location: /usr/local/bin/podman" >&2
+          exit 1
+        fi
       args:
         executable: /bin/bash
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+      register: podman_cmd_result
+      
+    - name: Check if podman symlink exists
+      stat:
+        path: "/usr/local/bin/podman"
+      register: podman_symlink_stat
+      
+    - name: Check if nix podman exists
+      stat:
+        path: "/nix/var/nix/profiles/default/bin/podman"
+      register: nix_podman_stat
+      
+    - name: Create podman symlink if needed and nix podman exists
+      file:
+        src: "/nix/var/nix/profiles/default/bin/podman"
+        dest: "/usr/local/bin/podman"
+        state: link
+        force: yes
+      when: 
+        - not podman_symlink_stat.stat.exists
+        - nix_podman_stat.stat.exists
+      ignore_errors: yes
+      
+    - name: Set podman command variable
+      set_fact:
+        podman_cmd: "{{ podman_cmd_result.stdout }}"
+        
+    - name: Display podman command location
+      debug:
+        msg: "Using podman from: {{ podman_cmd }}"
+
+    - name: Get Podman graphroot location
+      shell: |
+        # Get the full path to the storage directory
+        GRAPHROOT=$({{ podman_cmd }} info --format "{{ '{{' }}.Store.GraphRoot{{ '}}' }}")
+        if [ -z "$GRAPHROOT" ]; then
+          echo "/var/lib/containers/storage"  # Default fallback
+        else
+          echo "$GRAPHROOT"
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
       register: podman_graphroot
       
     - name: Set backup directory
@@ -145,8 +204,7 @@
       
     - name: Wait for containers to stop when backup is skipped
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+        {{ podman_cmd }} ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
       args:
         executable: /bin/bash
       register: running_containers_no_backup
@@ -367,8 +425,7 @@
       
     - name: Pull containers
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman pull {{ item }}
+        {{ podman_cmd }} pull {{ item }}
       args:
         executable: /bin/bash
       loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
@@ -389,8 +446,7 @@
       
     - name: Tag containers
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+        {{ podman_cmd }} image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
       args:
         executable: /bin/bash
       loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
@@ -417,8 +473,7 @@
       
     - name: Wait for all containers to stop before volume operations
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+        {{ podman_cmd }} ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
       args:
         executable: /bin/bash
       register: running_containers_before_volumes
@@ -456,9 +511,8 @@
 
         - name: Remove existing volumes
           shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            if podman volume exists "{{ item }}"; then
-              podman volume rm "{{ item }}"
+            if {{ podman_cmd }} volume exists "{{ item }}"; then
+              {{ podman_cmd }} volume rm "{{ item }}"
             fi
           args:
             executable: /bin/bash
@@ -467,8 +521,7 @@
 
         - name: Create new volumes
           shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            podman volume create "{{ item }}"
+            {{ podman_cmd }} volume create "{{ item }}"
           args:
             executable: /bin/bash
           loop: "{{ volume_names }}"
@@ -476,8 +529,7 @@
 
         - name: Get volume mount points
           shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            podman volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}"
+            {{ podman_cmd }} volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}"
           args:
             executable: /bin/bash
           loop: "{{ volume_names }}"
@@ -485,8 +537,7 @@
 
         - name: Restore volume data
           shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            VOLUME_PATH=$(podman volume inspect "{{ item.item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
+            VOLUME_PATH=$({{ podman_cmd }} volume inspect "{{ item.item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
             BACKUP_DIR="{{ selected_backup_dir }}/volumes/{{ item.item }}/data"
             
             if [ -d "$BACKUP_DIR" ]; then
@@ -537,8 +588,7 @@
 
         - name: Verify volume restoration
           shell: |
-            export PATH=$PATH:/nix/var/nix/profiles/default/bin
-            VOLUME_PATH=$(podman volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
+            VOLUME_PATH=$({{ podman_cmd }} volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
             if [ -d "$VOLUME_PATH" ]; then
               # Check if this is an expected empty volume first - always treat as successful
               if [[ " {{ expected_empty_volumes | join(' ') }} " =~ " {{ item }} " ]]; then
@@ -620,8 +670,7 @@
       
     - name: Wait for containers to start
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+        {{ podman_cmd }} ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
       args:
         executable: /bin/bash
       register: started_containers
@@ -636,13 +685,12 @@
       
     - name: Check container status
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
         echo "=== Running Containers ==="
-        podman ps --format "{{ '{{' }}.Names{{ '}}' }}: {{ '{{' }}.Status{{ '}}' }}" | grep -E "lme" || echo "No LME containers running"
+        {{ podman_cmd }} ps --format "{{ '{{' }}.Names{{ '}}' }}: {{ '{{' }}.Status{{ '}}' }}" | grep -E "lme" || echo "No LME containers running"
         echo -e "\n=== Container Logs ==="
-        for container in $(podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme"); do
+        for container in $({{ podman_cmd }} ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme"); do
           echo "--- $container logs ---"
-          podman logs --tail 5 $container
+          {{ podman_cmd }} logs --tail 5 $container
         done
       args:
         executable: /bin/bash
@@ -655,8 +703,25 @@
 
     - name: Verify services are running
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        LME_CONTAINERS=$(podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true)
+        # Ensure podman is available - check multiple locations
+        if command -v podman >/dev/null 2>&1; then
+          PODMAN_CMD="podman"
+        elif [ -x "/nix/var/nix/profiles/default/bin/podman" ]; then
+          PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
+        elif [ -x "/usr/local/bin/podman" ]; then
+          PODMAN_CMD="/usr/local/bin/podman"
+        else
+          echo "ERROR: podman command not found in any expected location"
+          echo "Checked locations:"
+          echo "- Standard PATH: $(which podman 2>/dev/null || echo 'not found')"
+          echo "- Nix location: /nix/var/nix/profiles/default/bin/podman"
+          echo "- Symlink location: /usr/local/bin/podman"
+          exit 1
+        fi
+        
+        echo "Using podman from: $PODMAN_CMD"
+        
+        LME_CONTAINERS=$($PODMAN_CMD ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true)
         CONTAINER_COUNT=$(echo "$LME_CONTAINERS" | grep -v '^$' | wc -l)
         
         echo "=== Container Status Check ==="
@@ -666,7 +731,7 @@
         
         # List all LME containers (running and stopped)
         echo -e "\n=== All LME Containers ==="
-        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}: {{ '{{' }}.Status{{ '}}' }}" | grep -E "lme" || echo "No LME containers found"
+        $PODMAN_CMD ps -a --format "{{ '{{' }}.Names{{ '}}' }}: {{ '{{' }}.Status{{ '}}' }}" | grep -E "lme" || echo "No LME containers found"
         
         # Check if we have at least 4 containers running (allow for some flexibility)
         if [ "$CONTAINER_COUNT" -ge 4 ]; then
@@ -678,6 +743,8 @@
         fi
       args:
         executable: /bin/bash
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
       register: containers_status
       until: containers_status.rc == 0
       retries: 20

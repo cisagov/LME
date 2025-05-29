@@ -57,6 +57,58 @@
         container_versions | select('search', 'wazuh') | list | length == 0 or
         container_versions | select('search', 'elastalert') | list | length == 0
         
+    - name: Determine podman command location
+      shell: |
+        # Check multiple locations for podman
+        if command -v podman >/dev/null 2>&1; then
+          echo "podman"
+        elif [ -x "/nix/var/nix/profiles/default/bin/podman" ]; then
+          echo "/nix/var/nix/profiles/default/bin/podman"
+        elif [ -x "/usr/local/bin/podman" ]; then
+          echo "/usr/local/bin/podman"
+        else
+          echo "ERROR: podman command not found in any expected location" >&2
+          echo "Checked locations:" >&2
+          echo "- Standard PATH: $(which podman 2>/dev/null || echo 'not found')" >&2
+          echo "- Nix location: /nix/var/nix/profiles/default/bin/podman" >&2
+          echo "- Symlink location: /usr/local/bin/podman" >&2
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+      register: podman_cmd_result
+      
+    - name: Check if podman symlink exists
+      stat:
+        path: "/usr/local/bin/podman"
+      register: podman_symlink_stat
+      
+    - name: Check if nix podman exists
+      stat:
+        path: "/nix/var/nix/profiles/default/bin/podman"
+      register: nix_podman_stat
+      
+    - name: Create podman symlink if needed and nix podman exists
+      file:
+        src: "/nix/var/nix/profiles/default/bin/podman"
+        dest: "/usr/local/bin/podman"
+        state: link
+        force: yes
+      when: 
+        - not podman_symlink_stat.stat.exists
+        - nix_podman_stat.stat.exists
+      ignore_errors: yes
+      
+    - name: Set podman command variable
+      set_fact:
+        podman_cmd: "{{ podman_cmd_result.stdout }}"
+        
+    - name: Display podman command location
+      debug:
+        msg: "Using podman from: {{ podman_cmd }}"
+        
     - name: Extract container versions
       set_fact:
         elasticsearch_image: "{{ container_versions | select('search', 'elasticsearch') | first }}"
@@ -188,8 +240,7 @@
       
     - name: Wait for containers to stop
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+        {{ podman_cmd }} ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
       args:
         executable: /bin/bash
       register: running_containers
@@ -214,8 +265,7 @@
         
     - name: Pull new container images
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman pull {{ item }}
+        {{ podman_cmd }} pull {{ item }}
       args:
         executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
@@ -235,8 +285,7 @@
         
     - name: Tag new containers
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+        {{ podman_cmd }} image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
       args:
         executable: /bin/bash
       loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
@@ -262,8 +311,7 @@
       
     - name: Wait for containers to start
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+        {{ podman_cmd }} ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
       args:
         executable: /bin/bash
       register: started_containers
@@ -278,10 +326,12 @@
         
     - name: Verify services are running
       shell: |
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        LME_CONTAINERS=$(podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true)
+        echo "Using podman from: {{ podman_cmd }}"
+        
+        LME_CONTAINERS=$({{ podman_cmd }} ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true)
         CONTAINER_COUNT=$(echo "$LME_CONTAINERS" | wc -l)
         echo "$LME_CONTAINERS"
+        
         if [ $CONTAINER_COUNT -ge 5 ]; then
           echo "All expected LME services are running"
           exit 0
