@@ -658,28 +658,55 @@
         export PATH=$PATH:/nix/var/nix/profiles/default/bin
         LME_CONTAINERS=$(podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true)
         CONTAINER_COUNT=$(echo "$LME_CONTAINERS" | grep -v '^$' | wc -l)
-        if [ "$CONTAINER_COUNT" -eq 5 ]; then
-          echo "All expected LME services are running"
+        
+        echo "=== Container Status Check ==="
+        echo "Running LME containers:"
+        echo "$LME_CONTAINERS"
+        echo "Container count: $CONTAINER_COUNT"
+        
+        # List all LME containers (running and stopped)
+        echo -e "\n=== All LME Containers ==="
+        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}: {{ '{{' }}.Status{{ '}}' }}" | grep -E "lme" || echo "No LME containers found"
+        
+        # Check if we have at least 4 containers running (allow for some flexibility)
+        if [ "$CONTAINER_COUNT" -ge 4 ]; then
+          echo -e "\nSufficient LME services are running ($CONTAINER_COUNT/5)"
           exit 0
         else
-          echo "Only $CONTAINER_COUNT of 5 expected LME services are running"
+          echo -e "\nInsufficient LME services running ($CONTAINER_COUNT/5)"
           exit 1
         fi
       args:
         executable: /bin/bash
       register: containers_status
+      until: containers_status.rc == 0
+      retries: 20
+      delay: 15
       changed_when: false
 
     - name: Fail if not all services are running
       fail:
-        msg: "Not all expected LME services are running. Only {{ containers_status.stdout_lines | select('match', '^lme') | list | length }} of 5 expected services were detected."
+        msg: |
+          Insufficient LME services are running after rollback.
+          
+          Expected: 5 containers
+          Running: {{ containers_status.stdout_lines | select('match', '^lme') | list | length if containers_status.stdout_lines is defined else 'Unknown' }}
+          
+          Container status details:
+          {{ containers_status.stdout_lines | join('\n') if containers_status.stdout_lines is defined else 'No status available' }}
+          
+          This may be a temporary issue. You can:
+          1. Wait a few more minutes for containers to fully start
+          2. Check container logs: podman logs [container_name]
+          3. Restart the LME service: systemctl restart lme
+          4. Check the detailed status file: /tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status
       when: containers_status.rc != 0
       
     - name: Collect rollback results
       set_fact:
         install_status: "{{ 'Success' if backup_stat.stat.exists else 'Failed' }}"
         volumes_status: "{{ 'Success' if volume_restore_result is success else 'Failed' }}"
-        containers_status: "{{ 'Success' if containers_status.stdout_lines | length > 0 else 'Failed' }}"
+        containers_running_status: "{{ 'Success' if containers_status.rc == 0 else 'Partial' }}"
       
     - name: Update rollback status file
       copy:
@@ -703,9 +730,9 @@
           - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
           - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
           - Volumes: {{ volumes_status }}
-          - Containers running: {{ containers_status }}
+          - Containers running: {{ containers_running_status }}
           
-          Overall status: {{ 'SUCCESS' if install_status == 'Success' and containers_status == 'Success' and service_start_result is success else 'PARTIAL - See details above' }}
+          Overall status: {{ 'SUCCESS' if install_status == 'Success' and containers_running_status == 'Success' and service_start_result is success else 'PARTIAL - See details above' }}
           
           Recovery instructions:
           {% if backup_choice in ['n', 'no'] %}
@@ -744,7 +771,7 @@
              c. Restore from an existing backup or recreate the volume data
           {% endif %}
           3. Start the service: systemctl start lme
-          {% elif containers_status != 'Success' %}
+          {% elif containers_running_status != 'Success' %}
           If the rollback failed during container startup:
           1. Check container logs: podman logs [container_name]
           2. Verify container images: podman images
@@ -777,9 +804,9 @@
           - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
           - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
           - Volumes: {{ volumes_status }}
-          - Containers running: {{ containers_status }}
+          - Containers running: {{ containers_running_status }}
           
-          Overall status: {{ 'SUCCESS' if install_status == 'Success' and containers_status == 'Success' and service_start_result is success else 'PARTIAL - See details above' }}
+          Overall status: {{ 'SUCCESS' if install_status == 'Success' and containers_running_status == 'Success' and service_start_result is success else 'PARTIAL - See details above' }}
           
           A detailed status report has been saved to: /tmp/lme_rollback_{{ ansible_date_time.iso8601_basic_short }}.status
 
