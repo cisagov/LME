@@ -14,24 +14,19 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-if ! command -v pip &> /dev/null && ! command -v pip3 &> /dev/null; then
-    echo "Error: pip is required but not installed."
-    exit 1
-fi
-
 if ! command -v curl &> /dev/null; then
-    echo "Error: curl is required but not installed."
-    exit 1
+    echo "Installing curl..."
+    sudo apt update && sudo apt install -y curl
 fi
 
 if ! command -v jq &> /dev/null; then
-    echo "Error: jq is required but not installed. Please install jq for JSON parsing."
-    exit 1
+    echo "Installing jq..."
+    sudo apt update && sudo apt install -y jq
 fi
 
-PIP_CMD="pip3"
-if ! command -v pip3 &> /dev/null; then
-    PIP_CMD="pip"
+if ! command -v unzip &> /dev/null; then
+    echo "Installing unzip..."
+    sudo apt update && sudo apt install -y unzip
 fi
 
 get_latest_sigma_release() {
@@ -85,9 +80,9 @@ download_sigma_rules() {
     if command -v unzip &> /dev/null; then
         unzip -o -q "$ZIP_FILE" -d .
     else
-        echo "Error: unzip command not found. Please install unzip."
-        rm -rf "$TEMP_DIR"
-        exit 1
+        echo "Installing unzip..."
+        sudo apt update && sudo apt install -y unzip
+        unzip -o -q "$ZIP_FILE" -d .
     fi
 
     EXTRACTED_DIR=$(find . -maxdepth 1 -type d -name "*sigma*" | head -n 1)
@@ -131,8 +126,22 @@ if [ ! -d "sigma/rules" ]; then
 fi
 
 echo "Installing sigma-cli and elasticsearch plugin..."
-$PIP_CMD install --upgrade pip
-$PIP_CMD install sigma-cli
+
+# Install pipx if not available
+if ! command -v pipx &> /dev/null; then
+    echo "Installing pipx..."
+    sudo apt update && sudo apt install -y pipx
+    
+    # Ensure pipx path is set up
+    pipx ensurepath || true
+fi
+
+# Install sigma-cli via pipx
+echo "Installing sigma-cli via pipx..."
+pipx install sigma-cli
+
+# Ensure pipx binaries are in PATH
+export PATH="$HOME/.local/bin:$PATH"
 
 sigma plugin install elasticsearch
 
@@ -283,7 +292,7 @@ if [[ $upload_choice =~ ^[Yy]$ ]]; then
             if [ -f "$rule_file" ]; then
                 os_type=$(basename "$rule_file" | sed 's/sigma_\(.*\)_rules\.ndjson/\1/')
 
-                echo "Uploading $os_type rules..."
+                echo "Uploading $os_type rules this will take a few moments do not stop the process..."
 
                 UPLOAD_RESULT=$(curl -s -k -X POST \
                     -u "${ELASTIC_USERNAME}:${ELASTIC_PASSWORD}" \
