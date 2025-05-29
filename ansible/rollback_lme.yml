@@ -518,8 +518,13 @@
           register: expected_volumes_file
 
         - name: Read expected empty volumes from backup file
+          shell: cat "{{ selected_backup_dir }}/expected_empty_volumes.txt"
+          register: expected_volumes_content
+          when: expected_volumes_file.stat.exists
+
+        - name: Set expected empty volumes from backup file
           set_fact:
-            expected_empty_volumes: "{{ lookup('file', selected_backup_dir + '/expected_empty_volumes.txt').splitlines() }}"
+            expected_empty_volumes: "{{ expected_volumes_content.stdout_lines }}"
           when: expected_volumes_file.stat.exists
 
         - name: Set fallback expected empty volumes for older backups
