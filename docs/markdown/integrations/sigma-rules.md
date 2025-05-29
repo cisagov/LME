@@ -27,7 +27,7 @@ If you opt to not upload automatically you can do a manual upload instead
 
 ## Manual upload (if needed)
 
-1. Open Kibana at `https://localhost:5601`
+1. Open Kibana at and login.
 2. Go to **Security → Rules → Import Rules**
 3. Upload the files from `output/` directory
 
