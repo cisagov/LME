@@ -1,5 +1,5 @@
 run_every:
-  minutes: 1
+  minutes: 5
 
 buffer_time:
   minutes: 15
