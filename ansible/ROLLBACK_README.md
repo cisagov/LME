@@ -11,6 +11,36 @@ The LME rollback system provides safe restoration from backups with:
 - Service validation after rollback
 - Detailed recovery instructions
 
+## ⚠️ **CRITICAL: Fleet Server Rollback Considerations**
+
+**IMPORTANT**: Before rolling back, understand these Fleet Server implications:
+
+### Client Compatibility
+- **NEVER rollback LME servers if clients have been upgraded to newer Elastic Agent versions**
+- Upgraded clients are incompatible with older Fleet Server versions
+- Rolling back the server while clients remain upgraded will break connectivity
+- Client downgrades are not supported and can cause data corruption
+
+### Fleet Server Entry Management
+- **Ensure old Fleet Server entries remain in Kibana Fleet UI before rollback**
+- Check Fleet → Agents for offline Fleet Server entries from previous versions
+- **Do NOT delete offline Fleet Server entries** - they are required for rollback
+- If accidentally deleted, rollback may fail or require manual re-enrollment
+
+### Pre-Rollback Checklist
+1. **Verify client versions**: Ensure no clients have been upgraded beyond the rollback target version
+2. **Check Fleet entries**: Confirm old Fleet Server entries exist in Kibana Fleet UI
+3. **Client planning**: If clients were upgraded, consider upgrading forward instead of rolling back
+4. **Test environment**: Validate rollback procedures with client compatibility testing
+
+### Rollback Scenarios
+- ✅ **Safe**: Rollback immediately after server upgrade, before client upgrades
+- ✅ **Safe**: Rollback with clients still on original version
+- ⚠️ **Risky**: Rollback after some clients upgraded (may lose upgraded client connectivity)
+- ❌ **Dangerous**: Rollback after all clients upgraded (will break Fleet management)
+
+**Alternative to rollback**: If clients were upgraded, consider upgrading the server forward to a compatible version instead of rolling back.
+
 ## ⚠️ Space Requirements
 
 **CRITICAL: Ensure you have sufficient disk space before running any rollback operations.**
@@ -341,6 +371,42 @@ sudo systemctl restart lme.service
 - Enter exactly `y`, `yes`, `n`, or `no`
 - Avoid extra spaces or characters
 - Use lowercase letters
+
+#### 7. Fleet Server Connectivity Issues After Rollback
+**Error**: Clients show offline or can't connect to Fleet Server after rollback
+**Symptoms**:
+- Fleet UI shows agents as offline
+- Client logs show connection errors to Fleet Server
+- Fleet policies not updating on clients
+
+**Solution**:
+```bash
+# 1. Check Fleet Server version matches client expectations
+sudo podman exec lme-fleet-server elastic-agent version
+# Note: You'll be prompted for vault password - get it with: cat /etc/lme/pass.sh
+
+# 2. Check Fleet entries in Kibana
+# Go to Fleet → Agents
+# Look for offline Fleet Server entries from newer versions
+# Ensure the current Fleet Server entry matches rollback version
+
+# 3. Check client versions
+# On each client, check: elastic-agent version
+# Verify clients are compatible with rolled-back server version
+
+# 4. If clients were upgraded beyond rollback version:
+# OPTION A: Upgrade server forward instead of rollback
+ansible-playbook upgrade_lme.yml  # upgrade to client-compatible version
+
+# OPTION B: Re-enroll clients (data loss may occur)
+# On each client: elastic-agent unenroll --force
+# Then re-enroll with enrollment token from rolled-back server
+```
+
+**Prevention**:
+- Always verify client versions before rollback
+- Keep offline Fleet Server entries in Kibana UI
+- Test rollback procedures in development environment
 
 ### Debug Mode
 Enable verbose output for troubleshooting:

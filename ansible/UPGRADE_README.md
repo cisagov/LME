@@ -11,6 +11,31 @@ The LME upgrade system provides safe, automated upgrades with:
 - Configuration migration
 - Service validation after upgrade
 
+## ⚠️ **CRITICAL: Fleet Server Rollback Considerations**
+
+**IMPORTANT**: Before upgrading, understand these Fleet Server implications:
+
+### Client Upgrade Impact
+- **Once clients are upgraded to a newer Elastic Agent version, they should NOT be rolled back**
+- Upgraded clients may have compatibility issues with older Fleet Server versions
+- Plan client upgrades carefully - they are effectively one-way operations
+
+### Fleet Server Management
+- **NEVER delete the old Fleet Server entry from Kibana Fleet UI after upgrade**
+- The old Fleet Server will show as "Offline" after upgrade - this is expected
+- **Keep the offline entry** - it's required for rollback scenarios
+- If you need to rollback the server, the old Fleet Server entry enables client reconnection
+
+### Rollback Planning
+- Only rollback LME servers if clients have NOT been upgraded
+- If clients were upgraded, consider upgrading forward instead of rolling back
+- Test rollback procedures in development environment with client compatibility
+
+**Why this matters**:
+- Fleet Server manages client enrollment and policy distribution
+- Version mismatches between Fleet Server and clients can cause connectivity issues
+- Maintaining both Fleet Server entries provides maximum flexibility
+
 ## ⚠️ Space Requirements
 
 **CRITICAL: Ensure you have sufficient disk space before running any upgrade operations.**
@@ -184,6 +209,13 @@ If you skip backup:
 - Fleet enrollment tokens are regenerated automatically
 - No data loss occurs - only temporary binaries are removed
 
+**Expected Result in Fleet UI**:
+After upgrade, you may temporarily see two Fleet Server entries in Kibana → Fleet → Agents:
+- **Online**: New Fleet Server with upgraded version (current)
+- **Offline**: Old Fleet Server with previous version (preserve for rollback)
+
+**IMPORTANT**: Do not delete the offline Fleet Server entry - it's required for rollback scenarios.
+
 ### 4. Version Tracking
 - `LME_VERSION` in environment file
 - `STACK_VERSION` for Elasticsearch stack
@@ -241,6 +273,16 @@ cat /opt/lme/lme-environment.env | grep -E "(LME_VERSION|STACK_VERSION)"
 # 4. Test web interfaces
 curl -k https://localhost:5601  # Kibana
 curl -k https://localhost:9200  # Elasticsearch
+
+# 5. Verify Fleet Server upgrade
+sudo podman exec lme-fleet-server elastic-agent version
+# Note: You'll be prompted for vault password - get it with: cat /etc/lme/pass.sh
+
+# 6. Check Fleet UI (important for rollback planning)
+# Go to Kibana → Fleet → Agents
+# Expected: One "Online" Fleet Server with new version
+# Expected: One "Offline" Fleet Server with old version (KEEP THIS!)
+# The offline entry is normal and required for potential rollbacks
 ```
 
 ### Service Verification
@@ -338,6 +380,7 @@ This is now automatically resolved by the upgrade process (2.1.0+), but if you e
 ```bash
 # 1. Check current fleet-server version
 sudo podman exec lme-fleet-server elastic-agent version
+# Note: You'll be prompted for vault password - get it with: cat /etc/lme/pass.sh
 
 # 2. If showing old version, manually refresh the fleet volume
 sudo systemctl stop lme-fleet-server.service
