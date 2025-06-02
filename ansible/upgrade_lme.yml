@@ -303,6 +303,21 @@
       loop_control:
         label: "{{ item.item }}"
         
+    - name: Remove fleet-server data volume to prevent version mismatch
+      shell: |
+        echo "Removing lme_fleet_data volume to ensure fleet-server uses fresh container binaries..."
+        {{ podman_cmd }} volume rm lme_fleet_data || true
+      args:
+        executable: /bin/bash
+      register: volume_removal_result
+      ignore_errors: yes
+      
+    - name: Display fleet volume removal result
+      debug:
+        msg: |
+          Fleet data volume removal: {{ 'SUCCESS' if volume_removal_result.rc == 0 else 'INFO - Volume may not exist or already removed' }}
+          This ensures fleet-server will use the correct container version binaries.
+        
     - name: Restart LME service
       systemd:
         name: "lme"

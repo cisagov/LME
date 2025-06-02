@@ -164,7 +164,27 @@ If you skip backup:
 - `containers.txt` (new image references)
 - Quadlet configurations (if needed)
 
-### 3. Version Tracking
+### 3. Fleet Server Volume Refresh
+**NEW in 2.1.0**: The upgrade process now removes the `lme_fleet_data` volume during upgrade to prevent version mismatch issues.
+
+**Why this is necessary**:
+- Fleet Server stores its binaries in a persistent volume
+- During upgrades, the old binaries could override the new container's binaries
+- This caused Fleet Server to run the old version even with a new container image
+- Removing the volume ensures Fleet Server uses the correct version binaries
+
+**What happens**:
+- The `lme_fleet_data` volume is safely removed after containers are stopped
+- Fleet Server automatically re-enrolls with the correct version when restarted  
+- No manual intervention or configuration changes are required
+- Fleet Server functionality is fully restored with the upgraded version
+
+**Note**: This volume removal is safe because:
+- Fleet Server configuration is stored in Elasticsearch, not the volume
+- Fleet enrollment tokens are regenerated automatically
+- No data loss occurs - only temporary binaries are removed
+
+### 4. Version Tracking
 - `LME_VERSION` in environment file
 - `STACK_VERSION` for Elasticsearch stack
 - `/etc/lme/version` file
@@ -305,6 +325,38 @@ ansible-playbook rollback_lme.yml
 - Enter exactly `y`, `yes`, `n`, or `no`
 - Avoid extra spaces or characters
 - Use lowercase letters
+
+#### 6. Fleet Server Version Mismatch After Upgrade
+**Error**: Fleet Server shows old version in Kibana Fleet UI despite upgrade
+**Symptoms**:
+- `podman exec lme-fleet-server elastic-agent version` shows old version
+- Fleet UI shows offline agent with old version and online agent with new version
+
+**Solution**:
+This is now automatically resolved by the upgrade process (2.1.0+), but if you encounter this issue:
+
+```bash
+# 1. Check current fleet-server version
+sudo podman exec lme-fleet-server elastic-agent version
+
+# 2. If showing old version, manually refresh the fleet volume
+sudo systemctl stop lme-fleet-server.service
+sudo podman volume rm lme_fleet_data
+sudo systemctl start lme-fleet-server.service
+
+# 3. Wait for fleet-server to re-enroll (2-3 minutes)
+sudo podman logs lme-fleet-server -f
+
+# 4. Verify correct version
+sudo podman exec lme-fleet-server elastic-agent version
+```
+
+**Verification in Kibana**:
+- Go to Fleet → Agents
+- You may see two fleet-server entries temporarily:
+  - One "Offline" with old version (previous registration)
+  - One "Online" with new version (current registration)
+- The offline entry can be safely deleted after confirming the online entry is working
 
 ### Debug Mode
 Enable verbose output for troubleshooting:
