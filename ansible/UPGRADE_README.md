@@ -392,6 +392,7 @@ sudo podman logs lme-fleet-server -f
 
 # 4. Verify correct version
 sudo podman exec lme-fleet-server elastic-agent version
+# Note: You'll be prompted for vault password - get it with: cat /etc/lme/pass.sh
 ```
 
 **Verification in Kibana**:
