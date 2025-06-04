@@ -1,7 +1,7 @@
 # SBOM Generation
 
 This directory is for advanced users that want to generate an SBOM for LME.
-At this point these scripts are experimental
+At this point these scripts are experimental.
 
 ## Generating SBOM files
 
@@ -16,7 +16,7 @@ podman containers. The script will take a few minutes to run.
 `sudo -i` is required to access the podman environment variables. When running this command
 you will need to provide the full path to the script.
 ```bash
-sudo -i /home/{USER}/LME/scripts/sbom/generate-container-sbom.sh
+sudo -i /absolute/path/to/LME/scripts/sbom/generate-container-sbom.sh
 ```
 
 This will:
@@ -24,15 +24,16 @@ This will:
 2. start a podman socket
 3. use `syft` to analyze each container, save the spdx file
 4. stop the podman socket 
+5. use `syft` to scan the LME directory
 
 All SBOM files will be saved to `output/`
 
 ### Ansible Playbook SBOM
 
-The script './generate-ansible-sbom.py' will generate an SBOM for the ansible install playbook.
-It will scan the playbook '../../ansible/install_lme_local.yml'
+The script './generate-ansible-sbom.py' will generate an SBOM for the ansible install playbook set.
+It will scan the playbooks that install any packages and create a small SBOM for them.
 
-This script requires the python package `pyyaml`. It will not be included in the sbom.
+This script requires the python package `pyyaml`.
 
 ```bash
 
@@ -40,7 +41,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install pyyaml
 
-python3 ./generate-ansible-sbom.py ../../ansible/install_lme_local.yml
+python3 ./generate-ansible-sbom.py
 ```
 
 The SBOM file will be saved to output/ansible-spdx.json

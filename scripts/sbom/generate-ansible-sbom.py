@@ -28,8 +28,8 @@ def get_os_version() -> Dict[str, str]:
             data[key] = value
 
 
-    info["name"] = data.get("NAME", "")
-    info["version"] = data.get("VERSION_ID", "")
+    info["name"] = data.get("NAME", "").strip("\"")
+    info["version"] = data.get("VERSION_ID", "").strip("\"")
     
     return info
 
