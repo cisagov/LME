@@ -180,6 +180,7 @@ class Sbom():
     def save(self, output_file: Path):
         with open(output_file, 'w') as fp:
             json.dump(self.data, fp)
+        print(f"Sbom saved to {output_file}")
 
 
 class NixPackageParser():
@@ -243,7 +244,7 @@ class AptPackageSBOMGenerator():
         os_release = self.os_info.get("version", "").lower()
         os_release = os_release.replace(".", "_")
 
-        print(os_name, os_release, release)
+        # print(os_name, os_release, release)
 
         if " " in os_name:
             os_name = os_name.split(" ")[0] #debian 
