@@ -268,10 +268,7 @@ class AptPackageSBOMGenerator():
 
         for release_type, package_list in yaml_data.items():
             if self.is_valid_release_type(release_type):
-                print("True")
                 packages.update(package_list)
-            else:
-                print("False")
 
         for package in packages:
             pkg = Package(package, get_package_version(package), self.filepath, pkg_type="apt")
