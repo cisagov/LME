@@ -37,10 +37,11 @@ for img in $images; do
     echo "Analyzing image $img:LME_LATEST"
     # the {img//\//-} replaces / with -, so localhost-kibana instead of slash
     output_path="${SBOM_OUTPUT_DIR}/${img//\//-}.${OUTPUT_FILETYPE}"
-    syft "$img:LME_LATEST" -o spdx-json > "$output_path" 2>/dev/null
+    output_table="${SBOM_OUTPUT_DIR}/${img//\//-}-table.txt"
+    syft "$img:LME_LATEST" -o spdx-json="$output_path" -o syft-table="${output_table}" 2>/dev/null
 done
 
-syft dir:${LME_BASE_PATH} -o spdx-json > "${SBOM_OUTPUT_DIR}/directory.${OUTPUT_FILETYPE}"
+syft dir:${LME_BASE_PATH} -o spdx-json="${SBOM_OUTPUT_DIR}/directory.${OUTPUT_FILETYPE}" -o syft-table="${SBOM_OUTPUT_DIR}/directory-table.txt"
 
 echo "Stopping podman socket"
 pkill -f "podman system service"
