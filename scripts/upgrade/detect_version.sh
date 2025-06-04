@@ -47,8 +47,8 @@ else
     UPGRADE_NEEDED=true
     
     # Add version to environment file
-    echo "Adding LME_VERSION=$LATEST_VERSION to environment file"
-    echo "LME_VERSION=$LATEST_VERSION" >> "$ENV_FILE"
+    # echo "Adding LME_VERSION=$LATEST_VERSION to environment file"
+    # echo "LME_VERSION=$LATEST_VERSION" >> "$ENV_FILE"
 fi
 
 # Check container versions
