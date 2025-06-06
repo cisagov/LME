@@ -423,24 +423,35 @@
         path: "{{ lme_install_dir }}/config/containers.txt"
       register: containers_file
       
+    - name: Read containers list from file
+      slurp:
+        path: "{{ lme_install_dir }}/config/containers.txt"
+      register: containers_content
+      when: containers_file.stat.exists
+      
+    - name: Set containers list variable
+      set_fact:
+        container_list: "{{ (containers_content.content | b64decode).strip().split('\n') | select('match', '^[^#].*') | list }}"
+      when: containers_file.stat.exists and containers_content is defined
+      
     - name: Pull containers
       shell: |
         {{ podman_cmd }} pull {{ item }}
       args:
         executable: /bin/bash
-      loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
+      loop: "{{ container_list | default([]) }}"
       register: pull_result
       retries: 3
       delay: 5
       until: pull_result is not failed
       ignore_errors: yes
-      when: containers_file.stat.exists
+      when: containers_file.stat.exists and container_list is defined and container_list | length > 0
       
     - name: Display container pull errors
       debug:
         msg: "Failed to pull container: {{ item.item }}"
-      loop: "{{ pull_result.results }}"
-      when: item is failed
+      loop: "{{ pull_result.results | default([]) }}"
+      when: pull_result is defined and pull_result.results is defined and item is failed
       loop_control:
         label: "{{ item.item }}"
       
@@ -449,19 +460,19 @@
         {{ podman_cmd }} image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
       args:
         executable: /bin/bash
-      loop: "{{ lookup('file', lme_install_dir + '/config/containers.txt').splitlines() }}"
+      loop: "{{ container_list | default([]) }}"
       register: tag_result
       retries: 3
       delay: 5
       until: tag_result is not failed
       ignore_errors: yes
-      when: containers_file.stat.exists
+      when: containers_file.stat.exists and container_list is defined and container_list | length > 0
       
     - name: Display container tag errors
       debug:
         msg: "Failed to tag container: {{ item.item }}"
-      loop: "{{ tag_result.results }}"
-      when: item is failed
+      loop: "{{ tag_result.results | default([]) }}"
+      when: tag_result is defined and tag_result.results is defined and item is failed
       loop_control:
         label: "{{ item.item }}"
       
@@ -795,7 +806,7 @@
           Restore status:
           - LME installation: {{ install_status }}
           - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
-          - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
+          - Containers pull/tag: {{ 'Success' if (pull_result is defined and pull_result is success) and (tag_result is defined and tag_result is success) else ('Skipped' if not containers_file.stat.exists else 'Partial - Some errors occurred') }}
           - Volumes: {{ volumes_status }}
           - Containers running: {{ containers_running_status }}
           
@@ -869,7 +880,7 @@
           Restore status:
           - LME installation: {{ install_status }}
           - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
-          - Containers pull/tag: {{ 'Success' if pull_result is success and tag_result is success else 'Partial - Some errors occurred' }}
+          - Containers pull/tag: {{ 'Success' if (pull_result is defined and pull_result is success) and (tag_result is defined and tag_result is success) else ('Skipped' if not containers_file.stat.exists else 'Partial - Some errors occurred') }}
           - Volumes: {{ volumes_status }}
           - Containers running: {{ containers_running_status }}
           
