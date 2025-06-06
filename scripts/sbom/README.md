@@ -7,33 +7,32 @@ At this point these scripts are experimental.
 
 ### LME Containers
 
-The script `./generate-container-sbom.sh` can be run to generate an SBOM for the
-podman containers. The script will take a few minutes to run.
+Running the `./generate-container-sbom.sh` script will generate an SBOM for the
+podman containers. The script will take several minutes to complete.
 
-** Warning: This will install the tool 'syft' onto the host machine and generate a podman socket. **
-** Do NOT proceed if you do not understand the shell script **
+**Warning: This script installs the 'syft' tool onto the host machine and generates a podman socket. Do not proceed unless you have reviewed and understand the script's operation.**
 
-`sudo -i` is required to access the podman environment variables. When running this command
+`sudo -i` is required to access the podman environment variables. When running this command,
 you will need to provide the full path to the script.
 ```bash
 sudo -i /absolute/path/to/LME/scripts/sbom/generate-container-sbom.sh
 ```
 
 This will:
-1. install `syft` tool on comptuer if it does not exist
-2. start a podman socket
-3. use `syft` to analyze each container, save the spdx file
-4. stop the podman socket 
-5. use `syft` to scan the LME directory
+1. Install the `syft` tool onto the comptuer if it does not already exist
+2. Start a podman socket
+3. Use `syft` to analyze each container and save the spdx file
+4. Stop the podman socket
+5. Use `syft` to scan the LME directory
 
-All SBOM files will be saved to `output/`
+All SBOM files will be saved to `output/`.
 
 ### Ansible Playbook SBOM
 
-The script './generate-ansible-sbom.py' will generate an SBOM for the ansible install playbook set.
-It will scan the playbooks that install any packages and create a small SBOM for them.
+The './generate-ansible-sbom.py' script will generate an SBOM for the Ansible install playbook set.
+It scans the playbooks that install packages and produces a minimal SBOM for those packages.
 
-This script requires the python package `pyyaml`.
+This script requires the `pyyaml` python package.
 
 ```bash
 
@@ -44,4 +43,4 @@ pip install pyyaml
 python3 ./generate-ansible-sbom.py
 ```
 
-The SBOM file will be saved to output/ansible-spdx.json
+The SBOM file will be saved to `output/ansible-spdx.json`.
