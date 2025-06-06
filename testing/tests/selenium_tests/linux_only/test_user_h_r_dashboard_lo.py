@@ -18,7 +18,7 @@ class TestUserHRDashboard:
         driver = setup_login
         #dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Select domain(s) and username(s)"
         selector = f'div[data-title="{panel_title}"]'
@@ -32,7 +32,7 @@ class TestUserHRDashboard:
         driver = setup_login
         #dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Events by Time"
         selector = f'div[data-title="{panel_title}"]'

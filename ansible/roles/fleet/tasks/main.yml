@@ -448,7 +448,7 @@
 
 - name: Check Fleet agents endpoint contents
   uri:
-    url: "{{ local_kbn_url }}/api/fleet/agents?page=1&perPage=20&kuery=status%3Aonline%20or%20(status%3Aerror%20or%20status%3Adegraded)%20or%20(status%3Aupdating%20or%20status%3Aunenrolling%20or%20status%3Aenrolling)%20or%20status%3Aoffline&sortField=enrolled_at&sortOrder=desc&showInactive=false&showUpgradeable=false&getStatusSummary=true&withMetrics=true"
+    url: "{{ local_kbn_url }}/api/fleet/agents?page=1&perPage=20&kuery=status%3Aonline%20or%20(status%3Aerror%20or%20status%3Adegraded)%20or%20(status%3Aupdating%20or%20status%3Aunenrolling%20or%20status%3Aenrolling)%20or%20status%3Aoffline&showInactive=false&showUpgradeable=false&getStatusSummary=true&withMetrics=true"
     method: GET
     user: "{{ elastic_username }}"
     password: "{{ elastic_password }}"
