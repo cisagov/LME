@@ -208,10 +208,17 @@
       until: backup_choice_loop.user_input | lower in ['y', 'yes', 'n', 'no']
       retries: 999
       delay: 0
+      when: skip_prompts is not defined or not skip_prompts | bool
       
-    - name: Set backup choice
+    - name: Set backup choice (interactive)
       set_fact:
         backup_choice: "{{ backup_choice_loop.user_input | lower }}"
+      when: skip_prompts is not defined or not skip_prompts | bool
+      
+    - name: Set backup choice (automated - no backup)
+      set_fact:
+        backup_choice: "n"
+      when: skip_prompts is defined and skip_prompts | bool
       
     - name: Display backup in progress message
       debug:
