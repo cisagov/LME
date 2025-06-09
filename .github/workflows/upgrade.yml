@@ -116,7 +116,7 @@ jobs:
           "
 
       - name: Upgrade to the version being built
-        # This will check out the code on the Azure instance and run the new Ansible-based upgrade system.
+        # This will update the existing LME installation and run the new Ansible-based upgrade system.
         run: |
           set +e
           cd testing/v2/development
@@ -134,14 +134,28 @@ jobs:
               --command-id RunShellScript \
               --name lme-vm \
               --resource-group \$RESOURCE_GROUP \
-              --scripts 'export HOME=/root; pwd && whoami && cd ~ \
-                && git clone https://github.com/cisagov/LME.git \
-                && cd LME \
-                && echo \"Checking out current branch: ${{ env.BRANCH_NAME }}\" \
-                && git checkout ${{ env.BRANCH_NAME }} \
-                && echo \"Running Ansible upgrade...\" \
-                && ansible-playbook ansible/upgrade_lme.yml -e skip_prompts=true \
-                && echo \"UPGRADE_SUCCESSFUL\"; exit \$?'")
+              --scripts 'set -e && \
+                echo \"Current user: \$(whoami)\" && \
+                echo \"Working directory: \$(pwd)\" && \
+                echo \"LME directory contents:\" && \
+                ls -la /home/lme-user/LME/ && \
+                echo \"Updating LME installation to branch: ${{ env.BRANCH_NAME }}\" && \
+                cd /home/lme-user/LME && \
+                sudo chown -R lme-user:lme-user . && \
+                sudo -u lme-user bash -c \" \
+                  git fetch --all --tags && \
+                  if git show-ref --tags --verify --quiet \"refs/tags/${{ env.BRANCH_NAME }}\"; then \
+                    echo \"Checking out tag: ${{ env.BRANCH_NAME }}\" && \
+                    git checkout ${{ env.BRANCH_NAME }}; \
+                  else \
+                    echo \"Checking out branch: ${{ env.BRANCH_NAME }}\" && \
+                    git checkout ${{ env.BRANCH_NAME }} || git checkout -t origin/${{ env.BRANCH_NAME }}; \
+                  fi && \
+                  echo \"Updated to: \$(git rev-parse --short HEAD) on \$(git branch --show-current || git describe --tags --exact-match 2>/dev/null || echo \"detached HEAD\")\"\" && \
+                echo \"Running Ansible upgrade...\" && \
+                cd /home/lme-user/LME/ansible && \
+                ansible-playbook upgrade_lme.yml -e skip_prompts=true && \
+                echo \"UPGRADE_SUCCESSFUL\"; exit \$?'")
           echo "Output: $output"
           if echo "$output" | grep -q "UPGRADE_SUCCESSFUL"; then
             echo "Upgrade successful"

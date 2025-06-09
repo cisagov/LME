@@ -759,7 +759,7 @@
       register: containers_status
       until: containers_status.rc == 0
       retries: 20
-      delay: 15
+      delay: 20
       changed_when: false
 
     - name: Fail if not all services are running
