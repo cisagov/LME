@@ -14,7 +14,7 @@ jobs:
       UNIQUE_ID: 
       IP_ADDRESS: 
       LS1_IP:
-      LATEST_BRANCH:
+      LATEST_TAG:
       BRANCH_NAME:
       elastic:
     steps:
@@ -26,9 +26,9 @@ jobs:
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
           echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
-          LATEST_BRANCH_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name | sub("^v"; "") | "release-" + .' | head -n 1)
-          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR"
-          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR" >> $GITHUB_ENV
+          LATEST_TAG_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name' | head -n 1)
+          echo "LATEST_TAG=$LATEST_TAG_VAR"
+          echo "LATEST_TAG=$LATEST_TAG_VAR" >> $GITHUB_ENV
 
       - name: Get branch name 
         shell: bash
@@ -117,17 +117,17 @@ jobs:
         run: |
           set +e  
           cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            ./development/install_lme.ps1 -b '${{ env.LATEST_BRANCH }}'; \
-            exit \$LASTEXITCODE;
-          }"
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
+            cd /home/admin.ackbar/LME/testing/v2/installers && \
+            export AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' && \
+            export AZURE_SECRET='${{ secrets.AZURE_SECRET }}' && \
+            export AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}' && \
+            export AZURE_TENANT='${{ secrets.AZURE_TENANT }}' && \
+            export UNIQUE_ID='${{ env.UNIQUE_ID }}' && \
+            export RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}' && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./install_v2/install.sh lme-user \$IP_ADDRESS \"pipe-${{ env.UNIQUE_ID }}.password.txt\" '${{ env.LATEST_TAG }}'
+            "
           EXIT_CODE=$?
           echo "Exit code: $EXIT_CODE"
           set -e  
@@ -166,7 +166,7 @@ jobs:
 
       - name: Upgrade to the version being built
         # This will check out the code in the /root directory so that it can use the latest version of the code.
-        # But it will also check out the branch in the /opt/lme directory so that upgrade_lme.sh script can use the branch.
+        # Then run the new Ansible-based upgrade system.
         run: |
           set +e
           cd testing/development
@@ -188,8 +188,9 @@ jobs:
                 && cd LME \
                 && echo "Checking out current branch: ${{ env.BRANCH_NAME }}" \
                 && git checkout ${{ env.BRANCH_NAME }} \
-                && cd testing \
-                && ./development/upgrade_lme.sh; exit \$?'")
+                && echo "Running Ansible upgrade..." \
+                && ansible-playbook ansible/upgrade_lme.yml -e skip_prompts=true \
+                && echo "UPGRADE_SUCCESSFUL"; exit \$?'")
           echo "Output: $output"
           if echo "$output" | grep -q "UPGRADE_SUCCESSFUL"; then
             echo "Upgrade successful"
