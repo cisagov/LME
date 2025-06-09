@@ -26,7 +26,7 @@ jobs:
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
           echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)-${{ github.run_number }}" >> $GITHUB_ENV
-          LATEST_TAG_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name' | head -n 1)
+          LATEST_TAG_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name' | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | head -n 1)
           echo "LATEST_TAG=$LATEST_TAG_VAR"
           echo "LATEST_TAG=$LATEST_TAG_VAR" >> $GITHUB_ENV
                    
