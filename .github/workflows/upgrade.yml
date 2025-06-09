@@ -116,46 +116,34 @@ jobs:
           "
 
       - name: Upgrade to the version being built
-        # This will update the existing LME installation and run the new Ansible-based upgrade system.
+        # This will update the existing LME installation and run the new Ansible-based upgrade system via SSH.
         run: |
           set +e
           cd testing/v2/development
           output=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            export AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' && \
-            export AZURE_SECRET='${{ secrets.AZURE_SECRET }}' && \
-            export AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}' && \
-            export AZURE_TENANT='${{ secrets.AZURE_TENANT }}' && \
-            export UNIQUE_ID='${{ env.UNIQUE_ID }}' && \
-            export RESOURCE_GROUP='pipe-${{ env.UNIQUE_ID }}' && \
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_SECRET --tenant \$AZURE_TENANT && \
-            az vm run-command invoke \
-              --command-id RunShellScript \
-              --name lme-vm \
-              --resource-group \$RESOURCE_GROUP \
-              --scripts 'set -e && \
-                echo \"Current user: \$(whoami)\" && \
-                echo \"Working directory: \$(pwd)\" && \
-                echo \"LME directory contents:\" && \
-                ls -la /home/lme-user/LME/ && \
-                echo \"Updating LME installation to branch: ${{ env.BRANCH_NAME }}\" && \
-                cd /home/lme-user/LME && \
-                sudo chown -R lme-user:lme-user . && \
-                sudo -u lme-user bash -c \" \
-                  git fetch --all --tags && \
-                  if git show-ref --tags --verify --quiet \"refs/tags/${{ env.BRANCH_NAME }}\"; then \
-                    echo \"Checking out tag: ${{ env.BRANCH_NAME }}\" && \
-                    git checkout ${{ env.BRANCH_NAME }}; \
-                  else \
-                    echo \"Checking out branch: ${{ env.BRANCH_NAME }}\" && \
-                    git checkout ${{ env.BRANCH_NAME }} || git checkout -t origin/${{ env.BRANCH_NAME }}; \
-                  fi && \
-                  echo \"Updated to: \$(git rev-parse --short HEAD) on \$(git branch --show-current || git describe --tags --exact-match 2>/dev/null || echo \"detached HEAD\")\"\" && \
-                echo \"Running Ansible upgrade...\" && \
-                cd /home/lme-user/LME/ansible && \
-                ansible-playbook upgrade_lme.yml -e skip_prompts=true && \
-                echo \"UPGRADE_SUCCESSFUL\"; exit \$?'")
+            echo \"Connecting to \$IP_ADDRESS to upgrade LME to branch: ${{ env.BRANCH_NAME }}\" && \
+            ssh -o StrictHostKeyChecking=no lme-user@\$IP_ADDRESS 'set -e && \
+              echo \"Current user: \$(whoami)\" && \
+              echo \"Working directory: \$(pwd)\" && \
+              echo \"LME directory contents:\" && \
+              ls -la ~/LME/ && \
+              echo \"Updating LME installation to branch: ${{ env.BRANCH_NAME }}\" && \
+              cd ~/LME && \
+              git fetch --all --tags && \
+              if git show-ref --tags --verify --quiet \"refs/tags/${{ env.BRANCH_NAME }}\"; then \
+                echo \"Checking out tag: ${{ env.BRANCH_NAME }}\" && \
+                git checkout ${{ env.BRANCH_NAME }}; \
+              else \
+                echo \"Checking out branch: ${{ env.BRANCH_NAME }}\" && \
+                git checkout ${{ env.BRANCH_NAME }} || git checkout -t origin/${{ env.BRANCH_NAME }}; \
+              fi && \
+              echo \"Updated to: \$(git rev-parse --short HEAD) on \$(git branch --show-current || git describe --tags --exact-match 2>/dev/null || echo \"detached HEAD\")\" && \
+              echo \"Running Ansible upgrade...\" && \
+              cd ~/LME/ansible && \
+              ansible-playbook upgrade_lme.yml -e skip_prompts=true && \
+              echo \"UPGRADE_SUCCESSFUL\"'")
           echo "Output: $output"
           if echo "$output" | grep -q "UPGRADE_SUCCESSFUL"; then
             echo "Upgrade successful"
