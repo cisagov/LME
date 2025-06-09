@@ -180,21 +180,21 @@ jobs:
       #       exit $EXIT_CODE
       #     fi
     
-      - name: Run a command on the linux machine 
-        run: |
-          cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            export AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' && \
-            export AZURE_SECRET='${{ secrets.AZURE_SECRET }}' && \
-            export AZURE_TENANT='${{ secrets.AZURE_TENANT }}' && \
-            export RESOURCE_GROUP='pipe-${{ env.UNIQUE_ID }}' && \
-            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_SECRET --tenant \$AZURE_TENANT && \
-            az vm run-command invoke  \
-              --command-id RunShellScript  \
-              --name lme-vm  \
-              --resource-group \$RESOURCE_GROUP \
-              --scripts 'ls -lan'
-          "
+      # - name: Run a command on the linux machine 
+      #   run: |
+      #     cd testing/v2/development
+      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+      #       export AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}' && \
+      #       export AZURE_SECRET='${{ secrets.AZURE_SECRET }}' && \
+      #       export AZURE_TENANT='${{ secrets.AZURE_TENANT }}' && \
+      #       export RESOURCE_GROUP='pipe-${{ env.UNIQUE_ID }}' && \
+      #       az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_SECRET --tenant \$AZURE_TENANT && \
+      #       az vm run-command invoke  \
+      #         --command-id RunShellScript  \
+      #         --name lme-vm  \
+      #         --resource-group \$RESOURCE_GROUP \
+      #         --scripts 'ls -lan'
+      #     "
     
       - name: Install test requirements on Azure instance
         run: |
