@@ -228,7 +228,7 @@ jobs:
             echo elastic=\"$ES_PASSWORD\" >> .env && \
             cat .env && \
             source venv/bin/activate && \
-            pytest -v api_tests/'
+            pytest -v api_tests/linux_only/'
           "
     
       - name: Run selenium tests on Azure instance
@@ -247,7 +247,7 @@ jobs:
             echo elastic=\"$ES_PASSWORD\" >> .env && \
             cat .env && \
             source venv/bin/activate && \
-            pytest -v selenium_tests/'
+            pytest -v selenium_tests/linux_only/'
           "
     
       - name: Cleanup Azure resources
