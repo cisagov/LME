@@ -32,7 +32,7 @@ jobs:
     runs-on: self-hosted
     
     env:
-      UNIQUE_ID: ${{ github.run_id }}-${{ github.run_number }}
+      UNIQUE_ID: 
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
@@ -50,6 +50,7 @@ jobs:
         echo "HOST_GID=$(id -g)" >> .env
         PUBLIC_IP=$(curl -s https://api.ipify.org)
         echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
+        echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)-${{ github.run_number }}" >> $GITHUB_ENV
 
         
     - name: Start pipeline container
