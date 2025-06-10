@@ -324,6 +324,71 @@
         msg: |
           Fleet data volume removal: {{ 'SUCCESS' if volume_removal_result.rc == 0 else 'INFO - Volume may not exist or already removed' }}
           This ensures fleet-server will use the correct container version binaries.
+          
+    - name: Create backup directory for quadlet files
+      file:
+        path: "/opt/lme/backup/quadlet-{{ ansible_date_time.epoch }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      register: quadlet_backup_dir
+      
+    - name: Backup existing quadlet files
+      shell: |
+        if [ -d "/etc/containers/systemd" ]; then
+          cp -r /etc/containers/systemd/* {{ quadlet_backup_dir.path }}/ 2>/dev/null || true
+          echo "Backed up existing quadlet files to {{ quadlet_backup_dir.path }}"
+        else
+          echo "No existing quadlet directory found"
+        fi
+      args:
+        executable: /bin/bash
+      register: quadlet_backup_result
+      
+    - name: Display quadlet backup result
+      debug:
+        msg: "{{ quadlet_backup_result.stdout }}"
+        
+    - name: Create /etc/containers/systemd directory
+      file:
+        path: /etc/containers/systemd
+        state: directory
+        owner: root
+        group: root
+        mode: '0744'
+        
+    - name: Copy updated quadlet files to /etc/containers/systemd
+      copy:
+        src: "{{ clone_directory }}/quadlet/"
+        dest: /etc/containers/systemd/
+        owner: root
+        group: root
+        mode: '0644'
+      register: quadlet_copy_result
+      
+    - name: Copy lme.service to /etc/systemd/system
+      copy:
+        src: "{{ clone_directory }}/quadlet/lme.service"
+        dest: "/etc/systemd/system/lme.service"
+        owner: root
+        group: root
+        mode: '0644'
+      register: lme_service_copy_result
+      
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+      register: daemon_reload_result
+      
+    - name: Display quadlet update results
+      debug:
+        msg: |
+          Quadlet files updated successfully:
+          - Backup location: {{ quadlet_backup_dir.path }}
+          - Quadlet files: {{ 'Updated' if quadlet_copy_result.changed else 'No changes needed' }}
+          - LME service file: {{ 'Updated' if lme_service_copy_result.changed else 'No changes needed' }}
+          - Systemd daemon: {{ 'Reloaded' if daemon_reload_result.changed else 'Already current' }}
         
     - name: Restart LME service
       systemd:
@@ -401,6 +466,11 @@
             'Elastic Agent: docker.elastic.co/beats/elastic-agent:' + elasticsearch_version,
             'Kibana: ' + kibana_image,
             'Wazuh: ' + wazuh_image,
-            'ElastAlert: ' + elastalert_image
+            'ElastAlert: ' + elastalert_image,
+            '',
+            'Configuration updates:',
+            '- Quadlet files: Updated with latest container configurations',
+            '- Previous quadlet files backed up to: ' + quadlet_backup_dir.path,
+            '- Systemd daemon: Reloaded to recognize changes'
           ] %}
           {{ dict(range(1, message_lines|length + 1) | zip(message_lines)) }} 
