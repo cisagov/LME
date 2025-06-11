@@ -273,7 +273,7 @@
           Rollback source: {{ selected_backup_dir }}
           Status: IN PROGRESS
       
-    - name: Restore LME installation and vault files
+    - name: Restore LME installation, vault files, and systemd files
       shell: |
         # Restore LME installation
         mkdir -p {{ lme_install_dir }}
@@ -299,17 +299,40 @@
           VAULT_RESTORE_STATUS=0
         fi
         
-        if [ $LME_RESTORE_STATUS -eq 0 ] && [ $VAULT_RESTORE_STATUS -eq 0 ]; then
-          echo "LME installation and vault files restored successfully"
+        # Restore systemd container files if they exist in backup
+        if [ -d "{{ selected_backup_dir }}/etc_containers_systemd" ]; then
+          mkdir -p /etc/containers/systemd
+          cp -af {{ selected_backup_dir }}/etc_containers_systemd/. /etc/containers/systemd/
+          SYSTEMD_RESTORE_STATUS=$?
+          
+          # Ensure proper permissions on restored systemd files
+          chmod 644 /etc/containers/systemd/*.container 2>/dev/null || true
+          chmod 644 /etc/containers/systemd/*.volume 2>/dev/null || true
+          chmod 644 /etc/containers/systemd/*.network 2>/dev/null || true
+          chown root:root /etc/containers/systemd/* 2>/dev/null || true
+          
+          echo "Systemd container files restored from backup with proper permissions"
+        else
+          echo "No systemd container files found in backup (older backup format)"
+          SYSTEMD_RESTORE_STATUS=0
+        fi
+        
+        if [ $LME_RESTORE_STATUS -eq 0 ] && [ $VAULT_RESTORE_STATUS -eq 0 ] && [ $SYSTEMD_RESTORE_STATUS -eq 0 ]; then
+          echo "LME installation, vault files, and systemd files restored successfully"
           exit 0
         else
-          echo "Failed to restore LME installation or vault files (LME: $LME_RESTORE_STATUS, Vault: $VAULT_RESTORE_STATUS)"
+          echo "Failed to restore LME installation, vault files, or systemd files (LME: $LME_RESTORE_STATUS, Vault: $VAULT_RESTORE_STATUS, Systemd: $SYSTEMD_RESTORE_STATUS)"
           exit 1
         fi
       args:
         executable: /bin/bash
       when: backup_stat.stat.exists
       register: restore_result
+      
+    - name: Reload systemd daemon after restoring systemd files
+      systemd:
+        daemon_reload: yes
+      when: restore_result is success
       
     - name: Restore Podman secrets from backup vault files
       shell: |
@@ -805,6 +828,8 @@
           
           Restore status:
           - LME installation: {{ install_status }}
+          - Vault files: {{ 'Success' if restore_result is success else 'Failed' }}
+          - Systemd files: {{ 'Success' if restore_result is success else 'Failed' }}
           - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
           - Containers pull/tag: {{ 'Success' if (pull_result is defined and pull_result is success) and (tag_result is defined and tag_result is success) else ('Skipped' if not containers_file.stat.exists else 'Partial - Some errors occurred') }}
           - Volumes: {{ volumes_status }}
@@ -879,6 +904,8 @@
           
           Restore status:
           - LME installation: {{ install_status }}
+          - Vault files: {{ 'Success' if restore_result is success else 'Failed' }}
+          - Systemd files: {{ 'Success' if restore_result is success else 'Failed' }}
           - Secrets restoration: {{ 'Success' if secrets_restore_result is success else 'Failed' }}
           - Containers pull/tag: {{ 'Success' if (pull_result is defined and pull_result is success) and (tag_result is defined and tag_result is success) else ('Skipped' if not containers_file.stat.exists else 'Partial - Some errors occurred') }}
           - Volumes: {{ volumes_status }}

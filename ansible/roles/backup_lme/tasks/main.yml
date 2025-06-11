@@ -113,6 +113,7 @@
     # Create the backup directory structure
     mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
     mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_lme"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_containers_systemd"
     
     # Copy the LME installation
     cp -a "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/"
@@ -127,11 +128,21 @@
       ETC_LME_COPY_STATUS=1
     fi
     
-    if [ $LME_COPY_STATUS -eq 0 ] && [ $ETC_LME_COPY_STATUS -eq 0 ]; then
-      echo "LME installation and vault files copied successfully"
+    # Copy the systemd container files from /etc/containers/systemd
+    if [ -d "/etc/containers/systemd" ]; then
+      cp -a "/etc/containers/systemd/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_containers_systemd/"
+      SYSTEMD_COPY_STATUS=$?
+      echo "Systemd container files backed up successfully"
+    else
+      echo "Warning: /etc/containers/systemd directory not found"
+      SYSTEMD_COPY_STATUS=1
+    fi
+    
+    if [ $LME_COPY_STATUS -eq 0 ] && [ $ETC_LME_COPY_STATUS -eq 0 ] && [ $SYSTEMD_COPY_STATUS -eq 0 ]; then
+      echo "LME installation, vault files, and systemd files copied successfully"
       exit 0
     else
-      echo "Failed to copy LME installation or vault files (LME: $LME_COPY_STATUS, /etc/lme: $ETC_LME_COPY_STATUS)"
+      echo "Failed to copy LME installation, vault files, or systemd files (LME: $LME_COPY_STATUS, /etc/lme: $ETC_LME_COPY_STATUS, systemd: $SYSTEMD_COPY_STATUS)"
       exit 1
     fi
   args:
@@ -351,6 +362,7 @@
       Backup status:
       - LME installation: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
       - Vault files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
+      - Systemd files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
       - Volumes: {{ successful_volumes.stdout | int }} of {{ podman_volumes.stdout_lines | length }} successful
       - Failed volumes: {{ volume_backup.results | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0 else 'None' }}
       - Service restart: {{ 'SKIPPED - Services left stopped for rollback' if skip_service_restart | default(false) else ('SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED') }}
