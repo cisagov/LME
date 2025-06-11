@@ -399,6 +399,15 @@
     - elastic_defend_policy_result
   when: debug_mode | bool
 
+- name: Set FLEET_ENROLL=1 for initial enrollment
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_ENROLL="
+    line: "FLEET_ENROLL=1"
+    insertafter: EOF
+    state: present
+  become: yes
+
 - name: Create FLEET_SETUP_FINISHED file
   file:
     path: "/opt/lme/FLEET_SETUP_FINISHED"
@@ -490,6 +499,15 @@
   fail:
     msg: "Fleet did not become ready within the expected time. Status: {{ fleet_status | default('unknown') }}"
   when: fleet_status.status is not defined or fleet_status.status != 200
+
+- name: Set FLEET_ENROLL=0 to prevent re-enrollment on restart  
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_ENROLL="
+    line: "FLEET_ENROLL=0"
+    insertafter: EOF
+    state: present
+  become: yes
 
 # Wait for metrics indices to be created
 - name: Wait for all required metrics indices to be created

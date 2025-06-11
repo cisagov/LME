@@ -269,6 +269,15 @@
         regexp: "^STACK_VERSION="
         line: "STACK_VERSION={{ elasticsearch_version }}"
       register: stack_version_updated
+      
+    - name: Set FLEET_ENROLL=1 for upgrade enrollment
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^FLEET_ENROLL="
+        line: "FLEET_ENROLL=1"
+        insertafter: EOF
+        state: present
+      register: fleet_enroll_updated
         
     - name: Pull new container images
       shell: |
@@ -441,6 +450,20 @@
       fail:
         msg: "Not all expected LME services are running. Only {{ containers_status.stdout_lines | select('match', '^lme') | list | length }} of 5 expected services were detected."
       when: containers_status.rc != 0
+      
+    - name: Wait for fleet server to complete enrollment
+      pause:
+        seconds: 30
+        prompt: "Waiting for fleet server enrollment to complete..."
+        
+    - name: Set FLEET_ENROLL=0 to prevent re-enrollment on restart
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^FLEET_ENROLL="
+        line: "FLEET_ENROLL=0"
+        insertafter: EOF
+        state: present
+      register: fleet_enroll_disabled
       
     - name: Update LME version in environment file
       lineinfile:
