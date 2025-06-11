@@ -324,7 +324,7 @@
         msg: |
           Fleet data volume removal: {{ 'SUCCESS' if volume_removal_result.rc == 0 else 'INFO - Volume may not exist or already removed' }}
           This ensures fleet-server will use the correct container version binaries.
-          
+        
     - name: Create backup directory for quadlet files
       file:
         path: "/opt/lme/backup/quadlet-{{ ansible_date_time.epoch }}"

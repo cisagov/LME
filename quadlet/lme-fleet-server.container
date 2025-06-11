@@ -27,7 +27,7 @@ PublishPort=8220:8220
 Volume=lme_certs:/certs:ro
 Volume=lme_fleet_data:/usr/share/elastic-agent
 UserNS=auto:uidmapping=0:171632:3048,gidmapping=0:171632:3048
-Exec=/bin/bash -c 'if [ -f /usr/share/elastic-agent/state/fleet.enc ]; then export FLEET_ENROLL=0; else export FLEET_ENROLL=1; fi && exec /usr/local/bin/docker-entrypoint -e'
+Exec=/bin/bash -c "if [ -f /usr/share/elastic-agent/state/fleet.enc ]; then export FLEET_ENROLL=0; else export FLEET_ENROLL=1; fi && exec /usr/local/bin/docker-entrypoint -e"
 #TODO: fix this, need to check if its ready before polling API
 #HealthCmd=CMD-SHELL curl -s --cacert /certs/ca/ca.crt https://localhost:8220/api/status | grep '"status":"HEALTHY"'
 #Notify=healthy
