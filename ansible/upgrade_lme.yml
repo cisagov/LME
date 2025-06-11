@@ -279,6 +279,24 @@
         state: present
       register: fleet_enroll_updated
         
+    - name: Set FLEET_SERVER_ENABLE=1 for upgrade enrollment
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^FLEET_SERVER_ENABLE="
+        line: "FLEET_SERVER_ENABLE=1"
+        insertafter: EOF
+        state: present
+      register: fleet_server_enable_updated
+        
+    - name: Set KIBANA_FLEET_SETUP=1 for upgrade enrollment
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^KIBANA_FLEET_SETUP="
+        line: "KIBANA_FLEET_SETUP=1"
+        insertafter: EOF
+        state: present
+      register: kibana_fleet_setup_updated
+        
     - name: Pull new container images
       shell: |
         {{ podman_cmd }} pull {{ item }}
@@ -464,6 +482,24 @@
         insertafter: EOF
         state: present
       register: fleet_enroll_disabled
+      
+    - name: Set FLEET_SERVER_ENABLE=0 to prevent re-bootstrap on restart
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^FLEET_SERVER_ENABLE="
+        line: "FLEET_SERVER_ENABLE=0"
+        insertafter: EOF
+        state: present
+      register: fleet_server_enable_disabled
+      
+    - name: Set KIBANA_FLEET_SETUP=0 to prevent re-setup on restart
+      lineinfile:
+        path: "{{ env_file_path }}"
+        regexp: "^KIBANA_FLEET_SETUP="
+        line: "KIBANA_FLEET_SETUP=0"
+        insertafter: EOF
+        state: present
+      register: kibana_fleet_setup_disabled
       
     - name: Update LME version in environment file
       lineinfile:

@@ -408,6 +408,24 @@
     state: present
   become: yes
 
+- name: Set FLEET_SERVER_ENABLE=1 for initial enrollment
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_SERVER_ENABLE="
+    line: "FLEET_SERVER_ENABLE=1"
+    insertafter: EOF
+    state: present
+  become: yes
+
+- name: Set KIBANA_FLEET_SETUP=1 for initial enrollment
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^KIBANA_FLEET_SETUP="
+    line: "KIBANA_FLEET_SETUP=1"
+    insertafter: EOF
+    state: present
+  become: yes
+
 - name: Create FLEET_SETUP_FINISHED file
   file:
     path: "/opt/lme/FLEET_SETUP_FINISHED"
@@ -505,6 +523,24 @@
     path: "/opt/lme/lme-environment.env"
     regexp: "^FLEET_ENROLL="
     line: "FLEET_ENROLL=0"
+    insertafter: EOF
+    state: present
+  become: yes
+
+- name: Set FLEET_SERVER_ENABLE=0 to prevent re-bootstrap on restart
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_SERVER_ENABLE="
+    line: "FLEET_SERVER_ENABLE=0"
+    insertafter: EOF
+    state: present
+  become: yes
+
+- name: Set KIBANA_FLEET_SETUP=0 to prevent re-setup on restart
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^KIBANA_FLEET_SETUP="
+    line: "KIBANA_FLEET_SETUP=0"
     insertafter: EOF
     state: present
   become: yes
