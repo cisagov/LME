@@ -52,23 +52,23 @@ class TestSecurityDashboardSecurityLog:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_failed_logons(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Failed Logons", ".unifiedDataTable",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Failed Logons", ".unifiedDataTable",".euiIcon")
         
     #@pytest.mark.skip(reason="Skipping this test")
     def test_log_cleared_event_id_1102_or_104(self, setup_login, kibana_url, timeout):
         #This dashboard panel needs test data. Currently the panel only gives No Result found
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Log Cleared - event ID 1102 or 104", ".needarealvaluehere",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Log Cleared - event ID 1102 or 104", ".needarealvaluehere",".euiIcon")
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_process_started_with_different_creds(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log - Process started with different credentials- event ID 4648 [could be RUNAS, scheduled tasks]", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log - Process started with different credentials- event ID 4648 [could be RUNAS, scheduled tasks]", ".euiDataGrid",".euiIcon")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_security_log_events_detail(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log events - Detail", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log events - Detail", ".euiDataGrid",".euiIcon")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_security_log_logon_as_a_service_type_5(self, setup_login, kibana_url, timeout):
@@ -88,7 +88,7 @@ class TestSecurityDashboardSecurityLog:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_security_log_process_creation_event_id_4688(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log - Process creation - event ID 4688",".euiDataGrid",".euiDataGrid__noResults")        
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Security log - Process creation - event ID 4688",".euiDataGrid",".euiIcon")        
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_security_log_events(self, setup_login, kibana_url, timeout):
