@@ -399,6 +399,33 @@
     - elastic_defend_policy_result
   when: debug_mode | bool
 
+- name: Set FLEET_ENROLL=1 for initial enrollment
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_ENROLL="
+    line: "FLEET_ENROLL=1"
+    insertafter: EOF
+    state: present
+  become: yes
+
+- name: Set FLEET_SERVER_ENABLE=1 for initial enrollment
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_SERVER_ENABLE="
+    line: "FLEET_SERVER_ENABLE=1"
+    insertafter: EOF
+    state: present
+  become: yes
+
+- name: Set KIBANA_FLEET_SETUP=1 for initial enrollment
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^KIBANA_FLEET_SETUP="
+    line: "KIBANA_FLEET_SETUP=1"
+    insertafter: EOF
+    state: present
+  become: yes
+
 - name: Create FLEET_SETUP_FINISHED file
   file:
     path: "/opt/lme/FLEET_SETUP_FINISHED"
@@ -448,7 +475,7 @@
 
 - name: Check Fleet agents endpoint contents
   uri:
-    url: "{{ local_kbn_url }}/api/fleet/agents?page=1&perPage=20&kuery=status%3Aonline%20or%20(status%3Aerror%20or%20status%3Adegraded)%20or%20(status%3Aupdating%20or%20status%3Aunenrolling%20or%20status%3Aenrolling)%20or%20status%3Aoffline&sortField=enrolled_at&sortOrder=desc&showInactive=false&showUpgradeable=false&getStatusSummary=true&withMetrics=true"
+    url: "{{ local_kbn_url }}/api/fleet/agents?page=1&perPage=20&kuery=status%3Aonline%20or%20(status%3Aerror%20or%20status%3Adegraded)%20or%20(status%3Aupdating%20or%20status%3Aunenrolling%20or%20status%3Aenrolling)%20or%20status%3Aoffline&showInactive=false&showUpgradeable=false&getStatusSummary=true&withMetrics=true"
     method: GET
     user: "{{ elastic_username }}"
     password: "{{ elastic_password }}"
@@ -490,6 +517,33 @@
   fail:
     msg: "Fleet did not become ready within the expected time. Status: {{ fleet_status | default('unknown') }}"
   when: fleet_status.status is not defined or fleet_status.status != 200
+
+- name: Set FLEET_ENROLL=0 to prevent re-enrollment on restart  
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_ENROLL="
+    line: "FLEET_ENROLL=0"
+    insertafter: EOF
+    state: present
+  become: yes
+
+- name: Set FLEET_SERVER_ENABLE=0 to prevent re-bootstrap on restart
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^FLEET_SERVER_ENABLE="
+    line: "FLEET_SERVER_ENABLE=0"
+    insertafter: EOF
+    state: present
+  become: yes
+
+- name: Set KIBANA_FLEET_SETUP=0 to prevent re-setup on restart
+  lineinfile:
+    path: "/opt/lme/lme-environment.env"
+    regexp: "^KIBANA_FLEET_SETUP="
+    line: "KIBANA_FLEET_SETUP=0"
+    insertafter: EOF
+    state: present
+  become: yes
 
 # Wait for metrics indices to be created
 - name: Wait for all required metrics indices to be created

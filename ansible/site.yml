@@ -5,7 +5,7 @@
   become: no  # Default to no privilege escalation
   vars:
     # Common variables
-    clone_directory: "{{ clone_dir | default('~/LME') }}"
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
     debug_mode: false  # Default debug mode to false
     
@@ -31,7 +31,7 @@
     fleet_port: 8220
     
     # Kibana version
-    kibana_version: "8.15.3"
+    kibana_version: "8.18.0"
     
     # Default timezone settings
     timezone_area: "Etc"  # Change to your area: America, Europe, Asia, etc.

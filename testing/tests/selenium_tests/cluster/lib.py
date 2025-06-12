@@ -9,8 +9,8 @@ def dashboard_test_function (driver, kibana_url, timeout, dashboard_id, panel_ti
 
     driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
 
-    # Wait for the react-grid-layout element to be present
-    expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+    # Wait for the kbnAppWrapper element to be present
+    expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
     WebDriverWait(driver, timeout).until(expected_cond)
 
     selector = f'div[data-title="{panel_title}"]'

@@ -21,5 +21,7 @@ aggregation:
 #import: email_alert_config
 #import: teams_alert_config
 #import: twilio_alert_config
+
 alert:
   - "debug"
+

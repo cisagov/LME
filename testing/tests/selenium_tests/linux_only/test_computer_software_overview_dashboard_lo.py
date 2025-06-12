@@ -19,7 +19,7 @@ class TestComputerSoftwareOverviewDashboard:
         driver = setup_login
         #dashboard_id = "33f0d3b0-8b8a-11ea-b1c6-a5bf39283f12"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Host Count"
         selector = f'div[data-title="{panel_title}"]'

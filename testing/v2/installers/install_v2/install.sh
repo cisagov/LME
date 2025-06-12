@@ -53,7 +53,17 @@ sudo update-locale
 echo "Checking out code"
 ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~ && rm -rf LME && git clone https://github.com/cisagov/LME.git"
 if [ "${branch}" != "main" ]; then
-    ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && git checkout -t origin/${branch}"
+    ssh -o StrictHostKeyChecking=no $user@$hostname "
+        cd ~/LME && 
+        git fetch --all --tags && 
+        if git show-ref --tags --verify --quiet \"refs/tags/${branch}\"; then
+            echo \"Checking out tag: ${branch}\"
+            git checkout ${branch}
+        else
+            echo \"Checking out branch: ${branch}\"
+            git checkout -t origin/${branch}
+        fi
+    "
 fi
 echo "Code cloned to $HOME/LME"
 

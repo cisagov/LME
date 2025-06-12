@@ -1,0 +1,8 @@
+---
+- name: Backup LME
+  hosts: localhost
+  connection: local
+  become: yes
+  
+  roles:
+    - role: backup_lme 

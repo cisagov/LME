@@ -38,3 +38,4 @@ testing/tests/assets/style.css
 testing/v2/installers/envirnment.sh
 docker/**/environment.sh
 **exporter.txt
+testing/upgrade_testing/

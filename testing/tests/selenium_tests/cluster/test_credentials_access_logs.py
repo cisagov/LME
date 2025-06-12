@@ -21,7 +21,7 @@ class TestCredentialsAccessLogsDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_kerberos_ticket_failed_attempts(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Kerberos ticket - Failed attempts", ".expExpressionRenderer",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Kerberos ticket - Failed attempts", ".lnsExpressionRenderer",".euiIcon")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_special_logon_attempts(self, setup_login, kibana_url, timeout):
@@ -36,7 +36,7 @@ class TestCredentialsAccessLogsDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_other_logon_logoff_disconnection_attempts(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Other logon /logoff-Disconnection attempts", ".expExpressionRenderer",".euiSpacer")  
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Other logon /logoff-Disconnection attempts", ".lnsExpressionRenderer",".euiSpacer")  
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_kerberos_auth_request(self, setup_login, kibana_url, timeout):

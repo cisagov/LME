@@ -1,0 +1,383 @@
+---
+# Main tasks file for backup_lme role
+
+- name: Get Podman graphroot location
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    # Get the full path to the storage directory
+    GRAPHROOT=$(podman info --format "{{ '{{' }}.Store.GraphRoot{{ '}}' }}")
+    if [ -z "$GRAPHROOT" ]; then
+      echo "/var/lib/containers/storage"  # Default fallback
+    else
+      echo "$GRAPHROOT"
+    fi
+  args:
+    executable: /bin/bash
+  register: podman_graphroot
+  become: yes
+  
+- name: Debug Podman graphroot
+  debug:
+    msg: "Podman graphroot: {{ podman_graphroot.stdout }}"
+  
+- name: Set backup directory
+  set_fact:
+    backup_base_dir: "{% if backup_dir | default('') | length > 0 %}{{ backup_dir }}{% else %}{{ podman_graphroot.stdout }}{% endif %}"
+  
+- name: Debug backup directory
+  debug:
+    msg: "Backup base directory: {{ backup_base_dir }}"
+  
+- name: Display backup location
+  debug:
+    msg: "Backups will be stored in: {{ backup_base_dir }}/backups"
+  
+- name: Check if backup already exists today
+  stat:
+    path: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}"
+  register: today_backup
+  
+- name: Prompt for backup confirmation if backup exists
+  pause:
+    prompt: |
+      A backup already exists for today ({{ ansible_date_time.iso8601_basic_short }}).
+      Do you want to overwrite it? (yes/no)
+  when: today_backup.stat.exists and not skip_prompts | default(false)
+  register: backup_confirmation
+  
+- name: Fail if backup exists and not confirmed
+  fail:
+    msg: "Backup cancelled by user"
+  when: today_backup.stat.exists and not skip_prompts | default(false) and backup_confirmation.user_input | lower != 'yes'
+  
+- name: Pre-backup validation
+  block:
+    - name: Check if LME installation exists
+      stat:
+        path: "{{ lme_install_dir }}"
+      register: lme_dir_check
+      become: yes
+      
+    - name: Check if containers.txt exists
+      stat:
+        path: "{{ lme_install_dir }}/config/containers.txt"
+      register: containers_file_check
+      become: yes
+      
+    - name: Check if LME service is active
+      systemd:
+        name: lme
+        state: started
+      check_mode: yes
+      register: lme_service_check
+      become: yes
+      ignore_errors: yes
+      
+    - name: Display pre-backup validation results
+      debug:
+        msg: |
+          Pre-backup validation:
+          - LME installation: {{ 'Found' if lme_dir_check.stat.exists else 'MISSING' }}
+          - Containers file: {{ 'Found' if containers_file_check.stat.exists else 'MISSING' }}
+          - LME service: {{ 'Active' if not lme_service_check.failed else 'INACTIVE' }}
+          
+    - name: Confirm proceeding with potentially problematic backup
+      pause:
+        prompt: |
+          Some validation checks failed. Do you want to proceed with the backup anyway? (yes/no)
+      register: validation_override
+      when: (not lme_dir_check.stat.exists or not containers_file_check.stat.exists or lme_service_check.failed) and not skip_prompts | default(false)
+      
+    - name: Fail if validation failed and not overridden
+      fail:
+        msg: "Backup cancelled due to validation failures"
+      when: (not lme_dir_check.stat.exists or not containers_file_check.stat.exists or lme_service_check.failed) and 
+            (not skip_prompts | default(false) and validation_override is defined and validation_override.user_input | lower != 'yes')
+
+- name: Create backup directory if it doesn't exist
+  file:
+    path: "{{ backup_base_dir }}/backups"
+    state: directory
+    mode: '0755'
+  become: yes
+  
+- name: Create date-based backup directory
+  file:
+    path: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
+    state: directory
+    mode: '0755'
+  become: yes
+  
+- name: Create backup of LME installation
+  shell: |
+    # Create the backup directory structure
+    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_lme"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_containers_systemd"
+    
+    # Copy the LME installation
+    cp -a "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/"
+    LME_COPY_STATUS=$?
+    
+    # Copy the vault and password files from /etc/lme
+    if [ -d "/etc/lme" ]; then
+      cp -a "/etc/lme/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_lme/"
+      ETC_LME_COPY_STATUS=$?
+    else
+      echo "Warning: /etc/lme directory not found"
+      ETC_LME_COPY_STATUS=1
+    fi
+    
+    # Copy the systemd container files from /etc/containers/systemd
+    if [ -d "/etc/containers/systemd" ]; then
+      cp -a "/etc/containers/systemd/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_containers_systemd/"
+      SYSTEMD_COPY_STATUS=$?
+      echo "Systemd container files backed up successfully"
+    else
+      echo "Warning: /etc/containers/systemd directory not found"
+      SYSTEMD_COPY_STATUS=1
+    fi
+    
+    if [ $LME_COPY_STATUS -eq 0 ] && [ $ETC_LME_COPY_STATUS -eq 0 ] && [ $SYSTEMD_COPY_STATUS -eq 0 ]; then
+      echo "LME installation, vault files, and systemd files copied successfully"
+      exit 0
+    else
+      echo "Failed to copy LME installation, vault files, or systemd files (LME: $LME_COPY_STATUS, /etc/lme: $ETC_LME_COPY_STATUS, systemd: $SYSTEMD_COPY_STATUS)"
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+  register: lme_backup_result
+
+- name: Create secret mapping file for rollback
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+    
+    # Create secret mapping file
+    MAPPING_FILE="{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/secret_mapping.txt"
+    
+    # Get current secret mappings from podman
+    echo "# LME Secret Mapping - Created: {{ ansible_date_time.iso8601 }}" > "$MAPPING_FILE"
+    echo "# Format: SECRET_NAME=VAULT_FILE_ID" >> "$MAPPING_FILE"
+    echo "" >> "$MAPPING_FILE"
+    
+    # Check if any secrets exist
+    if podman secret ls --format "{{ '{{' }}.Name{{ '}}' }}" | grep -q .; then
+      # Get secret mappings
+      podman secret ls --format "{{ '{{' }}.Name{{ '}}' }}={{ '{{' }}.ID{{ '}}' }}" | while read line; do
+        echo "$line" >> "$MAPPING_FILE"
+      done
+      echo "Secret mapping saved to $MAPPING_FILE"
+    else
+      echo "# No secrets found during backup" >> "$MAPPING_FILE"
+      echo "Warning: No Podman secrets found during backup"
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+  register: secret_mapping_result
+  ignore_errors: yes
+  
+- name: Display secret mapping result
+  debug:
+    msg: "{{ secret_mapping_result.stdout_lines }}"
+  when: secret_mapping_result.stdout_lines is defined
+  
+- name: Get list of Podman volumes
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman volume ls --format "{{ '{{' }}.Name{{ '}}' }}" | grep "^lme_"
+  args:
+    executable: /bin/bash
+  register: podman_volumes
+  become: yes
+  
+- name: Display volumes to backup
+  debug:
+    msg: "Found {{ podman_volumes.stdout_lines | length }} LME volumes to backup"
+  
+- name: Get current LME version
+  shell: |
+    if [ -f "{{ lme_install_dir }}/lme-environment.env" ]; then
+      grep "^LME_VERSION=" "{{ lme_install_dir }}/lme-environment.env" | cut -d'=' -f2 || echo "2.0.2"
+    else
+      echo "2.0.2"
+    fi
+  register: current_version
+  become: yes
+
+- name: Create backup status file
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/backup_status.txt"
+    content: |
+      Backup started: {{ ansible_date_time.iso8601 }}
+      LME version: {{ current_version.stdout }}
+      LME installation: PENDING
+      Volumes: PENDING
+      Service restart: PENDING
+  become: yes
+  
+- name: Stop LME service
+  systemd:
+    name: lme
+    state: stopped
+  become: yes
+  register: service_stop_result
+  
+- name: Wait for containers to stop
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+  args:
+    executable: /bin/bash
+  register: running_containers
+  become: yes
+  until: running_containers.stdout_lines | length == 0
+  retries: 12
+  delay: 5
+  ignore_errors: yes
+  
+- name: Display any running containers
+  debug:
+    msg: "Warning: The following containers are still running and may not be backed up properly: {{ running_containers.stdout_lines }}"
+  when: running_containers.stdout_lines | length > 0
+  
+- name: Backup each volume
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    VOLUME_PATH=$(podman volume inspect {{ item }} --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
+    VOLUME_DIR="{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes/{{ item }}"
+    
+    # Create volume backup directory
+    mkdir -p "$VOLUME_DIR"
+    
+    # Create a manifest of the volume contents
+    echo "Volume: {{ item }}" > "$VOLUME_DIR/manifest.txt"
+    echo "Location: $VOLUME_PATH" >> "$VOLUME_DIR/manifest.txt"
+    echo "Backup Date: $(date)" >> "$VOLUME_DIR/manifest.txt"
+    echo -e "\nContents:" >> "$VOLUME_DIR/manifest.txt"
+    find "$VOLUME_PATH" -type f -o -type d | sort >> "$VOLUME_DIR/manifest.txt"
+    
+    # Copy the volume contents
+    if [ -d "$VOLUME_PATH" ] && [ "$(ls -A $VOLUME_PATH)" ]; then
+      cp -a "$VOLUME_PATH/." "$VOLUME_DIR/data/"
+      if [ $? -eq 0 ]; then
+        echo "SUCCESS" > "$VOLUME_DIR/backup_status.txt"
+        echo "Volume {{ item }} backed up successfully"
+        exit 0
+      else
+        echo "FAILED" > "$VOLUME_DIR/backup_status.txt"
+        echo "Failed to backup volume {{ item }}"
+        exit 1
+      fi
+    else
+      echo "EMPTY" > "$VOLUME_DIR/backup_status.txt"
+      echo "Volume {{ item }} is empty, creating empty data directory"
+      mkdir -p "$VOLUME_DIR/data"
+      exit 0
+    fi
+  args:
+    executable: /bin/bash
+  loop: "{{ podman_volumes.stdout_lines }}"
+  register: volume_backup
+  become: yes
+  ignore_errors: yes
+
+- name: Collect volume backup statuses
+  shell: |
+    find "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes" -name "backup_status.txt" -exec cat {} \; | grep -c -E "(SUCCESS|EMPTY)" || echo "0"
+  args:
+    executable: /bin/bash
+  register: successful_volumes
+  become: yes
+  ignore_errors: yes
+  changed_when: false
+
+- name: Find volumes that were empty during backup
+  shell: |
+    find "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes" -name "backup_status.txt" -exec grep -l "EMPTY" {} \; | xargs -I {} dirname {} | xargs -I {} basename {}
+  args:
+    executable: /bin/bash
+  register: empty_volumes
+  become: yes
+  ignore_errors: yes
+  changed_when: false
+
+- name: Create expected empty volumes file based on actual empty volumes found
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/expected_empty_volumes.txt"
+    content: |
+      {% for volume in empty_volumes.stdout_lines %}
+      {{ volume }}
+      {% endfor %}
+  become: yes
+  when: empty_volumes.stdout_lines | length > 0
+
+- name: Create empty expected volumes file if no empty volumes found
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/expected_empty_volumes.txt"
+    content: |
+      # No volumes were empty during this backup
+  become: yes
+  when: empty_volumes.stdout_lines | length == 0
+  
+- name: Start LME service
+  systemd:
+    name: lme
+    state: started
+  become: yes
+  register: service_start_result
+  ignore_errors: yes
+  when: not skip_service_restart | default(false)
+  
+- name: Wait for containers to start
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+  args:
+    executable: /bin/bash
+  register: started_containers
+  become: yes
+  until: started_containers.stdout_lines | length > 0
+  retries: 12
+  delay: 5
+  ignore_errors: yes
+  when: not skip_service_restart | default(false)
+  
+- name: Set service restart variables when skipped
+  set_fact:
+    service_start_result: { "skipped": true, "msg": "Service restart skipped" }
+    started_containers: { "stdout_lines": [], "skipped": true }
+  when: skip_service_restart | default(false)
+  
+- name: Update backup status file
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/backup_status.txt"
+    content: |
+      Backup completed: {{ ansible_date_time.iso8601 }}
+      LME version: {{ current_version.stdout }}
+      
+      Backup status:
+      - LME installation: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
+      - Vault files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
+      - Systemd files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
+      - Volumes: {{ successful_volumes.stdout | int }} of {{ podman_volumes.stdout_lines | length }} successful
+      - Failed volumes: {{ volume_backup.results | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0 else 'None' }}
+      - Service restart: {{ 'SKIPPED - Services left stopped for rollback' if skip_service_restart | default(false) else ('SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED') }}
+      
+      Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == podman_volumes.stdout_lines | length else 'PARTIAL - See details above' }}
+  become: yes
+  
+- name: Read final backup status
+  command: cat "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/backup_status.txt"
+  register: final_status
+  become: yes
+  changed_when: false
+  
+- name: Backup summary
+  debug:
+    msg: "{{ dict(range(1, backup_summary_lines|length + 1) | zip(backup_summary_lines)) }}"
+  vars:
+    backup_summary_lines: "{{ (final_status.stdout + '\n\nBackup location: ' + backup_base_dir + '/backups/' + ansible_date_time.iso8601_basic_short).splitlines() }}" 

@@ -28,7 +28,7 @@ class TestBasicLoading:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Dashboard Menu"
         selector = f'div[data-title="{panel_title}"]'
@@ -47,7 +47,7 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Search users"
         selector = f'div[data-title="{panel_title}"]'
@@ -60,7 +60,7 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Search hosts"
         selector = f'div[data-title="{panel_title}"]'
@@ -73,7 +73,7 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Security - Logon attempts"
         selector = f'div[data-title="{panel_title}"]'
@@ -86,7 +86,7 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Security - Logon hosts"
         selector = f'div[data-title="{panel_title}"]'
@@ -99,7 +99,7 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "AV Hits (Count)"
         selector = f'div[data-title="{panel_title}"]'
@@ -112,7 +112,7 @@ class TestUserSecurityDashboard:
         driver = setup_login
         dashboard_id = "e5f203f0-6182-11ee-b035-d5f231e90733"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Defender event count"
         selector = f'div[data-title="{panel_title}"]'
@@ -130,7 +130,7 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Dashboard Menu"
         selector = f'div[data-title="{panel_title}"]'
@@ -143,7 +143,7 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Select domain(s) and username(s)"
         selector = f'div[data-title="{panel_title}"]'
@@ -156,7 +156,7 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "All User Events by Day of Week, Hour of Day"
         selector = f'div[data-title="{panel_title}"]'
@@ -169,7 +169,7 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_id = "618bc5d0-84f8-11ee-9838-ff0db128d8b2"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Timestamps by Count"
         selector = f'div[data-title="{panel_title}"]'
@@ -183,7 +183,7 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Dashboard Menu"
         selector = f'div[data-title="{panel_title}"]'
@@ -202,7 +202,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Security logs events"
         selector = f'div[data-title="{panel_title}"]'
@@ -215,7 +215,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Failed logon attempts"
         selector = f'div[data-title="{panel_title}"]'
@@ -228,7 +228,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Failed logon type codes"
         selector = f'div[data-title="{panel_title}"]'
@@ -241,7 +241,7 @@ class TestSecurityDashboardSecurityLog:
         driver = setup_login
         dashboard_id = "51186cd0-e8e9-11e9-9070-f78ae052729a"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Failed logon status codes"
         selector = f'div[data-title="{panel_title}"]'
@@ -260,7 +260,7 @@ class TestComputerSoftwareOverviewDashboard:
         driver = setup_login
         dashboard_id = "33f0d3b0-8b8a-11ea-b1c6-a5bf39283f12"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Dashboard Menu"
         selector = f'div[data-title="{panel_title}"]'
@@ -273,7 +273,7 @@ class TestComputerSoftwareOverviewDashboard:
         driver = setup_login
         dashboard_id = "33f0d3b0-8b8a-11ea-b1c6-a5bf39283f12"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Host Count"
         selector = f'div[data-title="{panel_title}"]'
@@ -292,7 +292,7 @@ class TestSysmonSummaryDashboard:
         driver = setup_login
         dashboard_id = "d2c73990-e5d4-11e9-8f1d-73a2ea4cc3ed"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Total number of Sysmon events found"
         selector = f'div[data-title="{panel_title}"]'
@@ -305,7 +305,7 @@ class TestSysmonSummaryDashboard:
         driver = setup_login
         dashboard_id = "d2c73990-e5d4-11e9-8f1d-73a2ea4cc3ed"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Sysmon event code reference"
         selector = f'div[data-title="{panel_title}"]'
@@ -324,7 +324,7 @@ class TestHealthCheckDashboard:
         driver = setup_login
         dashboard_id = "51fe1470-fa59-11e9-bf25-8f92ffa3e3ec"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Users seen"
         selector = f'div[data-title="{panel_title}"]'

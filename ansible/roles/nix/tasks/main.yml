@@ -46,6 +46,15 @@
     create: yes
   become: yes
 
+- name: Create podman symlink for sudo access
+  file:
+    src: "/nix/var/nix/profiles/default/bin/podman"
+    dest: "/usr/local/bin/podman"
+    state: link
+    force: yes
+  become: yes
+  ignore_errors: yes
+
 - name: Source updated PATH
   shell: source ~/.profile
   args:

@@ -13,9 +13,9 @@ jobs:
     env:
       UNIQUE_ID: 
       IP_ADDRESS: 
-      LS1_IP:
-      LATEST_BRANCH:
-      BRANCH_NAME:
+      LATEST_TAG:
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+      AZURE_IP:
       elastic:
     steps:
       - name: Checkout repository
@@ -25,137 +25,88 @@ jobs:
         run: |
           PUBLIC_IP=$(curl -s https://api.ipify.org)
           echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
-          echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
-          LATEST_BRANCH_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name | sub("^v"; "") | "release-" + .' | head -n 1)
-          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR"
-          echo "LATEST_BRANCH=$LATEST_BRANCH_VAR" >> $GITHUB_ENV
-
-      - name: Get branch name 
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
-          else
-            echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
-          fi
+          echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)-${{ github.run_number }}" >> $GITHUB_ENV
+          LATEST_TAG_VAR=$(curl -s https://api.github.com/repos/cisagov/LME/tags | jq -r '.[].name' | grep '^v[0-9]\+\.[0-9]\+\.[0-9]\+$' | head -n 1)
+          echo "LATEST_TAG=$LATEST_TAG_VAR"
+          echo "LATEST_TAG=$LATEST_TAG_VAR" >> $GITHUB_ENV
                    
-      
-      - name: Set up Docker Compose
+      - name: Set the environment for docker compose
         run: |
-          sudo curl -L "https://github.com/docker/compose/releases/download/v2.3.3/docker-compose-$(uname -s)-$(uname -m)" \
-          -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-    
-      - name: Set the environment for docker-compose 
-        run: |
-          cd testing/development
-          # Get the UID and GID of the current user
+          cd testing/v2/development
           echo "HOST_UID=$(id -u)" > .env
           echo "HOST_GID=$(id -g)" >> .env
-    
-      # - name: Run Docker Compose Build to fix a user id issue in a prebuilt container
-      #   run: |
-      #     cd testing/development
-      #     docker-compose -p ${{ env.UNIQUE_ID }} build --no-cache 
-    
-      - name: Run Docker Compose
-        run: docker compose  -p ${{ env.UNIQUE_ID }} -f testing/development/docker-compose.yml up -d
-    
-      - name: List docker containers to wait for them to start
+
+      - name: Start pipeline container
         run: |
-          docker ps 
-    
-      - name: List files in home directory
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
+          
+      - name: Install Python requirements
         run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "pwd && ls -la"
-    
-      - name:  Check powershell environment 
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/azure && \
+            pip install -r requirements.txt
+          "
+          
+      - name: Build an Azure instance 
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME; \
-            ls -la; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
-    
-      - name:  Build the cluster 
-        run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            \$env:IP_ADDRESS='${{ env.IP_ADDRESS }}'; \
-            ./development/build_cluster.ps1 -IPAddress \$env:IP_ADDRESS; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
-          cd .. 
-          . configure/lib/functions.sh
-          extract_ls1_ip 'LME-pipe-${{ env.UNIQUE_ID }}.cluster.output.log'
-          echo "LS1_IP=$LS1_IP" >> $GITHUB_ENV
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              cd /home/lme-user/LME/testing/v2/installers && \
+              python3 ./azure/build_azure_linux_network.py \
+                -g pipe-${{ env.UNIQUE_ID }} \
+                -s ${{ env.IP_ADDRESS }}/32 \
+                -vs Standard_E4d_v4 \
+                -l centralus \
+                -ast 23:00 \
+                -y
+            "
+      
+
           
       - name:  Install lme on cluster 
         run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            ./development/install_lme.ps1 -b '${{ env.LATEST_BRANCH }}'; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            sleep 60 &&
+            pwd && \
+            ls -la && \
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./install_v2/install_pre_v2.1.sh lme-user \$IP_ADDRESS \"pipe-${{ env.UNIQUE_ID }}.password.txt\" '${{ env.LATEST_TAG }}'
+          "
     
-      - name:  Set the environment passwords for other steps 
+      - name: Retrieve Elastic password 
         run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
-            cd /home/admin.ackbar/LME/testing \
-            && . configure/lib/functions.sh \
-            && extract_credentials 'LME-pipe-${{ env.UNIQUE_ID }}.password.txt' \
-            && write_credentials_to_file '${{ env.UNIQUE_ID }}.github_env.sh' \
-            "
-            . ../${{ env.UNIQUE_ID }}.github_env.sh
-            rm ../${{ env.UNIQUE_ID }}.github_env.sh
-            echo "elastic=$elastic" >> $GITHUB_ENV
-            echo "kibana=$kibana" >> $GITHUB_ENV
-            echo "logstash_system=$logstash_system" >> $GITHUB_ENV
-            echo "logstash_writer=$logstash_writer" >> $GITHUB_ENV
-            echo "dashboard_update=$dashboard_update" >> $GITHUB_ENV
+          cd testing/v2/development
+          AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
+          echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
+          echo "Azure IP:$AZURE_IP"
+          echo "Azure IP retrieved successfully"
+
+          ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$ES_PASSWORD"
+          echo "elastic=$ES_PASSWORD" >> $GITHUB_ENV
+          KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$KIBANA_PASSWORD"
+          echo "kibana=$KIBANA_PASSWORD" >> $GITHUB_ENV
+          echo "Kibana password retrieved successfully."
     
       - name:  Check that the environment variables are set 
         run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme bash -c "
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             if [ -z \"${{ env.elastic }}\" ]; then
               echo 'Error: env.elastic variable is not set' >&2
               exit 1
@@ -165,31 +116,34 @@ jobs:
           "
 
       - name: Upgrade to the version being built
-        # This will check out the code in the /root directory so that it can use the latest version of the code.
-        # But it will also check out the branch in the /opt/lme directory so that upgrade_lme.sh script can use the branch.
+        # This will update the existing LME installation and run the new Ansible-based upgrade system via SSH.
         run: |
           set +e
-          cd testing/development
-          output=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "\
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
-            az vm run-command invoke \
-              --command-id RunShellScript \
-              --name LS1 \
-              --resource-group \$env:RESOURCE_GROUP \
-              --scripts 'export HOME=/root; pwd && whoami && cd ~ \
-                && git clone https://github.com/cisagov/LME.git \
-                && cd LME \
-                && echo "Checking out current branch: ${{ env.BRANCH_NAME }}" \
-                && git checkout ${{ env.BRANCH_NAME }} \
-                && cd testing \
-                && ./development/upgrade_lme.sh; exit \$?'")
+          cd testing/v2/development
+          output=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            echo \"Connecting to \$IP_ADDRESS to upgrade LME to branch: ${{ env.BRANCH_NAME }}\" && \
+            ssh -o StrictHostKeyChecking=no lme-user@\$IP_ADDRESS 'set -e && \
+              echo \"Current user: \$(whoami)\" && \
+              echo \"Working directory: \$(pwd)\" && \
+              echo \"LME directory contents:\" && \
+              ls -la ~/LME/ && \
+              echo \"Updating LME installation to branch: ${{ env.BRANCH_NAME }}\" && \
+              cd ~/LME && \
+              git fetch --all --tags && \
+              if git show-ref --tags --verify --quiet \"refs/tags/${{ env.BRANCH_NAME }}\"; then \
+                echo \"Checking out tag: ${{ env.BRANCH_NAME }}\" && \
+                git checkout ${{ env.BRANCH_NAME }}; \
+              else \
+                echo \"Checking out branch: ${{ env.BRANCH_NAME }}\" && \
+                git checkout ${{ env.BRANCH_NAME }} || git checkout -t origin/${{ env.BRANCH_NAME }}; \
+              fi && \
+              echo \"Updated to: \$(git rev-parse --short HEAD) on \$(git branch --show-current || git describe --tags --exact-match 2>/dev/null || echo \"detached HEAD\")\" && \
+              echo \"Running Ansible upgrade...\" && \
+              cd ~/LME/ansible && \
+              ansible-playbook upgrade_lme.yml -e skip_prompts=true && \
+              echo \"UPGRADE_SUCCESSFUL\"'")
           echo "Output: $output"
           if echo "$output" | grep -q "UPGRADE_SUCCESSFUL"; then
             echo "Upgrade successful"
@@ -199,102 +153,78 @@ jobs:
             exit 1
           fi
     
-      # - name: Run a command on the domain controller 
-      #   run: |
-      #     set +e  
-      #     cd testing/development
-      #     docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-      #       cd /home/admin.ackbar/LME/testing; \
-      #       \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-      #       \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-      #       \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-      #       \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-      #       \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-      #       \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-      #       az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
-      #       az vm run-command invoke  \
-      #         --command-id RunPowerShellScript  \
-      #         --name DC1  \
-      #         --resource-group \$env:RESOURCE_GROUP \
-      #         --scripts 'ls C:\'; \
-      #       exit \$LASTEXITCODE;
-      #     }"
-      #     EXIT_CODE=$?
-      #     echo "Exit code: $EXIT_CODE"
-      #     set -e  
-      #     if [ "$EXIT_CODE" -ne 0 ]; then
-      #       exit $EXIT_CODE
-      #     fi
     
-      - name: Run a command on the linux machine 
+      - name: Install test requirements on Azure instance
         run: |
-          set +e  
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            az login --service-principal -u \$env:AZURE_CLIENT_ID -p \$env:AZURE_SECRET --tenant \$env:AZURE_TENANT; \
-            az vm run-command invoke  \
-              --command-id RunShellScript  \
-              --name LS1  \
-              --resource-group \$env:RESOURCE_GROUP \
-              --scripts 'ls -lan'; \
-            exit \$LASTEXITCODE;
-          }"
-          EXIT_CODE=$?
-          echo "Exit code: $EXIT_CODE"
-          set -e  
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            exit $EXIT_CODE
-          fi
-    
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS  'whoami && hostname && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+            cd /home/lme-user/LME/testing/tests && \
+            python3 -m venv venv && \
+            source venv/bin/activate && \
+            pip install -r requirements.txt '
+          "
+      
       # This only passes when you do a full install
-      - name: Run api tests in container
+      - name: Run api tests on Azure instance
+        env:
+          ES_PASSWORD: ${{ env.elastic }}
+          KIBANA_PASSWORD: ${{ env.kibana }}
+          AZURE_IP: ${{ env.AZURE_IP }}
         run: |
-          set +e
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
-          && echo export elastic=${{ env.elastic }} > .env \
-          && echo export ES_HOST=${{ env.LS1_IP }} >> .env \
-          && cat .env \
-          && python3 -m venv /home/admin.ackbar/venv_test \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && pip install -r requirements.txt \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && pytest -v api_tests/"
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            cat .env && \
+            source venv/bin/activate && \
+            pytest -v api_tests/linux_only/'
+          "
     
-      - name: Run selenium tests in container
+      - name: Run selenium tests on Azure instance
+        env:
+          ES_PASSWORD: ${{ env.elastic }}
+          KIBANA_PASSWORD: ${{ env.kibana }}
+          AZURE_IP: ${{ env.AZURE_IP }}
         run: |
-          set +e
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T -u admin.ackbar lme bash -c " cd testing/tests \
-          && echo export ELASTIC_PASSWORD=${{ env.elastic }} > .env \
-          && . .env \
-          && python3 -m venv /home/admin.ackbar/venv_test \
-          && . /home/admin.ackbar/venv_test/bin/activate \
-          && pip install -r requirements.txt \
-          && sudo chmod ugo+w /home/admin.ackbar/LME/ -R \
-          && python selenium_tests.py --domain ${{ env.LS1_IP }} -v"
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS  'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            cat .env && \
+            source venv/bin/activate && \
+            pytest -v selenium_tests/linux_only/'
+          "
     
-      - name: Cleanup environment 
+      - name: Cleanup Azure resources
+        if: always()
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
+            az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+          "
+          
+      - name: Stop and remove containers
         if: always()
         run: |
-          cd testing/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T lme pwsh -Command "& { 
-            cd /home/admin.ackbar/LME/testing; \
-            \$env:AZURE_CLIENT_ID='${{ secrets.AZURE_CLIENT_ID }}'; \
-            \$env:AZURE_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_CLIENT_SECRET='${{ secrets.AZURE_SECRET }}'; \
-            \$env:AZURE_TENANT='${{ secrets.AZURE_TENANT }}'; \
-            \$env:UNIQUE_ID='${{ env.UNIQUE_ID }}'; \
-            \$env:RESOURCE_GROUP='LME-pipe-${{ env.UNIQUE_ID }}'; \
-            ./development/destroy_cluster.ps1; \
-            exit \$LASTEXITCODE;
-          }"
+          cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} down
-          docker system prune --force
+          docker system prune -af

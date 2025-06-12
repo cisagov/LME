@@ -1,110 +1,231 @@
 # LME Ansible Playbooks
 
-This directory contains the Ansible playbooks and roles used to deploy and configure the Logging Made Easy (LME) stack.
+This directory contains the Ansible playbooks and roles used to deploy, manage, and maintain the Logging Made Easy (LME) stack.
 
 ## Directory Structure
 
 ```
 ansible/
-├── site.yml              # Main playbook that orchestrates the deployment
-├── roles/
-│   ├── base/             # Common tasks and configurations
-│   ├── dashboards/       # Kibana dashboard deployment
-│   ├── elasticsearch/    # Elasticsearch configuration
-│   ├── fleet/            # Fleet configuration
-│   ├── nix/              # Nix package manager setup
-│   ├── podman/           # Podman container runtime setup
-│   └── wazuh/            # Wazuh server configuration
-└── scripts/
-    └── extract_secrets.sh # Script to extract sensitive credentials
+├── site.yml              # Main installation playbook
+├── backup_lme.yml         # Backup operations playbook
+├── upgrade_lme.yml        # Upgrade operations playbook  
+├── rollback_lme.yml       # Rollback operations playbook
+├── requirements.yml       # Ansible collection dependencies
+├── roles/                 # Ansible roles for different components
+│   ├── backup_lme/        # LME backup operations
+│   ├── base/              # Common tasks and configurations
+│   ├── dashboards/        # Kibana dashboard deployment
+│   ├── elasticsearch/     # Elasticsearch configuration
+│   ├── fleet/             # Fleet server configuration
+│   ├── kibana/            # Kibana configuration
+│   ├── nix/               # Nix package manager setup
+│   ├── podman/            # Podman container runtime setup
+│   └── wazuh/             # Wazuh server configuration
+└── tasks/                 # Shared task files
+    └── load_env.yml       # Environment variable loading
 ```
 
-## Key Files
+## Main Playbooks
 
-### Main Playbooks
+### Installation
+- **`site.yml`**: Main installation playbook that orchestrates the complete LME deployment
+  - Installs and configures all LME components
+  - Sets up container runtime (Podman)
+  - Configures security and networking
+  - Deploys dashboards and integrations
 
-- `site.yml`: The main playbook that orchestrates the entire deployment process. It:
-  - Defines the order of role execution
-  - Handles pre and post-deployment tasks
-  - Manages the overall deployment flow
+### Maintenance Operations
+- **`backup_lme.yml`**: Creates backups of LME installation and data
+  - Backs up configuration files
+  - Backs up Podman volumes containing data
+  - Creates timestamped backup directories
+  - Supports automated and interactive modes
 
+- **`upgrade_lme.yml`**: Upgrades LME to newer versions
+  - Checks current version and upgrade requirements
+  - Optional backup creation before upgrade
+  - Updates container images and configurations
+  - Validates successful upgrade
 
-### Roles
+- **`rollback_lme.yml`**: Rolls back LME to a previous backup
+  - Lists available backups with version information
+  - Optional safety backup before rollback
+  - Restores configuration and volume data
+  - Validates successful rollback
 
+## Roles
+
+### Core Infrastructure
 #### Base Role (`roles/base/`)
-- Contains shared configurations and tasks used across all roles
-- Handles basic system setup and prerequisites
-- Manages common dependencies and configurations
-
-#### Dashboards Role (`roles/dashboards/`)
-- Deploys Kibana dashboards for both Elastic and Wazuh
-- Handles dashboard file management and permissions
-- Includes retry logic for dashboard uploads
-- Manages dashboard import through Kibana API
-
-#### Elasticsearch Role (`roles/elasticsearch/`)
-- Configures Elasticsearch server
-- Sets up security settings and users
-- Manages Elasticsearch indices and templates
-- Handles Elasticsearch service configuration
-
-#### Fleet Role (`roles/fleet/`)
-- Configures Fleet server
-- Sets up Fleet agent management
-- Manages Fleet policies and configurations
-- Handles Fleet service setup
+- System prerequisites and common configurations
+- Password management and encryption setup
+- User and directory creation
+- Environment variable configuration
 
 #### Nix Role (`roles/nix/`)
-- Installs and configures Nix package manager
-- Sets up multi-user installation
-- Manages Nix channels and packages
-- Configures Nix environment variables
+- Installs Nix package manager for reproducible builds
+- Configures multi-user Nix installation
+- Sets up Nix channels and environment
 
 #### Podman Role (`roles/podman/`)
-- Installs and configures Podman container runtime
-- Sets up container storage configuration
-- Manages Podman service
-- Configures container networking
+- Installs Podman container runtime via Nix
+- Configures container storage and networking
+- Sets up Quadlet for systemd integration
+- Manages container secrets and policies
+
+### LME Components
+#### Elasticsearch Role (`roles/elasticsearch/`)
+- Deploys and configures Elasticsearch cluster
+- Sets up security certificates and users
+- Configures indices and index templates
+- Manages cluster settings and policies
+
+#### Kibana Role (`roles/kibana/`)
+- Deploys Kibana web interface
+- Configures authentication and security
+- Sets up space and user management
+- Integrates with Elasticsearch cluster
 
 #### Wazuh Role (`roles/wazuh/`)
-- Configures Wazuh server
-- Sets up Wazuh manager
-- Manages Wazuh service
-- Configures Wazuh API
+- Deploys Wazuh security platform
+- Configures Wazuh manager and API
+- Sets up RBAC and user permissions
+- Integrates with Elasticsearch for log storage
 
-### Scripts
+#### Fleet Role (`roles/fleet/`)
+- Configures Elastic Fleet server
+- Sets up agent enrollment and policies
+- Manages Fleet server certificates
+- Configures output destinations
 
-- `scripts/extract_secrets.sh`: Utility script that:
-  - Extracts sensitive credentials from the environment
-  - Provides secure access to required secrets
-  - Used by various roles for authentication
+#### Dashboards Role (`roles/dashboards/`)
+- Imports Kibana dashboards and visualizations
+- Configures dashboard permissions
+- Sets up saved searches and index patterns
+- Manages dashboard updates and versioning
+
+#### Backup Role (`roles/backup_lme/`)
+- Handles LME backup operations
+- Manages volume and configuration backups
+- Creates backup manifests and metadata
+- Supports incremental and full backups
+
+## Shared Components
+
+### Tasks (`tasks/`)
+- **`load_env.yml`**: Loads environment variables from `lme-environment.env`
+  - Parses configuration file
+  - Sets Ansible facts for use across roles
+  - Handles environment variable validation
+
+### Dependencies (`requirements.yml`)
+- Defines required Ansible collections:
+  - `community.general`: Extended functionality
+  - `ansible.posix`: POSIX system management
 
 ## Usage
 
-1. Ensure you have Ansible installed and configured
-1. Run the main playbook:
-   ```bash
-   ansible-playbook -i inventory.yml site.yml
-   ```
+### Initial Installation
+```bash
+# Install dependencies
+ansible-galaxy install -r requirements.yml
 
-## Variables
+# Run main installation
+ansible-playbook site.yml
+```
 
-Key variables are defined in:
-- Role-specific `defaults/main.yml` files for default values
-- `group_vars/` for group-specific configurations
+### Backup Operations
+```bash
+# Create a backup (interactive)
+ansible-playbook backup_lme.yml
 
-## Security
+# Create a backup (automated)
+ansible-playbook backup_lme.yml -e skip_prompts=true
+```
 
-- Sensitive credentials are managed through environment variables
-- SSL/TLS is configured for secure communications
-- Access controls are implemented at various levels
-- Secrets are extracted securely using the provided script
+### Upgrade Operations
+```bash
+# Upgrade LME (with backup prompt)
+ansible-playbook upgrade_lme.yml
+
+# Upgrade LME (skip backup - not recommended)
+# User will be prompted to choose y/yes or n/no
+```
+
+### Rollback Operations
+```bash
+# Rollback to previous version (with safety backup prompt)
+ansible-playbook rollback_lme.yml
+
+# User will be prompted to:
+# 1. Select which backup to restore from
+# 2. Choose whether to create a safety backup
+```
+
+## Configuration
+
+### Environment Variables
+Key configuration is stored in `/opt/lme/lme-environment.env`:
+- IP addresses and ports
+- Stack versions
+- Service usernames
+- Container image references
+
+### Secrets Management
+- Passwords are encrypted using Ansible Vault
+- Stored in `/etc/lme/vault/`
+- Managed through Podman secrets integration
+- Accessed via `../scripts/extract_secrets.sh`
+
+### Container Management
+- Container images defined in `../config/containers.txt`
+- Quadlet files for systemd integration
+- Podman volumes for persistent data
+- Network configuration for service communication
+
+## Security Features
+
+- **Encrypted Passwords**: All passwords encrypted with Ansible Vault
+- **Secure Secrets**: Integration with Podman secrets driver
+- **Certificate Management**: Automatic SSL/TLS certificate generation
+- **Access Controls**: Role-based access control (RBAC) configuration
+- **Network Security**: Isolated container networks
 
 ## Troubleshooting
 
-- Enable debug mode by setting `debug_mode: true` in inventory
-- Check role-specific logs in `/var/log/`
-- Review Ansible output with increased verbosity:
-  ```bash
-  ansible-playbook site.yml -vvv
-  ``` 
+### Debug Mode
+Enable verbose output:
+```bash
+ansible-playbook site.yml -e debug_mode=true
+```
+
+### Common Issues
+- **Service Dependencies**: Ensure all services start in correct order
+- **Volume Permissions**: Check container user/group mappings
+- **Network Connectivity**: Verify container network configuration
+- **Certificate Issues**: Check certificate generation and trust
+
+### Log Locations
+- Ansible logs: Standard output during playbook execution
+- Container logs: `podman logs <container_name>`
+- System logs: `journalctl -u lme.service`
+
+## Advanced Usage
+
+### Tags
+Run specific components:
+```bash
+# Install only base components
+ansible-playbook site.yml --tags base
+
+# Install only system services
+ansible-playbook site.yml --tags system
+```
+
+### Custom Variables
+Override default values:
+```bash
+ansible-playbook site.yml -e clone_directory=/custom/path
+```
+
+For detailed information about backup, upgrade, and rollback operations, see the respective README files for each operation. 

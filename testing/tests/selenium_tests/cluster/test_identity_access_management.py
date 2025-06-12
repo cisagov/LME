@@ -5,7 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from .lib import dashboard_test_function
 
-class TestCredentialsAccessLogsDashboard:
+class TestIdentityAccessManagementDashboard:
     dashboard_id = "32ed7a33-b22e-4c4b-b4bd-a55c2cf4c0d0"
     
     @pytest.fixture(scope="class")
@@ -31,7 +31,7 @@ class TestCredentialsAccessLogsDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_password_resets_changes_logs(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Password Resets and Changes Logs", ".unifiedDataTable",".euiDataGrid__noResults")    
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Password Resets and Changes Logs", ".euiDataGrid__content",".euiDataGrid__noResults")    
     
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_password_resets_changes(self, setup_login, kibana_url, timeout):
@@ -51,4 +51,4 @@ class TestCredentialsAccessLogsDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_changes_to_default_domain_policy(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Changes to Default Domain Policy", ".euiFlexGroup",".euiDataGrid__noResults")                                                  
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Changes to Default Domain Policy", ".euiFlexGroup",".euiIcon")                                                  

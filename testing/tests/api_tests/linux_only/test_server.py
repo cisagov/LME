@@ -39,8 +39,8 @@ def test_elastic_root(es_host, es_port, username, password):
             body["cluster_name"] == "LME"
     ), f"Expected 'LME', got {body['cluster_name']}"
     assert (
-            body["version"]["number"] == "8.15.3"
-    ), f"Expected '8.15.3', got {body['version']['number']}"
+            body["version"]["number"] == "8.18.0"
+    ), f"Expected '8.18.0', got {body['version']['number']}"
     assert (
             body["version"]["build_flavor"] == "default"
     ), f"Expected 'default', got {body['version']['build_flavor']}"
@@ -48,7 +48,7 @@ def test_elastic_root(es_host, es_port, username, password):
             body["version"]["build_type"] == "docker"
     ), f"Expected 'docker', got {body['version']['build_type']}"
     assert (
-            body["version"]["lucene_version"] == "9.11.1"
+            body["version"]["lucene_version"] == "9.12.1"
     ), f"Expected '9.11.1', got {body['version']['lucene_version']}"
 
     assert (
