@@ -1,0 +1,4 @@
+---
+# Ubuntu 24.04 specific variables
+ubuntu_version: "24.04"
+package_manager: apt

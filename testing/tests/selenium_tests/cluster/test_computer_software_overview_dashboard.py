@@ -19,7 +19,7 @@ class TestComputerSoftwareOverviewDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_application_crashing_and_hanging(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Application Crashing and Hanging", ".echChart",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Application Crashing and Hanging", ".echChart",".euiIcon")
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_application_crashing_and_hanging_count(self, setup_login, kibana_url, timeout):
@@ -29,7 +29,7 @@ class TestComputerSoftwareOverviewDashboard:
     #@pytest.mark.skip(reason="Skipping this test")
     def test_create_remote_threat_events(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "CreateRemoteThread events", ".euiFlexGroup",".visError")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "CreateRemoteThread events", ".euiFlexGroup",".euiIcon")
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_filter_hosts(self, setup_login, kibana_url, timeout):
@@ -42,3 +42,7 @@ class TestComputerSoftwareOverviewDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Processes", ".euiDataGrid__focusWrap",".euiText")
         
+    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
+    def test_host_count(self, setup_login, kibana_url, timeout):
+        driver = setup_login
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Host Count", ".legacyMtrVis__container",".dummyVal")

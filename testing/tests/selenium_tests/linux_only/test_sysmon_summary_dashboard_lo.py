@@ -17,7 +17,7 @@ class TestSysmonSummaryDashboard:
         driver = setup_login
         #dashboard_id = "d2c73990-e5d4-11e9-8f1d-73a2ea4cc3ed"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Total number of Sysmon events found"
         selector = f'div[data-title="{panel_title}"]'
@@ -32,7 +32,7 @@ class TestSysmonSummaryDashboard:
         driver = setup_login
         #dashboard_id = "d2c73990-e5d4-11e9-8f1d-73a2ea4cc3ed"
         driver.get(f"{kibana_url}/app/dashboards#/view/{self.dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Sysmon event code reference"
         selector = f'div[data-title="{panel_title}"]'

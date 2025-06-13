@@ -14,30 +14,30 @@ class TestUserHRDashboard:
         login()
         yield driver
 
-    @pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
+    #@pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
     def test_filter_computers(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Computers", ".echChart",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Computers", ".echChart",".euiIcon")
 
-    @pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
+    #@pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
     def test_filter_users(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Users", ".echChart",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Filter Users", ".echChart",".euiIcon")
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_inperson_vs_remote_logons(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "In person vs Remote logons", ".echChart",".euiText")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "In person vs Remote logons", ".echChart",".euiIcon")
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_user_logoff_events(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User logoff events (correlate to logon events)", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User logoff events (correlate to logon events)", ".euiDataGrid",".euiIcon")
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_user_logon_events(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User logon events (filter by LogonId)", ".euiDataGrid",".euiDataGrid__noResults")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User logon events (filter by LogonId)", ".euiDataGrid",".euiIcon")
 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_select_domain_and_username(self, setup_login, kibana_url, timeout):
@@ -52,7 +52,7 @@ class TestUserHRDashboard:
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "HR - User activity title", ".visualization",".dummyval")
         
-    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
+    @pytest.mark.skip(reason="This dashboard panel is no longer available")
     def test_all_user_events_dayofweek_hourofday(self, setup_login, kibana_url, timeout):
         driver = setup_login
         dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "All User Events by Day of Week, Hour of Day", ".echChart",".dummyval")

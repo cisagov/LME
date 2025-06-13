@@ -1,0 +1,5 @@
+---
+# Common Nix tasks for all distributions
+
+# No common tasks are needed here, as they are included in main.yml
+# This file exists to allow the with_first_found loop to work correctly 

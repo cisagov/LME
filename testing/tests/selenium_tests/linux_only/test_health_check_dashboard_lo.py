@@ -18,7 +18,7 @@ class TestHealthCheckDashboard:
         #dashboard_id = "51fe1470-fa59-11e9-bf25-8f92ffa3e3ec"
         dashboard_id = "fff78bfe-2758-4fa1-939f-362380fc607d"
         driver.get(f"{kibana_url}/app/dashboards#/view/{dashboard_id}")
-        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "react-grid-layout"))
+        expected_cond = EC.presence_of_element_located((By.CLASS_NAME, "kbnAppWrapper"))
         WebDriverWait(driver, timeout).until(expected_cond)
         panel_title = "Users seen"
         selector = f'div[data-title="{panel_title}"]'

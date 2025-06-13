@@ -49,9 +49,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2-dev \
     libdbus-1-dev \
     distro-info \
+    vim \
     libgirepository1.0-dev \
-    ansible \
-    && wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
+    && wget -q "https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb" \
     && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
     && apt-get install -y powershell \
@@ -62,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -f \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+    #ansible \
 
 # Configure systemd
 RUN cd /lib/systemd/system/sysinit.target.wants/ && \

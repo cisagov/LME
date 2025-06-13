@@ -16,32 +16,32 @@ class TestPrivilegedActivityLogDashboard:
     @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_privilege_service_attempts(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Privilege service attempts", ".euiText",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Privilege service attempts", ".euiText",".euiIcon")
         
-    @pytest.mark.skip(reason="This test is for reference to use in 2.0")
+    #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_process_creation(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process creation", ".echChart",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process creation", ".echChart",".euiText")
                 
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_process_termination(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process termination", ".echChart",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process termination", ".echChart",".euiText")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_non_sensitive_privilege(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Non-sensitive privilege attempts", ".expExpressionRenderer",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Non-sensitive privilege attempts", ".lnsExpressionRenderer",".dummyval")
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_sensitive_privilege_attempts(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Sensitive Privilege attempts", ".expExpressionRenderer",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Sensitive Privilege attempts", ".lnsExpressionRenderer",".dummyval")
         
     @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_assigned_token(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Assigned Token", ".expExpressionRenderer",".euiText")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Assigned Token", ".lnsExpressionRenderer",".euiText")
         
     @pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_privilege_access_entry(self, setup_login, kibana_url, timeout):
@@ -51,6 +51,6 @@ class TestPrivilegedActivityLogDashboard:
     @pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
     def test_process_creation_activities(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process creation-Activities", ".expExpressionRenderer",".xyChart__empty")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Process creation-Activities", ".lnsExpressionRenderer",".euiIcon")
         
     

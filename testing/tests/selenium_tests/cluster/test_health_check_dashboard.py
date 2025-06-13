@@ -15,10 +15,10 @@ class TestHealthCheckDashboard:
         login()
         yield driver
 
-    @pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
+    #@pytest.mark.skip(reason="Panel shows error message on ubuntu cluster")
     def test_number_of_admins(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Number of Admins", ".expExpressionRenderer",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Number of Admins", ".echCanvasRenderer",".dummyval")
         # The arguement ".dummyval" is being used though it is not a valid selector. 
         # This panel should always have a visualization so there should never be no data message displayed.
         # If there is no visualization rendered or "No Results found" message is displayed for this panel on dashboard, this test should fail which is correct behavior

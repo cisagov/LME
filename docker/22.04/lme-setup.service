@@ -1,11 +1,11 @@
 [Unit]
 Description=LME Setup Service
-After=nix-daemon.service
-Requires=nix-daemon.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot
 WorkingDirectory=/root/LME
+ExecStartPre=/bin/sleep 30
 ExecStart=/bin/bash -c /root/LME/docker/22.04/lme-init.sh
 RemainAfterExit=yes
 StandardOutput=journal

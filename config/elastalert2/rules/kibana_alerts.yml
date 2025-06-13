@@ -1,0 +1,27 @@
+name: Rollup Kibana Security Alerts
+type: any
+index: .alerts-security.alerts-*
+filter:
+  - range:
+      "@timestamp":
+        gte: "now-5m"
+  - query_string:
+      query: "kibana.alert.rule.name:*"
+realert:
+  minutes: 20
+aggregation:
+  minutes: 15
+
+#########################################################
+# ALERT CONFIGURATION
+# Uncomment the alert types you want to use
+#########################################################
+
+#import: slack_alert_config
+#import: email_alert_config
+#import: teams_alert_config
+#import: twilio_alert_config
+
+alert:
+  - "debug"
+

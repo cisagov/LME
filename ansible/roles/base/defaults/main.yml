@@ -1,0 +1,51 @@
+---
+# Default variables that can be overridden
+# Note: Most common variables are now defined in site.yml
+
+# Default packages that apply to all distributions if not overridden
+common_packages:
+  - curl
+  - wget
+  - gnupg2
+  - sudo
+  - git
+  - openssh-client
+  - expect
+
+
+# Debian-specific packages
+debian_packages:
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - fuse-overlayfs
+  - build-essential
+  - python3-pip  
+  - python3-pexpect
+  - locales
+
+# Ubuntu-specific packages
+ubuntu_packages:
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - fuse-overlayfs
+  - build-essential
+  - python3-pip  
+  - python3-pexpect  
+
+# Ubuntu 24.04 specific packages
+ubuntu_24_04_packages:
+  - python3.12
+  - python3.12-venv
+  - python3.12-dev
+
+# Ubuntu 22.04 specific packages
+ubuntu_22_04_packages:
+  - python3.10
+  - python3.10-venv
+  - python3.10-dev
