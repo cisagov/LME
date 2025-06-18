@@ -42,7 +42,7 @@ jobs:
       ENROLLMENT_TOKEN: ""
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
-      ELASTIC_AGENT_VERSION: "8.18.0"
+      ELASTIC_AGENT_VERSION: "9.0.2"
       MINIMEGA_PASSWORD: ${{ secrets.MINIMEGA_PASSWORD }}
 
     steps:
