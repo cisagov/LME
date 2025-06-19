@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Default values
-VERSION="8.18.0"
+VERSION="8.18.2"
 ARCHITECTURE="windows-x86_64"
 HOST_IP="10.1.0.5"
 CLIENT_IP="10.0.0.100"
@@ -61,7 +61,7 @@ echo "Extracting windows archive..."
 
 ## Install Elastic Agent with automatic "yes" response
 echo "Installing elastic agent"
-./run_elevated_powershell.sh "elastic-agent-8.18.0-windows-x86_64/elastic-agent-8.18.0-windows-x86_64/elastic-agent install --non-interactive --force --url=https://${HOST_IP}:$PORT --insecure --enrollment-token=${ENROLLMENT_TOKEN}"
+./run_elevated_powershell.sh "elastic-agent-8.18.2-windows-x86_64/elastic-agent-8.18.2-windows-x86_64/elastic-agent install --non-interactive --force --url=https://${HOST_IP}:$PORT --insecure --enrollment-token=${ENROLLMENT_TOKEN}"
 
 echo "Waiting for service to start..."
 sleep 60
@@ -71,7 +71,7 @@ echo "Checking agent service status"
 
 #
 ## Enroll the Elastic Agent and capture the output
-#enrollment_output=$(./run_elevated_powershell.sh "./elastic-agent-8.18.0-windows-x86_64/elastic-agent-8.18.0-windows-x86_64/elastic-agent enroll --force --insecure --url=https://${HOST_IP}:$PORT --enrollment-token=${ENROLLMENT_TOKEN} ")
+#enrollment_output=$(./run_elevated_powershell.sh "./elastic-agent-8.18.2-windows-x86_64/elastic-agent-8.18.2-windows-x86_64/elastic-agent enroll --force --insecure --url=https://${HOST_IP}:$PORT --enrollment-token=${ENROLLMENT_TOKEN} ")
 #
 ## Check if enrollment was successful
 #if echo "$enrollment_output" | grep -q "Successfully enrolled"; then

@@ -80,8 +80,8 @@ The installer will:
 ### Container Versions
 
 LME uses these container versions:
-- Elasticsearch/Elastic Agent: 8.18.0
-- Kibana: 8.18.0
+- Elasticsearch/Elastic Agent: 8.18.2
+- Kibana: 8.18.2
 - Wazuh Manager: 4.9.1
 - ElastAlert2: 2.20.0
 

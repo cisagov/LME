@@ -13,7 +13,7 @@ get_script_path() {
 SCRIPT_DIR="$(get_script_path)"
 
 HEADERS=(
-  -H "kbn-version: 8.18.0"
+  -H "kbn-version: 8.18.2"
   -H "kbn-xsrf: kibana"
   -H 'Content-Type: application/json'
 )
