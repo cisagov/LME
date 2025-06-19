@@ -160,32 +160,36 @@
     var: ca_fingerprint.stdout
   when: debug_mode | bool
 
-- name: Set Fleet server hosts
-  uri:
-    url: "{{ local_kbn_url }}/api/fleet/settings"
-    method: PUT
-    user: "{{ elastic_username }}"
-    password: "{{ elastic_password }}"
-    force_basic_auth: yes
-    validate_certs: no
-    headers:
-      kbn-version: "{{ kibana_version }}"
-      kbn-xsrf: "kibana"
-      Content-Type: "application/json"
-    body_format: json
-    body:
-      fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
-    status_code: [200]
-  register: fleet_server_hosts_result
-  retries: 3
-  delay: 10
-  until: fleet_server_hosts_result.status == 200
-  no_log: "{{ not debug_mode }}"
+# The fleet_server_hosts field has been removed from /api/fleet/settings in version 9.0
+# This configuration should now be done through Kibana configuration
+# Removing the deprecated task below:
+#
+# - name: Set Fleet server hosts
+#   uri:
+#     url: "{{ local_kbn_url }}/api/fleet/settings"
+#     method: PUT
+#     user: "{{ elastic_username }}"
+#     password: "{{ elastic_password }}"
+#     force_basic_auth: yes
+#     validate_certs: no
+#     headers:
+#       kbn-version: "{{ kibana_version }}"
+#       kbn-xsrf: "kibana"
+#       Content-Type: "application/json"
+#     body_format: json
+#     body:
+#       fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
+#     status_code: [200]
+#   register: fleet_server_hosts_result
+#   retries: 3
+#   delay: 10
+#   until: fleet_server_hosts_result.status == 200
+#   no_log: "{{ not debug_mode }}"
 
-- name: Debug Fleet server hosts result
-  debug:
-    msg: "Fleet server hosts successfully set to {{ fleet_server_hosts_result.json.item.fleet_server_hosts }}"
-  when: debug_mode | bool
+# - name: Debug Fleet server hosts result
+#   debug:
+#     msg: "Fleet server hosts successfully set to {{ fleet_server_hosts_result.json.item.fleet_server_hosts }}"
+#   when: debug_mode | bool
 
 - name: Set Fleet default output hosts
   uri:
@@ -391,7 +395,6 @@
   debug:
     var: "{{ item }}"
   loop:
-    - fleet_server_hosts_result
     - fleet_output_hosts_result
     - fleet_output_fingerprint_result
     - fleet_output_ssl_result
