@@ -292,10 +292,10 @@ jobs:
           ")
           echo "Retrieved Policy ID: $POLICY_ID"
           
-          # Retrieve enrollment token using the policy ID
+          # Create enrollment token using the policy ID
           ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh lme-user@${{ env.AZURE_IP }} '
-              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment_api_keys\" \
                 -H \"kbn-xsrf: true\" \
                 -H \"Content-Type: application/json\" \
                 -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
