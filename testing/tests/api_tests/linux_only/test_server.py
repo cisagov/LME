@@ -55,8 +55,8 @@ def test_elastic_root(es_host, es_port, username, password):
             body["version"]["minimum_wire_compatibility_version"] == "8.18.0"
     ), f"Expected '8.18.0', got {body['version']['minimum_wire_compatibility_version']}"
     assert (
-            body["version"]["minimum_index_compatibility_version"] == "7.0.0"
-    ), f"Expected '7.0.0', got {body['version']['minimum_index_compatibility_version']}"
+            body["version"]["minimum_index_compatibility_version"] == "8.0.0"
+    ), f"Expected '8.0.0', got {body['version']['minimum_index_compatibility_version']}"
 
     # Validating JSON Response schema
     schema = load_json_schema(f"{current_script_dir}/schemas/es_root.json")
