@@ -263,6 +263,22 @@
         remote_src: yes
       register: containers_copied
         
+    - name: Copy updated config files to /opt/lme/config
+      copy:
+        src: "{{ clone_directory }}/config/"
+        dest: /opt/lme/config/
+        owner: "{{ install_user }}"
+        group: "{{ install_user }}"
+        mode: '0644'
+      register: config_copied
+        
+    - name: Display file update results
+      debug:
+        msg: |
+          Configuration files updated successfully:
+          - Containers file: {{ 'Updated' if containers_copied.changed else 'No changes needed' }}
+          - Config directory: {{ 'Updated' if config_copied.changed else 'No changes needed' }}
+        
     - name: Update STACK_VERSION in environment file
       lineinfile:
         path: "{{ env_file_path }}"
