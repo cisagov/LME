@@ -9,6 +9,9 @@
     install_user: "{{ ansible_user_id }}"
     new_lme_version: "2.1.1"
     
+    # Backup timestamp - set once and used throughout
+    backup_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
+    
     # Directory configuration
     config_dir: "/etc/lme"
     env_file_path: "/opt/lme/lme-environment.env"
@@ -297,7 +300,7 @@
         
     - name: Create backup directory for config files
       file:
-        path: "/opt/lme/backup/config-{{ ansible_date_time.epoch }}"
+        path: "/opt/lme/backup/config-{{ backup_timestamp }}"
         state: directory
         owner: root
         group: root
@@ -313,7 +316,7 @@
             if [ -f "$source_file" ]; then
               # Check if files are different
               if ! cmp -s "$file" "$source_file"; then
-                backup_file="$file.backup-{{ ansible_date_time.epoch }}"
+                backup_file="{{ config_backup_dir.path }}/$filename.backup-{{ backup_timestamp }}"
                 cp "$file" "$backup_file"
                 chown {{ install_user }}:{{ install_user }} "$backup_file"
                 chmod 644 "$backup_file"
@@ -331,7 +334,7 @@
         
     - name: Display config backup results
       debug:
-        msg: "{{ config_backup_result.stdout_lines }}"
+        msg: "{{ config_backup_result.stdout }}"
         
     - name: Copy only different config files to /opt/lme/config
       shell: |
@@ -467,7 +470,7 @@
         
     - name: Create backup directory for quadlet files
       file:
-        path: "/opt/lme/backup/quadlet-{{ ansible_date_time.epoch }}"
+        path: "/opt/lme/backup/quadlet-{{ backup_timestamp }}"
         state: directory
         owner: root
         group: root
