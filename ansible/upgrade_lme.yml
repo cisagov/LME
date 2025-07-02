@@ -265,120 +265,21 @@
         dest: "/opt/lme/config/containers.txt"
         remote_src: yes
       register: containers_copied
-        
-    - name: Check for existing config files
-      find:
-        paths: /opt/lme/config
-        patterns: "*.yml,*.yaml,*.conf,*.txt"
-        file_type: file
-      register: existing_config_files
-      become: yes
-        
-    - name: Show diff of config files that will be updated
-      shell: |
-        for file in {{ existing_config_files.files | map(attribute='path') | list | join(' ') }}; do
-          if [ -f "$file" ]; then
-            filename=$(basename "$file")
-            source_file="{{ clone_directory }}/config/$filename"
-            if [ -f "$source_file" ]; then
-              echo "=== Diff for $filename ==="
-              diff -u "$file" "$source_file" || echo "Files are identical or diff failed"
-              echo ""
-            fi
-          fi
-        done
-      args:
-        executable: /bin/bash
-      register: config_diff_result
-      become: yes
-      ignore_errors: yes
-        
-    - name: Display config file diffs
-      debug:
-        msg: "{{ config_diff_result.stdout_lines }}"
-      when: config_diff_result.stdout_lines | length > 0
-        
-    - name: Create backup directory for config files
-      file:
-        path: "/opt/lme/backup/config-{{ backup_timestamp }}"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-      register: config_backup_dir
-        
-    - name: Backup existing config files that will be overwritten
-      shell: |
-        for file in {{ existing_config_files.files | map(attribute='path') | list | join(' ') }}; do
-          if [ -f "$file" ]; then
-            filename=$(basename "$file")
-            source_file="{{ clone_directory }}/config/$filename"
-            if [ -f "$source_file" ]; then
-              # Check if files are different
-              if ! cmp -s "$file" "$source_file"; then
-                backup_file="{{ config_backup_dir.path }}/$filename.backup-{{ backup_timestamp }}"
-                cp "$file" "$backup_file"
-                chown {{ install_user }}:{{ install_user }} "$backup_file"
-                chmod 644 "$backup_file"
-                echo "Backed up $filename to $backup_file (files differ)"
-              else
-                echo "Skipping $filename (files identical)"
-              fi
-            fi
-          fi
-        done
-      args:
-        executable: /bin/bash
-      register: config_backup_result
-      become: yes
-        
-    - name: Display config backup results
-      debug:
-        msg: "{{ config_backup_result.stdout }}"
-        
-    - name: Copy only different config files to /opt/lme/config
-      shell: |
-        for file in {{ existing_config_files.files | map(attribute='path') | list | join(' ') }}; do
-          if [ -f "$file" ]; then
-            filename=$(basename "$file")
-            source_file="{{ clone_directory }}/config/$filename"
-            if [ -f "$source_file" ]; then
-              # Only copy if files are different
-              if ! cmp -s "$file" "$source_file"; then
-                cp "$source_file" "$file"
-                chown {{ install_user }}:{{ install_user }} "$file"
-                chmod 644 "$file"
-                echo "Updated $filename (files differed)"
-              else
-                echo "Skipped $filename (files identical)"
-              fi
-            fi
-          fi
-        done
-      args:
-        executable: /bin/bash
-      register: config_copy_result
-      become: yes
-        
-    - name: Copy new config files that don't exist yet
-      copy:
-        src: "{{ clone_directory }}/config/"
-        dest: /opt/lme/config/
-        owner: "{{ install_user }}"
-        group: "{{ install_user }}"
-        mode: '0644'
-      register: new_config_copied
-        
-    - name: Display config update results
+
+    - name: Remove old elasticsearch repo path for 9.0.2 upgrade
+      lineinfile:
+        path: /opt/lme/config/elasticsearch.yml
+        line: "    - /usr/share/elasticsearch"
+        state: absent
+      register: elasticsearch_config_updated
+      
+    - name: Display configuration updates
       debug:
         msg: |
-          Configuration files updated successfully:
+          Configuration updates completed:
           - Containers file: {{ 'Updated' if containers_copied.changed else 'No changes needed' }}
-          - Config files updated: {{ config_copy_result.stdout_lines | select('match', 'Updated.*') | list | length }}
-          - Config files skipped: {{ config_copy_result.stdout_lines | select('match', 'Skipped.*') | list | length }}
-          - New config files: {{ 'Added' if new_config_copied.changed else 'No new files' }}
-          - Backup files created: {{ config_backup_result.stdout_lines | select('match', 'Backed up.*') | list | length }}
-        
+          - Elasticsearch config: {{ 'Updated (removed old repo path)' if elasticsearch_config_updated.changed else 'Already correct' }}
+
     - name: Update STACK_VERSION in environment file
       lineinfile:
         path: "{{ env_file_path }}"
@@ -630,40 +531,21 @@
         content: "{{ new_lme_version }}"
         dest: "/etc/lme/version"
       
-    - name: Process backup files for final message
-      set_fact:
-        backup_file_paths: "{{ config_backup_result.stdout_lines | select('match', 'Backed up.*') | map('regex_replace', '^Backed up .* to (.*) \\(.*\\)$', '\\1') | list }}"
-      
-    - name: Debug backup file processing
+    - name: Upgrade complete message
       debug:
-        msg: |
-          config_backup_result.stdout_lines: {{ config_backup_result.stdout_lines }}
-          Lines matching 'Backed up.*': {{ config_backup_result.stdout_lines | select('match', 'Backed up.*') | list }}
-          backup_file_paths: {{ backup_file_paths }}
-          backup_file_paths length: {{ backup_file_paths | length }}
-        
-    - name: Build final upgrade message
-      set_fact:
-        upgrade_message_lines:
+        msg:
           - "LME has been successfully upgraded to version {{ new_lme_version }}"
           - ""
           - "Container versions:"
-          - "Elasticsearch: {{ elasticsearch_image }}"
-          - "Elastic Agent: docker.elastic.co/beats/elastic-agent:{{ elasticsearch_version }}"
-          - "Kibana: {{ kibana_image }}"
-          - "Wazuh: {{ wazuh_image }}"
-          - "ElastAlert: {{ elastalert_image }}"
+          - "- Elasticsearch: {{ elasticsearch_image }}"
+          - "- Elastic Agent: docker.elastic.co/beats/elastic-agent:{{ elasticsearch_version }}"
+          - "- Kibana: {{ kibana_image }}"
+          - "- Wazuh: {{ wazuh_image }}"
+          - "- ElastAlert: {{ elastalert_image }}"
           - ""
           - "Configuration updates:"
-          - "- Quadlet files: Updated with latest container configurations"
+          - "- Containers file: {{ 'Updated' if containers_copied.changed else 'No changes needed' }}"
+          - "- Elasticsearch config: {{ 'Updated (removed old repo path)' if elasticsearch_config_updated.changed else 'Already correct' }}"
+          - "- Quadlet files: {{ 'Updated' if quadlet_copy_result.changed else 'No changes needed' }}"
           - "- Previous quadlet files backed up to: {{ quadlet_backup_dir.path }}"
-          - "- Systemd daemon: Reloaded to recognize changes"
-          
-    - name: Add backup files to message if any exist
-      set_fact:
-        upgrade_message_lines: "{{ upgrade_message_lines + ['', 'Configuration files backed up:'] + (backup_file_paths | map('regex_replace', '^(.*)$', '- \\1') | list) }}"
-      when: backup_file_paths | length > 0
-         
-    - name: Upgrade complete message
-      debug:
-        msg: "{{ dict(range(1, upgrade_message_lines|length + 1) | zip(upgrade_message_lines)) }}" 
+          - "- Systemd daemon: {{ 'Reloaded' if daemon_reload_result.changed else 'Already current' }}" 
