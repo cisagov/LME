@@ -137,7 +137,7 @@
 
     - name: Show backup list with versions
       debug:
-        msg: "{{ dict(range(1, backup_display_list|length + 1) | zip(backup_display_list)) }}"
+        msg: "{{ backup_display_list }}"
       when: backup_display_list is defined and backup_display_list | length > 0
       
     - name: Prompt for backup selection
@@ -922,4 +922,4 @@
 
     - name: Show cleanup instructions
       debug:
-        msg: "{{ dict(range(1, status_file.stdout_lines|length + 1) | zip(status_file.stdout_lines)) }}" 
+        msg: "{{ status_file.stdout_lines }}" 

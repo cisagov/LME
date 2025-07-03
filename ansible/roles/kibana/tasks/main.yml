@@ -89,4 +89,46 @@
 
     - name: Retry connection check
       include_tasks: main.yml
-      when: (current_retry | int) < max_retries 
+      when: (current_retry | int) < max_retries
+
+- name: Debug Kibana readiness response
+  debug:
+    var: kibana_ready_check
+  when: debug_mode | bool
+
+# Add Fleet server hosts configuration to Kibana config
+# This is required for version 9.0+ as the API no longer supports setting fleet_server_hosts
+- name: Add Fleet server hosts to Kibana configuration
+  lineinfile:
+    path: /opt/lme/config/kibana.yml
+    line: "xpack.fleet.agents.fleet_server.hosts: [\"https://{{ ipvar }}:{{ fleet_port }}\"]"
+    regexp: '^xpack\.fleet\.agents\.fleet_server\.hosts:'
+    state: present
+  become: yes
+  when: ipvar is defined and ipvar != ''
+
+- name: Restart Kibana to apply Fleet server hosts configuration
+  systemd:
+    name: lme-kibana.service
+    state: restarted
+  become: yes
+  when: ipvar is defined and ipvar != ''
+  register: kibana_restart
+
+- name: Wait for Kibana to be ready after restart
+  uri:
+    url: "{{ local_kbn_url }}/api/status"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: kibana_status_after_restart
+  until: >
+    kibana_status_after_restart.status == 200 and 
+    kibana_status_after_restart.json.status.overall.level == "available"
+  retries: 60
+  delay: 20
+  when: kibana_restart is changed
+  no_log: "{{ not debug_mode }}" 

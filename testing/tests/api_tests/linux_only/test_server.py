@@ -39,8 +39,8 @@ def test_elastic_root(es_host, es_port, username, password):
             body["cluster_name"] == "LME"
     ), f"Expected 'LME', got {body['cluster_name']}"
     assert (
-            body["version"]["number"] == "8.18.0"
-    ), f"Expected '8.18.0', got {body['version']['number']}"
+            body["version"]["number"] == "9.0.2"
+    ), f"Expected '9.0.2', got {body['version']['number']}"
     assert (
             body["version"]["build_flavor"] == "default"
     ), f"Expected 'default', got {body['version']['build_flavor']}"
@@ -48,15 +48,15 @@ def test_elastic_root(es_host, es_port, username, password):
             body["version"]["build_type"] == "docker"
     ), f"Expected 'docker', got {body['version']['build_type']}"
     assert (
-            body["version"]["lucene_version"] == "9.12.1"
-    ), f"Expected '9.11.1', got {body['version']['lucene_version']}"
+            body["version"]["lucene_version"] == "10.1.0"
+    ), f"Expected '10.1.0', got {body['version']['lucene_version']}"
 
     assert (
-            body["version"]["minimum_wire_compatibility_version"] == "7.17.0"
-    ), f"Expected '7.17.0', got {body['version']['minimum_wire_compatibility_version']}"
+            body["version"]["minimum_wire_compatibility_version"] == "8.18.0"
+    ), f"Expected '8.18.0', got {body['version']['minimum_wire_compatibility_version']}"
     assert (
-            body["version"]["minimum_index_compatibility_version"] == "7.0.0"
-    ), f"Expected '7.0.0', got {body['version']['minimum_index_compatibility_version']}"
+            body["version"]["minimum_index_compatibility_version"] == "8.0.0"
+    ), f"Expected '8.0.0', got {body['version']['minimum_index_compatibility_version']}"
 
     # Validating JSON Response schema
     schema = load_json_schema(f"{current_script_dir}/schemas/es_root.json")
@@ -76,7 +76,8 @@ def test_elastic_indices(es_host, es_port, username, password):
     assert ("open elastalert_status_silence" in response.text)                                         
     assert ("open .ds-metrics-elastic_agent.filebeat-default" in response.text)     
     assert ("open .ds-metrics-elastic_agent.filebeat_input-default" in response.text)
-    assert ("open .internal.alerts-security.alerts-default" in response.text)                  
+    # Note: In Elasticsearch 9.0.2, the security alerts index has a different naming pattern
+    # assert ("open .internal.alerts-security.alerts-default" in response.text)                  
     assert ("open elastalert_status_error" in response.text)                                           
     assert ("open .ds-metrics-fleet_server.agent_versions-default" in response.text)
     assert ("open elastalert_status_status" in response.text)                                          

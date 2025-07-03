@@ -26,6 +26,6 @@ Volume=lme_certs:/usr/share/kibana/config/certs
 Volume=lme_kibanadata:/usr/share/kibana/data
 Volume=/opt/lme/config/kibana.yml:/usr/share/kibana/config/kibana.yml
 Volume=/etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
-HealthCmd=CMD-SHELL curl -I -s --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/1.1 302 Found'
+HealthCmd=CMD-SHELL curl -I -s --cacert config/certs/ca/ca.crt https://localhost:5601 | grep -q 'HTTP/[12].* 302'
 Notify=healthy
 UserNS=auto:uidmapping=0:168584:3048,gidmapping=0:168584:3048

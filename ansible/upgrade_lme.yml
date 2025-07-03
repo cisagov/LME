@@ -7,7 +7,10 @@
     # Common variables
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
-    new_lme_version: "2.1.0"
+    new_lme_version: "2.1.1"
+    
+    # Backup timestamp - set once and used throughout
+    backup_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
     
     # Directory configuration
     config_dir: "/etc/lme"
@@ -262,7 +265,21 @@
         dest: "/opt/lme/config/containers.txt"
         remote_src: yes
       register: containers_copied
-        
+
+    - name: Remove old elasticsearch repo path for 9.0.2 upgrade
+      lineinfile:
+        path: /opt/lme/config/elasticsearch.yml
+        line: "    - /usr/share/elasticsearch"
+        state: absent
+      register: elasticsearch_config_updated
+      
+    - name: Display configuration updates
+      debug:
+        msg: |
+          Configuration updates completed:
+          - Containers file: {{ 'Updated' if containers_copied.changed else 'No changes needed' }}
+          - Elasticsearch config: {{ 'Updated (removed old repo path)' if elasticsearch_config_updated.changed else 'Already correct' }}
+
     - name: Update STACK_VERSION in environment file
       lineinfile:
         path: "{{ env_file_path }}"
@@ -354,7 +371,7 @@
         
     - name: Create backup directory for quadlet files
       file:
-        path: "/opt/lme/backup/quadlet-{{ ansible_date_time.epoch }}"
+        path: "/opt/lme/backup/quadlet-{{ backup_timestamp }}"
         state: directory
         owner: root
         group: root
@@ -516,20 +533,19 @@
       
     - name: Upgrade complete message
       debug:
-        msg: |
-          {% set message_lines = [
-            'LME has been successfully upgraded to version ' + new_lme_version,
-            '',
-            'Container versions:',
-            'Elasticsearch: ' + elasticsearch_image,
-            'Elastic Agent: docker.elastic.co/beats/elastic-agent:' + elasticsearch_version,
-            'Kibana: ' + kibana_image,
-            'Wazuh: ' + wazuh_image,
-            'ElastAlert: ' + elastalert_image,
-            '',
-            'Configuration updates:',
-            '- Quadlet files: Updated with latest container configurations',
-            '- Previous quadlet files backed up to: ' + quadlet_backup_dir.path,
-            '- Systemd daemon: Reloaded to recognize changes'
-          ] %}
-          {{ dict(range(1, message_lines|length + 1) | zip(message_lines)) }} 
+        msg:
+          - "LME has been successfully upgraded to version {{ new_lme_version }}"
+          - ""
+          - "Container versions:"
+          - "- Elasticsearch: {{ elasticsearch_image }}"
+          - "- Elastic Agent: docker.elastic.co/beats/elastic-agent:{{ elasticsearch_version }}"
+          - "- Kibana: {{ kibana_image }}"
+          - "- Wazuh: {{ wazuh_image }}"
+          - "- ElastAlert: {{ elastalert_image }}"
+          - ""
+          - "Configuration updates:"
+          - "- Containers file: {{ 'Updated' if containers_copied.changed else 'No changes needed' }}"
+          - "- Elasticsearch config: {{ 'Updated (removed old repo path)' if elasticsearch_config_updated.changed else 'Already correct' }}"
+          - "- Quadlet files: {{ 'Updated' if quadlet_copy_result.changed else 'No changes needed' }}"
+          - "- Previous quadlet files backed up to: {{ quadlet_backup_dir.path }}"
+          - "- Systemd daemon: {{ 'Reloaded' if daemon_reload_result.changed else 'Already current' }}" 

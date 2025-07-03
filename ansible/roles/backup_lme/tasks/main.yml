@@ -378,6 +378,4 @@
   
 - name: Backup summary
   debug:
-    msg: "{{ dict(range(1, backup_summary_lines|length + 1) | zip(backup_summary_lines)) }}"
-  vars:
-    backup_summary_lines: "{{ (final_status.stdout + '\n\nBackup location: ' + backup_base_dir + '/backups/' + ansible_date_time.iso8601_basic_short).splitlines() }}" 
+    msg: "{{ (final_status.stdout + '\n\nBackup location: ' + backup_base_dir + '/backups/' + ansible_date_time.iso8601_basic_short).splitlines() }}" 
