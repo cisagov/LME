@@ -50,8 +50,6 @@
 
 - name: Remove old Wazuh dashboard files with .dumped in the name
   ansible.builtin.shell: rm -f /opt/lme/dashboards/wazuh/*.dumped.ndjson || true
-  args:
-    warn: false
   become: yes
 
 - name: Copy Elastic dashboards files
