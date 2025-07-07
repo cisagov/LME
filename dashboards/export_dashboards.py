@@ -109,7 +109,7 @@ class Api:
             export_path = Path(script_dir) / 'exported'
             os.makedirs(export_path, exist_ok=True)
 
-            filename = re.sub(r"\W+", "_", self.ids[selected_id].lower()) + ".dumped.ndjson"
+            filename = re.sub(r"\W+", "_", self.ids[selected_id].lower()) + ".ndjson"
 
             print(f"Writing to file {filename}")
             export_path = export_path / filename
