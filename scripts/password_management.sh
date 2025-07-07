@@ -20,6 +20,13 @@ check_password() {
         return 1
     fi
 
+    # Skip HIBP check if in offline mode
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo "Offline mode enabled - skipping HIBP password breach check."
+        echo "Input meets the complexity requirements. Ensure you are using a secure password."
+        return 0
+    fi
+
     # Generate SHA-1 hash of the password
     hash=$(echo -n "$password" | openssl sha1 | awk '{print $2}')
     prefix="${hash:0:5}"
@@ -27,7 +34,7 @@ check_password() {
 
     # Check against HIBP API
     response=$(curl -s "https://api.pwnedpasswords.com/range/$prefix")
-    
+
     if echo "$response" | grep -qi "$suffix"; then
         echo "This input has been found in known data breaches. Please choose a different one."
         return 1
@@ -59,6 +66,12 @@ read_password() {
 check_connect() {
 website=$1
 
+# Skip connectivity check if in offline mode
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo "Offline mode enabled - skipping connectivity check"
+    return 0
+fi
+
 RES=$(wget -q --spider $1)
 
 if [ $? -eq 0 ]; then
@@ -67,6 +80,7 @@ if [ $? -eq 0 ]; then
 else
     echo "$1 Offline"
     echo "Are you connected to the internet? we check all passwords against HIBP to ensure NIST compliance"
+    echo "Use OFFLINE_MODE=true to skip internet checks"
     exit -1
 fi
 }

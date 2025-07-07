@@ -10,4 +10,5 @@
   apt:
     name: "{{ debian_12_packages | default([]) }}"
     state: present
-  become: yes 
+  become: yes
+  when: not (offline_mode | default(false))

@@ -39,6 +39,7 @@
   delay: 5
   until: podman_install is not failed
   changed_when: "'installing' in podman_install.stdout | default('')"
+  when: not (offline_mode | default(false))
 
 - name: Set sysctl limits 
   command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"

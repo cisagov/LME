@@ -5,12 +5,14 @@
   apt:
     update_cache: yes
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Install required Debian packages
   apt:
     name: "{{ debian_packages }}"
     state: present
-  become: yes 
+  become: yes
+  when: not (offline_mode | default(false))
 
 - name: Set timezone information
   debconf:

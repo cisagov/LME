@@ -8,6 +8,7 @@
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
     new_lme_version: "2.1.0"
+    offline_mode: false  # Default offline mode to false - set to true for offline upgrade
     
     # Directory configuration
     config_dir: "/etc/lme"
@@ -308,14 +309,20 @@
       delay: 5
       until: pull_result is not failed
       ignore_errors: yes
+      when: not (offline_mode | default(false))
       
     - name: Display container pull errors
       debug:
         msg: "Failed to pull container: {{ item.item }}"
       loop: "{{ pull_result.results }}"
-      when: item is failed
+      when: item is failed and not (offline_mode | default(false))
       loop_control:
         label: "{{ item.item }}"
+
+    - name: Display offline mode message for upgrade
+      debug:
+        msg: "Offline mode enabled - skipping container pulls during upgrade. Ensure all required container images are already present on the system."
+      when: offline_mode | default(false)
         
     - name: Tag new containers
       shell: |

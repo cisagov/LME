@@ -13,6 +13,7 @@ CUSTOM_IP=""
 HAS_SUDO_ACCESS=""
 IPVAR=""
 DEBUG_MODE="false"
+OFFLINE_MODE="false"
 
 # Environment variables for non-interactive mode
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
@@ -26,6 +27,7 @@ usage() {
     echo "OPTIONS:"
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
     echo "  -d, --debug                   Enable debug mode for verbose output"
+    echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
     echo "  -h, --help                    Show this help message"
     echo
@@ -48,6 +50,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -d|--debug)
             DEBUG_MODE="true"
+            shift
+            ;;
+        -o|--offline)
+            OFFLINE_MODE="true"
             shift
             ;;
         -p|--playbook)
@@ -405,10 +411,13 @@ run_playbook() {
     
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${YELLOW}⚠ Running in offline mode - skipping internet-dependent tasks${NC}"
+    fi
     if [ -f "./inventory" ]; then
-        ansible-playbook -i inventory "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
+        ansible-playbook -i inventory "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     else
-        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
+        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     fi
     
     if [ $? -eq 0 ]; then

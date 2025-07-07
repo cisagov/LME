@@ -74,14 +74,20 @@
   delay: 5
   until: pull_result is not failed
   ignore_errors: yes
+  when: not (offline_mode | default(false))
 
 - name: Display container pull errors
   debug:
     msg: "Failed to pull container: {{ item.item }}"
   loop: "{{ pull_result.results }}"
-  when: item is failed
+  when: item is failed and not (offline_mode | default(false))
   loop_control:
     label: "{{ item.item }}"
+
+- name: Display offline mode message for containers
+  debug:
+    msg: "Offline mode enabled - skipping container pulls. Ensure all required container images are already present on the system."
+  when: offline_mode | default(false)
 
 - name: Tag containers
   shell: |
