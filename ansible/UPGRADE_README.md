@@ -337,7 +337,7 @@ ansible-playbook rollback_lme.yml
 ping docker.io
 
 # Manually pull images
-sudo podman pull docker.elastic.co/elasticsearch/elasticsearch:8.18.2
+sudo podman pull docker.elastic.co/elasticsearch/elasticsearch:8.18.3
 
 # Check container registry access
 sudo podman login docker.elastic.co

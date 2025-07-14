@@ -7,7 +7,7 @@
     # Common variables
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
-    new_lme_version: "2.1.0"
+    new_lme_version: "2.1.1"
     
     # Directory configuration
     config_dir: "/etc/lme"
