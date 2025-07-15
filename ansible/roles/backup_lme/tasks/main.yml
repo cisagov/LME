@@ -1,6 +1,10 @@
 ---
 # Main tasks file for backup_lme role
 
+- name: Set backup timestamp
+  set_fact:
+    backup_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
+
 - name: Get Podman graphroot location
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
@@ -34,13 +38,13 @@
   
 - name: Check if backup already exists today
   stat:
-    path: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}"
+    path: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}"
   register: today_backup
   
 - name: Prompt for backup confirmation if backup exists
   pause:
     prompt: |
-      A backup already exists for today ({{ ansible_date_time.iso8601_basic_short }}).
+      A backup already exists for today ({{ backup_timestamp }}).
       Do you want to overwrite it? (yes/no)
   when: today_backup.stat.exists and not skip_prompts | default(false)
   register: backup_confirmation
@@ -103,7 +107,7 @@
   
 - name: Create date-based backup directory
   file:
-    path: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
+    path: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme"
     state: directory
     mode: '0755'
   become: yes
@@ -111,17 +115,17 @@
 - name: Create backup of LME installation
   shell: |
     # Create the backup directory structure
-    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme"
-    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_lme"
-    mkdir -p "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_containers_systemd"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_lme"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_containers_systemd"
     
     # Copy the LME installation
-    cp -a "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/lme/"
+    cp -a "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme/"
     LME_COPY_STATUS=$?
     
     # Copy the vault and password files from /etc/lme
     if [ -d "/etc/lme" ]; then
-      cp -a "/etc/lme/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_lme/"
+      cp -a "/etc/lme/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_lme/"
       ETC_LME_COPY_STATUS=$?
     else
       echo "Warning: /etc/lme directory not found"
@@ -130,7 +134,7 @@
     
     # Copy the systemd container files from /etc/containers/systemd
     if [ -d "/etc/containers/systemd" ]; then
-      cp -a "/etc/containers/systemd/." "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/etc_containers_systemd/"
+      cp -a "/etc/containers/systemd/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_containers_systemd/"
       SYSTEMD_COPY_STATUS=$?
       echo "Systemd container files backed up successfully"
     else
@@ -156,7 +160,7 @@
     export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
     
     # Create secret mapping file
-    MAPPING_FILE="{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/secret_mapping.txt"
+    MAPPING_FILE="{{ backup_base_dir }}/backups/{{ backup_timestamp }}/secret_mapping.txt"
     
     # Get current secret mappings from podman
     echo "# LME Secret Mapping - Created: {{ ansible_date_time.iso8601 }}" > "$MAPPING_FILE"
@@ -210,7 +214,7 @@
 
 - name: Create backup status file
   copy:
-    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/backup_status.txt"
+    dest: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/backup_status.txt"
     content: |
       Backup started: {{ ansible_date_time.iso8601 }}
       LME version: {{ current_version.stdout }}
@@ -248,7 +252,7 @@
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     VOLUME_PATH=$(podman volume inspect {{ item }} --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
-    VOLUME_DIR="{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes/{{ item }}"
+    VOLUME_DIR="{{ backup_base_dir }}/backups/{{ backup_timestamp }}/volumes/{{ item }}"
     
     # Create volume backup directory
     mkdir -p "$VOLUME_DIR"
@@ -287,7 +291,7 @@
 
 - name: Collect volume backup statuses
   shell: |
-    find "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes" -name "backup_status.txt" -exec cat {} \; | grep -c -E "(SUCCESS|EMPTY)" || echo "0"
+    find "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/volumes" -name "backup_status.txt" -exec cat {} \; | grep -c -E "(SUCCESS|EMPTY)" || echo "0"
   args:
     executable: /bin/bash
   register: successful_volumes
@@ -297,7 +301,7 @@
 
 - name: Find volumes that were empty during backup
   shell: |
-    find "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/volumes" -name "backup_status.txt" -exec grep -l "EMPTY" {} \; | xargs -I {} dirname {} | xargs -I {} basename {}
+    find "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/volumes" -name "backup_status.txt" -exec grep -l "EMPTY" {} \; | xargs -I {} dirname {} | xargs -I {} basename {}
   args:
     executable: /bin/bash
   register: empty_volumes
@@ -307,7 +311,7 @@
 
 - name: Create expected empty volumes file based on actual empty volumes found
   copy:
-    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/expected_empty_volumes.txt"
+    dest: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/expected_empty_volumes.txt"
     content: |
       {% for volume in empty_volumes.stdout_lines %}
       {{ volume }}
@@ -317,7 +321,7 @@
 
 - name: Create empty expected volumes file if no empty volumes found
   copy:
-    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/expected_empty_volumes.txt"
+    dest: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/expected_empty_volumes.txt"
     content: |
       # No volumes were empty during this backup
   become: yes
@@ -354,7 +358,7 @@
   
 - name: Update backup status file
   copy:
-    dest: "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/backup_status.txt"
+    dest: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/backup_status.txt"
     content: |
       Backup completed: {{ ansible_date_time.iso8601 }}
       LME version: {{ current_version.stdout }}
@@ -371,13 +375,11 @@
   become: yes
   
 - name: Read final backup status
-  command: cat "{{ backup_base_dir }}/backups/{{ ansible_date_time.iso8601_basic_short }}/backup_status.txt"
+  command: cat "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/backup_status.txt"
   register: final_status
   become: yes
   changed_when: false
   
 - name: Backup summary
   debug:
-    msg: "{{ dict(range(1, backup_summary_lines|length + 1) | zip(backup_summary_lines)) }}"
-  vars:
-    backup_summary_lines: "{{ (final_status.stdout + '\n\nBackup location: ' + backup_base_dir + '/backups/' + ansible_date_time.iso8601_basic_short).splitlines() }}" 
+    msg: "{{ (final_status.stdout + '\n\nBackup location: ' + backup_base_dir + '/backups/' + backup_timestamp).splitlines() }}" 
