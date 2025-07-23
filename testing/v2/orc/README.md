@@ -27,7 +27,7 @@ Install dependencies:
 ```bash
 #might need to install the following:
 #     genisoimage wimtools makeisofs 
-apt install -y  ovmf ansible sshpass python3.10-venv genisoimage wimtools
+apt install -y ovmf ansible sshpass python3-venv genisoimage wimtools
 
 cd ~/LME/testing/v2/orc
 ansible-galaxy install -r requirements.yml
@@ -51,7 +51,7 @@ cd ~/LME/testing/v2/orc/files/isos/
 mkdir -p tmp virtio-drivers
 sudo mount -o loop virtio-win-0.1.240.iso tmp
 cp -r tmp/* ./virtio-drivers/
-umount tmp
+sudo umount tmp
 chmod -R 755 ./virtio-drivers/
 ```
 
@@ -113,7 +113,7 @@ Modify the variables in example_vars.pkrvars.hcl to point to the correct paths.
 ```bash
 cd ./ubuntu-24.04-x64-server/
 #TODO modify example-variables to correct paths. Can also change name of output VM 
-mkdir -p ansible_state/{cp,tmp,pc}
+mkdir -p /tmp/lme/ansible_state/{cp,tmp,pc}
 PACKER_LOG=1 packer build --var-file=./example_vars.pkrvars.hcl ./ubuntu-24.04-x64-server.pkr.hcl
 ```
 
