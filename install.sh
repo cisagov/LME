@@ -177,6 +177,15 @@ apt_get_wrapper() {
 
 # Function to install Ansible on different distributions
 install_ansible() {
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${RED}✗ Cannot install Ansible in offline mode.${NC}"
+        echo -e "${YELLOW}Please install Ansible manually before running this script in offline mode.${NC}"
+        echo -e "${YELLOW}For Ubuntu/Debian: sudo apt-get install ansible${NC}"
+        echo -e "${YELLOW}For RHEL/CentOS: sudo dnf install ansible${NC}"
+        echo -e "${YELLOW}For other distributions, consult your package manager.${NC}"
+        exit 1
+    fi
+    
     echo -e "${YELLOW}Installing Ansible...${NC}"
     
     # Set noninteractive mode for apt-based installations
@@ -409,11 +418,13 @@ run_playbook() {
         ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true"
     fi
     
-    # Run the main installation playbook
-    echo -e "${YELLOW}Running main installation playbook...${NC}"
+    # Add offline mode message
     if [ "$OFFLINE_MODE" = "true" ]; then
         echo -e "${YELLOW}⚠ Running in offline mode - skipping internet-dependent tasks${NC}"
     fi
+    
+    # Run the main installation playbook
+    echo -e "${YELLOW}Running main installation playbook...${NC}"
     if [ -f "./inventory" ]; then
         ansible-playbook -i inventory "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     else
@@ -432,6 +443,13 @@ run_playbook() {
 echo "==============================================="
 echo "    Ansible Setup and Playbook Runner"
 echo "==============================================="
+
+# Display offline mode status early
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${YELLOW}⚠ OFFLINE MODE ENABLED${NC}"
+    echo -e "${YELLOW}⚠ Internet-dependent operations will be skipped${NC}"
+    echo
+fi
 
 # Check sudo access first
 check_sudo_access
@@ -499,6 +517,16 @@ fi
 # Check if ansible is already installed
 check_ansible
 if [ $? -ne 0 ]; then
+    # In offline mode, ansible must be pre-installed
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${RED}✗ Ansible is required but not installed.${NC}"
+        echo -e "${YELLOW}In offline mode, Ansible must be pre-installed.${NC}"
+        echo -e "${YELLOW}Please install Ansible manually:${NC}"
+        echo -e "${YELLOW}  For Ubuntu/Debian: sudo apt-get install ansible${NC}"
+        echo -e "${YELLOW}  For RHEL/CentOS: sudo dnf install ansible${NC}"
+        exit 1
+    fi
+    
     # Detect distribution and install ansible
     detect_distro
     install_ansible
