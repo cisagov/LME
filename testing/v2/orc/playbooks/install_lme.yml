@@ -12,28 +12,26 @@
         repo: https://github.com/cisagov/lme
         dest: /home/localuser/lme
         update: yes
-    # - name: Copy config
-    #   copy:
-    #     remote_src: yes
-    #     src: /home/localuser/lme/configs/example.env
-    #     dest: /home/localuser/lme/lme-environment.env
-    #
-    # - name: Change ip var
-    #   lineinfile:
-    #     path: /home/localuser/lme/configs/lme-environment.env
-    #     regexp: '^IPVAR=.*'
-    #     line: 'IPVAR=10.0.1.7'
+    - name: Copy config
+      copy:
+        remote_src: yes
+        src: /home/localuser/lme/config/example.env
+        dest: /home/localuser/lme/config/lme-environment.env
+    - name: Change ip var
+      lineinfile:
+        path: /home/localuser/lme/config/lme-environment.env
+        regexp: '^IPVAR=.*'
+        line: 'IPVAR=10.0.1.7'
     - name: Generate locale
       ansible.builtin.command: locale-gen en_US.UTF-8
       become: yes
-
     - name: Run install.sh
-      ansible.builtin.shell: /home/localuser/lme/install.sh
+      ansible.builtin.shell: /home/localuser/lme/install.sh -i 10.0.1.7
       args:
         chdir: /home/localuser/lme
       async: 1800
       poll: 10
-      become: true
+      become: yes 
       become_user: localuser
       environment:
         NON_INTERACTIVE: true
