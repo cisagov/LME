@@ -1,0 +1,5 @@
+- name: Set hostname
+  ansible.builtin.command: "{{ hostname_command }}"
+  register: hostname_result
+  changed_when: hostname_result.rc == 0
+  notify: Apply hostname change

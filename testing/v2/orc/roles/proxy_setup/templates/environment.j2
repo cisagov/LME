@@ -1,0 +1,9 @@
+ALL_PROXY={{ PROXY_URL }}
+HTTPS_PROXY={{ PROXY_URL }}
+HTTP_PROXY={{ PROXY_URL }}
+http_proxy={{ PROXY_URL }}
+https_proxy={{ PROXY_URL }}
+no_proxy={{ NO_PROXY }}
+NO_PROXY=127.0.0.1,localhost,*.{{ PROXY_HOST }},.{{ PROXY_HOST }},{{ PROXY_HOST }},::1,10.*,172.16.,172.17.,192.168.,*.local,.local,169.254/16
+REQUESTS_CA_BUNDLE={{ REQUESTS_CA_BUNDLE }}
+NIX_SSL_CERT_FILE={{ NIX_SSL_CERT_FILE }}

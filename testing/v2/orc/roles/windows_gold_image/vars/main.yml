@@ -1,0 +1,2 @@
+output_directory: ""  # Define your desired output directory here
+windows_iso_path: "/path/to/windows11.iso"  # Path to your Windows 11 ISO file

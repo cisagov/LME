@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: lme_team 
+  description: Ansible role to set up proxy configuration on Ubuntu
+  license: MIT
+  min_ansible_version: 2.9
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all

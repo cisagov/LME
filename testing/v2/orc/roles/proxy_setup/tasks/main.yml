@@ -1,0 +1,67 @@
+---
+- name: Set environment variables for proxy in /etc/environment
+  template:
+    src: environment.j2
+    dest: /etc/environment
+  become: true
+
+- name: Set proxy variables in /etc/profile
+  template:
+    src: profile.j2
+    dest: /etc/profile
+  become: true
+
+- name: Create directory for certificates
+  file:
+    path: "{{ CERT_STORE_PATH }}"
+    state: directory
+  become: true
+
+- name: Download SSL certificates
+  get_url:
+    url: "{{ item }}"
+    dest: "{{ CERT_STORE_PATH }}/{{ my_idx }}.crt"
+  loop: "{{ CERT_URLS }}"
+  loop_control:
+      index_var: my_idx
+  become: true
+  when: CERT_URLS is defined and CERT_URLS | length > 0
+
+- name: Update CA certificates
+  command: update-ca-certificates
+  become: true
+
+- name: Configure APT to use proxy
+  template:
+    src: apt.conf.j2
+    dest: /etc/apt/apt.conf
+  become: true
+
+- name: Update APT cache
+  apt:
+    update_cache: yes
+  become: true
+
+- name: Configure Netplan for consistent IP
+  copy:
+    content: |
+      network:
+        version: 2
+        renderer: networkd
+        ethernets:
+          ens1:
+            dhcp4: true
+    dest: /etc/netplan/01-netcfg.yaml
+  become: true
+
+- name: Apply Netplan configuration
+  command: netplan apply
+  become: true
+
+- name: Disable splash screen
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT=""'
+  become: true
+  notify: Update GRUB

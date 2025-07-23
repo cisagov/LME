@@ -1,0 +1,18 @@
+#- hosts: all
+#  roles:
+#    - hostname
+#    - agents
+#    - network
+- hosts: your_host
+  roles:
+    - role: proxy_setup
+      vars:
+        PROXY_URL: "http://your.proxy.url"
+        DNS_NAMESERVER: "your.dns.server"
+        CERT_URLS:
+          - "http://pki.example.com/cert1.crt"
+          - "http://pki.example.com/cert2.crt"
+        CERT_STORE_PATH: "/usr/local/share/ca-certificates"
+        NO_PROXY: "127.0.0.1,localhost,*.proxy.url,.proxy.url,::1,10.*,172.16.,172.17.,192.168.,*.local,.local,169.254/16"
+        REQUESTS_CA_BUNDLE: "/etc/ssl/certs/ca-certificates.crt"
+        NIX_SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt"

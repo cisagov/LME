@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+    <!-- 
+    The 'windowsPE' pass applies settings during the Windows Preinstallation Environment (WinPE).
+    This phase handles disk partitioning, image installation, and initial setup configurations.
+    -->
+    <settings pass="windowsPE">
+        <!-- 
+        Component: Microsoft-Windows-Setup
+        Configures the setup process for Windows installation, including disk and image settings.
+        Attributes specify the component for 64-bit systems (amd64) and its scope.
+        -->
+        <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+            <!-- This bypasses the TPM, Secure boot, and RAM checks during install -->
+            <RunSynchronous>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>1</Order>
+                    <Description>BypassTPMCheck</Description>
+                    <Path>cmd /c reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d 1</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>2</Order>
+                    <Description>BypassSecureBootCheck</Description>
+                    <Path>cmd /c reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d 1</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>3</Order>
+                    <Description>BypassRAMCheck</Description>
+                    <Path>cmd /c reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d 1</Path>
+                </RunSynchronousCommand>
+             </RunSynchronous>
+            <!-- 
+            DiskConfiguration: Defines how the target disk is partitioned and formatted.
+            This section ensures the disk is prepared for Windows installation.
+            -->
+            <DiskConfiguration>
+                <!-- 
+                Disk: Configures a specific disk (DiskID=0, the first disk).
+                wcm:action="add" indicates a new disk configuration.
+                -->
+                <Disk wcm:action="add">
+                    <!-- 
+                    CreatePartitions: Specifies partitions to create on the disk.
+                    Here, we create a single primary partition that uses all available space.
+                    -->
+                    <CreatePartitions>
+                        <CreatePartition wcm:action="add">
+                            <Order>1</Order>                <!-- Partition creation order (first) -->
+                            <Type>Primary</Type>            <!-- Creates a primary partition -->
+                            <Extend>true</Extend>           <!-- Extends to fill entire disk -->
+                        </CreatePartition>
+                    </CreatePartitions>
+                    <!-- 
+                    ModifyPartitions: Sets properties for the created partition.
+                    This formats the partition and assigns a label.
+                    -->
+                    <ModifyPartitions>
+                        <ModifyPartition wcm:action="add">
+                            <Order>1</Order>                <!-- Matches the created partition -->
+                            <PartitionID>1</PartitionID>    <!-- ID of the partition to modify -->
+                            <Format>NTFS</Format>           <!-- Formats as NTFS file system -->
+                            <Label>System</Label>           <!-- Labels the partition "System" -->
+                        </ModifyPartition>
+                    </ModifyPartitions>
+                    <DiskID>0</DiskID>                  <!-- Targets the first disk -->
+                    <WillWipeDisk>true</WillWipeDisk>   <!-- Wipes disk before partitioning -->
+                </Disk>
+            </DiskConfiguration>
+            <!-- 
+            ImageInstall: Specifies which Windows image to install and where.
+            This directs setup to install the OS on the configured disk and partition.
+            -->
+            <ImageInstall>
+                <OSImage>
+                    <InstallTo>
+                        <DiskID>0</DiskID>              <!-- Installs to the first disk -->
+                        <PartitionID>1</PartitionID>    <!-- Installs to the first partition -->
+                    </InstallTo>
+                </OSImage>
+            </ImageInstall>
+            <!-- 
+            UserData: Configures initial user-related settings.
+            Here, we auto-accept the EULA to skip manual confirmation.
+            -->
+            <UserData>
+                <AcceptEula>true</AcceptEula>       <!-- Automatically accepts the license agreement -->
+            </UserData>
+        </component>
+    </settings>
+    <!-- 
+    The 'oobeSystem' pass applies settings during the Out-of-Box Experience (OOBE).
+    This phase runs after installation and handles post-setup customizations.
+    -->
+    <settings pass="oobeSystem">
+        <!-- 
+        Component: Microsoft-Windows-Shell-Setup
+        Configures shell and user settings during OOBE, including first-logon commands.
+        -->
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+            <AutoLogon>
+                <Enabled>true</Enabled>
+                <Username>user</Username>
+                <Password>
+                    <Value>password</Value>
+                    <PlainText>true</PlainText>
+                </Password>
+            </AutoLogon>
+            <!-- 
+            FirstLogonCommands: Executes commands when the first user logs in.
+            These commands copy and run a script to enable SSH on the VM.
+            -->
+            <FirstLogonCommands>
+                <!-- 
+                Command 2: Executes the copied script to enable SSH.
+                Uses PowerShell with bypassed execution policy for simplicity.
+                -->
+                <SynchronousCommand wcm:action="add">
+                    <Order>2</Order>                                    <!-- Runs second -->
+                    <CommandLine>powershell -NoProfile -ExecutionPolicy Bypass -File E:\enable_ssh.ps1</CommandLine>  <!-- Run script -->
+                    <Description>Enable SSH service</Description>       <!-- Purpose -->
+                </SynchronousCommand>
+            </FirstLogonCommands>
+            <UserAccounts>
+                <LocalAccounts>
+                    <LocalAccount wcm:action="add">
+                        <Password>
+                            <Value>password</Value>
+                            <PlainText>true</PlainText>
+                        </Password>
+                        <Description>LocalUser</Description>
+                        <DisplayName>user</DisplayName>
+                        <Group>Administrators</Group>
+                        <Name>localuser</Name>
+                    </LocalAccount>
+                </LocalAccounts>
+            </UserAccounts>
+        </component>
+    </settings>
+</unattend>

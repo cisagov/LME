@@ -1,0 +1,12 @@
+- name: Apply network settings (Linux)
+  shell: |
+    {{ network_tool }} con mod {{ network_interface }} ipv4.gateway {{ pfSense_IP }}
+    {{ network_tool }} con mod {{ network_interface }} ipv4.dns {{ dns_server1 }}
+    {{ network_tool }} con up {{ network_interface }}
+  when: ansible_os_family != "Windows"
+
+- name: Apply network settings (Windows)
+  win_shell: |
+    Set-NetIPInterface -InterfaceAlias "{{ network_interface }}" -DefaultGateway "{{ pfSense_IP }}"
+    Set-DnsClientServerAddress -InterfaceAlias "{{ network_interface }}" -ServerAddresses "{{ dns_server1 }}"
+  when: ansible_os_family == "Windows"

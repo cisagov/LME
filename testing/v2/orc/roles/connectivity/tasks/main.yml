@@ -1,0 +1,4 @@
+# SSH setup is handled by Ludus init scripts, this role is a placeholder
+- name: Placeholder for connectivity tasks
+  debug:
+    msg: "Connectivity setup managed by Ludus"

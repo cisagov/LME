@@ -1,0 +1,6 @@
+---
+- name: Update GRUB
+  command: update-grub
+  become: true
+
+

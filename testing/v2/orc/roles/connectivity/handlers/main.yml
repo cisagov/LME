@@ -1,0 +1,4 @@
+# Placeholder for handlers
+- name: Placeholder handler
+  debug:
+    msg: "No handlers needed for connectivity"

@@ -1,0 +1,3 @@
+package_manager: "{{ 'apt' if ansible_distribution == 'Ubuntu' else 'yum' }}"
+network_tool: nmcli
+network_interface: eth0

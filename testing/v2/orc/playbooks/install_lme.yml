@@ -1,0 +1,40 @@
+---
+- name: Install lme
+  hosts: lme
+  tasks:
+    - name: Ensure git is installed
+      apt:
+        name: git
+        state: present
+      become: yes
+    - name: Clone LME
+      git:
+        repo: https://github.com/cisagov/lme
+        dest: /home/localuser/lme
+        update: yes
+    # - name: Copy config
+    #   copy:
+    #     remote_src: yes
+    #     src: /home/localuser/lme/configs/example.env
+    #     dest: /home/localuser/lme/lme-environment.env
+    #
+    # - name: Change ip var
+    #   lineinfile:
+    #     path: /home/localuser/lme/configs/lme-environment.env
+    #     regexp: '^IPVAR=.*'
+    #     line: 'IPVAR=10.0.1.7'
+    - name: Generate locale
+      ansible.builtin.command: locale-gen en_US.UTF-8
+      become: yes
+
+    - name: Run install.sh
+      ansible.builtin.shell: /home/localuser/lme/install.sh
+      args:
+        chdir: /home/localuser/lme
+      async: 1800
+      poll: 10
+      become: true
+      become_user: localuser
+      environment:
+        NON_INTERACTIVE: true
+        AUTO_CREATE_ENV: true

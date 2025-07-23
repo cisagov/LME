@@ -1,0 +1,13 @@
+---
+- name: Install Sysmon via PowerShell script
+  hosts: windows
+  gather_facts: no
+
+  tasks:
+    - name: Copy PowerShell script to Windows
+      win_copy:
+        src: files/install_sysmon.ps1
+        dest: C:\Windows\Temp\install_sysmon.ps1
+
+    - name: Run Sysmon install script
+      win_shell: powershell.exe -ExecutionPolicy Bypass -File C:\Windows\Temp\install_sysmon.ps1

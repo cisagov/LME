@@ -1,0 +1,13 @@
+- name: Apply hostname change (Linux)
+  command: "hostnamectl set-hostname {{ desired_hostname }}"
+  when: ansible_os_family != "Windows"
+
+- name: Apply hostname change (Windows)
+  win_shell: "Rename-Computer -NewName '{{ desired_hostname }}' -Force"
+  register: rename_result
+  when: ansible_os_family == "Windows"
+
+- name: Reboot if hostname changed (Windows)
+  win_reboot:
+    msg: "Rebooting to apply hostname"
+  when: ansible_os_family == "Windows" and rename_result.changed

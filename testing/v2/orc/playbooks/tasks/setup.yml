@@ -1,0 +1,6 @@
+# SSH setup is handled by Ludus init scripts, this file is a placeholder
+- hosts: all
+  tasks:
+    - name: Placeholder for setup tasks
+      debug:
+        msg: "SSH setup is managed by Ludus init scripts"

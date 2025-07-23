@@ -1,0 +1,26 @@
+---
+- name: Install Elastic Agent on Windows machines
+  hosts: windows
+  gather_facts: no
+  vars:
+    agent_zip: elastic-agent-8.15.5-windows-x86_64.zip
+    agent_dir: elastic-agent-8.15.5-windows-x86_64
+    fleet_url: https://IP.OF.LME.SERVER:8220
+    enrollment-token: (GET ENROLLMENT TOKEN FROM FLEET)
+  tasks:
+    - name: Copy Elastic Agent zip to Windows machine
+      win_copy:
+        src: files/{{ agent_zip }}
+        dest: C:\Windows\Temp\{{ agent_zip }}
+
+    - name: Extract Elastic Agent
+      win_command: >
+        powershell.exe -Command "Expand-Archive -Path '{{ agent_zip }}' -DestinationPath '.' -Force"
+      args:
+        chdir: C:\Windows\Temp
+
+    - name: Run Elastic Agent installer
+      win_command: >
+        powershell.exe -Command ".\{{ agent_dir }}\elastic-agent.exe install --url={{ fleet_url }} --enrollment-token={{ enrollment_token }} --insecure --non-interactive"
+      args:
+        chdir: C:\Windows\Temp

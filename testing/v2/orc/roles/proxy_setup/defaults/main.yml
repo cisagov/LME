@@ -1,0 +1,12 @@
+---
+#url for the proxy you run
+PROXY_URL: "http://proxy.xx.com"
+#host for adding to no_proxy variable
+PROXY_HOST: "xx.com"
+#ip address to use for dns on the host
+DNS_NAMESERVER: "1.1.1.1"
+#certificate URL where the custom CA is stored
+CERT_URLS:
+    - "http://xx.com/certificate1.crt"
+    - "http://xx.com/certificate2.crt"
+CERT_STORE_PATH: "/usr/local/share/ca-certificates"

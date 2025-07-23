@@ -1,0 +1,3 @@
+- name: Placeholder for common tasks
+  debug:
+    msg: "Common role loaded - used by other roles"

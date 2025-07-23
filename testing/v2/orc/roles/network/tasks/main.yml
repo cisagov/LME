@@ -1,0 +1,5 @@
+- name: Configure network
+  ansible.builtin.command: "{{ network_config_command }}"
+  register: network_result
+  changed_when: network_result.rc == 0
+  notify: Apply network settings
