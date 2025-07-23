@@ -150,7 +150,7 @@ Configure the dns server to point to 1.1.1.1 (for VM DNS).
 ```minimega
 tap create EXP ip 10.0.1.1/24
 shell sleep 5
-dnsmasq start 10.0.1.1 10.0.1.2 10.0.1.254
+dnsmasq start 10.0.1.1 10.0.1.10 10.0.1.254
 
 
 #check the dnsmasq id, should be 0 if you have not run dnsmasq yet. If not 0,
@@ -180,7 +180,7 @@ vm launch kvm windows1
 
 #ubuntu configuration
 clear vm config
-vm config disk ~/LME/testing/v2/orc/files/ubuntu-24.04/ubuntu-24.04
+vm config disk ~/LME/testing/v2/orc/files/ubuntu-24/ubuntu-24
 vm config snapshot true
 vm config memory 16384
 vm config vcpus 4
