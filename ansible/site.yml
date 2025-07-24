@@ -31,7 +31,7 @@
     fleet_port: 8220
     
     # Kibana version
-    kibana_version: "8.18.0"
+    kibana_version: "8.18.3"
     
     # Default timezone settings
     timezone_area: "Etc"  # Change to your area: America, Europe, Asia, etc.
