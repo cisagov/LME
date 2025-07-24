@@ -39,8 +39,8 @@ def test_elastic_root(es_host, es_port, username, password):
             body["cluster_name"] == "LME"
     ), f"Expected 'LME', got {body['cluster_name']}"
     assert (
-            body["version"]["number"] == "8.18.0"
-    ), f"Expected '8.18.0', got {body['version']['number']}"
+            body["version"]["number"] == "8.18.3"
+    ), f"Expected '8.18.3', got {body['version']['number']}"
     assert (
             body["version"]["build_flavor"] == "default"
     ), f"Expected 'default', got {body['version']['build_flavor']}"

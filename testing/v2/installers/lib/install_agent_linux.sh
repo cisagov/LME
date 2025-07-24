@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Default values
-VERSION="8.18.0"
+VERSION="8.18.3"
 ARCHITECTURE="linux-x86_64"
 IP="10.1.0.5"
 PORT="8220"
