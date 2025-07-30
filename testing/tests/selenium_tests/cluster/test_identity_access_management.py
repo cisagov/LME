@@ -41,7 +41,7 @@ class TestIdentityAccessManagementDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_user_lockouts(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User Lockouts", ".echChart",".euiDataGrid__noResults")  
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "User Lockouts Lens", ".echChart",".euiDataGrid__noResults")  
         
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_password_hash_access(self, setup_login, kibana_url, timeout):
