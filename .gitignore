@@ -3,6 +3,7 @@
 .DS_Store
 /.idea/
 /.vscode/
+/dashboards/exported/
 **/.env
 /Chapter 4 Files/*.dumped.ndjson
 /Chapter 4 Files/exported/
