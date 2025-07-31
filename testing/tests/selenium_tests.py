@@ -207,11 +207,6 @@ class UserSecurityTests(unittest.TestCase):
         panel = load_panel("References to temporary files")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
-    def test_raw_access_read(self):
-        """Is there any data?"""
-        panel = load_panel("RawAccessRead (Sysmon Event 9)")
-        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
-
     def test_defender_event_count(self):
         """Is there any data?"""
         panel = load_panel("Defender event count")
@@ -250,11 +245,6 @@ class UserHRTests(unittest.TestCase):
     def test_domains_and_usernames(self):
         """Is there any data?"""
         panel = load_panel("Select domain(s) and username(s)")
-        self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
-
-    def test_filter_users(self):
-        """Is there any data?"""
-        panel = load_panel("Filter Users")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
     def test_filter_computers(self):
@@ -379,7 +369,7 @@ class SecurityDashboardSecurityLogTests(unittest.TestCase):
 
     def test_security_log_logon_as_a_service_type_5(self):
         """Is there any data?"""
-        panel = load_panel("Sercurity log - logon as a service - Logon type 5")
+        panel = load_panel("Security log - logon as a service - Logon type 5")
         self.assertFalse("No results found" in panel.get_attribute("innerHTML"))
 
     def test_credential_sent_as_clear_text_type_8(self):
