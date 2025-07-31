@@ -27,35 +27,118 @@ def convertJsonFileToString(file_path):
 @pytest.fixture(autouse=True)
 def suppress_insecure_request_warning():
     warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
-
-
-def test_host_search(es_host, es_port, username, password):
     
-    url = f"https://{es_host}:{es_port}/.ds-metrics-system.cpu-default-*/_search"
-    #body = load_json_schema(f"{current_script_dir}/queries/hostsearch.json")
-    #response = make_request(url, username, password, body=body)
+def find_json_key_paths(data, target_key, current_path=""):
+    """
+    Recursively finds the full path(s) to a target key within a JSON-like structure.
+
+    Args:
+        data: The JSON data (Python dict or list).
+        target_key: The key to search for.
+        current_path: The path accumulated so far (for internal use in recursion).
+
+    Returns:
+        A list of full paths (strings) to the target key.
+    """
+    paths = []
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            new_path = f"{current_path}.{key}" if current_path else key
+            if key == target_key:
+                paths.append(new_path)
+            paths.extend(find_json_key_paths(value, target_key, new_path))
+    elif isinstance(data, list):
+        for index, item in enumerate(data):
+            new_path = f"{current_path}[{index}]"
+            paths.extend(find_json_key_paths(item, target_key, new_path))
+    return paths
+
+def get_value_from_json_path(data_dict, json_path):
+    """
+    Retrieves a value from a nested dictionary (representing JSON) using a JSON path string.
+
+    Args:
+        data_dict (dict): The dictionary to traverse.
+        json_path (str): The JSON path string (e.g., "level1.level2.key", "array[0].key").
+
+    Returns:
+        Any: The value found at the specified path, or None if the path is invalid.
+    """
+    keys = json_path.split('.')
+    current_data = data_dict
+
+    for key in keys:
+        if '[' in key and ']' in key:  # Handle array indexing
+            array_key, index_str = key.split('[')
+            index = int(index_str[:-1])  # Remove ']' and convert to int
+            if array_key:  # If there's a key before the array index
+                if not isinstance(current_data, dict) or array_key not in current_data:
+                    return None
+                current_data = current_data[array_key]
+            
+            if not isinstance(current_data, list) or index >= len(current_data):
+                return None
+            current_data = current_data[index]
+        else:  # Handle regular dictionary keys
+            if not isinstance(current_data, dict) or key not in current_data:
+                return None
+            current_data = current_data[key]
+    
+    return current_data
+
+    
+def test_cluster_node(es_host, es_port, username, password):
+    
+    #API Request & Response
+    url = f"https://{es_host}:{es_port}/_nodes"
     response = make_request(url, username, password)
+    
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"    
     data = json.loads(response.text)
     
-    # Getting the value of Root Key
     for key in data:
         rootKey = key
+        
+    name_paths = find_json_key_paths(data, "name")
+    name_path = name_paths[0]
+    version_paths = find_json_key_paths(data, "version")
+    version_path = version_paths[0]
     
-    assert (data[rootKey]["total"]["value"] > 0)
-    assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]
-    assert ".ds-metrics-system.cpu-default" in data[rootKey]["hits"][0]["_index"]
-    #assert (data[rootKey]["hits"][0]["_source"]["agent"]["name"] == "ubuntu-vm")
-    #assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.18.3")
-    assert (data[rootKey]["hits"][0]["_source"]["data_stream"]["dataset"] == "system.cpu") 
-    assert (data[rootKey]["hits"][0]["_source"]["ecs"]["version"] == "8.0.0") 
-    #assert (data[rootKey]["hits"][0]["_source"]["elastic_agent"]["version"] == "8.18.3")
-    assert (data[rootKey]["hits"][0]["_source"]["event"]["dataset"] == "system.cpu") 
-    #assert (data[rootKey]["hits"][0]["_source"]["host"]["hostname"] == "ubuntu-vm")
-    assert (data[rootKey]["hits"][0]["_source"]["metricset"]["name"] == "cpu") 
-    assert (data[rootKey]["hits"][0]["_source"]["service"]["type"] == "system") 
-    assert "system" in data[rootKey]["hits"][0]["_source"]
+    cluster_name = get_value_from_json_path(data, name_path)
+    assert cluster_name == "lme-elasticsearch"
+    cluster_version = get_value_from_json_path(data, version_path)
+    assert cluster_version == "8.18.3"
+    
+def test_logging_policy(es_host, es_port, username, password):
+    
+    #API Request & Response
+    url = f"https://{es_host}:{es_port}/_ilm/policy?pretty"
+    response = make_request(url, username, password)
+    
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"    
+    data = json.loads(response.text)
+    
+    # Get the top-level keys
+    top_level_keys = data.keys()
+
+    # Convert the keys to a list if needed
+    list_of_top_level_keys = list(top_level_keys)
+    
+    #file_name=f"{current_script_dir}/test_data/logging_policies.txt"
+    #with open(file_name, 'w') as file:
+    #    for item in list_of_top_level_keys:
+    #        file.write(f"{item}\n")
+    
+    with open(f"{current_script_dir}/test_data/logging_policies.txt") as f:
+        data_fields = f.read().splitlines()
+
+    assert (
+            list_of_top_level_keys.sort() == data_fields.sort()
+    ), "Log Management policies do not match"
+
     
 
 def test_logs_mapping(es_host, es_port, username, password):
