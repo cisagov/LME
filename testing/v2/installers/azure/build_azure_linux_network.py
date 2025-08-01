@@ -715,8 +715,28 @@ if __name__ == "__main__":
         action="store_true",
         help="Add a Windows server with default settings",
     )
+    parser.add_argument(
+        "--use-rhel",
+        action="store_true",
+        help="Use Red Hat Enterprise Linux 9 instead of Ubuntu 22.04",
+    )
 
     args = parser.parse_args()
+    
+    # Override image parameters if RHEL is requested
+    if args.use_rhel:
+        # Only override if user didn't specify custom values
+        if args.image_publisher == "Canonical":
+            args.image_publisher = "RedHat"
+        if args.image_offer == "0001-com-ubuntu-server-jammy":
+            args.image_offer = "RHEL"
+        if args.image_sku == "22_04-lts-gen2":
+            args.image_sku = "9-lvm-gen2"
+        args.machine_name = "rhel" if args.machine_name == "ubuntu" else args.machine_name
+        print(f"Using Red Hat Enterprise Linux image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
+    else:
+        print("Using Ubuntu 22.04 image")
+    
     check_ports_protocals_and_priorities(
             args.ports, args.priorities, args.protocols
         )

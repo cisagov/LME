@@ -1,6 +1,8 @@
 # Installation Guide
 #### Attention: Run these commands in the order presented in this document. Some commands depend on variables set in previous commands. Not all commands need to be run. There are some optional commands depending on the testing scenario.
 
+**Note:** This guide supports both **Ubuntu 22.04** (default) and **Red Hat Enterprise Linux 9** as base operating systems. Use the `--use-rhel` flag to deploy RHEL instead of Ubuntu.
+
 ## Initial Setup Variables
 First, set these variables in your terminal:
 
@@ -26,14 +28,25 @@ cd testing/v2/installers
 
 ### Creating Azure Machine(s)
 
-Linux only:
+#### Ubuntu Linux (default):
 ```bash
 ./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME
 ```
 
-Linux and Windows (just add the -w flag):
+#### Red Hat Enterprise Linux 9:
+```bash
+./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME --use-rhel
+```
+
+#### Linux and Windows (add the -w flag to either Ubuntu or RHEL):
+Ubuntu + Windows:
 ```bash
 ./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME -w
+```
+
+RHEL + Windows:
+```bash
+./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME --use-rhel -w
 ```
 
 After VM creation, set these additional variables:
@@ -41,6 +54,8 @@ After VM creation, set these additional variables:
 # These are generated during VM creation
 export VM_IP=$(cat $RESOURCE_GROUP.ip.txt)
 export VM_PASSWORD=$(cat $RESOURCE_GROUP.password.txt)
+echo $VM_IP
+echo $VM_PASSWORD
 ```
 
 ### Installing lme-v2
@@ -98,13 +113,14 @@ sudo ./install_local.sh
 # Press enter for subscription and tenant prompts
 ```
 
-## Optional: Ubuntu 24.04 Setup
+## Optional: Alternative Linux Distributions
+
 Remember to activate venv first:
 ```bash
 source ~/LME/venv/bin/activate
 ```
 
-Create the network:
+### Ubuntu 24.04 Setup
 ```bash
 ./azure/build_azure_linux_network.py \
     -g $RESOURCE_GROUP \
@@ -115,6 +131,19 @@ Create the network:
     -pub Canonical \
     -io 0001-com-ubuntu-server-noble-daily \
     -is 24_04-daily-lts-gen2
+```
+
+### RHEL 8 Setup (alternative to RHEL 9)
+```bash
+./azure/build_azure_linux_network.py \
+    -g $RESOURCE_GROUP \
+    -s "0.0.0.0" \
+    -vs $VM_SIZE \
+    -l $LOCATION \
+    -ast $AUTO_SHUTDOWN_TIME \
+    -pub RedHat \
+    -io RHEL \
+    -is 8-lvm-gen2
 ```
 
 ## Creating Additional VMs (Non-Network Attack Scenarios)

@@ -1,0 +1,30 @@
+---
+# Red Hat 9-specific tasks for base role
+
+- name: Install EPEL repository
+  dnf:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+    state: present
+  become: yes
+  register: epel_install
+  retries: 3
+  delay: 5
+  until: epel_install is success
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Enable PowerTools/CRB repository
+  command: dnf config-manager --set-enabled crb
+  become: yes
+  changed_when: true
+  ignore_errors: true
+
+- name: Install Red Hat 9-specific packages
+  dnf:
+    name: "{{ redhat_9_packages }}"
+    state: present
+  become: yes
+  register: dnf_install_rh9
+  retries: 60
+  delay: 10
+  until: dnf_install_rh9 is success
+  ignore_errors: "{{ ansible_check_mode }}"

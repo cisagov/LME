@@ -202,6 +202,7 @@ install_ansible() {
                 # Create symlink to make pip-installed ansible available in PATH
                 if [ -f /usr/local/bin/ansible ] && [ ! -f /usr/bin/ansible ]; then
                     sudo ln -sf /usr/local/bin/ansible /usr/bin/ansible
+                    sudo ln -sf /usr/local/bin/ansible-vault /usr/bin/ansible-vault
                     echo -e "${GREEN}✓ Created symlink for ansible in /usr/bin${NC}"
                 fi
             fi
@@ -415,7 +416,7 @@ run_playbook() {
     # Add debug mode if enabled
     if [ "$DEBUG_MODE" = "true" ]; then
         echo -e "${YELLOW}Debug mode enabled - verbose output will be shown${NC}"
-        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true"
+        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
     fi
     
     # Run the main installation playbook

@@ -155,6 +155,7 @@ docker compose build --build-arg USER_ID=1000 --build-arg GROUP_ID=1000
 
 For issues related to:
 - **Ansible installation**: See [README-ANSIBLE.md](README-ANSIBLE.md)
+- **CA certificate compatibility**: See [README-CA-CERTIFICATES.md](README-CA-CERTIFICATES.md)
 - **Container setup**: Check the troubleshooting section above
 - **LME installation**: Refer to the main LME documentation
 
