@@ -1,6 +1,17 @@
 ---
 # Red Hat 9-specific tasks for base role
 
+- name: Import EPEL GPG key
+  rpm_key:
+    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+    state: present
+  become: yes
+  register: epel_key_import
+  retries: 3
+  delay: 5
+  until: epel_key_import is success
+  ignore_errors: "{{ ansible_check_mode }}"
+
 - name: Install EPEL repository
   dnf:
     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
