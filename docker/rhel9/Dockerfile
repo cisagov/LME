@@ -9,7 +9,7 @@ ENV LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8
 
 RUN dnf update -y && dnf install -y \
-    glibc-langpack-en sudo openssh-clients \
+    glibc-langpack-en sudo openssh-clients git \
     && dnf clean all \
     && while getent group $GROUP_ID > /dev/null 2>&1; do GROUP_ID=$((GROUP_ID + 1)); done \
     && while getent passwd $USER_ID > /dev/null 2>&1; do USER_ID=$((USER_ID + 1)); done \

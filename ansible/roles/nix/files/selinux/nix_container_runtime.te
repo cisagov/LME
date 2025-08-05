@@ -1,0 +1,31 @@
+module nix_container_runtime 1.0;
+
+require {
+    type container_runtime_t;
+    type container_runtime_exec_t;
+    type container_t;
+    type bin_t;
+    type usr_t;
+    type initrc_t;
+    class file { execute execute_no_trans read };
+    class dir { search };
+    class process transition;
+}
+
+#============= Nix Container Runtime SELinux Policy =============
+# Allows Nix-installed container runtime tools (podman, conmon, runc, crun, etc.)
+# to work properly on SELinux-enforced systems by providing necessary contexts
+# and permissions for binaries installed in non-standard /nix/store paths
+# Allow container_runtime_t to execute files from /nix/store
+allow container_runtime_t bin_t:file { execute execute_no_trans read };
+allow container_runtime_t usr_t:dir search;
+
+# Allow transition from nix paths to container_runtime_t
+type_transition initrc_t container_runtime_exec_t:process container_runtime_t;
+
+# Allow container runtime to read and execute from nix store
+allow container_runtime_t bin_t:file { read execute };
+
+# Additional permissions for nix store access
+allow container_runtime_t usr_t:dir { search getattr };
+allow container_runtime_t bin_t:dir { search getattr };

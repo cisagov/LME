@@ -1,6 +1,36 @@
 ---
 # Red Hat-specific Nix setup
 
+- name: Check if SELinux is installed
+  command: which getenforce
+  register: selinux_installed
+  changed_when: false
+  failed_when: false
+
+- name: Check current SELinux status
+  command: getenforce
+  register: selinux_status
+  changed_when: false
+  when: selinux_installed.rc == 0
+
+- name: Debug SELinux status
+  debug:
+    msg: "Current SELinux status: {{ selinux_status.stdout }}"
+  when: selinux_installed.rc == 0
+
+- name: Debug when SELinux is not installed
+  debug:
+    msg: "SELinux is not installed on this system, skipping SELinux configuration"
+  when: selinux_installed.rc != 0
+
+- name: Set SELinux to permissive mode for Nix installation
+  selinux:
+    policy: targeted
+    state: permissive
+  become: yes
+  when: selinux_installed.rc == 0 and selinux_status.stdout == "Enforcing"
+  register: selinux_changed
+
 - name: Check if Nix is already installed
   stat:
     path: /nix/var/nix/profiles/default/bin/nix
@@ -77,7 +107,20 @@
   become: yes
 
 - name: Install required packages
-  command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
+  command: nix-env -iA nixpkgs.docker-compose
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+
+- name: Restore SELinux to enforcing mode
+  selinux:
+    policy: targeted
+    state: enforcing
+  become: yes
+  when: selinux_installed.rc == 0 and selinux_changed is defined and selinux_changed.changed
+  register: selinux_restored
+
+- name: Debug SELinux restoration
+  debug:
+    msg: "SELinux restored to enforcing mode"
+  when: selinux_installed.rc == 0 and selinux_restored is defined and selinux_restored.changed

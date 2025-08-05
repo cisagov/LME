@@ -36,11 +36,149 @@
     # Default timezone settings
     timezone_area: "Etc"  # Change to your area: America, Europe, Asia, etc.
     timezone_zone: "UTC"  # Change to your timezone: New_York, London, Tokyo, etc.
+  
+  pre_tasks:
+    # Check for suitable podman version to determine if nix is needed
+    - name: Initialize podman version variables
+      set_fact:
+        repo_podman_version_raw: ""
+        repo_podman_version: "none"
+        skip_nix_installation: false
+
+    # Update package cache before checking repositories
+    - name: Update package cache (Red Hat family)
+      shell: |
+        if command -v dnf >/dev/null 2>&1; then
+          dnf makecache -q
+        elif command -v yum >/dev/null 2>&1; then
+          yum makecache -q
+        fi
+      become: yes
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Update package cache (Debian family)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      become: yes
+      when: ansible_os_family == "Debian"
+
+    # Check if suitable podman version is installed
+    - name: Check for installed podman version (Red Hat family)
+      shell: "rpm -q podman --queryformat '%{version}' 2>/dev/null || echo 'not_installed'"
+      register: installed_podman_check
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Check available podman version in repositories (Red Hat family)
+      shell: "dnf list podman 2>/dev/null | grep -E '^podman\\.' | awk '{print $2}' | sed 's/.*://' | head -1 || echo 'none'"
+      register: repo_podman_check
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == "RedHat"
+
+    - name: Check for installed podman version (Debian family)
+      shell: "dpkg -l podman 2>/dev/null | grep -E '^ii' | awk '{print $3}' | head -1 || echo 'not_installed'"
+      register: installed_podman_check
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == "Debian"
+
+    - name: Check available podman version in repositories (Debian family)
+      shell: "apt list podman 2>/dev/null | grep -v WARNING | grep -E '^podman/' | awk -F' ' '{print $2}' | head -1 || echo 'none'"
+      register: repo_podman_check
+      changed_when: false
+      failed_when: false
+      when: ansible_os_family == "Debian"
+
+    - name: Set default podman check results for other OS families
+      set_fact:
+        installed_podman_check:
+          stdout: "not_installed"
+        repo_podman_check:
+          stdout: "none"
+      when: ansible_os_family not in ["RedHat", "Debian"]
+
+
+
+    - name: Direct podman version check
+      shell: "rpm -q podman --queryformat '%{version}' 2>/dev/null || echo 'not_installed'"
+      register: direct_podman_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Direct podman repo version check
+      shell: "dnf list podman 2>/dev/null | grep -E '^podman\\.' | awk '{print $2}' | sed 's/.*://' | head -1 || echo 'none'"
+      register: direct_podman_repo
+      changed_when: false
+      failed_when: false
+
+    - name: Ensure podman check variables are properly set
+      set_fact:
+        installed_podman_version: "{{ direct_podman_installed.stdout }}"
+        repo_podman_version_available: "{{ direct_podman_repo.stdout }}"
+
+    - name: Determine best available podman version (installed vs repository)
+      set_fact:
+        best_podman_version_raw: >-
+          {% if installed_podman_version != "not_checked" and installed_podman_version != "not_installed" and installed_podman_version != "" %}
+          {{ installed_podman_version }}
+          {% elif repo_podman_version_available != "not_checked" and repo_podman_version_available != "none" and repo_podman_version_available != "" %}
+          {{ repo_podman_version_available }}
+          {% else %}
+          none
+          {% endif %}
+
+
+
+    - name: Parse best podman version
+      set_fact:
+        repo_podman_version_raw: "{{ best_podman_version_raw | trim }}"
+        repo_podman_version: "{{ (best_podman_version_raw | trim) | regex_replace('^([0-9]+\\.[0-9]+\\.[0-9]+).*', '\\1') }}"
+      when: 
+        - best_podman_version_raw is defined
+        - best_podman_version_raw | trim != "none"
+        - best_podman_version_raw | trim != ""
+        - (best_podman_version_raw | trim) | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+')
+
+    - name: Set repo_podman_version to none when not available
+      set_fact:
+        repo_podman_version: "none"
+      when: >
+        not (best_podman_version_raw is defined) or
+        (best_podman_version_raw | trim) == "none" or
+        (best_podman_version_raw | trim) == "" or
+        not ((best_podman_version_raw | trim) | regex_search('[0-9]+\\.[0-9]+\\.[0-9]+'))
+
+    - name: Check if repository podman version is suitable (>= 5.5.2)
+      set_fact:
+        skip_nix_installation: "{{ (repo_podman_version | trim) is version('5.5.2', '>=') }}"
+      when: 
+        - repo_podman_version is defined
+        - repo_podman_version | trim != "none"
+
+    - name: Debug podman version check results
+      debug:
+        msg: 
+          - "Installed podman version: {{ installed_podman_version }}"
+          - "Available podman version: {{ repo_podman_version_available }}"
+          - "Best podman version raw: {{ best_podman_version_raw | default('not_set') }}"
+          - "Best podman version found: {{ repo_podman_version }}"
+          - "Skip nix installation: {{ skip_nix_installation }}"
+
+    - name: Notify that nix installation will be skipped
+      debug:
+        msg: "Nix installation will be skipped - suitable podman version {{ repo_podman_version }} (>= 5.5.2) found"
+      when: skip_nix_installation
   roles:
     - role: base
       tags: ['base', 'all']
     - role: nix
       tags: ['base', 'all']
+      when: not skip_nix_installation
     - role: podman
       tags: ['system', 'all']
     - role: elasticsearch

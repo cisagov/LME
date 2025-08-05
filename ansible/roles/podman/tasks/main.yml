@@ -15,7 +15,28 @@
     - "{{ ansible_os_family | lower }}.yml"
     - "common.yml"
 
-# These tasks are common for all distributions
+# Install podman from repositories when nix was skipped AND podman is not already installed
+- name: Install podman from repositories (Red Hat family)
+  package:
+    name: podman
+    state: present
+  become: yes
+  when: 
+    - skip_nix_installation | default(false) 
+    - ansible_os_family == "RedHat"
+    - installed_podman_check.stdout is defined and installed_podman_check.stdout == "not_installed"
+
+- name: Install podman from repositories (Debian family)
+  package:
+    name: podman
+    state: present
+  become: yes
+  when: 
+    - skip_nix_installation | default(false) 
+    - ansible_os_family == "Debian"
+    - installed_podman_check.stdout is defined and installed_podman_check.stdout == "not_installed"
+
+# These tasks are for nix-based installation (when nix was not skipped)
 - name: Ensure Nix daemon is running
   systemd:
     name: "{{ nix_daemon_service }}"
@@ -23,11 +44,12 @@
     enabled: yes
   become: yes
   notify: restart nix-daemon
+  when: not (skip_nix_installation | default(false))
 
 - name: Wait for Nix daemon to be ready
   wait_for:
     timeout: 10
-  when: ansible_play_hosts_all.index(inventory_hostname) == 0
+  when: ansible_play_hosts_all.index(inventory_hostname) == 0 and not (skip_nix_installation | default(false))
 
 - name: Install Podman using Nix
   command: nix-env -iA nixpkgs.podman
@@ -39,6 +61,20 @@
   delay: 5
   until: podman_install is not failed
   changed_when: "'installing' in podman_install.stdout | default('')"
+  when: not (skip_nix_installation | default(false))
+
+- name: Debug installation method
+  debug:
+    msg: >-
+      {% if skip_nix_installation | default(false) %}
+      {% if installed_podman_check.stdout is defined and installed_podman_check.stdout != "not_installed" %}
+      Using existing podman installation (version {{ installed_podman_check.stdout }})
+      {% else %}
+      Podman installed from repositories
+      {% endif %}
+      {% else %}
+      Podman installed from nix
+      {% endif %}
 
 - name: Set sysctl limits 
   command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
@@ -51,6 +87,38 @@
   command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
   become: yes
   changed_when: true
+
+- name: Create podman symlink from nix for sudo access
+  file:
+    src: "/nix/var/nix/profiles/default/bin/podman"
+    dest: "/usr/local/bin/podman"
+    state: link
+    force: yes
+  become: yes
+  ignore_errors: yes
+  when: not (skip_nix_installation | default(false))
+
+- name: Verify podman symlink has correct SELinux context
+  ansible.builtin.command: ls -Z /usr/local/bin/podman
+  register: podman_symlink_context
+  changed_when: false
+  failed_when: false
+  when: 
+    - not (skip_nix_installation | default(false))
+    - ansible_os_family == "RedHat"
+
+- name: Display podman symlink SELinux context
+  ansible.builtin.debug:
+    msg: "Podman symlink SELinux context: {{ podman_symlink_context.stdout }}"
+  when: 
+    - not (skip_nix_installation | default(false))
+    - ansible_os_family == "RedHat"
+    - podman_symlink_context is defined
+
+- name: Ensure podman is accessible when installed from repositories
+  debug:
+    msg: "Podman installed from repositories, using system PATH"
+  when: skip_nix_installation | default(false)
 
 # Include container setup tasks
 - name: Setup containers for podman

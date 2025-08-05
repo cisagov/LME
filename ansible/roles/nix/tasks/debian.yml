@@ -30,5 +30,5 @@
   become: yes
 
 - name: Install required packages
-  command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
+  command: nix-env -iA nixpkgs.docker-compose
   become: yes 

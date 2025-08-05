@@ -1,4 +1,7 @@
 ---
+# This role only runs when nix is actually needed (no suitable podman found)
+# The podman version checking is now done in pre_tasks in site.yml
+
 # Include OS-specific variables
 - name: Include OS-specific variables
   include_vars: "{{ item }}"
@@ -15,7 +18,7 @@
     - "{{ ansible_os_family | lower }}.yml"
     - "common.yml"
 
-# These tasks are common to all distributions
+# These tasks are common to all distributions when nix is installed
 - name: Update PATH for Ansible execution
   set_fact:
     ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
@@ -45,6 +48,21 @@
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
   become: yes
+
+# Configure SELinux for Nix-installed container tools (before creating symlinks)
+- name: Check if SELinux is enabled for Nix integration
+  command: getenforce
+  register: nix_selinux_check
+  changed_when: false
+  failed_when: false
+
+- name: Configure SELinux policies for Nix container runtime tools
+  include_tasks: selinux_integration.yml
+  when: 
+    - ansible_os_family == "RedHat"
+    - nix_selinux_check is defined 
+    - nix_selinux_check.rc == 0
+    - nix_selinux_check.stdout in ['Enforcing', 'Permissive']
 
 - name: Create podman symlink for sudo access
   file:

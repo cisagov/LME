@@ -1,0 +1,71 @@
+---
+# SELinux integration for Nix-installed container runtime tools
+# This file provides SELinux policies for any container tools installed via Nix
+# (podman, conmon, runc, crun, etc.) to work properly on SELinux-enforced systems
+
+- name: Install SELinux policy development tools
+  ansible.builtin.package:
+    name:
+      - policycoreutils-python-utils
+      - selinux-policy-devel
+      - checkpolicy
+    state: present
+  become: yes
+
+- name: Copy Nix container runtime SELinux policy files
+  ansible.builtin.copy:
+    src: "selinux/{{ item }}"
+    dest: "/tmp/{{ item }}"
+    mode: '0644'
+  become: yes
+  loop:
+    - nix_container_runtime.te
+    - nix_container_runtime.fc
+
+- name: Compile Nix container runtime SELinux policy
+  ansible.builtin.shell: |
+    cd /tmp
+    make -f /usr/share/selinux/devel/Makefile nix_container_runtime.pp
+  args:
+    creates: /tmp/nix_container_runtime.pp
+  become: yes
+
+- name: Install Nix container runtime SELinux policy
+  ansible.builtin.command: semodule -i /tmp/nix_container_runtime.pp
+  register: semodule_result
+  changed_when: semodule_result.rc == 0
+  become: yes
+
+- name: Set file contexts for Nix podman symlink
+  community.general.sefcontext:
+    target: "/usr/local/bin/podman"
+    setype: container_runtime_exec_t
+    state: present
+  become: yes
+
+- name: Set file contexts for Nix store podman binaries
+  community.general.sefcontext:
+    target: "/nix/store/.*/bin/podman"
+    setype: container_runtime_exec_t
+    state: present
+  become: yes
+
+- name: Set file contexts for other container tools in Nix store
+  community.general.sefcontext:
+    target: "/nix/store/.*/bin/{{ item }}"
+    setype: container_runtime_exec_t
+    state: present
+  become: yes
+  loop:
+    - conmon
+    - runc
+    - crun
+
+- name: Display SELinux integration status
+  ansible.builtin.debug:
+    msg: |
+      ✅ SELinux policies configured for Nix container runtime tools
+      - File contexts defined for /usr/local/bin/podman symlink
+      - File contexts defined for Nix store binaries (/nix/store/*/bin/*)
+      - Container tools (podman, conmon, runc, crun) will get proper SELinux contexts
+      - Symlinks created after this will automatically inherit correct contexts
