@@ -4,15 +4,15 @@
 # installed via Nix package manager in non-standard /nix/store paths
 
 # Nix-installed container runtime symlinks in standard location
-/usr/local/bin/podman		--	gen_context(system_u:object_r:container_runtime_exec_t,s0)
+/usr/local/bin/podman		--	gen_context(system_u:object_r:unconfined_exec_t,s0)
 
 # Nix store container runtime binaries (with regex for any nix store hash)
-/nix/store/[^/]*/bin/podman	--	gen_context(system_u:object_r:container_runtime_exec_t,s0)
+/nix/store/[^/]*/bin/podman	--	gen_context(system_u:object_r:unconfined_exec_t,s0)
 
 # Other container tools that may be in nix store
-/nix/store/[^/]*/bin/conmon	--	gen_context(system_u:object_r:container_runtime_exec_t,s0)
-/nix/store/[^/]*/bin/runc	--	gen_context(system_u:object_r:container_runtime_exec_t,s0)
-/nix/store/[^/]*/bin/crun	--	gen_context(system_u:object_r:container_runtime_exec_t,s0)
+/nix/store/[^/]*/bin/conmon	--	gen_context(system_u:object_r:unconfined_exec_t,s0)
+/nix/store/[^/]*/bin/runc	--	gen_context(system_u:object_r:unconfined_exec_t,s0)
+/nix/store/[^/]*/bin/crun	--	gen_context(system_u:object_r:unconfined_exec_t,s0)
 
 # Alternative wrapper script location
-/usr/local/sbin/podman-nix	--	gen_context(system_u:object_r:container_runtime_exec_t,s0)
+/usr/local/sbin/podman-nix	--	gen_context(system_u:object_r:unconfined_exec_t,s0)

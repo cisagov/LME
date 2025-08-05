@@ -41,9 +41,16 @@
   systemd:
     name: "{{ nix_daemon_service }}"
     state: started
-    enabled: yes
   become: yes
   notify: restart nix-daemon
+  when: not (skip_nix_installation | default(false))
+
+- name: Enable Nix daemon (if possible)
+  systemd:
+    name: "{{ nix_daemon_service }}"
+    enabled: yes
+  become: yes
+  failed_when: false
   when: not (skip_nix_installation | default(false))
 
 - name: Wait for Nix daemon to be ready

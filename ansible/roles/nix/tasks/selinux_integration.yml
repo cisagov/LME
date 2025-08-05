@@ -39,21 +39,21 @@
 - name: Set file contexts for Nix podman symlink
   community.general.sefcontext:
     target: "/usr/local/bin/podman"
-    setype: container_runtime_exec_t
+    setype: unconfined_exec_t
     state: present
   become: yes
 
 - name: Set file contexts for Nix store podman binaries
   community.general.sefcontext:
     target: "/nix/store/.*/bin/podman"
-    setype: container_runtime_exec_t
+    setype: unconfined_exec_t
     state: present
   become: yes
 
 - name: Set file contexts for other container tools in Nix store
   community.general.sefcontext:
     target: "/nix/store/.*/bin/{{ item }}"
-    setype: container_runtime_exec_t
+    setype: unconfined_exec_t
     state: present
   become: yes
   loop:
