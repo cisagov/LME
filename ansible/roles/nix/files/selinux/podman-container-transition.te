@@ -1,0 +1,11 @@
+module podman-container-transition 1.0;
+
+require {
+        type container_t;
+        type unconfined_service_t;
+        class process transition;
+}
+
+#============= unconfined_service_t ==============
+# Allow systemd services to transition to container domain
+allow unconfined_service_t container_t:process transition;

@@ -1,0 +1,11 @@
+
+module java-fusefs-setattr 1.0;
+
+require {
+	type container_t;
+	type fusefs_t;
+	class sock_file setattr;
+}
+
+#============= container_t ==============
+allow container_t fusefs_t:sock_file setattr;

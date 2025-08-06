@@ -1,0 +1,11 @@
+
+module elasticsearch-ml-controller 1.0;
+
+require {
+	type container_t;
+	type fusefs_t;
+	class fifo_file create;
+}
+
+#============= container_t ==============
+allow container_t fusefs_t:fifo_file create;

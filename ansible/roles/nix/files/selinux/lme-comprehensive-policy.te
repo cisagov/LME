@@ -1,0 +1,75 @@
+
+module lme-comprehensive-policy 1.0;
+
+require {
+	type default_t;
+	type proc_net_t;
+	type random_device_t;
+	type cgroup_t;
+	type var_lib_t;
+	type fusefs_t;
+	type init_t;
+	type wap_wsp_port_t;
+	type init_var_lib_t;
+	type fs_t;
+	type container_t;
+	class file { execute execute_no_trans map open read };
+	class lnk_file read;
+	class blk_file { create rename };
+	class filesystem quotamod;
+	class process setpgid;
+	class fifo_file { create ioctl open read unlink write };
+	class tcp_socket { connect getattr getopt name_connect setopt };
+	class udp_socket ioctl;
+	class chr_file { getattr open };
+	class sock_file { create rename setattr unlink write };
+}
+
+#============= container_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow container_t cgroup_t:file open;
+
+#!!!! This avc is allowed in the current policy
+allow container_t fusefs_t:fifo_file create;
+allow container_t fusefs_t:fifo_file { open unlink write };
+
+#!!!! This avc is allowed in the current policy
+allow container_t fusefs_t:sock_file { create rename setattr unlink };
+allow container_t fusefs_t:sock_file write;
+allow container_t init_t:fifo_file { ioctl read write };
+
+#!!!! This avc is allowed in the current policy
+allow container_t proc_net_t:lnk_file read;
+
+#!!!! This avc is allowed in the current policy
+allow container_t random_device_t:chr_file { getattr open };
+
+#!!!! This avc is allowed in the current policy
+allow container_t self:tcp_socket setopt;
+allow container_t self:tcp_socket { connect getattr getopt };
+
+#!!!! This avc is allowed in the current policy
+#!!!! This av rule may have been overridden by an extended permission av rule
+allow container_t self:udp_socket ioctl;
+allow container_t wap_wsp_port_t:tcp_socket name_connect;
+
+#============= init_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow init_t default_t:file { execute execute_no_trans map open read };
+
+#!!!! This avc is allowed in the current policy
+allow init_t default_t:lnk_file read;
+
+#!!!! This avc is allowed in the current policy
+allow init_t fs_t:filesystem quotamod;
+
+#!!!! This avc is allowed in the current policy
+allow init_t fusefs_t:file { open read };
+allow init_t fusefs_t:file execute;
+allow init_t init_var_lib_t:fifo_file { create open read unlink write };
+allow init_t self:process setpgid;
+
+#!!!! This avc is allowed in the current policy
+allow init_t var_lib_t:blk_file { create rename };

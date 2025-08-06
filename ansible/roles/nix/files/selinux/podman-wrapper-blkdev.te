@@ -1,0 +1,11 @@
+
+module podman-wrapper-blkdev 1.0;
+
+require {
+	type init_t;
+	type var_lib_t;
+	class blk_file create;
+}
+
+#============= init_t ==============
+allow init_t var_lib_t:blk_file create;

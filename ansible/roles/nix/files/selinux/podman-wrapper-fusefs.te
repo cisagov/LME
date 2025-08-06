@@ -1,0 +1,11 @@
+
+module podman-wrapper-fusefs 1.0;
+
+require {
+	type fusefs_t;
+	type init_t;
+	class file read;
+}
+
+#============= init_t ==============
+allow init_t fusefs_t:file read;

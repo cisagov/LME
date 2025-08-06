@@ -1,0 +1,10 @@
+
+module java-udp-ioctl 1.0;
+
+require {
+	type container_t;
+	class udp_socket ioctl;
+}
+
+#============= container_t ==============
+allow container_t self:udp_socket ioctl;

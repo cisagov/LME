@@ -1,0 +1,11 @@
+
+module java-fusefs-unlink 1.0;
+
+require {
+	type fusefs_t;
+	type container_t;
+	class sock_file unlink;
+}
+
+#============= container_t ==============
+allow container_t fusefs_t:sock_file unlink;

@@ -1,0 +1,13 @@
+
+module podman-wrapper-map 1.0;
+
+require {
+	type init_t;
+	type default_t;
+	class file map;
+}
+
+#============= init_t ==============
+
+#!!!! This avc can be allowed using the boolean 'domain_can_mmap_files'
+allow init_t default_t:file map;

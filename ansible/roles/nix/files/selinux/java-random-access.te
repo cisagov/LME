@@ -1,0 +1,11 @@
+
+module java-random-access 1.0;
+
+require {
+	type random_device_t;
+	type container_t;
+	class chr_file open;
+}
+
+#============= container_t ==============
+allow container_t random_device_t:chr_file open;

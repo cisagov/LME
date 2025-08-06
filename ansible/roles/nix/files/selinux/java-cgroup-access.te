@@ -1,0 +1,16 @@
+
+module java-cgroup-access 1.0;
+
+require {
+	type cgroup_t;
+	type container_t;
+	type proc_net_t;
+	class file open;
+	class lnk_file read;
+	class tcp_socket setopt;
+}
+
+#============= container_t ==============
+allow container_t cgroup_t:file open;
+allow container_t proc_net_t:lnk_file read;
+allow container_t self:tcp_socket setopt;

@@ -1,0 +1,15 @@
+module java-container-permissions 1.0;
+
+require {
+        type container_t;
+        type sysfs_t;
+        class file read;
+        class process execmem;
+        class udp_socket create;
+}
+
+#============= container_t ==============
+# Allow Java and other processes in containers to:
+allow container_t self:process execmem;        # Use executable memory
+allow container_t self:udp_socket create;      # Create UDP sockets  
+allow container_t sysfs_t:file read;           # Read system files

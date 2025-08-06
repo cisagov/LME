@@ -1,4 +1,3 @@
-
 [![BANNER](https://mreeve-snl.github.io/docs-test/docs/imgs/lme-image.png)]()
 
 [![Downloads](https://img.shields.io/github/downloads/cisagov/lme/total.svg)]()
@@ -22,7 +21,7 @@ LME is intended for organizations that:
 
 ## Features: 
 
-- **Enhanced Threat Detection and Response**: Integrated Wazuh’s and Elastic's open-source tools, along with ElastAlert, for improved detection accuracy and real-time alerting. 
+- **Enhanced Threat Detection and Response**: Integrated Wazuh's and Elastic's open-source tools, along with ElastAlert, for improved detection accuracy and real-time alerting. 
 - **Security by Design**: Introduced Podman containerization and encryption to meet the highest security standards.
 - **Simplified Installation**: Added Ansible scripts to automate deployment for faster setup and easier maintenance.
 - **Custom Data Visualization**: Design and customize dashboards with Kibana to meet specific monitoring needs.

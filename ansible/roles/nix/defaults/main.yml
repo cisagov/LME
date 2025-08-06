@@ -1,3 +1,37 @@
 ---
 # Default variables for Nix role
-# Note: clone_directory and install_user are now defined in site.yml 
+# Note: clone_directory and install_user are now defined in site.yml
+
+# =====================================================
+# SELinux Integration Settings (Auto-Detection)
+# =====================================================
+# These settings control SELinux integration behavior
+# The role automatically detects SELinux status and OS family
+
+# SELinux Verification and Debug Settings
+verify_podman_generator: false  # Set to true to run verification tests on RHEL/CentOS with SELinux
+selinux_debug_mode: false       # Set to true for detailed SELinux troubleshooting output
+
+# =====================================================
+# Environment Auto-Detection Logic
+# =====================================================
+# The role automatically applies appropriate configuration based on:
+#
+# RHEL/CentOS with SELinux ENABLED:
+#   ✅ Full SELinux integration (file contexts, booleans, custom policies)
+#   ✅ Quadlet generator workaround
+#   ✅ Container transition permissions
+#   ✅ Java executable memory permissions
+#
+# RHEL/CentOS with SELinux DISABLED:
+#   ✅ Standard file permissions
+#   ✅ Quadlet generator workaround (systemd issue still exists)
+#   ❌ SELinux policies skipped
+#
+# Ubuntu/Debian (no SELinux):
+#   ✅ Standard file permissions
+#   ✅ Standard systemd quadlet processing
+#   ❌ SELinux integration skipped
+#   ❌ Generator workaround skipped
+#
+# NO MANUAL CONFIGURATION REQUIRED - fully automatic!

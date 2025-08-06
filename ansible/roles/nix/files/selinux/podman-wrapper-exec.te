@@ -1,0 +1,11 @@
+
+module podman-wrapper-exec 1.0;
+
+require {
+	type default_t;
+	type init_t;
+	class file execute;
+}
+
+#============= init_t ==============
+allow init_t default_t:file execute;

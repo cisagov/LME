@@ -1,0 +1,11 @@
+
+module podman-wrapper-read 1.0;
+
+require {
+	type init_t;
+	type default_t;
+	class file { open read };
+}
+
+#============= init_t ==============
+allow init_t default_t:file { open read };

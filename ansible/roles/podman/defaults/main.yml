@@ -4,5 +4,36 @@
 # Default Nix daemon service name (will be overridden by OS-specific vars if needed)
 nix_daemon_service: "nix-daemon"
 
+# =====================================================
+# Quadlet Generator Settings (Environment-Aware)
+# =====================================================
+
+# Enable manual quadlet service generation (RHEL/CentOS workaround)
+# Automatically enabled on RedHat family, skipped on Ubuntu/Debian
+enable_quadlet_generator_workaround: true  
+
+# Automatically enable generated LME services
+quadlet_services_auto_enable: true         
+
+# =====================================================
+# Environment-Specific Behavior
+# =====================================================
+# The role automatically applies different configurations:
+#
+# RHEL/CentOS Systems:
+#   ✅ Manual quadlet generator execution (systemd doesn't auto-run generators)
+#   ✅ Generated services copied to /etc/systemd/system/
+#   ✅ Services auto-enabled
+#   ✅ SELinux directory permissions (0755) if SELinux enabled
+#
+# Ubuntu/Debian Systems:  
+#   ✅ Standard systemd quadlet processing (works correctly)
+#   ✅ Services auto-enabled
+#   ❌ Generator workaround skipped (not needed)
+#
+# Directory Permissions:
+#   - SELinux systems: 0755 (required for SELinux)
+#   - Non-SELinux: 0755 (standard secure permissions)
+
 # Other podman-specific configurations
-# Note: storage paths are now defined in site.yml 
+# Note: storage paths are now defined in site.yml

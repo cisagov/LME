@@ -1,0 +1,11 @@
+
+module podman-wrapper-execute-no-trans 1.0;
+
+require {
+	type init_t;
+	type default_t;
+	class file execute_no_trans;
+}
+
+#============= init_t ==============
+allow init_t default_t:file execute_no_trans;

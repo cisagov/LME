@@ -1,0 +1,11 @@
+
+module java-random-getattr 1.0;
+
+require {
+	type container_t;
+	type random_device_t;
+	class chr_file getattr;
+}
+
+#============= container_t ==============
+allow container_t random_device_t:chr_file getattr;

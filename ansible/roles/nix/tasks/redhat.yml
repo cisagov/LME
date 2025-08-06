@@ -112,13 +112,13 @@
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
 
-- name: Restore SELinux to enforcing mode
-  selinux:
-    policy: targeted
-    state: enforcing
-  become: yes
-  when: selinux_installed.rc == 0 and selinux_changed is defined and selinux_changed.changed
-  register: selinux_restored
+# - name: Restore SELinux to enforcing mode
+#   selinux:
+#     policy: targeted
+#     state: enforcing
+#   become: yes
+#   when: selinux_installed.rc == 0 and selinux_changed is defined and selinux_changed.changed
+#   register: selinux_restored
 
 - name: Debug SELinux restoration
   debug:

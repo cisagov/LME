@@ -1,0 +1,11 @@
+
+module podman-wrapper-quotamod 1.0;
+
+require {
+	type fs_t;
+	type init_t;
+	class filesystem quotamod;
+}
+
+#============= init_t ==============
+allow init_t fs_t:filesystem quotamod;

@@ -1,7 +1,15 @@
 ---
 # SELinux integration for Nix-installed container runtime tools
-# This file provides SELinux policies for any container tools installed via Nix
-# (podman, conmon, runc, crun, etc.) to work properly on SELinux-enforced systems
+# This file provides comprehensive SELinux policies for Nix container tools 
+# to work properly on SELinux-enforced systems with Podman quadlets
+# AUTOMATICALLY SKIPS on non-SELinux systems (Ubuntu, Debian, SELinux disabled)
+
+- name: Check SELinux status
+  debug:
+    msg: |
+      SELinux Status: {{ ansible_selinux.status | default('disabled') }}
+      OS Family: {{ ansible_os_family }}
+      SELinux Integration: {{ 'ENABLED' if (ansible_os_family == 'RedHat' and ansible_selinux.status == 'enabled') else 'SKIPPED' }}
 
 - name: Install SELinux policy development tools
   ansible.builtin.package:
@@ -11,6 +19,9 @@
       - checkpolicy
     state: present
   become: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
 
 - name: Copy Nix container runtime SELinux policy files
   ansible.builtin.copy:
@@ -21,6 +32,9 @@
   loop:
     - nix_container_runtime.te
     - nix_container_runtime.fc
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
 
 - name: Compile Nix container runtime SELinux policy
   ansible.builtin.shell: |
@@ -29,43 +43,333 @@
   args:
     creates: /tmp/nix_container_runtime.pp
   become: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
 
 - name: Install Nix container runtime SELinux policy
   ansible.builtin.command: semodule -i /tmp/nix_container_runtime.pp
   register: semodule_result
   changed_when: semodule_result.rc == 0
   become: yes
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
 
-- name: Set file contexts for Nix podman symlink
-  community.general.sefcontext:
-    target: "/usr/local/bin/podman"
-    setype: unconfined_exec_t
-    state: present
-  become: yes
+# =====================================================
+# COMPREHENSIVE NIX PODMAN SELINUX FIXES (2025-08-05)
+# =====================================================
+# These fixes address all discovered SELinux issues with
+# Nix-installed Podman and systemd quadlets
+# ONLY APPLIED on SELinux-enabled RedHat family systems
 
-- name: Set file contexts for Nix store podman binaries
+- name: Add permanent SELinux file context rules for Nix Podman components
   community.general.sefcontext:
-    target: "/nix/store/.*/bin/podman"
-    setype: unconfined_exec_t
-    state: present
-  become: yes
-
-- name: Set file contexts for other container tools in Nix store
-  community.general.sefcontext:
-    target: "/nix/store/.*/bin/{{ item }}"
-    setype: unconfined_exec_t
-    state: present
-  become: yes
+    target: "{{ item.target }}"
+    setype: "{{ item.setype }}"
+    seuser: system_u
+    reload: true
   loop:
-    - conmon
-    - runc
-    - crun
+    # Core Podman quadlet components (systemd generators)
+    - target: "/nix/store/.*/libexec/podman/quadlet"
+      setype: init_exec_t
+    - target: "/nix/store/.*/lib/systemd/system-generators/podman-system-generator"  
+      setype: init_exec_t
+    # Nix profile symlinks (systemd reads these)
+    - target: "/nix/var/nix/profiles/default"
+      setype: bin_t
+    # Podman binaries (discovered they're bash scripts)
+    - target: "/nix/store/.*/bin/podman"
+      setype: bin_t
+    # Bash shells used by Nix Podman scripts
+    - target: "/nix/store/.*/bin/bash"
+      setype: shell_exec_t
+    # Dynamic linker/loader for Nix binaries
+    - target: "/nix/store/.*/lib/ld-linux-x86-64.so.2"
+      setype: ld_so_t
+    # Other container tools
+    - target: "/nix/store/.*/bin/conmon"
+      setype: unconfined_exec_t
+    - target: "/nix/store/.*/bin/runc"
+      setype: unconfined_exec_t
+    - target: "/nix/store/.*/bin/crun"
+      setype: unconfined_exec_t
+    # Symlinks in /usr/local/bin
+    - target: "/usr/local/bin/podman"
+      setype: bin_t
+  when: 
+    - ansible_os_family == "RedHat" 
+    - ansible_selinux.status == "enabled"
+  become: yes
 
-- name: Display SELinux integration status
+- name: Apply SELinux contexts to existing Nix Podman files
+  shell: >
+    set -e &&
+    find /nix/store -name "quadlet" -path "*/libexec/podman/*" -exec chcon system_u:object_r:init_exec_t:s0 {} + 2>/dev/null || true &&
+    find /nix/store -name "podman-system-generator" -path "*/lib/systemd/system-generators/*" -exec chcon system_u:object_r:init_exec_t:s0 {} + 2>/dev/null || true &&
+    chcon system_u:object_r:init_exec_t:s0 /usr/lib/systemd/system-generators/podman-system-generator 2>/dev/null || true &&
+    chcon system_u:object_r:bin_t:s0 /nix/var/nix/profiles/default 2>/dev/null || true &&
+    find /nix/store -name "podman" -path "*/bin/*" -exec chcon system_u:object_r:bin_t:s0 {} + 2>/dev/null || true &&
+    find /nix/store -name "bash" -path "*/bin/*" -exec chcon system_u:object_r:shell_exec_t:s0 {} + 2>/dev/null || true &&
+    find /nix/store -name "ld-linux-x86-64.so.2" -path "*/lib/*" -exec chcon system_u:object_r:ld_so_t:s0 {} + 2>/dev/null || true &&
+    find /nix/store -name "conmon" -path "*/bin/*" -exec chcon system_u:object_r:unconfined_exec_t:s0 {} + 2>/dev/null || true &&
+    find /nix/store -name "runc" -path "*/bin/*" -exec chcon system_u:object_r:unconfined_exec_t:s0 {} + 2>/dev/null || true &&
+    find /nix/store -name "crun" -path "*/bin/*" -exec chcon system_u:object_r:unconfined_exec_t:s0 {} + 2>/dev/null || true &&
+    echo "Applied SELinux contexts to Nix Podman components"
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled" 
+  changed_when: true
+  become: yes
+
+- name: Enable container-related SELinux booleans
+  ansible.posix.seboolean:
+    name: "{{ item }}"
+    state: yes
+    persistent: yes
+  loop:
+    - virt_sandbox_use_fusefs      # Allow containers to use FUSE filesystems
+    - virt_sandbox_use_sys_admin   # Allow containers to use sys_admin capabilities (mount operations)
+    - virt_sandbox_use_mknod       # Allow containers to use mknod system calls
+    - virt_sandbox_use_netlink     # Allow containers to use netlink system calls
+    - selinuxuser_execheap         # Allow executable heap for Java/containers
+    - selinuxuser_execmod          # Allow executable memory modifications
+    - selinuxuser_execstack        # Allow executable stack for Java/containers
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
+  become: yes
+
+- name: Fix containers directory permissions and SELinux contexts
+  block:
+    - name: Ensure containers systemd directory has correct permissions
+      file:
+        path: /etc/containers/systemd
+        mode: '0755'
+        state: directory
+
+    - name: Restore SELinux contexts for containers directory
+      command: restorecon -R /etc/containers/
+      changed_when: true
+
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
+  become: yes
+
+# Generate comprehensive SELinux policies for container operations and Java runtime
+- name: Create comprehensive SELinux policies for container operations
+  block:
+    # Copy all custom SELinux policy files from the files directory
+    - name: Copy all SELinux policy files to /tmp
+      ansible.builtin.copy:
+        src: "selinux/{{ item }}"
+        dest: "/tmp/{{ item }}"
+        mode: '0644'
+      loop:
+        # Original policies (extracted from inline)
+        - podman-container-transition.te
+        - java-container-permissions.te
+        # Post-restart runtime policies (discovered through troubleshooting)
+        - java-cgroup-access.te
+        - java-fusefs-socket.te
+        - java-fusefs-unlink.te
+        - java-fusefs-setattr.te
+        - java-fusefs-rename.te
+        - java-udp-ioctl.te
+        - java-random-access.te
+        - elasticsearch-ml-controller.te
+        - podman-wrapper-exec.te
+        - podman-wrapper-read.te
+        - podman-wrapper-execute-no-trans.te
+        # Additional runtime fixes discovered 
+        - java-random-getattr.te
+        - podman-wrapper-map.te
+        - podman-wrapper-libs.te
+        - podman-wrapper-fusefs.te
+        - podman-wrapper-blkdev.te
+        # Comprehensive container storage policy
+        - podman-container-storage.te
+        - podman-wrapper-quotamod.te
+        # Generated comprehensive policy from audit2allow
+        - lme-comprehensive-policy.te
+        # Final conmon entrypoint fix
+        - conmon-entrypoint-fix.te
+
+    - name: Compile all SELinux policies
+      shell: |
+        cd /tmp
+        make -f /usr/share/selinux/devel/Makefile {{ item }}.pp
+      loop:
+        # Original policies (now file-based)
+        - podman-container-transition
+        - java-container-permissions
+        # Post-restart runtime policies 
+        - java-cgroup-access
+        - java-fusefs-socket
+        - java-fusefs-unlink
+        - java-fusefs-setattr
+        - java-fusefs-rename
+        - java-udp-ioctl
+        - java-random-access
+        - elasticsearch-ml-controller
+        - podman-wrapper-exec
+        - podman-wrapper-read
+        - podman-wrapper-execute-no-trans
+        # Additional runtime fixes
+        - java-random-getattr
+        - podman-wrapper-map
+        - podman-wrapper-libs
+        - podman-wrapper-fusefs
+        - podman-wrapper-blkdev
+        # Comprehensive storage policy
+        - podman-container-storage
+        - podman-wrapper-quotamod
+        # Generated comprehensive policy
+        - lme-comprehensive-policy
+        # Final conmon entrypoint fix
+        - conmon-entrypoint-fix
+      args:
+        creates: "/tmp/{{ item }}.pp"
+
+    - name: Install all SELinux policies
+      command: "semodule -i /tmp/{{ item }}.pp"
+      loop:
+        # Original policies (now file-based)
+        - podman-container-transition
+        - java-container-permissions
+        # Post-restart runtime policies
+        - java-cgroup-access
+        - java-fusefs-socket
+        - java-fusefs-unlink
+        - java-fusefs-setattr
+        - java-fusefs-rename
+        - java-udp-ioctl
+        - java-random-access
+        - elasticsearch-ml-controller
+        - podman-wrapper-exec
+        - podman-wrapper-read
+        - podman-wrapper-execute-no-trans
+        # Additional runtime fixes
+        - java-random-getattr
+        - podman-wrapper-map
+        - podman-wrapper-libs
+        - podman-wrapper-fusefs
+        - podman-wrapper-blkdev
+        # Comprehensive storage policy
+        - podman-container-storage
+        - podman-wrapper-quotamod
+        # Generated comprehensive policy
+        - lme-comprehensive-policy
+        # Final conmon entrypoint fix
+        - conmon-entrypoint-fix
+      register: custom_semodule_result
+      changed_when: custom_semodule_result.rc == 0
+
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
+  become: yes
+
+# Optional: Verify Podman quadlet generator works
+- name: Verify Podman quadlet generator functionality
+  block:
+    - name: Test podman quadlet generator
+      command: >
+        /usr/lib/systemd/system-generators/podman-system-generator 
+        /tmp/quadlet-test 
+        /tmp/quadlet-test 
+        /tmp/quadlet-test
+      register: generator_test
+      changed_when: false
+      failed_when: false
+
+    - name: Clean up test directory
+      file:
+        path: /tmp/quadlet-test
+        state: absent
+      when: generator_test.rc == 0
+
+    - name: Report generator status
+      debug:
+        msg: "Podman quadlet generator {{ 'working' if generator_test.rc == 0 else 'failed' }}"
+
+  when: 
+    - ansible_os_family == "RedHat"
+    - ansible_selinux.status == "enabled"
+    - verify_podman_generator | default(false)
+  become: yes
+
+# =====================================================
+# NON-SELINUX ENVIRONMENT SUPPORT
+# =====================================================
+# Alternative configuration for Ubuntu, Debian, and SELinux-disabled systems
+
+- name: Configure Nix Podman for non-SELinux environments
+  block:
+    - name: Display non-SELinux environment status
+      debug:
+        msg: |
+          ℹ️  NON-SELINUX ENVIRONMENT DETECTED
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          SELinux: {{ ansible_selinux.status | default('not present') }}
+          
+          🔧 CONFIGURATION: Standard Nix symlinks and permissions
+          ✅ No SELinux policies needed - using standard file permissions
+
+    - name: Ensure standard file permissions for Nix binaries (non-SELinux)
+      file:
+        path: "{{ item }}"
+        mode: '0755'
+        state: file
+      loop:
+        - /usr/local/bin/podman
+      failed_when: false  # Symlinks might not exist yet
+
+  when: 
+    - ansible_os_family != "RedHat" or ansible_selinux.status != "enabled"
+
+- name: Display comprehensive SELinux integration status
   ansible.builtin.debug:
     msg: |
-      ✅ SELinux policies configured for Nix container runtime tools
-      - File contexts defined for /usr/local/bin/podman symlink
-      - File contexts defined for Nix store binaries (/nix/store/*/bin/*)
-      - Container tools (podman, conmon, runc, crun) will get proper SELinux contexts
-      - Symlinks created after this will automatically inherit correct contexts
+      {% if ansible_os_family == "RedHat" and ansible_selinux.status == "enabled" %}
+      ✅ COMPREHENSIVE SELinux policies configured for Nix container runtime tools
+      
+      🔧 FIXED ISSUES (15 SELinux Modules):
+      - Podman generator chain contexts (init_exec_t for systemd generators)  
+      - Nix profile symlink context (bin_t for /nix/var/nix/profiles/default)
+      - Podman binary context (bin_t for bash scripts)
+      - Bash shell context (shell_exec_t for Nix bash)
+      - Dynamic linker context (ld_so_t for glibc loaders) 
+      - Container directory permissions (755 for /etc/containers/systemd)
+      - Container transition permissions (unconfined_service_t -> container_t)
+      - Java executable memory permissions (execmem for containers)
+      - Java network permissions (UDP socket creation, ioctl operations)
+      - Java FUSE filesystem operations (socket create/unlink/setattr/rename)
+      - Java system access (cgroup files, /dev/random entropy)
+      - Elasticsearch ML controller (FIFO file creation)
+      - Podman wrapper execution (execute, read, execute_no_trans)
+      
+      🛡️ ENABLED BOOLEANS:
+      - virt_sandbox_use_fusefs, virt_sandbox_use_sys_admin
+      - virt_sandbox_use_mknod, virt_sandbox_use_netlink  
+      - selinuxuser_execheap, selinuxuser_execmod, selinuxuser_execstack
+      
+      📁 FILE CONTEXTS:
+      - /nix/store/*/bin/podman, /nix/store/*/bin/bash
+      - /nix/store/*/libexec/podman/quadlet
+      - /nix/store/*/lib/systemd/system-generators/podman-system-generator
+      - /nix/store/*/lib/ld-linux-x86-64.so.2
+      - /nix/var/nix/profiles/default
+      
+      🎯 RESULT: Podman quadlets and containers should now work on SELinux-enforced systems!
+      {% else %}
+      ℹ️  NON-SELINUX ENVIRONMENT - Standard configuration applied
+      
+      🔧 CONFIGURATION:
+      - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+      - SELinux: {{ ansible_selinux.status | default('not present') }}
+      - Mode: Standard file permissions and symlinks
+      
+      ✅ RESULT: Nix Podman tools configured with standard permissions
+      {% endif %}

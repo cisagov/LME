@@ -1,0 +1,11 @@
+
+module conmon-entrypoint-fix 1.0;
+
+require {
+	type unconfined_service_t;
+	type unconfined_exec_t;
+	class file entrypoint;
+}
+
+#============= unconfined_service_t ==============
+allow unconfined_service_t unconfined_exec_t:file entrypoint;

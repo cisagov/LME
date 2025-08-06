@@ -1,0 +1,29 @@
+module podman-container-storage 1.0;
+
+require {
+        type init_t;
+        type var_lib_t;
+        type fusefs_t;
+        type container_file_t;
+        class file { create read write open getattr setattr unlink rename };
+        class lnk_file { create read write };
+        class dir { create read write open getattr setattr search add_name remove_name };
+        class blk_file { create read write open getattr setattr unlink rename };
+        class sock_file { create read write open getattr setattr unlink rename };
+}
+
+#============= init_t ==============
+# Allow podman wrapper to manage overlay storage files
+allow init_t var_lib_t:file { create read write open getattr setattr unlink rename };
+allow init_t var_lib_t:dir { create read write open getattr setattr search add_name remove_name };
+allow init_t var_lib_t:blk_file { create read write open getattr setattr unlink rename };
+
+# Allow podman wrapper to access FUSE-mounted overlay filesystems
+allow init_t fusefs_t:file { create read write open getattr setattr unlink rename };
+allow init_t fusefs_t:dir { create read write open getattr setattr search add_name remove_name };
+allow init_t fusefs_t:lnk_file { create read write };
+allow init_t fusefs_t:sock_file { create read write open getattr setattr unlink rename };
+
+# Allow podman wrapper to manage container files
+allow init_t container_file_t:file { create read write open getattr setattr unlink rename };
+allow init_t container_file_t:dir { create read write open getattr setattr search add_name remove_name };
