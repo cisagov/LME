@@ -62,6 +62,8 @@ redhat_packages:
   - python3-pexpect
   - glibc-langpack-en
   - xz
+  - container-selinux
+  - udica
 
 # Red Hat 9 specific packages
 redhat_9_packages:
