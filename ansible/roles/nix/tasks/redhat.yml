@@ -120,27 +120,27 @@
     state: present
   become: yes
 
-- name: Deploy container-wide SELinux TE (filtered dedup)
+- name: Deploy container-wide SELinux TE (container_policy)
   copy:
-    src: selinux/container_wide_filtered_dedup.te
-    dest: /etc/selinux/lme/container_wide_filtered_dedup.te
+    src: selinux/container_policy.te
+    dest: /etc/selinux/lme/container_policy.te
     owner: root
     group: root
     mode: '0644'
   become: yes
 
-- name: Compile SELinux module (container_wide_filtered)
+- name: Compile SELinux module (container_policy)
   shell: |
     set -e
     mkdir -p /etc/selinux/lme
-    checkmodule -M -m -o /etc/selinux/lme/container_wide_filtered.mod /etc/selinux/lme/container_wide_filtered_dedup.te
-    semodule_package -o /etc/selinux/lme/container_wide_filtered.pp -m /etc/selinux/lme/container_wide_filtered.mod
+    checkmodule -M -m -o /etc/selinux/lme/container_policy.mod /etc/selinux/lme/container_policy.te
+    semodule_package -o /etc/selinux/lme/container_policy.pp -m /etc/selinux/lme/container_policy.mod
   args:
     executable: /bin/bash
   become: yes
 
-- name: Load SELinux module (container_wide_filtered)
-  command: semodule -i /etc/selinux/lme/container_wide_filtered.pp
+- name: Load SELinux module (container_policy)
+  command: semodule -i /etc/selinux/lme/container_policy.pp
   become: yes
   register: semodule_load
   changed_when: semodule_load.rc == 0
@@ -152,11 +152,11 @@
   changed_when: false
   become: yes
 
-- name: Assert container_wide_filtered module present
+- name: Assert container_policy module present
   assert:
     that:
-      - semodule_list.stdout is search("^container_wide_filtered(\\s|$)")
-    fail_msg: "container_wide_filtered module not loaded"
+      - semodule_list.stdout is search("^container_policy(\\s|$)")
+    fail_msg: "container_policy module not loaded"
 
 - name: Restore SELinux enforcing mode
   command: setenforce 1
