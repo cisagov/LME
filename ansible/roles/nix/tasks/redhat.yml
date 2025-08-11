@@ -1,6 +1,34 @@
 ---
 # Red Hat-specific Nix setup
 
+- name: Detect if SELinux tooling is available
+  command: which getenforce
+  register: selinux_tooling
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Set SELinux availability fact
+  set_fact:
+    selinux_available: "{{ selinux_tooling.rc == 0 }}"
+
+- name: Get current SELinux mode
+  command: getenforce
+  register: getenforce_out
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: selinux_available | default(false)
+
+- name: Remember if SELinux was enforcing
+  set_fact:
+    selinux_was_enforcing: "{{ selinux_available | default(false) and (getenforce_out.stdout | default('') | trim) == 'Enforcing' }}"
+
+- name: Set SELinux to permissive for Nix install
+  command: setenforce 0
+  when: selinux_was_enforcing
+  become: yes
+
 - name: Check if Nix is already installed
   stat:
     path: /nix/var/nix/profiles/default/bin/nix
@@ -81,3 +109,65 @@
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+
+- name: Ensure SELinux policy tools are present
+  package:
+    name:
+      - policycoreutils
+      - policycoreutils-python-utils
+      - checkpolicy
+      - libsemanage-devel
+    state: present
+  become: yes
+
+- name: Deploy container-wide SELinux TE (filtered dedup)
+  copy:
+    src: selinux/container_wide_filtered_dedup.te
+    dest: /etc/selinux/lme/container_wide_filtered_dedup.te
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+
+- name: Compile SELinux module (container_wide_filtered)
+  shell: |
+    set -e
+    mkdir -p /etc/selinux/lme
+    checkmodule -M -m -o /etc/selinux/lme/container_wide_filtered.mod /etc/selinux/lme/container_wide_filtered_dedup.te
+    semodule_package -o /etc/selinux/lme/container_wide_filtered.pp -m /etc/selinux/lme/container_wide_filtered.mod
+  args:
+    executable: /bin/bash
+  become: yes
+
+- name: Load SELinux module (container_wide_filtered)
+  command: semodule -i /etc/selinux/lme/container_wide_filtered.pp
+  become: yes
+  register: semodule_load
+  changed_when: semodule_load.rc == 0
+  failed_when: false
+
+- name: Verify SELinux module loaded
+  command: semodule -l
+  register: semodule_list
+  changed_when: false
+  become: yes
+
+- name: Assert container_wide_filtered module present
+  assert:
+    that:
+      - semodule_list.stdout is search("^container_wide_filtered(\\s|$)")
+    fail_msg: "container_wide_filtered module not loaded"
+
+- name: Restore SELinux enforcing mode
+  command: setenforce 1
+  when: selinux_was_enforcing
+  become: yes
+
+- name: Persist SELinux enforcement across reboots (optional)
+  lineinfile:
+    path: /etc/selinux/config
+    regexp: '^SELINUX='
+    line: 'SELINUX=enforcing'
+    create: no
+  when: selinux_was_enforcing
+  become: yes
