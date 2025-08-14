@@ -119,6 +119,7 @@
       - libsemanage-devel
     state: present
   become: yes
+  when: selinux_available | default(false)
 
 - name: Ensure SELinux policy directory exists
   file:
@@ -128,6 +129,7 @@
     group: root
     mode: '0755'
   become: yes
+  when: selinux_available | default(false)
 
 - name: Deploy container-wide SELinux TE (container_policy)
   copy:
@@ -137,6 +139,7 @@
     group: root
     mode: '0644'
   become: yes
+  when: selinux_available | default(false)
 
 - name: Compile SELinux module (container_policy)
   shell: |
