@@ -110,102 +110,27 @@
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
 
-- name: Ensure SELinux policy tools are present
-  package:
-    name:
-      - policycoreutils
-      - policycoreutils-python-utils
-      - checkpolicy
-      - libsemanage-devel
-    state: present
+- name: After Podman installation, apply SELinux booleans
+  seboolean:
+    name: "{{ item }}"
+    state: yes
+    persistent: yes
   become: yes
-  when: selinux_available | default(false)
-
-- name: Ensure SELinux policy directory exists
-  file:
-    path: /etc/selinux/lme
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  become: yes
-  when: selinux_available | default(false)
-
-- name: Deploy container-wide SELinux TE (container_policy)
-  copy:
-    src: selinux/container_policy.te
-    dest: /etc/selinux/lme/container_policy.te
-    owner: root
-    group: root
-    mode: '0644'
-  become: yes
-  when: selinux_available | default(false)
-
-- name: Compile SELinux module (container_policy)
-  shell: |
-    set -e
-    checkmodule -M -m -o /etc/selinux/lme/container_policy.mod /etc/selinux/lme/container_policy.te
-    semodule_package -o /etc/selinux/lme/container_policy.pp -m /etc/selinux/lme/container_policy.mod
-  args:
-    executable: /bin/bash
-  become: yes
-  register: selinux_compile
+  loop:
+    - container_manage_cgroup
+    - container_use_devices
+    - container_read_certs
   when:
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-
-- name: Debug SELinux compile result
-  debug:
-    var: selinux_compile
-  when: debug_mode | default(false)
-
-- name: Load SELinux module (container_policy)
-  command: semodule -i /etc/selinux/lme/container_policy.pp
-  become: yes
-  register: semodule_load
-  changed_when: semodule_load.rc == 0
-  when:
-    - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-
-- name: Ensure SELinux module enabled (container_policy)
-  command: semodule -e container_policy
-  become: yes
-  when:
-    - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-
-- name: Debug SELinux module load result
-  debug:
-    var: semodule_load
-  when: debug_mode | default(false)
-
-- name: Verify SELinux module loaded
-  shell: semodule -l | grep -E "^container_policy(\\s|$)" || true
-  args:
-    executable: /bin/bash
-  register: container_policy_present
-  changed_when: false
-  become: yes
-  when:
-    - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-
-- name: Assert container_policy module present
-  assert:
-    that:
-      - container_policy_present.rc == 0
-    fail_msg: "container_policy module not loaded"
-  when:
-    - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+  ignore_errors: yes  # Some booleans might not exist on all systems
 
 - name: Restore SELinux enforcing mode
   command: setenforce 1
   when: selinux_was_enforcing
   become: yes
 
-- name: Persist SELinux enforcement across reboots (optional)
+- name: Persist SELinux enforcement across reboots
   lineinfile:
     path: /etc/selinux/config
     regexp: '^SELINUX='

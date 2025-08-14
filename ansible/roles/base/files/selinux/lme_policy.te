@@ -1,4 +1,4 @@
-module container_policy 1.0;
+module lme_policy 1.0;
 
 require {
     type container_t;
@@ -16,11 +16,17 @@ require {
     type container_ro_file_t;
     type container_var_lib_t;
     type container_var_run_t;
+    type container_runtime_exec_t;
+    type bin_t;
+    type lib_t;
+    type etc_t;
+    type ld_so_t;
+    type shell_exec_t;
 
     class file { getattr open read append create execute execute_no_trans lock map rename setattr unlink write };
     class dir { add_name create remove_name write };
     class lnk_file read;
-    class sock_file write;
+    class sock_file { write create setattr unlink };
     class tcp_socket { name_connect accept connect create getattr getopt setopt shutdown };
     class udp_socket { connect create getattr setopt };
     class netlink_route_socket { bind create getattr nlmsg_read };
@@ -30,6 +36,10 @@ require {
     class blk_file { create rename unlink };
     class cap_userns dac_override;
 }
+
+#============================================================================
+# Container Policy Rules (merged from container_policy.te)
+#============================================================================
 
 allow container_t cert_t:file getattr;
 allow container_t cgroup_t:file { open read };
@@ -54,5 +64,5 @@ allow container_t wap_wsp_port_t:tcp_socket name_connect;
 allow init_t container_ro_file_t:blk_file { create rename unlink };
 allow init_t container_t:process siginh;
 allow init_t container_var_lib_t:fifo_file { create open read unlink write };
- allow init_t container_var_lib_t:sock_file write;
+allow init_t container_var_lib_t:sock_file { create setattr unlink write };
 allow init_t container_var_run_t:file write;

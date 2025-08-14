@@ -61,6 +61,33 @@
     var: dnf_install_redhat
   when: debug_mode | default(false)
 
+# SELinux setup - run early before any Nix/Podman installation
+- name: Detect if SELinux tooling is available (base role)
+  command: which getenforce
+  register: base_selinux_tooling
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Set SELinux availability fact (base role)
+  set_fact:
+    base_selinux_available: "{{ base_selinux_tooling.rc == 0 }}"
+
+- name: Get current SELinux mode (base role)
+  command: getenforce
+  register: base_getenforce_out
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: base_selinux_available | default(false)
+
+- name: Setup SELinux policies for LME
+  include_tasks: selinux_setup.yml
+  when:
+    - ansible_os_family == 'RedHat'
+    - base_selinux_available | default(false)
+    - (base_getenforce_out.stdout | default('') | trim) != 'Disabled'
+
 - name: Create CA certificates symlink for compatibility (Red Hat systems)
   file:
     src: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
