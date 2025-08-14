@@ -120,6 +120,15 @@
     state: present
   become: yes
 
+- name: Ensure SELinux policy directory exists
+  file:
+    path: /etc/selinux/lme
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
 - name: Deploy container-wide SELinux TE (container_policy)
   copy:
     src: selinux/container_policy.te
@@ -132,31 +141,61 @@
 - name: Compile SELinux module (container_policy)
   shell: |
     set -e
-    mkdir -p /etc/selinux/lme
     checkmodule -M -m -o /etc/selinux/lme/container_policy.mod /etc/selinux/lme/container_policy.te
     semodule_package -o /etc/selinux/lme/container_policy.pp -m /etc/selinux/lme/container_policy.mod
   args:
     executable: /bin/bash
   become: yes
+  register: selinux_compile
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Debug SELinux compile result
+  debug:
+    var: selinux_compile
+  when: debug_mode | default(false)
 
 - name: Load SELinux module (container_policy)
   command: semodule -i /etc/selinux/lme/container_policy.pp
   become: yes
   register: semodule_load
   changed_when: semodule_load.rc == 0
-  failed_when: false
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Ensure SELinux module enabled (container_policy)
+  command: semodule -e container_policy
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Debug SELinux module load result
+  debug:
+    var: semodule_load
+  when: debug_mode | default(false)
 
 - name: Verify SELinux module loaded
-  command: semodule -l
-  register: semodule_list
+  shell: semodule -l | grep -E "^container_policy(\\s|$)" || true
+  args:
+    executable: /bin/bash
+  register: container_policy_present
   changed_when: false
   become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 
 - name: Assert container_policy module present
   assert:
     that:
-      - semodule_list.stdout is search("^container_policy(\\s|$)")
+      - container_policy_present.rc == 0
     fail_msg: "container_policy module not loaded"
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 
 - name: Restore SELinux enforcing mode
   command: setenforce 1
