@@ -1,25 +1,53 @@
 ---
-# Debian-specific Nix setup
+# Debian-specific Nix setup via official installer (apt version is too old)
 
-- name: Update apt cache
-  apt:
-    update_cache: yes
+- name: Check if Nix is already installed
+  stat:
+    path: /nix/var/nix/profiles/default/bin/nix
+  register: nix_installed
+
+- name: Create nix installation directory
+  file:
+    path: /opt/nix-install
+    state: directory
+    mode: '0755'
+  become: yes
+  when: not nix_installed.stat.exists
+
+- name: Create temporary directory for Nix install
+  file:
+    path: /opt/nix-install/tmp
+    state: directory
+    mode: '0755'
+  become: yes
+  when: not nix_installed.stat.exists
+
+- name: Download Nix installer
+  get_url:
+    url: https://nixos.org/nix/install
+    dest: /opt/nix-install/install-nix.sh
+    mode: '0755'
+  become: yes
+  when: not nix_installed.stat.exists
+
+- name: Install Nix package manager
+  shell: sh /opt/nix-install/install-nix.sh --daemon --yes
+  become: yes
+  environment:
+    TMPDIR: /opt/nix-install/tmp
+  when: not nix_installed.stat.exists
+
+- name: Ensure nix-daemon service is started
+  systemd:
+    name: nix-daemon
+    state: started
+    enabled: yes
   become: yes
 
-- name: Install nix packages
-  apt:
-    name:
-      - nix-bin
-      - nix-setup-systemd
+- name: Ensure nix-users group exists
+  group:
+    name: nix-users
     state: present
-  become: yes
-
-- name: Add Nix channel
-  command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
-  become: yes
-
-- name: Update Nix channel
-  command: nix-channel --update
   become: yes
 
 - name: Add user to nix-users group
@@ -29,6 +57,20 @@
     append: yes
   become: yes
 
+- name: Add Nix channel
+  command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+
+- name: Update Nix channel
+  command: nix-channel --update
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+
 - name: Install required packages
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
-  become: yes 
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
