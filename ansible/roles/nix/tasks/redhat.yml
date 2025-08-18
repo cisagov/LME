@@ -71,11 +71,27 @@
     var: nix_install_result
   when: debug_mode | default(false) and not nix_installed.stat.exists
 
+- name: Reload systemd units after Nix installation
+  systemd:
+    daemon_reload: yes
+  become: yes
+  when: not nix_installed.stat.exists
+
 - name: Ensure nix-daemon service is started
   systemd:
     name: nix-daemon
     state: started
     enabled: yes
+    daemon_reload: yes
+  become: yes
+  when: not nix_installed.stat.exists
+
+- name: Ensure nix-daemon socket is enabled and started (for socket activation)
+  systemd:
+    name: nix-daemon.socket
+    state: started
+    enabled: yes
+    daemon_reload: yes
   become: yes
   when: not nix_installed.stat.exists
 

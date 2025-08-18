@@ -16,13 +16,58 @@
     - "common.yml"
 
 # These tasks are common for all distributions
-- name: Ensure Nix daemon is running
-  systemd:
-    name: "{{ nix_daemon_service }}"
-    state: started
-    enabled: yes
+- name: Check if Nix daemon unit exists
+  shell: systemctl cat "{{ nix_daemon_service }}" >/dev/null 2>&1 || systemctl list-unit-files | grep -E "^{{ nix_daemon_service }}(\\.service)?\\s" >/dev/null 2>&1
+  args:
+    executable: /bin/bash
+  register: nix_daemon_unit_check
+  changed_when: false
+  failed_when: false
   become: yes
-  notify: restart nix-daemon
+
+- name: Check if Nix appears installed (nix binary)
+  stat:
+    path: /nix/var/nix/profiles/default/bin/nix
+  register: nix_binary_stat
+
+- name: Ensure Nix daemon is running
+  block:
+    - name: Start/enable nix-daemon via systemd module
+      systemd:
+        name: "{{ nix_daemon_service }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      become: yes
+      notify: restart nix-daemon
+    - name: Ensure nix-daemon.socket is enabled (socket activation)
+      systemd:
+        name: "{{ nix_daemon_service }}.socket"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      become: yes
+  rescue:
+    - name: Fallback start of nix-daemon via systemctl
+      shell: |
+        set -e
+        systemctl daemon-reload
+        systemctl enable --now {{ nix_daemon_service }}.socket || true
+        systemctl enable --now {{ nix_daemon_service }}
+      args:
+        executable: /bin/bash
+      become: yes
+  when: nix_daemon_unit_check.rc == 0 and nix_binary_stat.stat.exists
+
+- name: Skip Nix daemon management (unit not present)
+  debug:
+    msg: "Skipping nix-daemon management because the unit is not present. Run with tags 'nix' first or full play to install Nix."
+  when: nix_daemon_unit_check.rc != 0
+
+- name: Skip Nix daemon management (Nix not installed yet)
+  debug:
+    msg: "Skipping nix-daemon management because Nix is not installed. Run with tags 'nix' first or full play to install Nix."
+  when: nix_daemon_unit_check.rc == 0 and not nix_binary_stat.stat.exists
 
 - name: Wait for Nix daemon to be ready
   wait_for:

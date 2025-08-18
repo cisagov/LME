@@ -3,34 +3,48 @@
 #============================================================================
 
 # Podman system generator (symlinked to /usr/lib/systemd/system-generators/)
-/nix/store/.*/lib/systemd/system-generators/podman-system-generator	--	gen_context(system_u:object_r:lib_t:s0)
+/nix/store/.*/lib/systemd/system-generators/podman-system-generator	--	system_u:object_r:bin_t:s0
 
 # Quadlet helper binary (not container runtime)
-/nix/store/.*/libexec/podman/quadlet	--	gen_context(system_u:object_r:bin_t:s0)
+/nix/store/.*/libexec/podman/quadlet	--	system_u:object_r:bin_t:s0
 
 # Container runtime binaries - must be container_runtime_exec_t for proper domain transitions
-/nix/store/.*/bin/podman	--	gen_context(system_u:object_r:container_runtime_exec_t:s0)
-/nix/store/.*/bin/\.podman-wrapped	--	gen_context(system_u:object_r:container_runtime_exec_t:s0)
-/nix/store/.*/bin/conmon	--	gen_context(system_u:object_r:container_runtime_exec_t:s0)
-/nix/store/.*/bin/crun	--	gen_context(system_u:object_r:container_runtime_exec_t:s0)
-/nix/store/.*/bin/runc	--	gen_context(system_u:object_r:container_runtime_exec_t:s0)
-/nix/store/.*/bin/netavark	--	gen_context(system_u:object_r:container_runtime_exec_t:s0)
+/nix/store/.*/bin/podman	--	system_u:object_r:container_runtime_exec_t:s0
+/nix/store/.*/bin/\.podman-wrapped	--	system_u:object_r:container_runtime_exec_t:s0
+/nix/store/.*/bin/conmon	--	system_u:object_r:container_runtime_exec_t:s0
+/nix/store/.*/bin/crun	--	system_u:object_r:container_runtime_exec_t:s0
+/nix/store/.*/bin/runc	--	system_u:object_r:container_runtime_exec_t:s0
+/nix/store/.*/bin/netavark	--	system_u:object_r:container_runtime_exec_t:s0
 
 # Nix-provided helper wrapper paths
-/nix/store/.*/podman-helper-binary-wrapper/bin/.*	--	gen_context(system_u:object_r:container_runtime_exec_t:s0)
+/nix/store/.*/podman-helper-binary-wrapper/bin/.*	--	system_u:object_r:container_runtime_exec_t:s0
 
 # Shell used by wrappers
-/nix/store/.*/bin/bash	--	gen_context(system_u:object_r:shell_exec_t:s0)
+/nix/store/.*/bin/bash	--	system_u:object_r:shell_exec_t:s0
 
 # Dynamic loader and shared libraries
-/nix/store/.*/lib/ld-linux-x86-64\.so\.2	--	gen_context(system_u:object_r:ld_so_t:s0)
-/nix/store/.*/lib/.*\.so(\..*)?\	--	gen_context(system_u:object_r:lib_t:s0)
-/nix/store/.*/lib64/.*\.so(\..*)?\	--	gen_context(system_u:object_r:lib_t:s0)
+/nix/store/.*/lib/ld-linux-x86-64\.so\.2	--	system_u:object_r:ld_so_t:s0
+/nix/store/.*/lib/.*\.so(\..*)?	--	system_u:object_r:lib_t:s0
+/nix/store/.*/lib64/.*\.so(\..*)?	--	system_u:object_r:lib_t:s0
 
 # Nix profile symlinks (systemd may read through these paths)
-/nix/var/nix/profiles/default(/.*)?	gen_context(system_u:object_r:bin_t:s0)
+/nix/var/nix/profiles/default(/.*)?	system_u:object_r:bin_t:s0
 
 # Quadlet configuration directory
-/etc/containers/systemd(/.*)?	gen_context(system_u:object_r:etc_t:s0)
+/etc/containers/systemd(/.*)?	system_u:object_r:etc_t:s0
+
+# Nix systemd unit files
+/nix/var/nix/profiles(/.*)?	system_u:object_r:bin_t:s0
+/nix/var/nix/profiles/default/lib/systemd/system(/.*)?	system_u:object_r:systemd_unit_file_t:s0
+/nix/store/.*/lib/systemd/system/.*\.service	system_u:object_r:systemd_unit_file_t:s0
+/nix/store/.*/lib/systemd/system/.*\.socket	system_u:object_r:systemd_unit_file_t:s0
+
+# Nix executables needed by systemd
+/nix/store/.*/bin/nix-daemon	system_u:object_r:bin_t:s0
+/nix/store/.*/bin/nix	system_u:object_r:bin_t:s0
+/nix/store/.*/lib/systemd/system-generators/podman-system-generator	--	system_u:object_r:bin_t:s0
+
+# Allow systemd to execute our custom generator
+/etc/systemd/system-generators(/.*)?	gen_context(system_u:object_r:systemd_generator_exec_t,s0)
 
 

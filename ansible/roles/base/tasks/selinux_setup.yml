@@ -87,7 +87,11 @@
     set -e
     cd /etc/selinux/lme
     checkmodule -M -m -o lme_policy.mod lme_policy.te
-    semodule_package -o lme_policy.pp -m lme_policy.mod -f lme_policy.fc
+    # Try to include file contexts; if that fails, build a package without them
+    if ! semodule_package -o lme_policy.pp -m lme_policy.mod -f lme_policy.fc; then
+      echo "Warning: building SELinux module without file contexts" >&2
+      semodule_package -o lme_policy_no_fc.pp -m lme_policy.mod
+    fi
   args:
     executable: /bin/bash
   become: yes
@@ -102,15 +106,90 @@
     var: selinux_compile
   when: debug_mode | default(false) and selinux_compile is defined
 
+- name: Check if SELinux module already present (pre-load)
+  shell: semodule -l | grep -E "^lme_policy(\\s|$)" || true
+  args:
+    executable: /bin/bash
+  register: lme_policy_present_pre
+  changed_when: false
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+# ---------------------------------------------------------------------------
+# Ensure Nix-provided systemd unit files have correct SELinux labels
+# ---------------------------------------------------------------------------
+- name: Define SELinux fcontext for Nix systemd unit files
+  shell: |
+    set -e
+    semanage fcontext -a -t systemd_unit_file_t '/nix/store/.*/lib/systemd/system/.*\.service' || \
+    semanage fcontext -m -t systemd_unit_file_t '/nix/store/.*/lib/systemd/system/.*\.service'
+    semanage fcontext -a -t systemd_unit_file_t '/nix/store/.*/lib/systemd/system/.*\.socket' || \
+    semanage fcontext -m -t systemd_unit_file_t '/nix/store/.*/lib/systemd/system/.*\.socket'
+    semanage fcontext -a -t systemd_unit_file_t '/nix/var/nix/profiles/default/lib/systemd/system(/.*)?' || \
+    semanage fcontext -m -t systemd_unit_file_t '/nix/var/nix/profiles/default/lib/systemd/system(/.*)?'
+  args:
+    executable: /bin/bash
+  become: yes
+  changed_when: false
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Apply persistent fcontext for nix profile symlink
+  command: semanage fcontext -a -t systemd_unit_file_t "{{ nix_profile_symlink_path }}(/.*)?"
+  become: yes
+  changed_when: false
+  failed_when: false
+
+- name: Apply persistent fcontext for systemd generators
+  command: semanage fcontext -a -t systemd_generator_exec_t "/etc/systemd/system-generators(/.*)?"
+  become: yes
+  changed_when: false
+  failed_when: false
+
+- name: Restore context for nix profile
+  command: restorecon -Rv "{{ nix_profile_symlink_path }}"
+  become: yes
+  changed_when: false
+
+- name: Restore context for systemd generators
+  command: restorecon -Rv /etc/systemd/system-generators
+  become: yes
+  changed_when: false
+
+- name: Reload systemd daemon to apply changes
+  systemd:
+    daemon_reload: yes
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 - name: Load SELinux module (lme_policy)
-  command: semodule -i /etc/selinux/lme/lme_policy.pp
+  shell: |
+    set -e
+    cd /etc/selinux/lme
+    if [ -f lme_policy.pp ]; then
+      if semodule -i lme_policy.pp; then
+        exit 0
+      fi
+    fi
+    if [ -f lme_policy_no_fc.pp ]; then
+      semodule -i lme_policy_no_fc.pp
+    else
+      echo "No module package found to install" >&2
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
   become: yes
   register: semodule_load
   changed_when: semodule_load.rc == 0
   when:
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-    - selinux_compile.changed | default(false)
+    - selinux_compile.changed | default(false) or (lme_policy_present_pre.rc | default(1)) != 0
 
 - name: Ensure SELinux module enabled (lme_policy)
   command: semodule -e lme_policy

@@ -37,6 +37,38 @@
     mode: '0644'
   become: yes
 
+# Ensure quadlet helper and systemd generator are available from standard paths
+- name: Ensure /usr/libexec/podman exists
+  file:
+    path: /usr/libexec/podman
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Link quadlet helper into /usr/libexec/podman
+  file:
+    src: /nix/var/nix/profiles/default/libexec/podman/quadlet
+    dest: /usr/libexec/podman/quadlet
+    state: link
+    force: true
+  become: yes
+
+- name: Ensure podman systemd generator is linked
+  file:
+    src: /nix/var/nix/profiles/default/libexec/podman/quadlet
+    dest: /usr/lib/systemd/system-generators/podman-system-generator
+    state: link
+    force: true
+  become: yes
+
+- name: Restore contexts on quadlet/generator paths (best-effort)
+  command: restorecon -v /usr/libexec/podman/quadlet /usr/lib/systemd/system-generators/podman-system-generator
+  changed_when: false
+  failed_when: false
+  become: yes
+
 - name: Reload systemd daemon
   systemd:
     daemon_reload: yes

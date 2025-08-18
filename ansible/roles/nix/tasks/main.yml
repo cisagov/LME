@@ -55,6 +55,28 @@
   become: yes
   ignore_errors: yes
 
+- name: Create podman symlink in /usr/bin for systemd generators
+  file:
+    src: "{{ nix_profile_symlink_path }}/bin/podman"
+    dest: /usr/bin/podman
+    state: link
+    force: yes
+  become: yes
+
+- name: Ensure correct podman systemd generator is linked in the nix profile
+  file:
+    src: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
+    dest: "{{ nix_profile_symlink_path }}/lib/systemd/system-generators/podman-system-generator"
+    state: link
+    force: yes
+  become: yes
+
+- name: Restore contexts on podman symlinks (best-effort)
+  command: restorecon -v /usr/local/bin/podman /usr/bin/podman
+  changed_when: false
+  failed_when: false
+  become: yes
+
 - name: Source updated PATH
   shell: source ~/.profile
   args:
