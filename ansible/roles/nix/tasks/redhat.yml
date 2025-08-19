@@ -136,6 +136,7 @@
     - container_manage_cgroup
     - container_use_devices
     - container_read_certs
+    - domain_can_mmap_files
   when:
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
@@ -146,11 +147,12 @@
   when: selinux_was_enforcing
   become: yes
 
-- name: Persist SELinux enforcement across reboots
-  lineinfile:
-    path: /etc/selinux/config
-    regexp: '^SELINUX='
-    line: 'SELINUX=enforcing'
-    create: no
-  when: selinux_was_enforcing
-  become: yes
+# It may not be a good thing to persist SELinux enforcement across reboots
+# - name: Persist SELinux enforcement across reboots
+#   lineinfile:
+#     path: /etc/selinux/config
+#     regexp: '^SELINUX='
+#     line: 'SELINUX=enforcing'
+#     create: no
+#   when: selinux_was_enforcing
+#   become: yes

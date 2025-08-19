@@ -44,3 +44,7 @@ testing/upgrade_testing/
 .cache/
 .venv/
 *.env
+
+# SELinux build artifacts
+ansible/roles/base/files/selinux/*.mod
+ansible/roles/base/files/selinux/*.pp

@@ -13,6 +13,9 @@
 # Quadlet helper binary and systemd generator
 /nix/store/.*/libexec/podman/quadlet	system_u:object_r:bin_t:s0
 /nix/store/.*/lib/systemd/system-generators/podman-system-generator	system_u:object_r:bin_t:s0
+/usr/lib/systemd/system-generators/podman-system-generator	system_u:object_r:init_exec_t:s0
+
+/nix/store/.*/libexec/podman(/.*)?	system_u:object_r:bin_t:s0
 
 # Wrapper helper paths installed by Nix builds
 /nix/store/.*/podman-helper-binary-wrapper/bin/.*	system_u:object_r:container_runtime_exec_t:s0

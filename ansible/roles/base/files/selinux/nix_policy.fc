@@ -23,4 +23,6 @@
 /nix/store/.*/lib/.*\.so(\..*)?	system_u:object_r:lib_t:s0
 /nix/store/.*/lib64/.*\.so(\..*)?	system_u:object_r:lib_t:s0
 
+/nix/var/nix/daemon-socket(/.*)?	system_u:object_r:container_var_run_t:s0
+
 

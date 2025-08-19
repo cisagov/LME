@@ -147,3 +147,11 @@
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
     - nix_profile_exists.stat.exists
+
+- name: Restore context for Nix daemon socket directory
+  command: restorecon -Rv /nix/var/nix/daemon-socket
+  become: yes
+  changed_when: false
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
