@@ -69,17 +69,7 @@
   failed_when: false
   become: yes
 
-- name: Reload systemd daemon
-  systemd:
-    daemon_reload: yes
-  become: yes
-
-- name: Start LME service
-  systemd:
-    name: lme.service
-    state: started
-    enabled: yes
-  become: yes 
+# (moved) systemd reload/start to after SELinux module load and restorecon
 
 # ---------------------------------------------------------------------------
 # Podman SELinux policy: deploy, compile, load, and label after Podman is set up
@@ -134,9 +124,28 @@
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 
 - name: Restore contexts on quadlet/generator paths
-  command: restorecon -Rv /usr/libexec/podman/quadlet /usr/lib/systemd/system-generators/podman-system-generator
+  command: restorecon -Rv \
+    /usr/libexec/podman/quadlet \
+    /usr/lib/systemd/system-generators/podman-system-generator \
+    /usr/lib/systemd/system-generators \
+    /etc/systemd/system-generators \
+    /etc/containers/systemd \
+    /nix/var/nix/profiles/default \
+    /nix/store
   changed_when: false
   become: yes
   when:
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Start LME service
+  systemd:
+    name: lme.service
+    state: started
+    enabled: yes
+  become: yes 
