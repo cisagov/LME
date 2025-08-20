@@ -77,6 +77,30 @@
   become: yes
   when: not nix_installed.stat.exists
 
+- name: Fix SELinux contexts on core Nix paths (after installation)
+  command: restorecon -Rv "{{ item }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  loop:
+    - "/nix/var/nix/profiles/"
+    - "/nix/var/nix/daemon-socket/"
+  when:
+    - not nix_installed.stat.exists
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+# TODO: We may or may not need this.
+# - name: Fix nix-daemon service file documentation reference (prevents 'bad' status)
+#   lineinfile:
+#     path: "/nix/var/nix/profiles/default/lib/systemd/system/nix-daemon.service"
+#     regexp: '^Documentation=man:nix-daemon'
+#     line: 'Documentation=https://nixos.org/manual'
+#     backup: no
+#   become: yes
+#   when: not nix_installed.stat.exists
+#   failed_when: false
+
 - name: Ensure nix-daemon service is started
   systemd:
     name: nix-daemon
@@ -125,6 +149,18 @@
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+
+- name: Fix SELinux contexts after package installation (covers newly installed packages)
+  command: restorecon -Rv "{{ item }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  loop:
+    - "/nix/var/nix/profiles/"
+    - "/nix/store/"
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 
 - name: After Podman installation, apply SELinux booleans
   seboolean:
