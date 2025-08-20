@@ -29,6 +29,58 @@
   when: selinux_was_enforcing
   become: yes
 
+# ---------------------------------------------------------------------------
+# Deploy and load Nix SELinux policy BEFORE installation
+# ---------------------------------------------------------------------------
+- name: Deploy Nix SELinux policy files (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/nix_policy.te"
+    dest: /etc/selinux/lme/nix_policy.te
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - selinux_available | default(false)
+
+- name: Deploy Nix SELinux file contexts (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/nix_policy.fc"
+    dest: /etc/selinux/lme/nix_policy.fc
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - selinux_available | default(false)
+
+- name: Compile Nix SELinux module (pre-install)
+  shell: |
+    set -e
+    cd /etc/selinux/lme
+    checkmodule -M -m -o nix_policy.mod nix_policy.te
+    semodule_package -o nix_policy.pp -m nix_policy.mod -f nix_policy.fc
+  args:
+    executable: /bin/bash
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Load Nix SELinux module (pre-install)
+  command: semodule -i /etc/selinux/lme/nix_policy.pp
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Ensure Nix SELinux module enabled (pre-install)
+  command: semodule -e nix_policy
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
 - name: Check if Nix is already installed
   stat:
     path: /nix/var/nix/profiles/default/bin/nix
@@ -71,13 +123,9 @@
     var: nix_install_result
   when: debug_mode | default(false) and not nix_installed.stat.exists
 
-- name: Reload systemd units after Nix installation
-  systemd:
-    daemon_reload: yes
-  become: yes
-  when: not nix_installed.stat.exists
 
-- name: Fix SELinux contexts on core Nix paths (after installation)
+# First restorecon: Apply contexts to basic Nix structure immediately after install
+- name: Apply SELinux contexts to core Nix paths (post-install #1)
   command: restorecon -Rv "{{ item }}"
   become: yes
   changed_when: false
@@ -85,6 +133,20 @@
   loop:
     - "/nix/var/nix/profiles/"
     - "/nix/var/nix/daemon-socket/"
+    - "/nix/store/"
+  when:
+    - not nix_installed.stat.exists
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+# Apply contexts to systemd service files before starting services
+- name: Apply SELinux contexts to systemd service files
+  command: restorecon -Rv "{{ item }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  loop:
+    - "/nix/var/nix/profiles/default/lib/systemd/system/"
   when:
     - not nix_installed.stat.exists
     - selinux_available | default(false)
@@ -100,6 +162,12 @@
 #   become: yes
 #   when: not nix_installed.stat.exists
 #   failed_when: false
+
+- name: Reload systemd units after Nix installation
+  systemd:
+    daemon_reload: yes
+  become: yes
+  when: not nix_installed.stat.exists
 
 - name: Ensure nix-daemon service is started
   systemd:
@@ -150,7 +218,8 @@
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
 
-- name: Fix SELinux contexts after package installation (covers newly installed packages)
+# Second restorecon: Apply contexts to newly installed packages
+- name: Apply SELinux contexts after package installation (post-install #2)
   command: restorecon -Rv "{{ item }}"
   become: yes
   changed_when: false

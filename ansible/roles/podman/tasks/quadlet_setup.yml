@@ -69,71 +69,34 @@
   failed_when: false
   become: yes
 
-# (moved) systemd reload/start to after SELinux module load and restorecon
-
 # ---------------------------------------------------------------------------
-# Podman SELinux policy: deploy, compile, load, and label after Podman is set up
+# Apply SELinux contexts after podman installation and symlink creation
 # ---------------------------------------------------------------------------
-- name: Deploy Podman SELinux policy files
-  copy:
-    src: "{{ clone_directory }}/ansible/roles/base/files/selinux/podman_policy.te"
-    dest: /etc/selinux/lme/podman_policy.te
-    owner: root
-    group: root
-    mode: '0644'
-  become: yes
-  when:
-    - selinux_available | default(false)
 
-- name: Deploy Podman SELinux file contexts
-  copy:
-    src: "{{ clone_directory }}/ansible/roles/base/files/selinux/podman_policy.fc"
-    dest: /etc/selinux/lme/podman_policy.fc
-    owner: root
-    group: root
-    mode: '0644'
-  become: yes
-  when:
-    - selinux_available | default(false)
-
-- name: Compile Podman SELinux module
-  shell: |
-    set -e
-    cd /etc/selinux/lme
-    checkmodule -M -m -o podman_policy.mod podman_policy.te
-    semodule_package -o podman_policy.pp -m podman_policy.mod -f podman_policy.fc
-  args:
-    executable: /bin/bash
-  become: yes
-  when:
-    - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-
-- name: Load Podman SELinux module
-  command: semodule -i /etc/selinux/lme/podman_policy.pp
-  become: yes
-  when:
-    - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-
-- name: Ensure Podman SELinux module enabled
-  command: semodule -e podman_policy
-  become: yes
-  when:
-    - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
-
-- name: Restore contexts on quadlet/generator paths
-  command: restorecon -Rv \
-    /usr/libexec/podman/quadlet \
-    /usr/lib/systemd/system-generators/podman-system-generator \
-    /usr/lib/systemd/system-generators \
-    /etc/systemd/system-generators \
-    /etc/containers/systemd \
-    /nix/var/nix/profiles/default \
-    /nix/store
+# Apply SELinux contexts to paths (now that podman_policy module defines the contexts)
+- name: Apply SELinux contexts to system generator paths (if they exist)
+  command: restorecon -Rv "{{ item }}"
   changed_when: false
+  failed_when: false
   become: yes
+  loop:
+    - "/usr/libexec/podman/quadlet"
+    - "/usr/lib/systemd/system-generators/podman-system-generator"
+    - "/usr/lib/systemd/system-generators"
+    - "/etc/systemd/system-generators"  # May be created by systemd after module load
+    - "/etc/containers/systemd"
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Apply SELinux contexts to Nix paths (final podman restorecon)
+  command: restorecon -Rv "{{ item }}"
+  changed_when: false
+  failed_when: false
+  become: yes
+  loop:
+    - "/nix/var/nix/profiles/default"
+    - "/nix/store"
   when:
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'

@@ -15,6 +15,26 @@
     - "{{ ansible_os_family | lower }}.yml"
     - "common.yml"
 
+# Set up SELinux detection variables (needed for pre-install module loading)
+- name: Detect if SELinux tooling is available
+  command: which getenforce
+  register: selinux_tooling
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Set SELinux availability fact
+  set_fact:
+    selinux_available: "{{ selinux_tooling.rc == 0 }}"
+
+- name: Get current SELinux mode
+  command: getenforce
+  register: getenforce_out
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: selinux_available | default(false)
+
 # These tasks are common for all distributions
 - name: Check if Nix daemon unit exists
   shell: systemctl cat "{{ nix_daemon_service }}" >/dev/null 2>&1 || systemctl list-unit-files | grep -E "^{{ nix_daemon_service }}(\\.service)?\\s" >/dev/null 2>&1
@@ -73,6 +93,58 @@
   wait_for:
     timeout: 10
   when: ansible_play_hosts_all.index(inventory_hostname) == 0
+
+# ---------------------------------------------------------------------------
+# Deploy and load Podman SELinux policy BEFORE installation
+# ---------------------------------------------------------------------------
+- name: Deploy Podman SELinux policy files (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/podman_policy.te"
+    dest: /etc/selinux/lme/podman_policy.te
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - selinux_available | default(false)
+
+- name: Deploy Podman SELinux file contexts (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/podman_policy.fc"
+    dest: /etc/selinux/lme/podman_policy.fc
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - selinux_available | default(false)
+
+- name: Compile Podman SELinux module (pre-install)
+  shell: |
+    set -e
+    cd /etc/selinux/lme
+    checkmodule -M -m -o podman_policy.mod podman_policy.te
+    semodule_package -o podman_policy.pp -m podman_policy.mod -f podman_policy.fc
+  args:
+    executable: /bin/bash
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Load Podman SELinux module (pre-install)
+  command: semodule -i /etc/selinux/lme/podman_policy.pp
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Ensure Podman SELinux module enabled (pre-install)
+  command: semodule -e podman_policy
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 
 - name: Install Podman using Nix
   command: nix-env -iA nixpkgs.podman
