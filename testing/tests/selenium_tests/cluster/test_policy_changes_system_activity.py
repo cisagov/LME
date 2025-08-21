@@ -23,7 +23,7 @@ class TestPolicyChangesSystemActivityDashboard:
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_exception_firewall_rules(self, setup_login, kibana_url, timeout):
         driver = setup_login
-        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Added or Updated Exception Firewall Rules", ".lnsExpressionRenderer",".dummyval")
+        dashboard_test_function(driver, kibana_url, timeout, self.dashboard_id, "Added or Updated Exception Firewall Rules Lens", ".lnsExpressionRenderer",".dummyval")
     
     #@pytest.mark.skip(reason="This test is for reference to use in 2.0")
     def test_rpc_connections(self, setup_login, kibana_url, timeout):

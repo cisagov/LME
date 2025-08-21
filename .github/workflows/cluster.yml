@@ -371,6 +371,10 @@ jobs:
               'export ES_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh windows'
           "
 
+      - name: Wait 5 minutes after Windows agent check
+        run: |
+          sleep 300
+
       - name: Run api tests on Azure instance
         env:
           ES_PASSWORD: ${{ env.ES_PASSWORD }}
