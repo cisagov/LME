@@ -1,5 +1,5 @@
 ---
-# Debian-specific Nix setup via official installer (apt version is too old)
+# Ubuntu 22.04: Install Nix via official installer (apt version is too old)
 
 - name: Check if Nix is already installed
   stat:
@@ -71,6 +71,8 @@
 
 - name: Install required packages
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
-  become: yes
+  become: yes 
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+
+

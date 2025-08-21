@@ -3,14 +3,16 @@
 - name: Include OS-specific variables
   include_vars: "{{ item }}"
   with_first_found:
-    - "{{ ansible_distribution | lower }}.yml"
-    - "{{ ansible_os_family | lower }}.yml"
-    - "default.yml"
+    - "vars/{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}.yml"
+    - "vars/{{ ansible_distribution | lower }}.yml"
+    - "vars/{{ ansible_os_family | lower }}.yml"
+    - "vars/default.yml"
 
 # Include OS-specific tasks
 - name: Include OS-specific tasks
   include_tasks: "{{ item }}"
   with_first_found:
+    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}.yml"
     - "{{ ansible_distribution | lower }}.yml"
     - "{{ ansible_os_family | lower }}.yml"
     - "common.yml"

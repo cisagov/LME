@@ -1,5 +1,5 @@
 ---
-# Ubuntu-specific Nix setup
+# Ubuntu-specific Nix setup (non-22.04: apt-based)
 
 - name: Update apt cache
   apt:
