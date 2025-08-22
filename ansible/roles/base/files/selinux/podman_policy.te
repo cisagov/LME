@@ -1,0 +1,14 @@
+module podman_policy 1.0;
+
+require {
+    type container_runtime_exec_t;
+    type etc_t;
+    type bin_t;
+    type init_exec_t;
+    class file { getattr open read execute execute_no_trans map };
+    class lnk_file read;
+}
+
+# Minimal Podman policy: contexts are defined in podman_policy.fc. No custom allows here.
+
+

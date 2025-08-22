@@ -7,6 +7,8 @@ name: Docker Pipeline
 # sudo act --bind --workflows .github/workflows/docker.yml --job build-24-04 --secret-file .env
 # or
 # sudo act --bind --workflows .github/workflows/docker.yml --job build-d12-10 --secret-file .env
+# or
+# sudo act --bind --workflows .github/workflows/docker.yml --job build-rhel9 --secret-file .env
 on:
   workflow_dispatch:
     inputs:
@@ -712,6 +714,253 @@ jobs:
             cd /home/lme-user/LME/testing/v2/installers && \
             IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
             ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/docker/${{ env.CONTAINER_TYPE }}
+            sudo docker compose exec -T lme bash -c \"NON_INTERACTIVE=true AUTO_CREATE_ENV=true /root/LME/install.sh -i 10.1.0.5 -d\"
+          '
+        "
+        
+        # Extract passwords
+        ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/docker/${{ env.CONTAINER_TYPE }}
+            SECRETS=\$(sudo docker compose exec -T lme bash -c \". ~/LME/scripts/extract_secrets.sh -p\")
+            echo \"\$SECRETS\" | grep \"^elastic=\" | cut -d= -f2-
+          '
+        ")
+        
+        KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/docker/${{ env.CONTAINER_TYPE }}
+            SECRETS=\$(sudo docker compose exec -T lme bash -c \". ~/LME/scripts/extract_secrets.sh -p\")
+            echo \"\$SECRETS\" | grep \"^kibana_system=\" | cut -d= -f2-
+          '
+        ")
+        
+        # Run tests
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          sleep 360
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/testing/tests
+            echo \"Container: ${{ env.CONTAINER_TYPE }}\" > .env
+            echo \"ELASTIC_PASSWORD=$ES_PASSWORD\" >> .env
+            echo \"KIBANA_PASSWORD=$KIBANA_PASSWORD\" >> .env
+            echo \"elastic=$ES_PASSWORD\" >> .env
+            source venv/bin/activate
+            echo \"Running tests for container ${{ env.CONTAINER_TYPE }}\"
+            pytest -v api_tests/linux_only/ selenium_tests/linux_only/
+          '
+        "
+
+    - name: Cleanup Azure resources
+      if: always()
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_SECRET --tenant $AZURE_TENANT
+          az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+        "
+        
+    - name: Stop and remove containers
+      if: always()
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} down
+        docker system prune -af
+
+  build-rhel9:
+    runs-on: self-hosted
+    
+    env:
+      UNIQUE_ID: ${{ github.run_number }}_rhel9_${{ github.run_id }}
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+      CONTAINER_TYPE: "rhel9"
+      AZURE_IP: ""
+      IP_ADDRESS: ""
+
+    steps:
+    - name: Generate random number
+      shell: bash
+      run: |
+        RANDOM_NUM=$(shuf -i 1000000000-9999999999 -n 1)
+        echo "UNIQUE_ID=${RANDOM_NUM}_rhel9_${{ github.run_number }}" >> $GITHUB_ENV
+
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.1
+      
+    - name: Get branch name
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+        else
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        fi
+
+    - name: Set the environment for docker compose
+      run: |
+        cd testing/v2/development
+        echo "HOST_UID=$(id -u)" > .env
+        echo "HOST_GID=$(id -g)" >> .env
+        echo "HOST_IP=10.1.0.5" >> .env
+        PUBLIC_IP=$(curl -s https://api.ipify.org)
+        echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
+
+        
+    - name: Start pipeline container
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
+        
+    - name: Install Python requirements
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers/azure && \
+          pip install -r requirements.txt
+        "
+        
+    - name: Build an Azure instance 
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            python3 ./azure/build_azure_linux_network.py \
+              -g pipe-${{ env.UNIQUE_ID }} \
+              -s 0.0.0.0/0 \
+              -vs Standard_B4s_v2 \
+              -l ${{ inputs.azure_region || 'centralus' }} \
+              -ast 23:00 \
+              -y
+          "
+              #-s ${{ env.IP_ADDRESS }}/32 \
+        
+    - name: Retrieve Azure IP
+      run: |
+        cd testing/v2/development
+        AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
+        echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
+        echo "Azure IP: $AZURE_IP"
+        echo "Azure IP retrieved successfully"
+        
+    - name: Retrieve Azure Password
+      run: |
+        cd testing/v2/development
+        AZURE_PASS=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt")
+        echo "AZURE_PASS=$AZURE_PASS" >> $GITHUB_ENV
+        echo "Azure Password retrieved successfully"
+
+    # wait for the azure instance to be ready
+    - name: Wait for Azure instance to be ready
+      run: |
+        sleep 30
+    
+    - name: Copy SSH Key to Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          ./lib/copy_ssh_key.sh lme-user ${{ env.AZURE_IP }} /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt
+        "
+        
+    - name: Clone repository on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            if [ ! -d LME ]; then
+              git clone https://github.com/cisagov/LME.git;
+            fi
+            cd LME
+            if [ \"${{ env.BRANCH_NAME }}\" != \"main\" ]; then
+              git fetch
+              git checkout ${{ env.BRANCH_NAME }}
+            fi
+          '
+        "
+
+    - name: Install Docker on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS 'chmod +x ~/LME/docker/install_latest_docker_in_ubuntu.sh && \
+            sudo ~/LME/docker/install_latest_docker_in_ubuntu.sh && \
+            sudo usermod -aG docker \$USER && \
+            sudo systemctl enable docker && \
+            sudo systemctl start docker'
+        "
+
+    - name: Install test prerequisites on Azure instance
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd LME/testing/tests && \
+            sudo apt-get update && \
+            sudo apt-get install -y python3.10-venv && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+            python3 -m venv venv && \
+            source venv/bin/activate && \
+            pip install -r requirements.txt
+          '
+        "
+
+    - name: Test Docker container
+      run: |
+        cd testing/v2/development
+        
+        # Set environment
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/docker/${{ env.CONTAINER_TYPE }}
+            echo \"HOST_IP=10.1.0.5\" > .env
+          '
+        "
+        
+        # Build container
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
+            cd ~/LME/docker/${{ env.CONTAINER_TYPE }}
+            sudo docker compose up -d
+          '
+        "
+        
+        # Deploy LME
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+          ssh lme-user@\$IP_ADDRESS '
             cd ~/LME/docker/${{ env.CONTAINER_TYPE }}
             sudo docker compose exec -T lme bash -c \"NON_INTERACTIVE=true AUTO_CREATE_ENV=true /root/LME/install.sh -i 10.1.0.5 -d\"
           '

@@ -1,0 +1,3 @@
+---
+# Red Hat-specific variables for nix
+install_user: "{{ ansible_user_id }}"

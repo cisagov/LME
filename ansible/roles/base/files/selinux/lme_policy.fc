@@ -1,0 +1,6 @@
+#============================================================================
+# LME SELinux File Contexts (generic)
+#============================================================================
+
+# Intentionally left minimal: Nix/Podman contexts have been split into
+# nix_policy.fc and podman_policy.fc and are loaded by their respective roles.

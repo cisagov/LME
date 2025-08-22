@@ -4,22 +4,22 @@
 
 # Default packages that apply to all distributions if not overridden
 common_packages:
-  - curl
   - wget
   - gnupg2
   - sudo
   - git
-  - openssh-client
   - expect
 
 
 # Debian-specific packages
 debian_packages:
+  - curl
   - apt-transport-https
   - ca-certificates
   - gnupg
   - lsb-release
   - software-properties-common
+  - openssh-client
   - fuse-overlayfs
   - build-essential
   - python3-pip  
@@ -29,11 +29,13 @@ debian_packages:
 
 # Ubuntu-specific packages
 ubuntu_packages:
+  - curl
   - apt-transport-https
   - ca-certificates
   - gnupg
   - lsb-release
   - software-properties-common
+  - openssh-client
   - fuse-overlayfs
   - build-essential
   - python3-pip  
@@ -50,3 +52,20 @@ ubuntu_22_04_packages:
   - python3.10
   - python3.10-venv
   - python3.10-dev
+
+# Red Hat-specific packages
+redhat_packages:
+  - ca-certificates
+  - openssh-clients
+  - dnf-plugins-core
+  - fuse-overlayfs
+  - python3-pip
+  - python3-pexpect
+  - glibc-langpack-en
+  - xz
+
+# Red Hat 9 specific packages
+redhat_9_packages:
+  - python3.11
+  - python3.11-pip
+  - python3.11-devel

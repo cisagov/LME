@@ -1,0 +1,5 @@
+---
+# Red Hat-specific variables for podman
+
+# Red Hat uses different systemctl service names in some cases
+nix_daemon_service: "nix-daemon"

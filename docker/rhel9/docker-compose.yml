@@ -1,0 +1,38 @@
+services:
+  lme:
+    build:
+      context: ../../
+      dockerfile: docker/rhel9/Dockerfile
+      target: lme
+      args:
+        USER_ID: "${HOST_UID:-1001}"
+        GROUP_ID: "${HOST_GID:-1001}"
+    container_name: lme
+    working_dir: /root
+    volumes:
+      - ../../../LME:/root/LME
+      #- /sys/fs/cgroup:/sys/fs/cgroup:rslave
+      - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
+    privileged: true
+    user: root
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
+    environment:
+      - PODMAN_IGNORE_CGROUPSV1_WARNING=1
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US:en
+      - LC_ALL=en_US.UTF-8
+      - container=docker
+      - HOST_IP=${HOST_IP}
+    command: ["/lib/systemd/systemd", "--system"]
+    ports:
+      - "5601:5601"
+      - "443:443"
+      - "8220:8220"
+      - "9200:9200" 
