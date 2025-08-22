@@ -50,7 +50,7 @@ fi
 echo "Code cloned to $HOME/LME"
 
 echo "Expanding disks"
-ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && sudo ./scripts/expand_rhel_disk.sh"
+ssh -o StrictHostKeyChecking=no $user@$hostname "cd ~/LME && sudo ./scripts/expand_rhel_disk.sh --yes"
 
 echo "Running LME installer"
 ssh -o StrictHostKeyChecking=no $user@$hostname "export NON_INTERACTIVE=true && export AUTO_CREATE_ENV=true && export AUTO_IP=10.1.0.5 && cd ~/LME && ./install.sh --debug"
