@@ -2,7 +2,7 @@
 
 # LME Disk Expansion Script for RHEL Systems
 # This script fixes the common issue where RHEL auto-partitioning doesn't use the full disk
-# Doubles the root partition size and allocates remaining space to /var
+# Doubles the root partition size, doubles the /home partition size, and allocates remaining space to /var
 
 set -euo pipefail
 
@@ -41,15 +41,18 @@ check_disk_space() {
     local disk="/dev/sda"
     local root_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
     local root_size=$(df -h / | awk 'NR==2 {print $2}')
+    local home_usage=$(df /home 2>/dev/null | awk 'NR==2 {print $5}' | sed 's/%//' || echo "N/A")
+    local home_size=$(df -h /home 2>/dev/null | awk 'NR==2 {print $2}' || echo "N/A")
     local var_usage=$(df /var | awk 'NR==2 {print $5}' | sed 's/%//')
     local var_size=$(df -h /var | awk 'NR==2 {print $2}')
     
     log "Current / filesystem: ${root_size} (${root_usage}% used)"
+    log "Current /home filesystem: ${home_size} (${home_usage}% used)"
     log "Current /var filesystem: ${var_size} (${var_usage}% used)"
     
     # Check disk space usage vs total disk size
     local disk_size_bytes=$(lsblk -b -n -o SIZE /dev/sda | head -1)
-    local used_space_bytes=$(df --output=used / /var | tail -n +2 | awk '{sum += $1} END {print sum * 1024}')
+    local used_space_bytes=$(df --output=used / /home /var 2>/dev/null | tail -n +2 | awk '{sum += $1} END {print sum * 1024}')
     local usage_percent=$((used_space_bytes * 100 / disk_size_bytes))
     
     if [[ $usage_percent -lt 80 ]]; then
@@ -198,10 +201,14 @@ expand_with_lvm() {
         return 1
     fi
     
-    # Determine logical volumes for / and /var
+    # Determine logical volumes for /, /home, and /var
     local root_lv=$(findmnt -n -o SOURCE / 2>/dev/null || true)
     if [[ -z "$root_lv" ]]; then
         root_lv="/dev/${vg_name}/rootlv"
+    fi
+    local home_lv=$(findmnt -n -o SOURCE /home 2>/dev/null || true)
+    if [[ -n "$home_lv" ]] && [[ "$home_lv" == "$root_lv" ]]; then
+        home_lv=""
     fi
     local var_lv=$(findmnt -n -o SOURCE /var 2>/dev/null || true)
     if [[ -n "$var_lv" ]] && [[ "$var_lv" == "$root_lv" ]]; then
@@ -214,18 +221,41 @@ expand_with_lvm() {
         error "Unable to determine current root LV size for $root_lv"
     fi
     
-    # Target: double root size, remainder to /var
-    local desired_root_mb=$((current_root_mb * 2))
-    local required_increase_mb=$((desired_root_mb - current_root_mb))
-    if [[ "$required_increase_mb" -le 0 ]]; then
-        required_increase_mb=0
+    # Get current /home LV size (in MB) if it exists
+    local current_home_mb=0
+    if [[ -n "$home_lv" ]] && [[ -e "$home_lv" ]]; then
+        current_home_mb=$(lvs --noheadings --units m --nosuffix -o LV_SIZE "$home_lv" 2>/dev/null | awk '{print int($1)}')
+        if [[ -z "$current_home_mb" ]]; then
+            current_home_mb=0
+        fi
     fi
     
-    local root_expand_mb=$required_increase_mb
-    if [[ "$root_expand_mb" -gt "$total_free_mb" ]]; then
-        root_expand_mb=$total_free_mb
+    # Target: double root size, double /home size (if exists), remainder to /var
+    local desired_root_mb=$((current_root_mb * 2))
+    local required_root_increase_mb=$((desired_root_mb - current_root_mb))
+    if [[ "$required_root_increase_mb" -le 0 ]]; then
+        required_root_increase_mb=0
     fi
-    local var_expand_mb=$((total_free_mb - root_expand_mb))
+    
+    local desired_home_mb=$((current_home_mb * 2))
+    local required_home_increase_mb=$((desired_home_mb - current_home_mb))
+    if [[ "$required_home_increase_mb" -le 0 ]]; then
+        required_home_increase_mb=0
+    fi
+    
+    # Calculate actual allocations based on available space
+    local root_expand_mb=$required_root_increase_mb
+    local home_expand_mb=$required_home_increase_mb
+    local total_required_mb=$((root_expand_mb + home_expand_mb))
+    
+    if [[ "$total_required_mb" -gt "$total_free_mb" ]]; then
+        # Scale down proportionally if not enough space
+        local scale_factor=$(echo "scale=4; $total_free_mb / $total_required_mb" | bc -l)
+        root_expand_mb=$(echo "scale=0; $root_expand_mb * $scale_factor / 1" | bc)
+        home_expand_mb=$(echo "scale=0; $home_expand_mb * $scale_factor / 1" | bc)
+    fi
+    
+    local var_expand_mb=$((total_free_mb - root_expand_mb - home_expand_mb))
     
     # Extend root logical volume
     log "Extending root logical volume ($root_lv) by ${root_expand_mb}MB..."
@@ -243,6 +273,38 @@ expand_with_lvm() {
             resize2fs "$root_lv"
         fi
         success "Root filesystem extended"
+    fi
+    
+    # Extend /home logical volume if present
+    if [[ -n "$home_lv" ]] && [[ -e "$home_lv" ]] && [[ $home_expand_mb -gt 0 ]]; then
+        log "Extending /home logical volume ($home_lv) by ${home_expand_mb}MB..."
+        lvextend -L "+${home_expand_mb}m" "$home_lv"
+        
+        # Grow /home filesystem
+        log "Growing /home filesystem..."
+        if [[ "$(findmnt -n -o FSTYPE /home)" == "xfs" ]]; then
+            xfs_growfs /home
+        else
+            resize2fs "$home_lv"
+        fi
+        success "/home filesystem extended"
+    elif [[ $current_home_mb -eq 0 ]] && [[ $home_expand_mb -gt 0 ]]; then
+        # Create new /home LV if it doesn't exist and we have space allocated for it
+        log "Creating new /home logical volume (${home_expand_mb}MB)..."
+        lvcreate -L "${home_expand_mb}m" -n homelv "$vg_name"
+        local new_home_lv="/dev/${vg_name}/homelv"
+        
+        # Format the new /home LV
+        log "Formatting new /home logical volume..."
+        mkfs.ext4 -F "$new_home_lv"
+        
+        success "New /home logical volume created"
+        warning "Manual steps required for /home:"
+        warning "1. Backup current /home: cp -a /home /home.backup"
+        warning "2. Mount new LV: mount ${new_home_lv} /mnt"
+        warning "3. Copy /home data: cp -a /home.backup/* /mnt/"
+        warning "4. Update /etc/fstab to mount ${new_home_lv} at /home"
+        warning "5. Reboot to activate new /home mount"
     fi
     
     # Extend /var logical volume if present
@@ -293,24 +355,80 @@ expand_without_lvm() {
     fi
     success "Root partition and filesystem expanded"
     
-    # Create new partition for /var if there's remaining space
+    # Calculate space allocation: half of remaining space to /home, half to /var
     local remaining_space_mb=$(($(echo "$var_end" | sed 's/MB//') - $(echo "$var_start" | sed 's/MB//')))
-    if [[ $remaining_space_mb -gt 1000 ]]; then  # Only if more than 1GB
-        log "Creating new partition for /var expansion..."
-        local new_var_part_num=$((root_part_num + 1))
-        parted --script "$disk" mkpart primary ext4 "$var_start" "$var_end"
+    if [[ $remaining_space_mb -gt 2000 ]]; then  # Only if more than 2GB total
+        local home_space_mb=$((remaining_space_mb / 2))
+        local var_space_mb=$((remaining_space_mb - home_space_mb))
         
-        # Format the new partition
-        local new_var_partition="/dev/sda${new_var_part_num}"
-        log "Formatting new partition ${new_var_partition}..."
-        mkfs.ext4 -F "$new_var_partition"
+        local home_start="$var_start"
+        local home_end_mb=$(($(echo "$var_start" | sed 's/MB//') + home_space_mb))
+        local home_end="${home_end_mb}MB"
+        local new_var_start="${home_end_mb}MB"
         
-        success "New partition created for /var expansion"
-        warning "Manual steps required:"
-        warning "1. Mount new partition: mount ${new_var_partition} /mnt"
-        warning "2. Copy /var data: cp -a /var/* /mnt/"
-        warning "3. Update /etc/fstab to mount ${new_var_partition} at /var"
-        warning "4. Reboot to activate new /var mount"
+        # Create new partition for /home
+        log "Creating new partition for /home expansion (${home_space_mb}MB)..."
+        local new_home_part_num=$((root_part_num + 1))
+        parted --script "$disk" mkpart primary ext4 "$home_start" "$home_end"
+        
+        # Format the new /home partition
+        local new_home_partition="/dev/sda${new_home_part_num}"
+        log "Formatting new /home partition ${new_home_partition}..."
+        mkfs.ext4 -F "$new_home_partition"
+        
+        success "New partition created for /home expansion"
+        
+        # Create new partition for /var with remaining space
+        if [[ $var_space_mb -gt 1000 ]]; then  # Only if more than 1GB
+            log "Creating new partition for /var expansion (${var_space_mb}MB)..."
+            local new_var_part_num=$((new_home_part_num + 1))
+            parted --script "$disk" mkpart primary ext4 "$new_var_start" "$var_end"
+            
+            # Format the new /var partition
+            local new_var_partition="/dev/sda${new_var_part_num}"
+            log "Formatting new /var partition ${new_var_partition}..."
+            mkfs.ext4 -F "$new_var_partition"
+            
+            success "New partition created for /var expansion"
+            
+            warning "Manual steps required:"
+            warning "For /home:"
+            warning "1. Backup current /home: cp -a /home /home.backup"
+            warning "2. Mount new /home partition: mount ${new_home_partition} /mnt"
+            warning "3. Copy /home data: cp -a /home.backup/* /mnt/"
+            warning "4. Update /etc/fstab to mount ${new_home_partition} at /home"
+            warning "For /var:"
+            warning "5. Mount new /var partition: mount ${new_var_partition} /mnt2"
+            warning "6. Copy /var data: cp -a /var/* /mnt2/"
+            warning "7. Update /etc/fstab to mount ${new_var_partition} at /var"
+            warning "8. Reboot to activate new mounts"
+        else
+            warning "Manual steps required for /home:"
+            warning "1. Backup current /home: cp -a /home /home.backup"
+            warning "2. Mount new partition: mount ${new_home_partition} /mnt"
+            warning "3. Copy /home data: cp -a /home.backup/* /mnt/"
+            warning "4. Update /etc/fstab to mount ${new_home_partition} at /home"
+            warning "5. Reboot to activate new /home mount"
+        fi
+    else
+        # If not enough space for both, just create /var partition as before
+        if [[ $remaining_space_mb -gt 1000 ]]; then  # Only if more than 1GB
+            log "Creating new partition for /var expansion..."
+            local new_var_part_num=$((root_part_num + 1))
+            parted --script "$disk" mkpart primary ext4 "$var_start" "$var_end"
+            
+            # Format the new partition
+            local new_var_partition="/dev/sda${new_var_part_num}"
+            log "Formatting new partition ${new_var_partition}..."
+            mkfs.ext4 -F "$new_var_partition"
+            
+            success "New partition created for /var expansion"
+            warning "Manual steps required:"
+            warning "1. Mount new partition: mount ${new_var_partition} /mnt"
+            warning "2. Copy /var data: cp -a /var/* /mnt/"
+            warning "3. Update /etc/fstab to mount ${new_var_partition} at /var"
+            warning "4. Reboot to activate new /var mount"
+        fi
     fi
 }
 
@@ -328,6 +446,10 @@ verify_expansion() {
     df -h /
     
     echo
+    log "=== /home Filesystem Status ==="
+    df -h /home
+    
+    echo
     log "=== /var Filesystem Status ==="
     df -h /var
     
@@ -343,17 +465,19 @@ verify_expansion() {
     
     # Calculate expansion success
     local root_size_gb=$(df / | awk 'NR==2 {print $2}' | awk '{print int($1/1024/1024)}')
+    local home_size_gb=$(df /home 2>/dev/null | awk 'NR==2 {print $2}' | awk '{print int($1/1024/1024)}' || echo "N/A")
     local var_size_gb=$(df /var | awk 'NR==2 {print $2}' | awk '{print int($1/1024/1024)}')
     
     success "Disk expansion completed!"
     success "Root (/) filesystem: ${root_size_gb}GB"
+    success "/home filesystem: ${home_size_gb}GB"
     success "/var filesystem: ${var_size_gb}GB"
 }
 
 # Main execution
 main() {
     log "LME RHEL Disk Expansion Script Starting..."
-    log "This script will double the root partition and allocate remaining space to /var"
+    log "This script will double the root partition, double the /home partition, and allocate remaining space to /var"
     
     # Check if expansion is needed
     if ! check_disk_space; then
@@ -367,7 +491,7 @@ main() {
     if [[ "${1:-}" != "--yes" ]] && [[ "${1:-}" != "--force" ]]; then
         echo
         warning "This script will modify your disk partitions."
-        warning "It will double the root partition size and allocate remaining space to /var."
+        warning "It will double the root partition size, double the /home partition size, and allocate remaining space to /var."
         warning "While these operations are generally safe, always ensure you have backups."
         echo
         read -p "Do you want to continue? [y/N]: " -n 1 -r
@@ -386,7 +510,7 @@ main() {
         verify_expansion
         echo
         success "=== DISK EXPANSION COMPLETED SUCCESSFULLY ==="
-        success "Root partition has been doubled and /var has been allocated remaining space"
+        success "Root partition has been doubled, /home partition has been doubled, and /var has been allocated remaining space"
         echo
         log "You can now proceed with LME installation"
     else
@@ -402,6 +526,7 @@ show_usage() {
     echo
     echo "This script expands RHEL disk partitions:"
     echo "- Doubles the root (/) partition size"
+    echo "- Doubles the /home partition size (if it exists)"
     echo "- Allocates remaining space to /var"
     echo "- Works with both LVM and direct partitions"
 }

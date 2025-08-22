@@ -25,6 +25,7 @@ debian_packages:
   - python3-pip  
   - python3-pexpect
   - locales
+  - curl
 
 # Ubuntu-specific packages
 ubuntu_packages:
