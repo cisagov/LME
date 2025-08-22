@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 # Check if the required arguments are provided
