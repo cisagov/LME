@@ -3,7 +3,7 @@ name: Cluster RedHat
 on:
   pull_request:
     branches:
-      - 'cbaxley-563-redhat-9-1'
+      - '*'
   workflow_dispatch:
     inputs:
       azure_region:
