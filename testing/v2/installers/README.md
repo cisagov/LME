@@ -59,8 +59,15 @@ echo $VM_PASSWORD
 ```
 
 ### Installing lme-v2
+
+#### Ubuntu Linux (default):
 ```bash
 ./install_v2/install.sh $LME_USER $VM_IP $RESOURCE_GROUP.password.txt your-branch-name 
+```
+
+#### Red Hat Enterprise Linux:
+```bash
+./install_v2/install_rhel.sh $LME_USER $VM_IP $RESOURCE_GROUP.password.txt your-branch-name 
 ```
 
 ## Setting Up Minimega Clients
