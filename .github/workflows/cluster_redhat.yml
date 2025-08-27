@@ -244,7 +244,6 @@ jobs:
               ./install_agent_windows_azure.sh \
                 --resource-group pipe-${{ env.UNIQUE_ID }} \
                 --vm-name ws1 \
-                --hostip ${{ env.AZURE_IP }} \
                 --token ${{ env.ENROLLMENT_TOKEN }} \
                 --version ${{ env.ELASTIC_AGENT_VERSION }} \
                 --debug
