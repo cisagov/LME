@@ -137,19 +137,27 @@ run_azure_powershell() {
         stdout=$(echo "$result" | grep -o '"message":"[^"]*"' | sed 's/"message":"//g' | sed 's/"$//g' | tr '\n' ' ')
     fi
     
-    # Detect errors and print output
+    # Detect errors and print output (treat non-fatal stderr as note)
     local has_error=false
-    if [[ -n "$stderr" ]]; then
-        echo "Error: $stderr"
-        has_error=true
-    fi
-    
+    local error_patterns='error|exception|failed|parsererror|write-error|writeerrorexception|categoryinfo|fullyqualifiederrorid'
+
+    # Print stdout and check for error-like content
     if [[ -n "$stdout" ]]; then
-        if [[ "$stdout" == *"Error:"* ]] || [[ "$stdout" == *"ParserError"* ]] || [[ "$stdout" == *"Exception"* ]]; then
+        if echo "$stdout" | grep -Eqi "$error_patterns"; then
             echo "Error detected in output: $stdout"
             has_error=true
         else
             echo "Output: $stdout"
+        fi
+    fi
+
+    # Print stderr as note unless it contains error-like content
+    if [[ -n "$stderr" ]]; then
+        if echo "$stderr" | grep -Eqi "$error_patterns"; then
+            echo "Error: $stderr"
+            has_error=true
+        else
+            echo "Note (stderr): $stderr"
         fi
     fi
     
