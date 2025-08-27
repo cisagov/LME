@@ -235,7 +235,8 @@ jobs:
               --vm-name ws1 \
               --hostip ${{ env.AZURE_IP }} \
               --token ${{ env.ENROLLMENT_TOKEN }} \
-              --version ${{ env.ELASTIC_AGENT_VERSION }}
+              --version ${{ env.ELASTIC_AGENT_VERSION }} \
+              --debug
           "
 
       - name: Check if the Windows Elastic agent is reporting 

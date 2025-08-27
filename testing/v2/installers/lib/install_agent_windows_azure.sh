@@ -12,6 +12,7 @@ RESOURCE_GROUP=""
 VM_NAME="ws1"
 PORT="8220"
 ENROLLMENT_TOKEN=""
+DEBUG_MODE=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -48,9 +49,13 @@ while [[ $# -gt 0 ]]; do
             ENROLLMENT_TOKEN="$2"
             shift 2
             ;;
+        --debug)
+            DEBUG_MODE=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 --resource-group <rg> --vm-name <vm> --hostip <host> --token <token> [--version <ver>] [--port <port>]"
+            echo "Usage: $0 --resource-group <rg> --vm-name <vm> --hostip <host> --token <token> [--version <ver>] [--port <port>] [--debug]"
             exit 1
             ;;
     esac
@@ -98,9 +103,69 @@ run_azure_powershell() {
         return 1
     fi
     
-    # Extract and display the output
-    local stdout=$(echo "$result" | jq -r '.value[0].message' 2>/dev/null || echo "No output")
-    echo "Output: $stdout"
+    # Debug: Show raw JSON response if debug mode is enabled
+    if [[ "$DEBUG_MODE" == "true" ]]; then
+        echo "DEBUG: Raw JSON response:"
+        echo "$result" | jq '.' 2>/dev/null || echo "$result"
+        echo "DEBUG: End raw JSON response"
+    fi
+    
+    # Extract and display the output - handle both stdout and stderr properly
+    local stdout=""
+    local stderr=""
+    
+    # Parse all messages from the response
+    if command -v jq >/dev/null 2>&1; then
+        # Get all messages and separate stdout/stderr (match prefix explicitly)
+        local messages=$(echo "$result" | jq -r '.value[] | select(.code | startswith("ComponentStatus/StdOut/")) | .message' 2>/dev/null)
+        local errors=$(echo "$result" | jq -r '.value[] | select(.code | startswith("ComponentStatus/StdErr/")) | .message' 2>/dev/null)
+        
+        # If no specific stdout/stderr found, try the legacy format
+        if [[ -z "$messages" && -z "$errors" ]]; then
+            messages=$(echo "$result" | jq -r '.value[0].message' 2>/dev/null)
+        fi
+        
+        # If still no output, try to get any message from the response
+        if [[ -z "$messages" && -z "$errors" ]]; then
+            messages=$(echo "$result" | jq -r '.value[] | .message' 2>/dev/null | tr '\n' ' ')
+        fi
+        
+        stdout="$messages"
+        stderr="$errors"
+    else
+        # Fallback if jq is not available
+        stdout=$(echo "$result" | grep -o '"message":"[^"]*"' | sed 's/"message":"//g' | sed 's/"$//g' | tr '\n' ' ')
+    fi
+    
+    # Detect errors and print output
+    local has_error=false
+    if [[ -n "$stderr" ]]; then
+        echo "Error: $stderr"
+        has_error=true
+    fi
+    
+    if [[ -n "$stdout" ]]; then
+        if [[ "$stdout" == *"Error:"* ]] || [[ "$stdout" == *"ParserError"* ]] || [[ "$stdout" == *"Exception"* ]]; then
+            echo "Error detected in output: $stdout"
+            has_error=true
+        else
+            echo "Output: $stdout"
+        fi
+    fi
+    
+    if [[ -z "$stdout" && -z "$stderr" ]]; then
+        echo "Output: No output"
+        if [[ "$DEBUG_MODE" == "true" ]]; then
+            echo "DEBUG: No output found in JSON response. This might indicate:"
+            echo "DEBUG: 1. The command completed successfully but produced no output"
+            echo "DEBUG: 2. The JSON structure is different than expected"
+            echo "DEBUG: 3. The command failed silently"
+        fi
+    fi
+    
+    if [[ "$has_error" == "true" ]]; then
+        return 1
+    fi
     
     return 0
 }
@@ -182,7 +247,7 @@ $installArgs = @(
     "--enrollment-token='"$ENROLLMENT_TOKEN"'"
 )
 
-Write-Host "Installing Elastic Agent with arguments: $($installArgs -join \" \")"
+Write-Host "Installing Elastic Agent with arguments: $($installArgs -join ([char]32))"
 
 try {
     $process = Start-Process -FilePath $agentExePath -ArgumentList $installArgs -Wait -PassThru -NoNewWindow
