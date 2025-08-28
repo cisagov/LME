@@ -17,7 +17,7 @@ You can choose either the 22.04 or 24.04 directories to build the container.
 Note: We have installed Docker desktop on Windows and Linux and have been able to build and run the container.
 
 ### Special instructions for Windows running Linux
-If running Linux on a hypervisor or virtual machine, you may need to modify the GRUB configuration in your VM:
+If running Linux on a hypervisor or virtual machine, you may need to modify the GRUB configuration in your VM (only if you have problems):
 
 1. Add the following to the `GRUB_CMDLINE_LINUX` line in `/etc/default/grub`:
 ```bash

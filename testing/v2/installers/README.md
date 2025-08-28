@@ -140,18 +140,6 @@ source ~/LME/venv/bin/activate
     -is 24_04-daily-lts-gen2
 ```
 
-### RHEL 8 Setup (alternative to RHEL 9)
-```bash
-./azure/build_azure_linux_network.py \
-    -g $RESOURCE_GROUP \
-    -s "0.0.0.0" \
-    -vs $VM_SIZE \
-    -l $LOCATION \
-    -ast $AUTO_SHUTDOWN_TIME \
-    -pub RedHat \
-    -io RHEL \
-    -is 8-lvm-gen2
-```
 
 ## Creating Additional VMs (Non-Network Attack Scenarios)
 
