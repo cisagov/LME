@@ -57,7 +57,61 @@
   become: yes
   ignore_errors: yes
 
+- name: Create podman symlink in /usr/bin for systemd generators
+  file:
+    src: "{{ nix_profile_symlink_path }}/bin/podman"
+    dest: /usr/bin/podman
+    state: link
+    force: yes
+  become: yes
+
+- name: Ensure correct podman systemd generator is linked in the nix profile
+  file:
+    src: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
+    dest: "{{ nix_profile_symlink_path }}/lib/systemd/system-generators/podman-system-generator"
+    state: link
+    force: yes
+  become: yes
+
+# Apply contexts to podman symlinks after they're created
+- name: Apply SELinux contexts to podman symlinks (post-symlink)
+  command: restorecon -v /usr/local/bin/podman /usr/bin/podman
+  changed_when: false
+  failed_when: false
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
 - name: Source updated PATH
   shell: source ~/.profile
   args:
     executable: /bin/bash 
+
+# ---------------------------------------------------------------------------
+# Final SELinux context restoration (post-install cleanup)
+# ---------------------------------------------------------------------------
+- name: Check if nix profile exists
+  stat:
+    path: "{{ nix_profile_symlink_path }}"
+  register: nix_profile_exists
+
+# Final restorecon: Ensure all contexts are correct after all operations
+- name: Final SELinux context restoration for nix profile (post-install #3)
+  command: restorecon -Rv "{{ nix_profile_symlink_path }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - nix_profile_exists.stat.exists
+
+- name: Final SELinux context restoration for daemon socket (post-install #3)
+  command: restorecon -Rv /nix/var/nix/daemon-socket
+  become: yes
+  changed_when: false
+  failed_when: false
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'

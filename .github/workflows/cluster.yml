@@ -26,6 +26,13 @@ on:
           - ukwest
           - northeurope
           - westeurope
+      operating_system:
+        description: 'Operating system for Azure VM'
+        required: true
+        default: 'ubuntu'
+        type: choice
+        options:
+          - ubuntu
 
 jobs:
   build-and-test-cluster:

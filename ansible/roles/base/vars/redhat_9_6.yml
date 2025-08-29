@@ -1,0 +1,4 @@
+---
+# Red Hat Enterprise Linux 9.6-specific variables
+# This file ensures that OS-specific variable loading works properly
+# Package definitions are inherited from defaults/main.yml

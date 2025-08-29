@@ -1,0 +1,28 @@
+#============================================================================
+# Nix SELinux File Contexts (Nix store and profiles)
+#============================================================================
+
+# Nix profile symlinks (systemd may read through these paths)
+/nix/var/nix/profiles/default(/.*)?	system_u:object_r:bin_t:s0
+/nix/var/nix/profiles(/.*)?	system_u:object_r:bin_t:s0
+
+# Nix systemd unit files
+/nix/var/nix/profiles/default/lib/systemd/system(/.*)?	system_u:object_r:systemd_unit_file_t:s0
+/nix/store/.*/lib/systemd/system/.*\.service	system_u:object_r:systemd_unit_file_t:s0
+/nix/store/.*/lib/systemd/system/.*\.socket	system_u:object_r:systemd_unit_file_t:s0
+
+# Nix executables needed by system components
+/nix/store/.*/bin/nix-daemon	system_u:object_r:bin_t:s0
+/nix/store/.*/bin/nix	system_u:object_r:bin_t:s0
+
+# Shell used by wrappers
+/nix/store/.*/bin/bash	system_u:object_r:shell_exec_t:s0
+
+# Dynamic loader and shared libraries
+/nix/store/.*/lib/ld-linux-x86-64\.so\.2	system_u:object_r:ld_so_t:s0
+/nix/store/.*/lib/.*\.so(\..*)?	system_u:object_r:lib_t:s0
+/nix/store/.*/lib64/.*\.so(\..*)?	system_u:object_r:lib_t:s0
+
+/nix/var/nix/daemon-socket(/.*)?	system_u:object_r:container_var_run_t:s0
+
+

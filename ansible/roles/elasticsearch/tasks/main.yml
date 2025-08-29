@@ -1,11 +1,19 @@
 ---
 # Elasticsearch setup tasks
 
+- name: Debug - Show what global_secrets contains
+  debug:
+    msg: "global_secrets variable: {{ global_secrets | default('UNDEFINED') }}"
+
 - name: Set playbook variables
   ansible.builtin.set_fact:
     local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
     elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
     elastic_password: "{{ global_secrets.elastic | default('') }}"
+
+- name: Debug - Show extracted values
+  debug:
+    msg: "Elasticsearch config - URL: {{ local_es_url }}, Username: {{ elastic_username }}, Password length: {{ elastic_password | length }}"
 
 # Create Read-Only User
 - name: Wait for Elasticsearch to be ready

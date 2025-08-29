@@ -66,6 +66,9 @@ done
 
 # Function to check if ansible is installed
 check_ansible() {
+    # Add /usr/local/bin to PATH for pip-installed packages
+    export PATH="/usr/local/bin:$PATH"
+    
     if command -v ansible &> /dev/null; then
         echo -e "${GREEN}✓ Ansible is already installed!${NC}"
         ansible --version | head -n 1
@@ -189,7 +192,20 @@ install_ansible() {
             ;;
         centos|rhel|rocky|almalinux)
             sudo dnf install -y epel-release
-            sudo dnf install -y ansible
+            # Try to install ansible via dnf first
+            if sudo dnf install -y ansible; then
+                echo -e "${GREEN}✓ Ansible installed via dnf${NC}"
+            else
+                echo -e "${YELLOW}⚠ dnf installation failed, trying pip installation...${NC}"
+                sudo dnf install -y python3-pip
+                sudo pip3 install ansible
+                # Create symlink to make pip-installed ansible available in PATH
+                if [ -f /usr/local/bin/ansible ] && [ ! -f /usr/bin/ansible ]; then
+                    sudo ln -sf /usr/local/bin/ansible /usr/bin/ansible
+                    sudo ln -sf /usr/local/bin/ansible-vault /usr/bin/ansible-vault
+                    echo -e "${GREEN}✓ Created symlink for ansible in /usr/bin${NC}"
+                fi
+            fi
             ;;
         arch|manjaro)
             sudo pacman -Sy --noconfirm ansible
@@ -400,7 +416,7 @@ run_playbook() {
     # Add debug mode if enabled
     if [ "$DEBUG_MODE" = "true" ]; then
         echo -e "${YELLOW}Debug mode enabled - verbose output will be shown${NC}"
-        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true"
+        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
     fi
     
     # Run the main installation playbook

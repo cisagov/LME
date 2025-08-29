@@ -101,7 +101,7 @@ jobs:
           ls -la && \
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
+          ./install_v2/install_rhel.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
         "
 
     - name: Retrieve Elastic password 

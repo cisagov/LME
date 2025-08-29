@@ -29,6 +29,90 @@ RUN echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 ENV BASE_DIR=/home/lme-user
 WORKDIR $BASE_DIR
 
+# Red Hat stage with RHEL9/UBI9 base
+FROM registry.access.redhat.com/ubi9/ubi:9.6 AS rhel-base
+
+ARG USER_ID=1001
+ARG GROUP_ID=1001
+
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
+
+RUN dnf update -y && dnf install -y \
+    glibc-langpack-en sudo openssh-clients sshpass \
+    && dnf clean all \
+    && while getent group $GROUP_ID > /dev/null 2>&1; do GROUP_ID=$((GROUP_ID + 1)); done \
+    && while getent passwd $USER_ID > /dev/null 2>&1; do USER_ID=$((USER_ID + 1)); done \
+    && groupadd -g $GROUP_ID lme-user \
+    && useradd -m -u $USER_ID -g lme-user lme-user \
+    && usermod -aG wheel lme-user \
+    && echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+    && echo "Defaults:lme-user !requiretty" >> /etc/sudoers
+
+ENV BASE_DIR=/home/lme-user
+WORKDIR $BASE_DIR
+
+# Red Hat stage with full dependencies
+FROM rhel-base AS rhel
+
+RUN dnf install -y \
+    systemd systemd-sysv \
+    && dnf clean all
+
+# Install EPEL repository
+RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
+    && /usr/bin/crb enable \
+    && dnf clean all
+
+# Install development tools and dependencies
+RUN dnf install -y \
+    python3 \
+    python3-pip \
+    zip \
+    git \
+    curl \
+    wget \
+    cron \
+    vim \
+    freerdp \
+    pkg-config \
+    cairo-devel \
+    dbus-devel \
+    && dnf clean all
+
+# Install PowerShell for RHEL
+RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | tee /etc/pki/rpm-gpg/microsoft.asc.gpg > /dev/null \
+    && echo -e "[packages-microsoft-com-prod]\nname=packages-microsoft-com-prod\nbaseurl=https://packages.microsoft.com/rhel/9/prod\nenabled=1\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/microsoft.asc.gpg" > /etc/yum.repos.d/microsoft-prod.repo \
+    && dnf install -y powershell \
+    && dnf clean all
+
+# Install Azure CLI
+RUN rpm --import https://packages.microsoft.com/keys/microsoft.asc \
+    && dnf install -y azure-cli \
+    && dnf clean all
+
+# Install Chrome for testing
+RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/pki/rpm-gpg/google-chrome.asc.gpg \
+    && echo -e "[google-chrome]\nname=google-chrome\nbaseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/google-chrome.asc.gpg" > /etc/yum.repos.d/google-chrome.repo \
+    && dnf install -y google-chrome-stable \
+    && dnf clean all
+
+# Configure systemd for containers
+RUN cd /lib/systemd/system/sysinit.target.wants/ && \
+    ls | grep -v systemd-tmpfiles-setup | xargs rm -f $1 && \
+    rm -f /lib/systemd/system/multi-user.target.wants/* && \
+    rm -f /etc/systemd/system/*.wants/* && \
+    rm -f /lib/systemd/system/local-fs.target.wants/* && \
+    rm -f /lib/systemd/system/sockets.target.wants/*udev* && \
+    rm -f /lib/systemd/system/sockets.target.wants/*initctl* && \
+    rm -f /lib/systemd/system/basic.target.wants/* && \
+    rm -f /lib/systemd/system/anaconda.target.wants/* && \
+    mkdir -p /etc/systemd/system/systemd-logind.service.d && \
+    echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
+
+CMD ["/lib/systemd/systemd"]
+
 # Ubuntu stage with full dependencies
 FROM base AS ubuntu
 
@@ -91,6 +175,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+USER lme-user
+CMD ["sleep", "infinity"]
+
+# Pipeline-RHEL stage with minimal dependencies for Red Hat
+FROM rhel-base AS pipeline-rhel
+
+RUN dnf install -y \
+    python3 \
+    python3-pip \
+    openssh-clients \
+    curl \
+    && rpm --import https://packages.microsoft.com/keys/microsoft.asc \
+    && dnf install -y azure-cli \
+    && dnf clean all
 
 USER lme-user
 CMD ["sleep", "infinity"]

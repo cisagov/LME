@@ -64,6 +64,12 @@
       debug:
         msg: "Using podman from: {{ podman_cmd }}"
 
+    - name: Include SELinux variable setup
+      include_role:
+        name: base
+        tasks_from: selinux_vars.yml
+      tags: selinux
+
     - name: Get Podman graphroot location
       shell: |
         # Get the full path to the storage directory
@@ -280,13 +286,13 @@
       shell: |
         # Restore LME installation
         mkdir -p {{ lme_install_dir }}
-        cp -a {{ selected_backup_dir }}/lme/. {{ lme_install_dir }}/
+        {{ cp_preserve_cmd }} {{ selected_backup_dir }}/lme/. {{ lme_install_dir }}/
         LME_RESTORE_STATUS=$?
         
         # Restore vault files if they exist in backup
         if [ -d "{{ selected_backup_dir }}/etc_lme" ]; then
           mkdir -p /etc/lme
-          cp -af {{ selected_backup_dir }}/etc_lme/. /etc/lme/
+          {{ cp_preserve_cmd }} -f {{ selected_backup_dir }}/etc_lme/. /etc/lme/
           VAULT_RESTORE_STATUS=$?
           
           # Ensure proper permissions on restored vault files
@@ -305,7 +311,7 @@
         # Restore systemd container files if they exist in backup
         if [ -d "{{ selected_backup_dir }}/etc_containers_systemd" ]; then
           mkdir -p /etc/containers/systemd
-          cp -af {{ selected_backup_dir }}/etc_containers_systemd/. /etc/containers/systemd/
+          {{ cp_preserve_cmd }} -f {{ selected_backup_dir }}/etc_containers_systemd/. /etc/containers/systemd/
           SYSTEMD_RESTORE_STATUS=$?
           
           # Ensure proper permissions on restored systemd files
@@ -331,6 +337,16 @@
         executable: /bin/bash
       when: backup_stat.stat.exists
       register: restore_result
+
+    - name: Restore SELinux contexts for restored paths
+      command: restorecon -Rv "{{ item }}"
+      loop:
+        - "{{ lme_install_dir }}"
+        - "/etc/lme"
+        - "/etc/containers/systemd"
+      when:
+        - selinux_active | default(false)
+      changed_when: false
       
     - name: Reload systemd daemon after restoring systemd files
       systemd:
@@ -579,7 +595,7 @@
             
             if [ -d "$BACKUP_DIR" ]; then
               # Copy the backup data to the volume
-              cp -a "$BACKUP_DIR/." "$VOLUME_PATH/"
+              {{ cp_preserve_cmd }} "$BACKUP_DIR/." "$VOLUME_PATH/"
               if [ $? -eq 0 ]; then
                 echo "Restored {{ item.item }} to ${VOLUME_PATH}"
                 exit 0
@@ -595,6 +611,17 @@
             executable: /bin/bash
           loop: "{{ volume_paths.results }}"
           register: volume_restore_result
+
+        - name: Restore SELinux contexts for volumes
+          shell: |
+            VOLUME_PATH=$({{ podman_cmd }} volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
+            restorecon -Rv "$VOLUME_PATH"
+          args:
+            executable: /bin/bash
+          loop: "{{ volume_names }}"
+          when:
+            - selinux_active | default(false)
+          changed_when: false
 
         - name: Set volume list for verification
           set_fact:

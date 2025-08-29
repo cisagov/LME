@@ -1,6 +1,9 @@
 name: Cluster RedHat
 
 on:
+  pull_request:
+    branches:
+      - '*'
   workflow_dispatch:
     inputs:
       azure_region:
@@ -222,18 +225,29 @@ jobs:
           echo "Policy ID and Enrollment Token retrieved successfully"
 
       - name: Install the Elastic Agent on Windows Azure VM
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           cd testing/v2/development
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers/lib/ && \
-            chmod +x install_agent_windows_azure.sh && \
-            ./install_agent_windows_azure.sh \
-              --resource-group pipe-${{ env.UNIQUE_ID }} \
-              --vm-name ws1 \
-              --hostip ${{ env.AZURE_IP }} \
-              --token ${{ env.ENROLLMENT_TOKEN }} \
-              --version ${{ env.ELASTIC_AGENT_VERSION }}
-          "
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID && \
+              cd /home/lme-user/LME/testing/v2/installers/lib/ && \
+              chmod +x install_agent_windows_azure.sh && \
+              ./install_agent_windows_azure.sh \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --vm-name ws1 \
+                --token ${{ env.ENROLLMENT_TOKEN }} \
+                --version ${{ env.ELASTIC_AGENT_VERSION }} \
+                --debug
+            "
 
       - name: Check if the Windows Elastic agent is reporting 
         env:

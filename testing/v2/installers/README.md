@@ -1,6 +1,8 @@
 # Installation Guide
 #### Attention: Run these commands in the order presented in this document. Some commands depend on variables set in previous commands. Not all commands need to be run. There are some optional commands depending on the testing scenario.
 
+**Note:** This guide supports both **Ubuntu 22.04** (default) and **Red Hat Enterprise Linux 9** as base operating systems. Use the `--use-rhel` flag to deploy RHEL instead of Ubuntu.
+
 ## Initial Setup Variables
 First, set these variables in your terminal:
 
@@ -26,14 +28,25 @@ cd testing/v2/installers
 
 ### Creating Azure Machine(s)
 
-Linux only:
+#### Ubuntu Linux (default):
 ```bash
 ./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME
 ```
 
-Linux and Windows (just add the -w flag):
+#### Red Hat Enterprise Linux 9:
+```bash
+./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME --use-rhel
+```
+
+#### Linux and Windows (add the -w flag to either Ubuntu or RHEL):
+Ubuntu + Windows:
 ```bash
 ./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME -w
+```
+
+RHEL + Windows:
+```bash
+./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME --use-rhel -w
 ```
 
 After VM creation, set these additional variables:
@@ -41,11 +54,20 @@ After VM creation, set these additional variables:
 # These are generated during VM creation
 export VM_IP=$(cat $RESOURCE_GROUP.ip.txt)
 export VM_PASSWORD=$(cat $RESOURCE_GROUP.password.txt)
+echo $VM_IP
+echo $VM_PASSWORD
 ```
 
 ### Installing lme-v2
+
+#### Ubuntu Linux (default):
 ```bash
 ./install_v2/install.sh $LME_USER $VM_IP $RESOURCE_GROUP.password.txt your-branch-name 
+```
+
+#### Red Hat Enterprise Linux:
+```bash
+./install_v2/install_rhel.sh $LME_USER $VM_IP $RESOURCE_GROUP.password.txt your-branch-name 
 ```
 
 ## Setting Up Minimega Clients
@@ -98,24 +120,27 @@ sudo ./install_local.sh
 # Press enter for subscription and tenant prompts
 ```
 
-## Optional: Ubuntu 24.04 Setup
+## Optional: Alternative Linux Distributions
+
 Remember to activate venv first:
 ```bash
 source ~/LME/venv/bin/activate
 ```
 
-Create the network:
+### Ubuntu 24.04 Setup
 ```bash
 ./azure/build_azure_linux_network.py \
     -g $RESOURCE_GROUP \
-    -s "0.0.0.0" \
+    -s "0.0.0.0/0" \
     -vs $VM_SIZE \
     -l $LOCATION \
     -ast $AUTO_SHUTDOWN_TIME \
     -pub Canonical \
-    -io 0001-com-ubuntu-server-noble-daily \
-    -is 24_04-daily-lts-gen2
+    -io ubuntu-24_04-lts \
+    -is server \
+    --no-prompt
 ```
+
 
 ## Creating Additional VMs (Non-Network Attack Scenarios)
 
