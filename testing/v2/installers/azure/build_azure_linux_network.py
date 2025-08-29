@@ -735,7 +735,13 @@ if __name__ == "__main__":
         args.machine_name = "rhel" if args.machine_name == "ubuntu" else args.machine_name
         print(f"Using Red Hat Enterprise Linux image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
     else:
-        print("Using Ubuntu 22.04 image")
+        # Detect Ubuntu version based on image parameters
+        if args.image_offer == "ubuntu-24_04-lts" or "24" in args.image_sku:
+            print(f"Using Ubuntu 24.04 image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
+        elif args.image_offer == "0001-com-ubuntu-server-jammy" or "22" in args.image_sku:
+            print(f"Using Ubuntu 22.04 image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
+        else:
+            print(f"Using Ubuntu image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
     
     check_ports_protocals_and_priorities(
             args.ports, args.priorities, args.protocols
