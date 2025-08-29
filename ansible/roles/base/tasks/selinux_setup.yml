@@ -1,6 +1,9 @@
 ---
 # SELinux setup tasks for LME - run early to ensure proper file labeling
 
+- name: Load SELinux facts
+  import_tasks: selinux_vars.yml
+
 - name: Detect if SELinux tooling is available
   command: which getenforce
   register: selinux_tooling
@@ -98,7 +101,7 @@
   register: selinux_compile
   when:
     - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - selinux_active | default(false)
     - selinux_policy_deployed.changed or selinux_fc_deployed.changed
 
 - name: Debug SELinux compile result
@@ -115,7 +118,7 @@
   become: yes
   when:
     - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - selinux_active | default(false)
 
 - name: Load SELinux module (lme_policy)
   shell: |
@@ -139,7 +142,7 @@
   changed_when: semodule_load.rc == 0
   when:
     - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - selinux_active | default(false)
     - selinux_compile.changed | default(false) or (lme_policy_present_pre.rc | default(1)) != 0
 
 - name: Ensure SELinux module enabled (lme_policy)
@@ -147,7 +150,7 @@
   become: yes
   when:
     - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - selinux_active | default(false)
 
 - name: Verify SELinux module loaded
   shell: semodule -l | grep -E "^lme_policy(\\s|$)" || true
@@ -158,7 +161,7 @@
   become: yes
   when:
     - selinux_available | default(false)
-    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - selinux_active | default(false)
 
 - name: Assert LME policy module present
   assert:
