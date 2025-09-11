@@ -97,6 +97,21 @@
   become: yes
   when: ansible_os_family == 'RedHat'
 
+- name: Disable and stop firewalld service
+  systemd:
+    name: firewalld
+    enabled: no
+    state: stopped
+  become: yes
+  ignore_errors: yes
+  register: firewalld_disable
+  tags: ['firewall']
+
+- name: Debug - Show firewalld disable result
+  debug:
+    msg: "Firewalld service {{ 'successfully disabled' if firewalld_disable.changed else 'was already disabled or not installed' }}"
+  when: debug_mode | default(false)
+
 - name: Set timezone
   timezone:
     name: "{{ timezone_area | default('Etc') }}/{{ timezone_zone | default('UTC') }}"
