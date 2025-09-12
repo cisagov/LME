@@ -18,12 +18,6 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Check if running as root
-if [[ $EUID -eq 0 ]]; then
-   SUDO=""
-else
-   SUDO="sudo"
-fi
 
 # Function to check if nftables is available
 check_nftables() {
@@ -33,9 +27,9 @@ check_nftables() {
     if ! command -v nft &> /dev/null; then
         log_error "nftables is not installed. Installing..."
         if command -v dnf &> /dev/null; then
-            $SUDO dnf install -y nftables
+            sudo dnf install -y nftables
         elif command -v apt &> /dev/null; then
-            $SUDO apt update && $SUDO apt install -y nftables
+            sudo apt update && sudo apt install -y nftables
         else
             log_error "Could not determine package manager to install nftables"
             exit 1
@@ -43,9 +37,9 @@ check_nftables() {
     fi
     
     # Ensure nftables service is enabled
-    if ! $SUDO systemctl is-enabled --quiet nftables; then
+    if ! sudo systemctl is-enabled --quiet nftables; then
         log_info "Enabling nftables service..."
-        $SUDO systemctl enable nftables
+        sudo systemctl enable nftables
     fi
     
     log_success "nftables is available"
@@ -53,31 +47,31 @@ check_nftables() {
 
 # Function to detect LME container network
 detect_lme_network() {
-    log_info "Detecting LME container network..."
+    log_info "Detecting LME container network..." >&2
     
     # Check if podman is installed
     if ! command -v podman &> /dev/null; then
-        log_error "podman is not installed or not in PATH"
+        log_error "podman is not installed or not in PATH" >&2
         return 1
     fi
     
     # Try to get LME network information
     local lme_subnet
-    if lme_subnet=$($SUDO -i podman network inspect lme 2>/dev/null | jq -r '.[].subnets[].subnet' 2>/dev/null); then
+    if lme_subnet=$(sudo -i podman network inspect lme 2>/dev/null | jq -r '.[].subnets[].subnet' 2>/dev/null); then
         if [[ -n "$lme_subnet" && "$lme_subnet" != "null" ]]; then
             echo "$lme_subnet"
             return 0
         fi
     fi
     
-    log_warning "Could not detect LME network. Using default podman subnet"
+    log_warning "Could not detect LME network. Using default podman subnet" >&2
     echo "10.88.0.0/16"
     return 0
 }
 
 # Function to detect network interfaces
 detect_interfaces() {
-    log_info "Detecting network interfaces..."
+    log_info "Detecting network interfaces..." >&2
     
     # Get primary network interface (usually eth0, but could be others)
     local primary_iface
@@ -100,10 +94,10 @@ backup_nftables() {
     log_info "Backing up existing nftables configuration..."
     
     local backup_file="/etc/nftables/lme_backup_$(date +%Y%m%d_%H%M%S).nft"
-    $SUDO mkdir -p /etc/nftables
+    sudo mkdir -p /etc/nftables
     
-    if $SUDO nft list ruleset > /dev/null 2>&1; then
-        $SUDO nft list ruleset > "$backup_file" || {
+    if sudo nft list ruleset > /dev/null 2>&1; then
+        sudo nft list ruleset > "$backup_file" || {
             log_warning "Could not create backup, continuing anyway..."
         }
         log_success "Current ruleset backed up to $backup_file"
@@ -121,7 +115,7 @@ create_lme_nftables() {
     
     # Create the nftables configuration file
     local config_file="/etc/nftables/lme.nft"
-    $SUDO mkdir -p /etc/nftables
+    sudo mkdir -p /etc/nftables
     
     cat > /tmp/lme_nftables.conf << EOF
 #!/usr/sbin/nft -f
@@ -228,8 +222,8 @@ table ip lme_nat {
 EOF
 
     # Move the configuration file to its final location
-    $SUDO mv /tmp/lme_nftables.conf "$config_file"
-    $SUDO chmod 640 "$config_file"
+    sudo mv /tmp/lme_nftables.conf "$config_file"
+    sudo chmod 640 "$config_file"
     
     log_success "nftables configuration created at $config_file"
 }
@@ -241,30 +235,30 @@ apply_nftables() {
     log_info "Applying nftables configuration..."
     
     # Test the configuration first
-    if ! $SUDO nft -c -f "$config_file"; then
+    if ! sudo nft -c -f "$config_file"; then
         log_error "nftables configuration has syntax errors"
         return 1
     fi
     
     # Apply the configuration
-    $SUDO nft -f "$config_file"
+    sudo nft -f "$config_file"
     log_success "nftables configuration applied"
     
     # Add to main nftables config to persist across reboots
     local main_config="/etc/nftables.conf"
     if [[ -f "$main_config" ]]; then
         if ! grep -q "include.*lme.nft" "$main_config"; then
-            echo 'include "/etc/nftables/lme.nft"' | $SUDO tee -a "$main_config" > /dev/null
+            echo 'include "/etc/nftables/lme.nft"' | sudo tee -a "$main_config" > /dev/null
             log_success "LME configuration added to main nftables config"
         fi
     else
         # Create main config if it doesn't exist
-        echo 'include "/etc/nftables/lme.nft"' | $SUDO tee "$main_config" > /dev/null
+        echo 'include "/etc/nftables/lme.nft"' | sudo tee "$main_config" > /dev/null
         log_success "Created main nftables config with LME rules"
     fi
     
     # Ensure nftables service will start on boot
-    $SUDO systemctl enable nftables
+    sudo systemctl enable nftables
 }
 
 # Function to verify configuration
@@ -276,15 +270,15 @@ verify_configuration() {
     echo
     
     echo "Filter table (lme_filter):"
-    $SUDO nft list table inet lme_filter 2>/dev/null || log_warning "lme_filter table not found"
+    sudo nft list table inet lme_filter 2>/dev/null || log_warning "lme_filter table not found"
     echo
     
     echo "NAT table (lme_nat):"
-    $SUDO nft list table ip lme_nat 2>/dev/null || log_warning "lme_nat table not found"
+    sudo nft list table ip lme_nat 2>/dev/null || log_warning "lme_nat table not found"
     echo
     
     echo "=== All Active Rules ==="
-    $SUDO nft list ruleset | grep -A 10 -B 2 "lme" || log_info "No LME-specific rules found in output"
+    sudo nft list ruleset | grep -A 10 -B 2 "lme" || log_info "No LME-specific rules found in output"
     echo
 }
 
@@ -327,8 +321,8 @@ disable_firewalld() {
         read -p "Do you want to stop and disable firewalld? (recommended for nftables) (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            $SUDO systemctl stop firewalld
-            $SUDO systemctl disable firewalld
+            sudo systemctl stop firewalld
+            sudo systemctl disable firewalld
             log_success "firewalld stopped and disabled"
         else
             log_warning "firewalld is still running - this may conflict with nftables rules"
