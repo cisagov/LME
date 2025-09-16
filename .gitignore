@@ -45,6 +45,7 @@ testing/upgrade_testing/
 .cache/
 .venv/
 *.env
+cloud.md
 
 # SELinux build artifacts
 ansible/roles/base/files/selinux/*.mod
