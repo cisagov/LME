@@ -2,6 +2,8 @@
 # LME nftables Configuration Script
 # Direct nftables configuration equivalent to the firewalld LME setup
 # Compatible with systems that prefer nftables over firewalld
+#
+# REQUIRES ROOT ACCESS - Run as: sudo ./configure_lme_nftables.sh
 
 set -euo pipefail
 
@@ -18,6 +20,44 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# Check if running as root - required for nftables configuration
+if [[ $EUID -ne 0 ]]; then
+   echo -e "${RED}[ERROR]${NC} This script must be run as root"
+   echo "Please run: sudo $0"
+   exit 1
+fi
+
+# Function to check dependencies
+check_dependencies() {
+    log_info "Checking dependencies..."
+    
+    # Check if podman is installed
+    if ! command -v podman &> /dev/null; then
+        log_error "podman is not installed or not in PATH"
+        log_error "Please install podman before running this script"
+        exit 1
+    fi
+    
+    # Check if jq is installed (needed for network inspection)
+    if ! command -v jq &> /dev/null; then
+        log_warning "jq is not installed. Installing jq for network detection..."
+        # Support multiple package managers
+        if command -v dnf &> /dev/null; then
+            dnf install -y jq
+        elif command -v yum &> /dev/null; then
+            yum install -y jq
+        elif command -v zypper &> /dev/null; then
+            zypper install -y jq
+        elif command -v apt &> /dev/null; then
+            apt update && apt install -y jq
+        else
+            log_error "Could not install jq automatically. Please install jq manually."
+            exit 1
+        fi
+    fi
+    
+    log_success "All dependencies are available"
+}
 
 # Function to check if nftables is available
 check_nftables() {
@@ -26,10 +66,15 @@ check_nftables() {
     # Check if nft command exists
     if ! command -v nft &> /dev/null; then
         log_error "nftables is not installed. Installing..."
+        # Support multiple package managers
         if command -v dnf &> /dev/null; then
-            sudo dnf install -y nftables
+            dnf install -y nftables
+        elif command -v yum &> /dev/null; then
+            yum install -y nftables
+        elif command -v zypper &> /dev/null; then
+            zypper install -y nftables
         elif command -v apt &> /dev/null; then
-            sudo apt update && sudo apt install -y nftables
+            apt update && apt install -y nftables
         else
             log_error "Could not determine package manager to install nftables"
             exit 1
@@ -37,9 +82,9 @@ check_nftables() {
     fi
     
     # Ensure nftables service is enabled
-    if ! sudo systemctl is-enabled --quiet nftables; then
+    if ! systemctl is-enabled --quiet nftables; then
         log_info "Enabling nftables service..."
-        sudo systemctl enable nftables
+        systemctl enable nftables
     fi
     
     log_success "nftables is available"
@@ -57,7 +102,7 @@ detect_lme_network() {
     
     # Try to get LME network information
     local lme_subnet
-    if lme_subnet=$(sudo -i podman network inspect lme 2>/dev/null | jq -r '.[].subnets[].subnet' 2>/dev/null); then
+    if lme_subnet=$(podman network inspect lme 2>/dev/null | jq -r '.[].subnets[].subnet' 2>/dev/null); then
         if [[ -n "$lme_subnet" && "$lme_subnet" != "null" ]]; then
             echo "$lme_subnet"
             return 0
@@ -73,18 +118,70 @@ detect_lme_network() {
 detect_interfaces() {
     log_info "Detecting network interfaces..." >&2
     
-    # Get primary network interface (usually eth0, but could be others)
-    local primary_iface
-    primary_iface=$(ip route | grep default | head -n1 | awk '{print $5}')
+    # Get primary network interface with fallback options
+    local primary_iface=""
     
-    # Get podman interface
-    local podman_iface=""
-    for iface in podman0 podman1 cni-podman0 cni-podman1; do
-        if ip link show "$iface" &> /dev/null; then
-            podman_iface="$iface"
-            break
+    # Try multiple methods to detect primary interface
+    if primary_iface=$(ip route | grep default | head -n1 | awk '{print $5}' 2>/dev/null); then
+        if [[ -n "$primary_iface" ]]; then
+            log_info "Detected primary interface: $primary_iface" >&2
         fi
-    done
+    fi
+    
+    # Fallback: look for common interface names if route detection failed
+    if [[ -z "$primary_iface" ]]; then
+        for iface in eth0 ens3 ens4 ens5 enp0s3 enp0s8 ens33 ens192; do
+            if ip link show "$iface" &> /dev/null; then
+                primary_iface="$iface"
+                log_warning "Using fallback primary interface: $primary_iface" >&2
+                break
+            fi
+        done
+    fi
+    
+    # Final fallback
+    if [[ -z "$primary_iface" ]]; then
+        primary_iface="eth0"
+        log_warning "Could not detect primary interface, using default: $primary_iface" >&2
+    fi
+    
+    # Comprehensive podman interface detection
+    local podman_iface=""
+    
+    # Try to get LME network interface first (most reliable)
+    local lme_interface
+    if lme_interface=$(podman network inspect lme 2>/dev/null | jq -r '.[].network_interface' 2>/dev/null); then
+        if [[ -n "$lme_interface" && "$lme_interface" != "null" ]]; then
+            podman_iface="$lme_interface"
+            log_info "Found LME network interface: $podman_iface" >&2
+        fi
+    fi
+    
+    # If no LME interface, look for any podman interfaces
+    if [[ -z "$podman_iface" ]]; then
+        # Look for interfaces with podman-related names
+        local detected_podman
+        detected_podman=$(ip link show | grep -E '^[0-9]+:' | awk -F': ' '{print $2}' | grep -E '^(podman|cni-podman|veth.*podman|br-.*)' | head -n1)
+        
+        if [[ -n "$detected_podman" ]]; then
+            # Remove any trailing @ and interface suffix
+            podman_iface=$(echo "$detected_podman" | cut -d'@' -f1)
+            log_info "Found podman interface: $podman_iface" >&2
+        else
+            # Check common interface names as fallback
+            for iface in podman0 podman1 podman2 cni-podman0 cni-podman1; do
+                if ip link show "$iface" &> /dev/null; then
+                    podman_iface="$iface"
+                    log_info "Found podman interface (fallback): $podman_iface" >&2
+                    break
+                fi
+            done
+        fi
+    fi
+    
+    if [[ -z "$podman_iface" ]]; then
+        log_warning "No podman interface detected - container networking may need manual setup" >&2
+    fi
     
     echo "$primary_iface $podman_iface"
 }
@@ -94,10 +191,10 @@ backup_nftables() {
     log_info "Backing up existing nftables configuration..."
     
     local backup_file="/etc/nftables/lme_backup_$(date +%Y%m%d_%H%M%S).nft"
-    sudo mkdir -p /etc/nftables
+    mkdir -p /etc/nftables
     
-    if sudo nft list ruleset > /dev/null 2>&1; then
-        sudo nft list ruleset > "$backup_file" || {
+    if nft list ruleset > /dev/null 2>&1; then
+        nft list ruleset > "$backup_file" || {
             log_warning "Could not create backup, continuing anyway..."
         }
         log_success "Current ruleset backed up to $backup_file"
@@ -115,7 +212,7 @@ create_lme_nftables() {
     
     # Create the nftables configuration file
     local config_file="/etc/nftables/lme.nft"
-    sudo mkdir -p /etc/nftables
+    mkdir -p /etc/nftables
     
     cat > /tmp/lme_nftables.conf << EOF
 #!/usr/sbin/nft -f
@@ -222,8 +319,8 @@ table ip lme_nat {
 EOF
 
     # Move the configuration file to its final location
-    sudo mv /tmp/lme_nftables.conf "$config_file"
-    sudo chmod 640 "$config_file"
+    mv /tmp/lme_nftables.conf "$config_file"
+    chmod 640 "$config_file"
     
     log_success "nftables configuration created at $config_file"
 }
@@ -235,30 +332,30 @@ apply_nftables() {
     log_info "Applying nftables configuration..."
     
     # Test the configuration first
-    if ! sudo nft -c -f "$config_file"; then
+    if ! nft -c -f "$config_file"; then
         log_error "nftables configuration has syntax errors"
         return 1
     fi
     
     # Apply the configuration
-    sudo nft -f "$config_file"
+    nft -f "$config_file"
     log_success "nftables configuration applied"
     
     # Add to main nftables config to persist across reboots
     local main_config="/etc/nftables.conf"
     if [[ -f "$main_config" ]]; then
         if ! grep -q "include.*lme.nft" "$main_config"; then
-            echo 'include "/etc/nftables/lme.nft"' | sudo tee -a "$main_config" > /dev/null
+            echo 'include "/etc/nftables/lme.nft"' | tee -a "$main_config" > /dev/null
             log_success "LME configuration added to main nftables config"
         fi
     else
         # Create main config if it doesn't exist
-        echo 'include "/etc/nftables/lme.nft"' | sudo tee "$main_config" > /dev/null
+        echo 'include "/etc/nftables/lme.nft"' | tee "$main_config" > /dev/null
         log_success "Created main nftables config with LME rules"
     fi
     
     # Ensure nftables service will start on boot
-    sudo systemctl enable nftables
+    systemctl enable nftables
 }
 
 # Function to verify configuration
@@ -270,15 +367,15 @@ verify_configuration() {
     echo
     
     echo "Filter table (lme_filter):"
-    sudo nft list table inet lme_filter 2>/dev/null || log_warning "lme_filter table not found"
+    nft list table inet lme_filter 2>/dev/null || log_warning "lme_filter table not found"
     echo
     
     echo "NAT table (lme_nat):"
-    sudo nft list table ip lme_nat 2>/dev/null || log_warning "lme_nat table not found"
+    nft list table ip lme_nat 2>/dev/null || log_warning "lme_nat table not found"
     echo
     
     echo "=== All Active Rules ==="
-    sudo nft list ruleset | grep -A 10 -B 2 "lme" || log_info "No LME-specific rules found in output"
+    nft list ruleset | grep -A 10 -B 2 "lme" || log_info "No LME-specific rules found in output"
     echo
 }
 
@@ -288,29 +385,29 @@ provide_troubleshooting() {
     echo
     echo "If you experience connectivity issues:"
     echo "1. Check if LME containers are running:"
-    echo "   sudo -i podman ps"
+    echo "   podman ps"
     echo
     echo "2. Test container-to-container communication:"
-    echo "   sudo -i podman exec lme-kibana curl -s http://lme-elasticsearch:9200/_cluster/health"
+    echo "   podman exec lme-kibana curl -s http://lme-elasticsearch:9200/_cluster/health"
     echo
     echo "3. Test external access (replace with your server IP):"
     echo "   curl -v http://YOUR_SERVER_IP:5601"
     echo
     echo "4. Check nftables rules:"
-    echo "   sudo nft list ruleset"
+    echo "   nft list ruleset"
     echo
     echo "5. Monitor dropped packets:"
-    echo "   sudo journalctl -f | grep LME_DROPPED"
+    echo "   journalctl -f | grep LME_DROPPED"
     echo
     echo "6. Temporarily flush rules for testing:"
-    echo "   sudo nft delete table inet lme_filter"
-    echo "   sudo nft delete table ip lme_nat"
+    echo "   nft delete table inet lme_filter"
+    echo "   nft delete table ip lme_nat"
     echo "   # Test your connections"
-    echo "   sudo nft -f /etc/nftables/lme.nft"
+    echo "   nft -f /etc/nftables/lme.nft"
     echo
     echo "7. Restore from backup if needed:"
     echo "   ls -la /etc/nftables/lme_backup_*"
-    echo "   sudo nft -f /etc/nftables/lme_backup_YYYYMMDD_HHMMSS.nft"
+    echo "   nft -f /etc/nftables/lme_backup_YYYYMMDD_HHMMSS.nft"
     echo
 }
 
@@ -321,8 +418,8 @@ disable_firewalld() {
         read -p "Do you want to stop and disable firewalld? (recommended for nftables) (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            sudo systemctl stop firewalld
-            sudo systemctl disable firewalld
+            systemctl stop firewalld
+            systemctl disable firewalld
             log_success "firewalld stopped and disabled"
         else
             log_warning "firewalld is still running - this may conflict with nftables rules"
@@ -339,6 +436,9 @@ main() {
     
     # Check if firewalld conflicts
     disable_firewalld
+    
+    # Check dependencies first
+    check_dependencies
     
     # Check prerequisites
     check_nftables
