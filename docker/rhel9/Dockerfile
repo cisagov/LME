@@ -8,13 +8,16 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
-RUN dnf update -y && dnf install -y \
+# Skip systemd updates to avoid conflicts, install base packages
+RUN dnf install -y \
     glibc-langpack-en sudo openssh-clients git vim iptables-nft \
     && dnf clean all \
-    && while getent group $GROUP_ID > /dev/null 2>&1; do GROUP_ID=$((GROUP_ID + 1)); done \
-    && while getent passwd $USER_ID > /dev/null 2>&1; do USER_ID=$((USER_ID + 1)); done \
-    && groupadd -g $GROUP_ID lme-user \
-    && useradd -m -u $USER_ID -g lme-user lme-user \
+    && GROUP_ID_VAR=$GROUP_ID \
+    && USER_ID_VAR=$USER_ID \
+    && while getent group $GROUP_ID_VAR > /dev/null 2>&1; do GROUP_ID_VAR=$((GROUP_ID_VAR + 1)); done \
+    && while getent passwd $USER_ID_VAR > /dev/null 2>&1; do USER_ID_VAR=$((USER_ID_VAR + 1)); done \
+    && groupadd -g $GROUP_ID_VAR lme-user \
+    && useradd -m -u $USER_ID_VAR -g lme-user lme-user \
     && usermod -aG wheel lme-user \
     && echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
     && echo "Defaults:lme-user !requiretty" >> /etc/sudoers \
@@ -32,14 +35,6 @@ WORKDIR $BASE_DIR
 # Lme stage with full dependencies
 FROM base AS lme
 
-RUN dnf install -y \
-    systemd systemd-sysv \
-    && dnf clean all
-
-# Install EPEL repository
-# RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
-#     && /usr/bin/crb enable \
-#     && dnf clean all
 
 RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     ls | grep -v systemd-tmpfiles-setup | xargs rm -f $1 && \
