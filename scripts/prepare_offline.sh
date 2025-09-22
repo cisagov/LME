@@ -225,6 +225,7 @@ create_output_dir() {
     mkdir -p "$OUTPUT_DIR/agents"
     mkdir -p "$OUTPUT_DIR/cve"
     mkdir -p "$OUTPUT_DIR/docs"
+    mkdir -p "$OUTPUT_DIR/nix"
 }
 
 # Download and save container images
@@ -264,6 +265,30 @@ download_containers() {
             echo
         fi
     done < "$CONTAINERS_FILE"
+}
+
+# Download Nix installer for Ubuntu 22.04 systems
+download_nix_installer() {
+    echo -e "${YELLOW}Downloading Nix installer for Ubuntu 22.04 systems...${NC}"
+
+    # Download the official Nix installer script
+    echo -e "${YELLOW}  Downloading Nix installer script...${NC}"
+    if curl -L "https://nixos.org/nix/install" -o "$OUTPUT_DIR/nix/install-nix.sh"; then
+        chmod +x "$OUTPUT_DIR/nix/install-nix.sh"
+        echo -e "${GREEN}  ✓ Nix installer downloaded successfully${NC}"
+
+        # Verify the download
+        if [ -f "$OUTPUT_DIR/nix/install-nix.sh" ] && [ -s "$OUTPUT_DIR/nix/install-nix.sh" ]; then
+            FILE_SIZE=$(du -h "$OUTPUT_DIR/nix/install-nix.sh" | cut -f1)
+            echo -e "${GREEN}  ✓ Nix installer size: $FILE_SIZE${NC}"
+        else
+            echo -e "${RED}  ✗ Downloaded Nix installer appears to be empty${NC}"
+        fi
+    else
+        echo -e "${RED}  ✗ Failed to download Nix installer${NC}"
+    fi
+
+    echo -e "${GREEN}✓ Nix installer download completed${NC}"
 }
 
 # Download packages for offline installation
@@ -468,8 +493,16 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 DEBS_DIR="$SCRIPT_DIR/debs"
 NIX_DIR="$SCRIPT_DIR/nix"
+OFFLINE_NIX_INSTALLER="$SCRIPT_DIR/../nix/install-nix.sh"
 
 echo -e "${YELLOW}Installing required packages for LME offline installation...${NC}"
+
+# Detect Ubuntu version for Nix installation method
+UBUNTU_VERSION=""
+if [ -f /etc/lsb-release ]; then
+    UBUNTU_VERSION=$(grep DISTRIB_RELEASE /etc/lsb-release | cut -d= -f2)
+    echo -e "${YELLOW}Detected Ubuntu version: $UBUNTU_VERSION${NC}"
+fi
 
 if [ ! -d "$DEBS_DIR" ]; then
     echo -e "${RED}✗ Debs directory not found: $DEBS_DIR${NC}"
@@ -491,6 +524,32 @@ if ls *.deb 1> /dev/null 2>&1; then
 else
     echo -e "${RED}✗ No .deb files found in debs directory${NC}"
     exit 1
+fi
+
+# Install Nix if needed (Ubuntu 22.04 specific)
+if [ "$UBUNTU_VERSION" = "22.04" ] && [ -f "$OFFLINE_NIX_INSTALLER" ]; then
+    echo -e "${YELLOW}Ubuntu 22.04 detected - checking if Nix needs to be installed...${NC}"
+
+    if [ ! -f "/nix/var/nix/profiles/default/bin/nix" ]; then
+        echo -e "${YELLOW}Installing Nix from offline installer...${NC}"
+
+        # Create installation directory
+        sudo mkdir -p /opt/nix-install/tmp
+        sudo cp "$OFFLINE_NIX_INSTALLER" /opt/nix-install/install-nix.sh
+        sudo chmod +x /opt/nix-install/install-nix.sh
+
+        # Install Nix
+        sudo TMPDIR=/opt/nix-install/tmp sh /opt/nix-install/install-nix.sh --daemon --yes
+
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Nix installed successfully from offline installer${NC}"
+        else
+            echo -e "${RED}✗ Failed to install Nix from offline installer${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}✓ Nix is already installed${NC}"
+    fi
 fi
 
 # Set up Nix and import podman
@@ -984,6 +1043,7 @@ Archive Contents:
   - packages/            : Package lists and installation scripts
   - agents/              : Agent installers (Wazuh and Elastic agents)
   - cve/                 : CVE database for offline Wazuh vulnerability detection
+  - nix/                 : Nix installer script for Ubuntu 22.04 systems
   - docs/               : Documentation
   - load_containers.sh  : Script to load container images
 
@@ -1012,6 +1072,9 @@ Steps for Offline Installation:
 CRITICAL NOTES:
 ===============
 
+- Supports both Ubuntu 22.04 and 24.04 systems
+- Ubuntu 22.04: Nix installed via official installer script (included in archive)
+- Ubuntu 24.04: Nix installed via apt packages
 - Podman is installed via Nix and must be accessible to root user
 - Use 'sudo podman' or 'sudo -i podman' for container operations
 - All container images will be loaded for root user access
@@ -1052,6 +1115,7 @@ main() {
     check_podman
     create_output_dir
     download_containers
+    download_nix_installer
     download_packages
     download_agents
     download_cve_database
