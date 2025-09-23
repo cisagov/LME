@@ -427,6 +427,7 @@ download_packages() {
             "selinux-policy-targeted"
             "libselinux-utils"
             "container-selinux"
+            "fuse3-libs"
         )
     fi
 
