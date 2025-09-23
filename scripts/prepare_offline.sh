@@ -957,43 +957,41 @@ download_agents() {
 download_cve_database() {
     echo -e "${YELLOW}Downloading CVE database for offline Wazuh vulnerability detection...${NC}"
 
+    # Check if jq is installed, install if needed
+    if ! command -v jq >/dev/null 2>&1; then
+        echo -e "${YELLOW}  Installing jq for JSON parsing...${NC}"
+        sudo apt-get update && sudo apt-get install -y jq
+    fi
+
     # Create cve directory
     mkdir -p "$OUTPUT_DIR/cve"
     cd "$OUTPUT_DIR/cve"
 
     # Get the latest CVE database snapshot link
     echo -e "${YELLOW}  Getting latest CVE database snapshot link...${NC}"
+    if CVE_INFO=$(curl -s -X GET "https://cti.wazuh.com/api/v1/catalog/contexts/vd_1.0.0/consumers/vd_4.8.0" | jq -r '.data | "\(.last_snapshot_link)\n\(.last_snapshot_at)"'); then
+        CVE_LINK=$(echo "$CVE_INFO" | head -1)
+        CVE_DATE=$(echo "$CVE_INFO" | tail -1)
 
-    # Get JSON response from Wazuh API
-    JSON_RESPONSE=$(curl -s -X GET "https://cti.wazuh.com/api/v1/catalog/contexts/vd_1.0.0/consumers/vd_4.8.0")
+        echo -e "${GREEN}  ✓ Found CVE database snapshot from: $CVE_DATE${NC}"
+        echo -e "${YELLOW}  Downloading CVE database...${NC}"
 
-    if [ -n "$JSON_RESPONSE" ]; then
-        # Parse JSON without jq - extract last_snapshot_link and last_snapshot_at
-        CVE_LINK=$(echo "$JSON_RESPONSE" | grep -o '"last_snapshot_link":"[^"]*"' | cut -d'"' -f4)
-        CVE_DATE=$(echo "$JSON_RESPONSE" | grep -o '"last_snapshot_at":"[^"]*"' | cut -d'"' -f4)
+        # Download the CVE database
+        if curl -L "$CVE_LINK" -o cves.zip; then
+            echo -e "${GREEN}  ✓ CVE database downloaded successfully${NC}"
 
-            echo -e "${GREEN}  ✓ Found CVE database snapshot from: $CVE_DATE${NC}"
-            echo -e "${YELLOW}  Downloading CVE database...${NC}"
-
-            # Download the CVE database
-            if curl -L "$CVE_LINK" -o cves.zip; then
-                echo -e "${GREEN}  ✓ CVE database downloaded successfully${NC}"
-
-                # Verify the download
-                if [ -f "cves.zip" ] && [ -s "cves.zip" ]; then
-                    FILE_SIZE=$(du -h cves.zip | cut -f1)
-                    echo -e "${GREEN}  ✓ CVE database size: $FILE_SIZE${NC}"
-                else
-                    echo -e "${RED}  ✗ Downloaded CVE database appears to be empty${NC}"
-                fi
+            # Verify the download
+            if [ -f "cves.zip" ] && [ -s "cves.zip" ]; then
+                FILE_SIZE=$(du -h cves.zip | cut -f1)
+                echo -e "${GREEN}  ✓ CVE database size: $FILE_SIZE${NC}"
             else
-                echo -e "${RED}  ✗ Failed to download CVE database${NC}"
+                echo -e "${RED}  ✗ Downloaded CVE database appears to be empty${NC}"
             fi
         else
-            echo -e "${RED}  ✗ Failed to parse CVE database snapshot information from API response${NC}"
+            echo -e "${RED}  ✗ Failed to download CVE database${NC}"
         fi
     else
-        echo -e "${RED}  ✗ Failed to get CVE database snapshot information from API${NC}"
+        echo -e "${RED}  ✗ Failed to get CVE database snapshot information${NC}"
     fi
 
     cd "$LME_ROOT"
