@@ -54,7 +54,9 @@
   become: yes
   environment:
     TMPDIR: /opt/nix-install/tmp
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
 
 - name: Ensure nix-daemon service is started
   systemd:
