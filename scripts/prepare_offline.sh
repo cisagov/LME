@@ -666,7 +666,7 @@ EOF
     chmod +x "$OUTPUT_DIR/packages/install_packages_offline.sh"
 
 # Set up Nix and import podman
-if [ -f "$NIX_DIR/podman-closure.nar" ]; then
+if [ -f "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
     echo -e "${YELLOW}Setting up Nix daemon...${NC}"
     sudo systemctl enable nix-daemon 2>/dev/null || true
     sudo systemctl start nix-daemon 2>/dev/null || true
@@ -688,7 +688,7 @@ if [ -f "$NIX_DIR/podman-closure.nar" ]; then
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     
     # Import the closure
-    if sudo nix-store --import < "$NIX_DIR/podman-closure.nar"; then
+    if sudo nix-store --import < "$OUTPUT_DIR/packages/nix/podman-closure.nar"; then
         echo -e "${GREEN}✓ Podman packages imported from offline archive${NC}"
     else
         echo -e "${RED}✗ Failed to import Nix packages${NC}"
@@ -696,8 +696,8 @@ if [ -f "$NIX_DIR/podman-closure.nar" ]; then
     fi
 
     # Install podman from the specific store path if available
-    if [ -f "$NIX_DIR/podman-store-path.txt" ]; then
-        PODMAN_STORE_PATH=$(cat "$NIX_DIR/podman-store-path.txt")
+    if [ -f "$OUTPUT_DIR/packages/nix/podman-store-path.txt" ]; then
+        PODMAN_STORE_PATH=$(cat "$OUTPUT_DIR/packages/nix/podman-store-path.txt")
         echo -e "${YELLOW}Installing podman from store path: $PODMAN_STORE_PATH${NC}"
         
         if [ -d "$PODMAN_STORE_PATH" ]; then
