@@ -266,6 +266,107 @@ download_containers() {
     done < "$CONTAINERS_FILE"
 }
 
+# Generate APT-based install script for Ubuntu/Debian
+generate_apt_install_script() {
+    cat > "$OUTPUT_DIR/packages/install_packages_offline.sh" << 'EOF'
+#!/bin/bash
+
+# Script to install packages offline on Ubuntu/Debian systems
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+DEBS_DIR="$SCRIPT_DIR/debs"
+NIX_DIR="$SCRIPT_DIR/nix"
+
+echo -e "${YELLOW}Installing required packages for LME offline installation...${NC}"
+
+if [ ! -d "$DEBS_DIR" ]; then
+    echo -e "${RED}✗ Debs directory not found: $DEBS_DIR${NC}"
+    exit 1
+fi
+
+# Install packages from local .deb files
+echo -e "${YELLOW}Installing packages from local .deb files...${NC}"
+cd "$DEBS_DIR"
+
+# Install all .deb files
+if ls *.deb 1> /dev/null 2>&1; then
+    echo -e "${YELLOW}Installing .deb packages...${NC}"
+    sudo dpkg -i *.deb || true
+    # Fix any broken dependencies
+    echo -e "${YELLOW}Fixing any broken dependencies...${NC}"
+    sudo apt-get install -f -y
+    echo -e "${GREEN}✓ Package installation complete!${NC}"
+else
+    echo -e "${RED}✗ No .deb files found in debs directory${NC}"
+    exit 1
+fi
+
+# Set up Nix and import podman (common for both Ubuntu and RHEL)
+if [ -f "$NIX_DIR/podman-closure.nar" ]; then
+    echo -e "${YELLOW}Setting up Nix and importing podman...${NC}"
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    sudo nix-store --import < "$NIX_DIR/podman-closure.nar"
+    echo -e "${GREEN}✓ Podman packages imported from offline archive${NC}"
+fi
+
+echo -e "${GREEN}✓ All packages installed successfully!${NC}"
+EOF
+}
+
+# Generate DNF-based install script for RHEL/CentOS/AlmaLinux/Rocky
+generate_dnf_install_script() {
+    cat > "$OUTPUT_DIR/packages/install_packages_offline.sh" << 'EOF'
+#!/bin/bash
+
+# Script to install packages offline on RHEL/CentOS/AlmaLinux/Rocky systems
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+RPMS_DIR="$SCRIPT_DIR/rpms"
+NIX_DIR="$SCRIPT_DIR/nix"
+
+echo -e "${YELLOW}Installing required packages for LME offline installation...${NC}"
+
+if [ ! -d "$RPMS_DIR" ]; then
+    echo -e "${RED}✗ RPMs directory not found: $RPMS_DIR${NC}"
+    exit 1
+fi
+
+# Install packages from local .rpm files
+echo -e "${YELLOW}Installing packages from local .rpm files...${NC}"
+cd "$RPMS_DIR"
+
+# Install all .rpm files
+if ls *.rpm 1> /dev/null 2>&1; then
+    echo -e "${YELLOW}Installing .rpm packages...${NC}"
+    sudo dnf localinstall -y *.rpm
+    echo -e "${GREEN}✓ Package installation complete!${NC}"
+else
+    echo -e "${RED}✗ No .rpm files found in rpms directory${NC}"
+    exit 1
+fi
+
+# Set up Nix and import podman (common for both Ubuntu and RHEL)
+if [ -f "$NIX_DIR/podman-closure.nar" ]; then
+    echo -e "${YELLOW}Setting up Nix and importing podman...${NC}"
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    sudo nix-store --import < "$NIX_DIR/podman-closure.nar"
+    echo -e "${GREEN}✓ Podman packages imported from offline archive${NC}"
+fi
+
+echo -e "${GREEN}✓ All packages installed successfully!${NC}"
+EOF
+}
+
 # Download file with fallback from wget to curl
 download_file() {
     local url="$1"
@@ -560,44 +661,14 @@ download_packages() {
         exit 1
     fi
 
-    # Generate offline installation script
-    cat > "$OUTPUT_DIR/packages/install_packages_offline.sh" << 'EOF'
-#!/bin/bash
+    # Generate OS-specific offline installation script
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        generate_apt_install_script
+    else
+        generate_dnf_install_script
+    fi
 
-# Script to install packages offline on the target system
-
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-DEBS_DIR="$SCRIPT_DIR/debs"
-NIX_DIR="$SCRIPT_DIR/nix"
-
-echo -e "${YELLOW}Installing required packages for LME offline installation...${NC}"
-
-if [ ! -d "$DEBS_DIR" ]; then
-    echo -e "${RED}✗ Debs directory not found: $DEBS_DIR${NC}"
-    exit 1
-fi
-
-# Install packages from local .deb files
-echo -e "${YELLOW}Installing packages from local .deb files...${NC}"
-cd "$DEBS_DIR"
-
-# Install all .deb files
-if ls *.deb 1> /dev/null 2>&1; then
-    echo -e "${YELLOW}Installing .deb packages...${NC}"
-    sudo dpkg -i *.deb || true
-    # Fix any broken dependencies
-    echo -e "${YELLOW}Fixing any broken dependencies...${NC}"
-    sudo apt-get install -f -y
-    echo -e "${GREEN}✓ Package installation complete!${NC}"
-else
-    echo -e "${RED}✗ No .deb files found in debs directory${NC}"
-    exit 1
-fi
+    chmod +x "$OUTPUT_DIR/packages/install_packages_offline.sh"
 
 # Set up Nix and import podman
 if [ -f "$NIX_DIR/podman-closure.nar" ]; then
