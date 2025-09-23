@@ -353,10 +353,39 @@ download_packages() {
     # Download Nix packages for offline installation
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
 
+    # Check if we're on macOS - if so, skip Nix package building for Ubuntu compatibility
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo -e "${YELLOW}Running on macOS - skipping Nix package building for Ubuntu compatibility${NC}"
+        echo -e "${YELLOW}Ubuntu 22.04 will use apt packages for podman instead${NC}"
+
+        # Create marker file to indicate we skipped Nix building
+        mkdir -p "$OUTPUT_DIR/packages/nix"
+        mkdir -p "$OUTPUT_DIR/nix"
+        echo "skipped-macos" > "$OUTPUT_DIR/packages/nix/build-status.txt"
+        echo "skipped-macos" > "$OUTPUT_DIR/nix/build-status.txt"
+
+        # Add podman to the apt packages list for Ubuntu 22.04
+        echo "podman" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
+        echo "podman-docker" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
+
+        return 0
+    fi
+
     # Check if Nix is available on the prepare system and install if needed
     if ! command -v nix-build >/dev/null 2>&1; then
         echo -e "${YELLOW}Nix not found, installing automatically for package preparation...${NC}"
-        install_nix_for_preparation
+
+        # For Ubuntu 22.04 compatibility, always use the official installer method
+        # This ensures the Nix packages will be compatible with Ubuntu 22.04 systems
+        echo -e "${YELLOW}Installing Nix via official installer for Ubuntu 22.04 compatibility...${NC}"
+
+        # Create installation directory
+        sudo mkdir -p /opt/nix-install/tmp
+
+        # Download and install Nix using official installer
+        curl -L https://nixos.org/nix/install -o /tmp/install-nix.sh
+        chmod +x /tmp/install-nix.sh
+        sudo TMPDIR=/opt/nix-install/tmp sh /tmp/install-nix.sh --daemon --yes
 
         # Source Nix profile to make commands available
         if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
@@ -527,24 +556,31 @@ else
 fi
 
 # Install Nix if needed (Ubuntu 22.04 specific)
-if [ "$UBUNTU_VERSION" = "22.04" ] && [ -f "$OFFLINE_NIX_INSTALLER" ]; then
+if [ "$UBUNTU_VERSION" = "22.04" ]; then
     echo -e "${YELLOW}Ubuntu 22.04 detected - checking if Nix needs to be installed...${NC}"
 
     if [ ! -f "/nix/var/nix/profiles/default/bin/nix" ]; then
-        echo -e "${YELLOW}Installing Nix from offline installer...${NC}"
+        if [ -f "$OFFLINE_NIX_INSTALLER" ]; then
+            echo -e "${YELLOW}Installing Nix from offline installer...${NC}"
 
-        # Create installation directory
-        sudo mkdir -p /opt/nix-install/tmp
-        sudo cp "$OFFLINE_NIX_INSTALLER" /opt/nix-install/install-nix.sh
-        sudo chmod +x /opt/nix-install/install-nix.sh
+            # Create installation directory
+            sudo mkdir -p /opt/nix-install/tmp
+            sudo cp "$OFFLINE_NIX_INSTALLER" /opt/nix-install/install-nix.sh
+            sudo chmod +x /opt/nix-install/install-nix.sh
 
-        # Install Nix
-        sudo TMPDIR=/opt/nix-install/tmp sh /opt/nix-install/install-nix.sh --daemon --yes
+            # Install Nix
+            sudo TMPDIR=/opt/nix-install/tmp sh /opt/nix-install/install-nix.sh --daemon --yes
 
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}✓ Nix installed successfully from offline installer${NC}"
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓ Nix installed successfully from offline installer${NC}"
+            else
+                echo -e "${RED}✗ Failed to install Nix from offline installer${NC}"
+                exit 1
+            fi
         else
-            echo -e "${RED}✗ Failed to install Nix from offline installer${NC}"
+            echo -e "${RED}✗ Ubuntu 22.04 requires Nix installer but $OFFLINE_NIX_INSTALLER not found${NC}"
+            echo -e "${YELLOW}Available files in nix directory:${NC}"
+            ls -la "$SCRIPT_DIR/../nix/" 2>/dev/null || echo "Nix directory not found"
             exit 1
         fi
     else
@@ -638,6 +674,24 @@ POLICY_EOF
         fi
     else
         echo -e "${RED}✗ No store path file found${NC}"
+        exit 1
+    fi
+elif [ "$UBUNTU_VERSION" = "22.04" ] && [ -f "$NIX_DIR/build-status.txt" ]; then
+    # Check if Nix packages were skipped during preparation
+    BUILD_STATUS=$(cat "$NIX_DIR/build-status.txt" 2>/dev/null || echo "")
+    if [ "$BUILD_STATUS" = "skipped-macos" ]; then
+        echo -e "${YELLOW}Nix packages were skipped during preparation - installing podman via apt for Ubuntu 22.04${NC}"
+
+        # Install podman via apt
+        echo -e "${YELLOW}Installing podman via apt...${NC}"
+        if sudo apt-get update && sudo apt-get install -y podman podman-docker; then
+            echo -e "${GREEN}✓ Podman installed successfully via apt${NC}"
+        else
+            echo -e "${RED}✗ Failed to install podman via apt${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}✗ No Nix packages found and unknown build status${NC}"
         exit 1
     fi
 else

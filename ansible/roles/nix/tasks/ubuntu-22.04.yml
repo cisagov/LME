@@ -103,6 +103,15 @@
   register: offline_nix_packages
   when: offline_mode | default(false)
 
+- name: Check if Nix packages were already imported by install_packages_offline.sh
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    nix-env -q | grep -q podman
+  register: podman_already_installed
+  become: yes
+  ignore_errors: yes
+  when: offline_mode | default(false)
+
 - name: Import Nix packages from offline archive
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
@@ -111,6 +120,7 @@
   when:
     - offline_mode | default(false)
     - offline_nix_packages.stat.exists
+    - podman_already_installed.rc != 0
 
 - name: Install podman from offline store path
   shell: |
@@ -121,10 +131,20 @@
   when:
     - offline_mode | default(false)
     - offline_nix_packages.stat.exists
+    - podman_already_installed.rc != 0
 
 - name: Display offline mode message for Nix packages
   debug:
-    msg: "Offline mode enabled - skipping Nix channel operations and package installations. Ensure Nix packages are available from offline resources."
-  when: offline_mode | default(false)
+    msg: "Offline mode enabled - Nix installation and package management handled by install_packages_offline.sh script."
+  when:
+    - offline_mode | default(false)
+    - podman_already_installed.rc != 0
+
+- name: Display offline mode success message
+  debug:
+    msg: "Offline mode - Nix and podman already installed by install_packages_offline.sh script."
+  when:
+    - offline_mode | default(false)
+    - podman_already_installed.rc == 0
 
 
