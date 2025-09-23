@@ -376,7 +376,7 @@ download_packages() {
         echo "podman-docker" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
 
         echo -e "${GREEN}✓ Ubuntu 22.04 package preparation completed (using apt approach)${NC}"
-        return 0
+        # Continue to generate the install script - don't return early!
     fi
 
     # Continue with existing Nix-based approach for Ubuntu 24.04 and other systems
@@ -594,7 +594,11 @@ download_packages() {
         exit 1
     fi
 
-    # Generate offline installation script
+    # End of Nix package building section
+    fi
+
+    # Generate offline installation script (for both Ubuntu 22.04 and 24.04)
+    echo -e "${YELLOW}Generating offline installation script...${NC}"
     cat > "$OUTPUT_DIR/packages/install_packages_offline.sh" << 'EOF'
 #!/bin/bash
 
