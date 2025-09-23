@@ -514,14 +514,55 @@ if [ "$OFFLINE_MODE" = "true" ]; then
         else
             echo -e "${YELLOW}Installing required packages...${NC}"
             cd "$SCRIPT_DIR/offline_resources/packages"
-            if [ -f "./install_packages_offline.sh" ]; then
-                ./install_packages_offline.sh
-                if [ $? -ne 0 ]; then
+
+            # Detect OS and install appropriate packages
+            if [ -f /etc/os-release ]; then
+                . /etc/os-release
+                OS_ID="$ID"
+            elif [ -f /etc/redhat-release ]; then
+                OS_ID="rhel"
+            elif [ -f /etc/debian_version ]; then
+                OS_ID="debian"
+            else
+                OS_ID="unknown"
+            fi
+
+            case "$OS_ID" in
+                ubuntu|debian|linuxmint|pop)
+                    PACKAGES_DIR="debs"
+                    PACKAGE_EXT="deb"
+                    INSTALL_CMD="sudo dpkg -i *.deb && sudo apt-get install -f -y"
+                    ;;
+                rhel|centos|rocky|almalinux|fedora)
+                    PACKAGES_DIR="rpms"
+                    PACKAGE_EXT="rpm"
+                    INSTALL_CMD="sudo dnf localinstall -y *.rpm"
+                    ;;
+                *)
+                    echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
+                    exit 1
+                    ;;
+            esac
+
+            echo -e "${GREEN}✓ Detected OS: $OS_ID (looking for $PACKAGE_EXT packages)${NC}"
+
+            if [ ! -d "$PACKAGES_DIR" ]; then
+                echo -e "${RED}✗ Packages directory not found: $PACKAGES_DIR${NC}"
+                exit 1
+            fi
+
+            cd "$PACKAGES_DIR"
+            if ls *.$PACKAGE_EXT 1> /dev/null 2>&1; then
+                echo -e "${YELLOW}Installing .$PACKAGE_EXT packages...${NC}"
+                eval $INSTALL_CMD
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}✓ Package installation complete!${NC}"
+                else
                     echo -e "${RED}✗ Package installation failed${NC}"
                     exit 1
                 fi
             else
-                echo -e "${RED}✗ Package installation script not found${NC}"
+                echo -e "${RED}✗ No .$PACKAGE_EXT files found in $PACKAGES_DIR directory${NC}"
                 exit 1
             fi
         fi
