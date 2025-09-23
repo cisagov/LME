@@ -159,35 +159,37 @@ install_nix_for_preparation() {
     echo -e "${GREEN}✓ Nix installation completed${NC}"
 }
 
-# Cleanup temporary podman installation
+# Cleanup podman installation - ALWAYS remove system podman to use Nix version
 cleanup_temp_podman() {
-    if [ "$TEMP_PODMAN_INSTALLED" = true ]; then
-        echo -e "${YELLOW}Cleaning up temporary Podman installation...${NC}"
+    echo -e "${YELLOW}Cleaning up system Podman installation...${NC}"
 
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS - uninstall via Homebrew
-            if command -v brew &> /dev/null; then
-                echo -e "${YELLOW}Uninstalling Podman via Homebrew...${NC}"
-                brew uninstall podman
-            fi
-        elif [[ -f /etc/debian_version ]]; then
-            # Debian/Ubuntu
-            echo -e "${YELLOW}Uninstalling Podman on Debian/Ubuntu...${NC}"
-            sudo apt-get remove -y podman
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS - uninstall via Homebrew
+        if command -v brew &> /dev/null && brew list podman &> /dev/null; then
+            echo -e "${YELLOW}Uninstalling Podman via Homebrew...${NC}"
+            brew uninstall podman
+        fi
+    elif [[ -f /etc/debian_version ]]; then
+        # Debian/Ubuntu - always remove system podman
+        if command -v podman &> /dev/null; then
+            echo -e "${YELLOW}Uninstalling system Podman on Debian/Ubuntu...${NC}"
+            sudo apt-get remove -y podman podman-docker
             sudo apt-get autoremove -y
-        elif [[ -f /etc/redhat-release ]]; then
-            # RHEL/CentOS/Fedora
-            echo -e "${YELLOW}Uninstalling Podman on RHEL/CentOS/Fedora...${NC}"
+        fi
+    elif [[ -f /etc/redhat-release ]]; then
+        # RHEL/CentOS/Fedora
+        if command -v podman &> /dev/null; then
+            echo -e "${YELLOW}Uninstalling system Podman on RHEL/CentOS/Fedora...${NC}"
             if command -v dnf &> /dev/null; then
                 sudo dnf remove -y podman
             elif command -v yum &> /dev/null; then
                 sudo yum remove -y podman
             fi
         fi
-
-        echo -e "${GREEN}✓ Temporary Podman installation cleaned up${NC}"
-        echo -e "${YELLOW}Note: LME installation will use Nix-managed Podman${NC}"
     fi
+
+    echo -e "${GREEN}✓ System Podman cleaned up${NC}"
+    echo -e "${YELLOW}Note: LME installation will use Nix-managed Podman${NC}"
 
     # Cleanup temporary Nix installation
     if [ "$TEMP_NIX_INSTALLED" = true ]; then
