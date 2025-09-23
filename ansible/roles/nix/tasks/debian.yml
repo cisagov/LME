@@ -28,7 +28,7 @@
     dest: /opt/nix-install/install-nix.sh
     mode: '0755'
   become: yes
-  when: not nix_installed.stat.exists
+  when: not nix_installed.stat.exists and not (offline_mode | default(false))
 
 - name: Install Nix package manager
   shell: sh /opt/nix-install/install-nix.sh --daemon --yes
@@ -68,9 +68,11 @@
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
 
 - name: Install required packages
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))

@@ -5,6 +5,7 @@
   apt:
     update_cache: yes
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Install nix packages
   apt:
@@ -13,14 +14,17 @@
       - nix-setup-systemd
     state: present
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Add Nix channel
   command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Update Nix channel
   command: nix-channel --update
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Add user to nix-users group
   user:
@@ -31,4 +35,5 @@
 
 - name: Install required packages
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
-  become: yes 
+  become: yes
+  when: not (offline_mode | default(false))

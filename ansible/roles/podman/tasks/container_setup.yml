@@ -74,6 +74,7 @@
   delay: 5
   until: pull_result is not failed
   ignore_errors: yes
+  when: not (offline_mode | default(false))
 
 - name: Display container pull errors
   debug:

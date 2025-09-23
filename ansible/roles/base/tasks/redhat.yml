@@ -10,6 +10,7 @@
   delay: 10
   until: dnf_update is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
 
 - name: Check if curl-minimal is installed
   command: rpm -q curl-minimal
