@@ -420,6 +420,13 @@ download_packages() {
             "glibc-langpack-en"
             "shadow-utils"
             "ansible"
+            "policycoreutils"
+            "policycoreutils-python-utils"
+            "checkpolicy"
+            "selinux-policy"
+            "selinux-policy-targeted"
+            "libselinux-utils"
+            "container-selinux"
         )
     fi
 
