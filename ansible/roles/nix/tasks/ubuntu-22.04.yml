@@ -22,41 +22,20 @@
   become: yes
   when: not nix_installed.stat.exists
 
-- name: Check for offline Nix installer
-  stat:
-    path: "{{ clone_directory }}/offline_resources/nix/install-nix.sh"
-  register: offline_nix_installer
-  when: offline_mode | default(false)
-
-- name: Copy offline Nix installer
-  copy:
-    src: "{{ clone_directory }}/offline_resources/nix/install-nix.sh"
-    dest: /opt/nix-install/install-nix.sh
-    mode: '0755'
-  become: yes
-  when:
-    - offline_mode | default(false)
-    - not nix_installed.stat.exists
-    - offline_nix_installer.stat.exists
-
-- name: Download Nix installer (online mode)
+- name: Download Nix installer
   get_url:
     url: https://nixos.org/nix/install
     dest: /opt/nix-install/install-nix.sh
     mode: '0755'
   become: yes
-  when:
-    - not (offline_mode | default(false))
-    - not nix_installed.stat.exists
+  when: not nix_installed.stat.exists
 
 - name: Install Nix package manager
   shell: sh /opt/nix-install/install-nix.sh --daemon --yes
   become: yes
   environment:
     TMPDIR: /opt/nix-install/tmp
-  when:
-    - not nix_installed.stat.exists
-    - not (offline_mode | default(false))
+  when: not nix_installed.stat.exists
 
 - name: Ensure nix-daemon service is started
   systemd:
@@ -78,75 +57,22 @@
     append: yes
   become: yes
 
-- name: Add Nix channel (online mode)
+- name: Add Nix channel
   command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
-  when: not (offline_mode | default(false))
 
-- name: Update Nix channel (online mode)
+- name: Update Nix channel
   command: nix-channel --update
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
-  when: not (offline_mode | default(false))
 
-- name: Install required packages (online mode)
+- name: Install required packages
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
-  become: yes
+  become: yes 
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
-  when: not (offline_mode | default(false))
-
-- name: Check for offline Nix packages
-  stat:
-    path: "{{ clone_directory }}/offline_resources/packages/nix/podman-closure.nar"
-  register: offline_nix_packages
-  when: offline_mode | default(false)
-
-- name: Check if Nix packages were already imported by install_packages_offline.sh
-  shell: |
-    export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    nix-env -q | grep -q podman
-  register: podman_already_installed
-  become: yes
-  ignore_errors: yes
-  when: offline_mode | default(false)
-
-- name: Import Nix packages from offline archive
-  shell: |
-    export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    nix-store --import < "{{ clone_directory }}/offline_resources/packages/nix/podman-closure.nar"
-  become: yes
-  when:
-    - offline_mode | default(false)
-    - offline_nix_packages.stat.exists
-    - podman_already_installed.rc != 0
-
-- name: Install podman from offline store path
-  shell: |
-    export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    PODMAN_STORE_PATH=$(cat "{{ clone_directory }}/offline_resources/packages/nix/podman-store-path.txt")
-    nix-env -i "$PODMAN_STORE_PATH"
-  become: yes
-  when:
-    - offline_mode | default(false)
-    - offline_nix_packages.stat.exists
-    - podman_already_installed.rc != 0
-
-- name: Display offline mode message for Nix packages
-  debug:
-    msg: "Offline mode enabled - Nix installation and package management handled by install_packages_offline.sh script."
-  when:
-    - offline_mode | default(false)
-    - podman_already_installed.rc != 0
-
-- name: Display offline mode success message
-  debug:
-    msg: "Offline mode - Nix and podman already installed by install_packages_offline.sh script."
-  when:
-    - offline_mode | default(false)
-    - podman_already_installed.rc == 0
 
 

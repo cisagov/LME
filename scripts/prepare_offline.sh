@@ -159,50 +159,35 @@ install_nix_for_preparation() {
     echo -e "${GREEN}✓ Nix installation completed${NC}"
 }
 
-# Cleanup podman installation - ALWAYS remove system podman to use Nix version
+# Cleanup temporary podman installation
 cleanup_temp_podman() {
-    echo -e "${YELLOW}Cleaning up system Podman installation...${NC}"
+    if [ "$TEMP_PODMAN_INSTALLED" = true ]; then
+        echo -e "${YELLOW}Cleaning up temporary Podman installation...${NC}"
 
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS - uninstall via Homebrew
-        if command -v brew &> /dev/null && brew list podman &> /dev/null; then
-            echo -e "${YELLOW}Uninstalling Podman via Homebrew...${NC}"
-            brew uninstall podman
-        fi
-    elif [[ -f /etc/debian_version ]]; then
-        # Debian/Ubuntu - always remove system podman
-        if command -v podman &> /dev/null; then
-            echo -e "${YELLOW}Uninstalling system Podman on Debian/Ubuntu...${NC}"
-
-            # Fix any interrupted dpkg operations first
-            sudo dpkg --configure -a
-
-            # Remove podman packages
-            if sudo apt-get remove -y podman podman-docker; then
-                sudo apt-get autoremove -y
-                echo -e "${GREEN}✓ System Podman packages removed successfully${NC}"
-            else
-                echo -e "${RED}✗ Failed to remove Podman packages${NC}"
-                echo -e "${YELLOW}You may need to manually run: sudo dpkg --configure -a${NC}"
-                echo -e "${YELLOW}Then: sudo apt-get remove -y podman podman-docker${NC}"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS - uninstall via Homebrew
+            if command -v brew &> /dev/null; then
+                echo -e "${YELLOW}Uninstalling Podman via Homebrew...${NC}"
+                brew uninstall podman
             fi
-        else
-            echo -e "${GREEN}✓ No system Podman found to remove${NC}"
-        fi
-    elif [[ -f /etc/redhat-release ]]; then
-        # RHEL/CentOS/Fedora
-        if command -v podman &> /dev/null; then
-            echo -e "${YELLOW}Uninstalling system Podman on RHEL/CentOS/Fedora...${NC}"
+        elif [[ -f /etc/debian_version ]]; then
+            # Debian/Ubuntu
+            echo -e "${YELLOW}Uninstalling Podman on Debian/Ubuntu...${NC}"
+            sudo apt-get remove -y podman
+            sudo apt-get autoremove -y
+        elif [[ -f /etc/redhat-release ]]; then
+            # RHEL/CentOS/Fedora
+            echo -e "${YELLOW}Uninstalling Podman on RHEL/CentOS/Fedora...${NC}"
             if command -v dnf &> /dev/null; then
                 sudo dnf remove -y podman
             elif command -v yum &> /dev/null; then
                 sudo yum remove -y podman
             fi
         fi
-    fi
 
-    echo -e "${GREEN}✓ System Podman cleaned up${NC}"
-    echo -e "${YELLOW}Note: LME installation will use Nix-managed Podman${NC}"
+        echo -e "${GREEN}✓ Temporary Podman installation cleaned up${NC}"
+        echo -e "${YELLOW}Note: LME installation will use Nix-managed Podman${NC}"
+    fi
 
     # Cleanup temporary Nix installation
     if [ "$TEMP_NIX_INSTALLED" = true ]; then
@@ -240,7 +225,6 @@ create_output_dir() {
     mkdir -p "$OUTPUT_DIR/agents"
     mkdir -p "$OUTPUT_DIR/cve"
     mkdir -p "$OUTPUT_DIR/docs"
-    mkdir -p "$OUTPUT_DIR/nix"
 }
 
 # Download and save container images
@@ -280,30 +264,6 @@ download_containers() {
             echo
         fi
     done < "$CONTAINERS_FILE"
-}
-
-# Download Nix installer for Ubuntu 22.04 systems
-download_nix_installer() {
-    echo -e "${YELLOW}Downloading Nix installer for Ubuntu 22.04 systems...${NC}"
-
-    # Download the official Nix installer script
-    echo -e "${YELLOW}  Downloading Nix installer script...${NC}"
-    if curl -L "https://nixos.org/nix/install" -o "$OUTPUT_DIR/nix/install-nix.sh"; then
-        chmod +x "$OUTPUT_DIR/nix/install-nix.sh"
-        echo -e "${GREEN}  ✓ Nix installer downloaded successfully${NC}"
-
-        # Verify the download
-        if [ -f "$OUTPUT_DIR/nix/install-nix.sh" ] && [ -s "$OUTPUT_DIR/nix/install-nix.sh" ]; then
-            FILE_SIZE=$(du -h "$OUTPUT_DIR/nix/install-nix.sh" | cut -f1)
-            echo -e "${GREEN}  ✓ Nix installer size: $FILE_SIZE${NC}"
-        else
-            echo -e "${RED}  ✗ Downloaded Nix installer appears to be empty${NC}"
-        fi
-    else
-        echo -e "${RED}  ✗ Failed to download Nix installer${NC}"
-    fi
-
-    echo -e "${GREEN}✓ Nix installer download completed${NC}"
 }
 
 # Download packages for offline installation
@@ -368,49 +328,10 @@ download_packages() {
     # Download Nix packages for offline installation
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
 
-    # Detect Ubuntu version for version-specific handling
-    PREP_UBUNTU_VERSION=""
-    if [ -f /etc/lsb-release ]; then
-        PREP_UBUNTU_VERSION=$(grep DISTRIB_RELEASE /etc/lsb-release | cut -d= -f2)
-        echo -e "${YELLOW}Detected preparation system: Ubuntu $PREP_UBUNTU_VERSION${NC}"
-    fi
-
-    # For Ubuntu 22.04 preparation systems, use a simpler approach to avoid Nix daemon issues
-    if [ "$PREP_UBUNTU_VERSION" = "22.04" ]; then
-        echo -e "${YELLOW}Ubuntu 22.04 detected - using simplified package preparation${NC}"
-        echo -e "${YELLOW}Will use apt packages for podman instead of Nix to avoid daemon issues${NC}"
-
-        # Create marker file to indicate we're using apt approach
-        mkdir -p "$OUTPUT_DIR/packages/nix"
-        mkdir -p "$OUTPUT_DIR/nix"
-        echo "ubuntu-22.04-apt" > "$OUTPUT_DIR/packages/nix/build-status.txt"
-        echo "ubuntu-22.04-apt" > "$OUTPUT_DIR/nix/build-status.txt"
-
-        # Add podman to the apt packages list
-        echo "podman" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
-        echo "podman-docker" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
-
-        echo -e "${GREEN}✓ Ubuntu 22.04 package preparation completed (using apt approach)${NC}"
-        # Skip Nix building for Ubuntu 22.04 - jump to script generation
-    else
-        # Continue with existing Nix-based approach for Ubuntu 24.04 and other systems
-        echo -e "${YELLOW}Using Nix-based package preparation (Ubuntu 24.04 compatible)${NC}"
-
-        # Check if Nix is available on the prepare system and install if needed
+    # Check if Nix is available on the prepare system and install if needed
     if ! command -v nix-build >/dev/null 2>&1; then
         echo -e "${YELLOW}Nix not found, installing automatically for package preparation...${NC}"
-
-        # For Ubuntu 22.04 compatibility, always use the official installer method
-        # This ensures the Nix packages will be compatible with Ubuntu 22.04 systems
-        echo -e "${YELLOW}Installing Nix via official installer for Ubuntu 22.04 compatibility...${NC}"
-
-        # Create installation directory
-        sudo mkdir -p /opt/nix-install/tmp
-
-        # Download and install Nix using official installer
-        curl -L https://nixos.org/nix/install -o /tmp/install-nix.sh
-        chmod +x /tmp/install-nix.sh
-        sudo TMPDIR=/opt/nix-install/tmp sh /tmp/install-nix.sh --daemon --yes
+        install_nix_for_preparation
 
         # Source Nix profile to make commands available
         if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
@@ -422,46 +343,15 @@ download_packages() {
             source "/etc/profile.d/nix.sh"
         fi
 
-        # Add current user to nix-users group if it exists
-        if getent group nix-users >/dev/null 2>&1; then
-            echo -e "${YELLOW}Adding user to nix-users group...${NC}"
-            sudo usermod -a -G nix-users $USER
-        fi
-
-        # Start and enable Nix daemon if it's not running (for multi-user installs)
+        # Start Nix daemon if it's not running (for multi-user installs)
         if [ -f "/etc/systemd/system/nix-daemon.service" ] && command -v systemctl >/dev/null 2>&1; then
-            echo -e "${YELLOW}Starting and enabling Nix daemon...${NC}"
-            sudo systemctl enable nix-daemon
-            sudo systemctl start nix-daemon
-
-            # Wait for daemon to be ready
-            echo -e "${YELLOW}Waiting for Nix daemon to be ready...${NC}"
-            sleep 5
-
-            # Check if daemon is running
-            if sudo systemctl is-active --quiet nix-daemon; then
-                echo -e "${GREEN}✓ Nix daemon is running${NC}"
-            else
-                echo -e "${RED}✗ Nix daemon failed to start${NC}"
-                sudo systemctl status nix-daemon
-            fi
+            echo -e "${YELLOW}Starting Nix daemon...${NC}"
+            sudo systemctl start nix-daemon || true
         fi
-
-        # Reload the shell environment to pick up Nix
-        echo -e "${YELLOW}Reloading shell environment...${NC}"
-        if [ -f "/etc/profile.d/nix.sh" ]; then
-            source "/etc/profile.d/nix.sh"
-        fi
-
-        # Export PATH to include Nix binaries
-        export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
         # Check again after installation
         if ! command -v nix-build >/dev/null 2>&1; then
-            echo -e "${RED}✗ Failed to install Nix or nix-build not available${NC}"
-            echo -e "${YELLOW}Checking Nix installation...${NC}"
-            ls -la /nix/var/nix/profiles/default/bin/ 2>/dev/null || echo "Nix bin directory not found"
-            echo -e "${YELLOW}Current PATH: $PATH${NC}"
+            echo -e "${RED}✗ Failed to install Nix${NC}"
             exit 1
         fi
 
@@ -474,60 +364,16 @@ download_packages() {
 
     # Set up Nix channels if not already configured
     echo -e "${YELLOW}Checking Nix channels configuration...${NC}"
-
-    # Check if we can access Nix daemon
-    if ! nix-channel --list >/dev/null 2>&1; then
-        echo -e "${RED}✗ Cannot access Nix daemon. Checking permissions...${NC}"
-
-        # Check if user is in nix-users group
-        if ! groups | grep -q nix-users; then
-            echo -e "${YELLOW}Adding user to nix-users group and restarting session...${NC}"
-            sudo usermod -a -G nix-users $USER
-            echo -e "${YELLOW}Please log out and log back in, then run this script again.${NC}"
-            echo -e "${YELLOW}Alternatively, run: newgrp nix-users${NC}"
-            exit 1
-        fi
-
-        # Check daemon socket permissions
-        if [ -S "/nix/var/nix/daemon-socket/socket" ]; then
-            echo -e "${YELLOW}Checking daemon socket permissions...${NC}"
-            ls -la /nix/var/nix/daemon-socket/socket
-            sudo chmod 666 /nix/var/nix/daemon-socket/socket 2>/dev/null || true
-        fi
-
-        # Try again
-        if ! nix-channel --list >/dev/null 2>&1; then
-            echo -e "${RED}✗ Still cannot access Nix daemon after permission fixes${NC}"
-            exit 1
-        fi
-    fi
-
     if ! nix-channel --list | grep -q "nixpkgs"; then
         echo -e "${YELLOW}Adding nixpkgs channel...${NC}"
-        if nix-channel --add https://nixos.org/channels/nixos-unstable nixpkgs; then
-            echo -e "${GREEN}✓ Nixpkgs channel added${NC}"
-        else
-            echo -e "${RED}✗ Failed to add nixpkgs channel${NC}"
-            exit 1
-        fi
-
-        echo -e "${YELLOW}Updating Nix channels...${NC}"
-        if nix-channel --update; then
-            echo -e "${GREEN}✓ Nixpkgs channel updated${NC}"
-        else
-            echo -e "${RED}✗ Failed to update nixpkgs channel${NC}"
-            exit 1
-        fi
+        nix-channel --add https://nixos.org/channels/nixos-unstable nixpkgs
+        nix-channel --update
+        echo -e "${GREEN}✓ Nixpkgs channel added and updated${NC}"
     else
         echo -e "${GREEN}✓ Nixpkgs channel already configured${NC}"
         # Update channels to ensure we have latest packages
         echo -e "${YELLOW}Updating Nix channels...${NC}"
-        if nix-channel --update; then
-            echo -e "${GREEN}✓ Nix channels updated${NC}"
-        else
-            echo -e "${RED}✗ Failed to update Nix channels${NC}"
-            exit 1
-        fi
+        nix-channel --update
     fi
 
     echo -e "${YELLOW}Building podman package with Nix (this may take several minutes)...${NC}"
@@ -608,11 +454,7 @@ download_packages() {
         exit 1
     fi
 
-    # End of Nix building section (Ubuntu 24.04 and other systems)
-    fi
-
-    # Generate offline installation script (for both Ubuntu 22.04 and 24.04)
-    echo -e "${YELLOW}Generating offline installation script...${NC}"
+    # Generate offline installation script
     cat > "$OUTPUT_DIR/packages/install_packages_offline.sh" << 'EOF'
 #!/bin/bash
 
@@ -626,16 +468,8 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 DEBS_DIR="$SCRIPT_DIR/debs"
 NIX_DIR="$SCRIPT_DIR/nix"
-OFFLINE_NIX_INSTALLER="$SCRIPT_DIR/../nix/install-nix.sh"
 
 echo -e "${YELLOW}Installing required packages for LME offline installation...${NC}"
-
-# Detect Ubuntu version for Nix installation method
-UBUNTU_VERSION=""
-if [ -f /etc/lsb-release ]; then
-    UBUNTU_VERSION=$(grep DISTRIB_RELEASE /etc/lsb-release | cut -d= -f2)
-    echo -e "${YELLOW}Detected Ubuntu version: $UBUNTU_VERSION${NC}"
-fi
 
 if [ ! -d "$DEBS_DIR" ]; then
     echo -e "${RED}✗ Debs directory not found: $DEBS_DIR${NC}"
@@ -657,39 +491,6 @@ if ls *.deb 1> /dev/null 2>&1; then
 else
     echo -e "${RED}✗ No .deb files found in debs directory${NC}"
     exit 1
-fi
-
-# Install Nix if needed (Ubuntu 22.04 specific)
-if [ "$UBUNTU_VERSION" = "22.04" ]; then
-    echo -e "${YELLOW}Ubuntu 22.04 detected - checking if Nix needs to be installed...${NC}"
-
-    if [ ! -f "/nix/var/nix/profiles/default/bin/nix" ]; then
-        if [ -f "$OFFLINE_NIX_INSTALLER" ]; then
-            echo -e "${YELLOW}Installing Nix from offline installer...${NC}"
-
-            # Create installation directory
-            sudo mkdir -p /opt/nix-install/tmp
-            sudo cp "$OFFLINE_NIX_INSTALLER" /opt/nix-install/install-nix.sh
-            sudo chmod +x /opt/nix-install/install-nix.sh
-
-            # Install Nix
-            sudo TMPDIR=/opt/nix-install/tmp sh /opt/nix-install/install-nix.sh --daemon --yes
-
-            if [ $? -eq 0 ]; then
-                echo -e "${GREEN}✓ Nix installed successfully from offline installer${NC}"
-            else
-                echo -e "${RED}✗ Failed to install Nix from offline installer${NC}"
-                exit 1
-            fi
-        else
-            echo -e "${RED}✗ Ubuntu 22.04 requires Nix installer but $OFFLINE_NIX_INSTALLER not found${NC}"
-            echo -e "${YELLOW}Available files in nix directory:${NC}"
-            ls -la "$SCRIPT_DIR/../nix/" 2>/dev/null || echo "Nix directory not found"
-            exit 1
-        fi
-    else
-        echo -e "${GREEN}✓ Nix is already installed${NC}"
-    fi
 fi
 
 # Set up Nix and import podman
@@ -778,24 +579,6 @@ POLICY_EOF
         fi
     else
         echo -e "${RED}✗ No store path file found${NC}"
-        exit 1
-    fi
-elif [ "$UBUNTU_VERSION" = "22.04" ] && [ -f "$NIX_DIR/build-status.txt" ]; then
-    # Check if Nix packages were skipped during preparation
-    BUILD_STATUS=$(cat "$NIX_DIR/build-status.txt" 2>/dev/null || echo "")
-    if [ "$BUILD_STATUS" = "skipped-macos" ] || [ "$BUILD_STATUS" = "ubuntu-22.04-apt" ]; then
-        echo -e "${YELLOW}Nix packages were skipped during preparation - installing podman via apt for Ubuntu 22.04${NC}"
-
-        # Install podman via apt
-        echo -e "${YELLOW}Installing podman via apt...${NC}"
-        if sudo apt-get update && sudo apt-get install -y podman podman-docker; then
-            echo -e "${GREEN}✓ Podman installed successfully via apt${NC}"
-        else
-            echo -e "${RED}✗ Failed to install podman via apt${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${RED}✗ No Nix packages found and unknown build status: $BUILD_STATUS${NC}"
         exit 1
     fi
 else
@@ -974,12 +757,6 @@ download_agents() {
 # Download CVE database for offline Wazuh vulnerability detection
 download_cve_database() {
     echo -e "${YELLOW}Downloading CVE database for offline Wazuh vulnerability detection...${NC}"
-
-    # Check if jq is installed, install if needed
-    if ! command -v jq >/dev/null 2>&1; then
-        echo -e "${YELLOW}  Installing jq for JSON parsing...${NC}"
-        sudo apt-get update && sudo apt-get install -y jq
-    fi
 
     # Create cve directory
     mkdir -p "$OUTPUT_DIR/cve"
@@ -1207,7 +984,6 @@ Archive Contents:
   - packages/            : Package lists and installation scripts
   - agents/              : Agent installers (Wazuh and Elastic agents)
   - cve/                 : CVE database for offline Wazuh vulnerability detection
-  - nix/                 : Nix installer script for Ubuntu 22.04 systems
   - docs/               : Documentation
   - load_containers.sh  : Script to load container images
 
@@ -1236,9 +1012,6 @@ Steps for Offline Installation:
 CRITICAL NOTES:
 ===============
 
-- Supports both Ubuntu 22.04 and 24.04 systems
-- Ubuntu 22.04: Nix installed via official installer script (included in archive)
-- Ubuntu 24.04: Nix installed via apt packages
 - Podman is installed via Nix and must be accessible to root user
 - Use 'sudo podman' or 'sudo -i podman' for container operations
 - All container images will be loaded for root user access
@@ -1279,7 +1052,6 @@ main() {
     check_podman
     create_output_dir
     download_containers
-    download_nix_installer
     download_packages
     download_agents
     download_cve_database
