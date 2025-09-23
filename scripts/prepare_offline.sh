@@ -376,13 +376,12 @@ download_packages() {
         echo "podman-docker" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
 
         echo -e "${GREEN}✓ Ubuntu 22.04 package preparation completed (using apt approach)${NC}"
-        # Continue to generate the install script - don't return early!
-    fi
+        # Skip Nix building for Ubuntu 22.04 - jump to script generation
+    else
+        # Continue with existing Nix-based approach for Ubuntu 24.04 and other systems
+        echo -e "${YELLOW}Using Nix-based package preparation (Ubuntu 24.04 compatible)${NC}"
 
-    # Continue with existing Nix-based approach for Ubuntu 24.04 and other systems
-    echo -e "${YELLOW}Using Nix-based package preparation (Ubuntu 24.04 compatible)${NC}"
-
-    # Check if Nix is available on the prepare system and install if needed
+        # Check if Nix is available on the prepare system and install if needed
     if ! command -v nix-build >/dev/null 2>&1; then
         echo -e "${YELLOW}Nix not found, installing automatically for package preparation...${NC}"
 
@@ -592,6 +591,9 @@ download_packages() {
     else
         echo -e "${RED}✗ Failed to export podman closure${NC}"
         exit 1
+    fi
+
+    # End of Nix building section (Ubuntu 24.04 and other systems)
     fi
 
     # Generate offline installation script (for both Ubuntu 22.04 and 24.04)
