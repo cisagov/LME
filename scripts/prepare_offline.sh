@@ -594,9 +594,6 @@ download_packages() {
         exit 1
     fi
 
-    # End of Nix package building section
-    fi
-
     # Generate offline installation script (for both Ubuntu 22.04 and 24.04)
     echo -e "${YELLOW}Generating offline installation script...${NC}"
     cat > "$OUTPUT_DIR/packages/install_packages_offline.sh" << 'EOF'
