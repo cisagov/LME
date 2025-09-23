@@ -10,6 +10,16 @@ The offline installation mode allows you to install LME on systems without inter
 - Bypassing HIBP (Have I Been Pwned) password checks
 - Using pre-downloaded/cached resources
 
+## Supported Operating Systems
+
+- Ubuntu 22.04 LTS
+- Ubuntu 24.04 LTS
+- Debian 12
+- RHEL 9 (Red Hat Enterprise Linux 9)
+- CentOS Stream 9
+- Rocky Linux 9
+- AlmaLinux 9
+
 ## Prerequisites
 
 Before performing an offline installation, you must have a system that has already downloaded all required components:
@@ -121,11 +131,12 @@ If you prefer manual preparation:
 1. **Download container images**:
 ```bash
 # On a system with internet access
-podman pull docker.elastic.co/elasticsearch/elasticsearch:8.18.0
-podman pull docker.elastic.co/beats/elastic-agent:8.18.0
-podman pull docker.elastic.co/kibana/kibana:8.18.0
+podman pull docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+podman pull docker.elastic.co/beats/elastic-agent:8.18.3
+podman pull docker.elastic.co/kibana/kibana:8.18.3
 podman pull docker.io/wazuh/wazuh-manager:4.9.1
 podman pull docker.io/jertel/elastalert2:2.20.0
+podman pull docker.elastic.co/package-registry/distribution:lite-8.18.3
 
 # Save images to tar files
 podman save -o elasticsearch.tar docker.elastic.co/elasticsearch/elasticsearch:8.18.0
