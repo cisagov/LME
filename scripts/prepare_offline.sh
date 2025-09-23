@@ -266,49 +266,30 @@ download_containers() {
     done < "$CONTAINERS_FILE"
 }
 
-# Download packages for offline installation
-download_packages() {
-    echo -e "${YELLOW}Downloading packages for offline installation...${NC}"
+# Download file with fallback from wget to curl
+download_file() {
+    local url="$1"
+    local filename="$2"
 
-    # Create package cache directory
-    mkdir -p "$OUTPUT_DIR/packages/debs"
-    mkdir -p "$OUTPUT_DIR/packages/nix"
+    if command -v wget >/dev/null 2>&1; then
+        wget -q --show-progress "$url" -O "$filename"
+    elif command -v curl >/dev/null 2>&1; then
+        curl -L --progress-bar "$url" -o "$filename"
+    else
+        echo -e "${RED}✗ Neither wget nor curl is available${NC}"
+        return 1
+    fi
+}
 
-    # Define package lists
-    PACKAGES=(
-        "curl"
-        "wget"
-        "gnupg2"
-        "sudo"
-        "git"
-        "openssh-client"
-        "expect"
-        "apt-transport-https"
-        "ca-certificates"
-        "gnupg"
-        "lsb-release"
-        "software-properties-common"
-        "fuse-overlayfs"
-        "build-essential"
-        "python3-pip"
-        "python3-pexpect"
-        "locales"
-        "uidmap"
-        "ansible"
-        "nix-bin"
-        "nix-setup-systemd"
-    )
-
-    # Update package lists first
+# Download packages using apt (Ubuntu/Debian)
+download_apt_packages() {
     echo -e "${YELLOW}Updating package lists...${NC}"
     sudo apt-get update
 
-    # Add Ansible PPA to get latest version
     echo -e "${YELLOW}Adding Ansible PPA...${NC}"
     sudo add-apt-repository --yes --update ppa:ansible/ansible
     sudo apt-get update
 
-    # Download packages
     echo -e "${YELLOW}Downloading packages...${NC}"
     cd "$OUTPUT_DIR/packages/debs"
     for package in "${PACKAGES[@]}"; do
@@ -316,11 +297,136 @@ download_packages() {
         apt-get download "$package" 2>/dev/null || echo -e "${RED}  ✗ Failed to download $package${NC}"
     done
 
-    # Download dependencies recursively
     echo -e "${YELLOW}Downloading package dependencies...${NC}"
     for package in "${PACKAGES[@]}"; do
         apt-get download $(apt-cache depends --recurse --no-recommends --no-suggests --no-conflicts --no-breaks --no-replaces --no-enhances "$package" | grep "^\w" | sort -u) 2>/dev/null || true
     done
+
+    cd "$SCRIPT_DIR"
+}
+
+# Download packages using dnf (RHEL/CentOS/AlmaLinux/Rocky)
+download_dnf_packages() {
+    echo -e "${YELLOW}Updating package cache...${NC}"
+    sudo dnf makecache
+
+    echo -e "${YELLOW}Installing EPEL repository...${NC}"
+    sudo dnf install -y epel-release
+
+    echo -e "${YELLOW}Downloading packages...${NC}"
+    cd "$OUTPUT_DIR/packages/rpms"
+    for package in "${PACKAGES[@]}"; do
+        echo -e "${YELLOW}  Downloading $package...${NC}"
+        dnf download "$package" 2>/dev/null || echo -e "${RED}  ✗ Failed to download $package${NC}"
+    done
+
+    echo -e "${YELLOW}Downloading package dependencies...${NC}"
+    for package in "${PACKAGES[@]}"; do
+        dnf download --resolve "$package" 2>/dev/null || true
+    done
+
+    cd "$SCRIPT_DIR"
+}
+
+# Detect operating system
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_ID="$ID"
+        OS_VERSION_ID="$VERSION_ID"
+    elif [ -f /etc/redhat-release ]; then
+        OS_ID="rhel"
+    elif [ -f /etc/debian_version ]; then
+        OS_ID="debian"
+    else
+        OS_ID="unknown"
+    fi
+
+    case "$OS_ID" in
+        ubuntu|debian|linuxmint|pop)
+            PACKAGE_MANAGER="apt"
+            ;;
+        rhel|centos|rocky|almalinux|fedora)
+            PACKAGE_MANAGER="dnf"
+            ;;
+        *)
+            echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
+            echo -e "${YELLOW}Supported systems: Ubuntu, Debian, RHEL, CentOS, Rocky Linux, AlmaLinux, Fedora${NC}"
+            exit 1
+            ;;
+    esac
+
+    echo -e "${GREEN}✓ Detected OS: $OS_ID (using $PACKAGE_MANAGER)${NC}"
+}
+
+# Download packages for offline installation
+download_packages() {
+    echo -e "${YELLOW}Downloading packages for offline installation...${NC}"
+
+    # Detect OS first
+    detect_os
+
+    # Create package cache directories
+    mkdir -p "$OUTPUT_DIR/packages/debs"
+    mkdir -p "$OUTPUT_DIR/packages/rpms"
+    mkdir -p "$OUTPUT_DIR/packages/nix"
+
+    # Define OS-specific package lists
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        PACKAGES=(
+            "curl"
+            "wget"
+            "gnupg2"
+            "sudo"
+            "git"
+            "openssh-client"
+            "expect"
+            "apt-transport-https"
+            "ca-certificates"
+            "gnupg"
+            "lsb-release"
+            "software-properties-common"
+            "fuse-overlayfs"
+            "build-essential"
+            "python3-pip"
+            "python3-pexpect"
+            "locales"
+            "uidmap"
+            "ansible"
+            "nix-bin"
+            "nix-setup-systemd"
+        )
+    else
+        # RHEL/CentOS/AlmaLinux/Rocky packages
+        PACKAGES=(
+            "curl"
+            "wget"
+            "gnupg2"
+            "sudo"
+            "git"
+            "openssh-clients"
+            "expect"
+            "ca-certificates"
+            "gnupg"
+            "redhat-lsb-core"
+            "fuse-overlayfs"
+            "gcc"
+            "gcc-c++"
+            "make"
+            "python3-pip"
+            "python3-pexpect"
+            "glibc-langpack-en"
+            "shadow-utils"
+            "ansible"
+        )
+    fi
+
+    # Download packages based on package manager
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        download_apt_packages
+    else
+        download_dnf_packages
+    fi
 
     # Return to original directory
     cd "$SCRIPT_DIR"
@@ -693,7 +799,7 @@ download_agents() {
 
     # Wazuh Windows agent
     echo -e "${YELLOW}  Downloading Wazuh Windows agent...${NC}"
-    if wget -q --show-progress "https://packages.wazuh.com/4.x/windows/wazuh-agent-${WAZUH_VERSION}-1.msi"; then
+    if download_file "https://packages.wazuh.com/4.x/windows/wazuh-agent-${WAZUH_VERSION}-1.msi" "wazuh-agent-${WAZUH_VERSION}-1.msi"; then
         echo -e "${GREEN}  ✓ Wazuh Windows agent downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Wazuh Windows agent${NC}"
@@ -701,7 +807,7 @@ download_agents() {
 
     # Wazuh Linux DEB agent
     echo -e "${YELLOW}  Downloading Wazuh Linux DEB agent...${NC}"
-    if wget -q --show-progress "https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_${WAZUH_VERSION}-1_amd64.deb"; then
+    if download_file "https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_${WAZUH_VERSION}-1_amd64.deb" "wazuh-agent_${WAZUH_VERSION}-1_amd64.deb"; then
         echo -e "${GREEN}  ✓ Wazuh Linux DEB agent downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Wazuh Linux DEB agent${NC}"
@@ -709,7 +815,7 @@ download_agents() {
 
     # Wazuh Linux RPM agent
     echo -e "${YELLOW}  Downloading Wazuh Linux RPM agent...${NC}"
-    if wget -q --show-progress "https://packages.wazuh.com/4.x/yum/wazuh-agent-${WAZUH_VERSION}-1.x86_64.rpm"; then
+    if download_file "https://packages.wazuh.com/4.x/yum/wazuh-agent-${WAZUH_VERSION}-1.x86_64.rpm" "wazuh-agent-${WAZUH_VERSION}-1.x86_64.rpm"; then
         echo -e "${GREEN}  ✓ Wazuh Linux RPM agent downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Wazuh Linux RPM agent${NC}"
@@ -720,7 +826,7 @@ download_agents() {
 
     # Elastic Agent Windows
     echo -e "${YELLOW}  Downloading Elastic Agent Windows...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-windows-x86_64.zip"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-windows-x86_64.zip" "elastic-agent-${STACK_VERSION}-windows-x86_64.zip"; then
         echo -e "${GREEN}  ✓ Elastic Agent Windows downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Windows${NC}"
@@ -728,7 +834,7 @@ download_agents() {
 
     # Elastic Agent Linux DEB
     echo -e "${YELLOW}  Downloading Elastic Agent Linux DEB...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-amd64.deb"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-amd64.deb" "elastic-agent-${STACK_VERSION}-amd64.deb"; then
         echo -e "${GREEN}  ✓ Elastic Agent Linux DEB downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Linux DEB${NC}"
@@ -736,7 +842,7 @@ download_agents() {
 
     # Elastic Agent Linux RPM
     echo -e "${YELLOW}  Downloading Elastic Agent Linux RPM...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-x86_64.rpm"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-x86_64.rpm" "elastic-agent-${STACK_VERSION}-x86_64.rpm"; then
         echo -e "${GREEN}  ✓ Elastic Agent Linux RPM downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Linux RPM${NC}"
@@ -744,7 +850,7 @@ download_agents() {
 
     # Elastic Agent Linux TAR.GZ
     echo -e "${YELLOW}  Downloading Elastic Agent Linux TAR.GZ...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-linux-x86_64.tar.gz"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-linux-x86_64.tar.gz" "elastic-agent-${STACK_VERSION}-linux-x86_64.tar.gz"; then
         echo -e "${GREEN}  ✓ Elastic Agent Linux TAR.GZ downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Linux TAR.GZ${NC}"
