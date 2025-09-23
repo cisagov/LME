@@ -536,7 +536,7 @@ if [ "$OFFLINE_MODE" = "true" ]; then
                 rhel|centos|rocky|almalinux|fedora)
                     PACKAGES_DIR="rpms"
                     PACKAGE_EXT="rpm"
-                    INSTALL_CMD="sudo dnf localinstall -y *.rpm"
+                    INSTALL_CMD="sudo dnf localinstall -y --allowerasing *.rpm"
                     ;;
                 *)
                     echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
