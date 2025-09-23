@@ -13,6 +13,8 @@ CUSTOM_IP=""
 HAS_SUDO_ACCESS=""
 IPVAR=""
 DEBUG_MODE="false"
+OFFLINE_MODE="false"
+SKIP_PACKAGES="false"
 
 # Environment variables for non-interactive mode
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
@@ -26,6 +28,8 @@ usage() {
     echo "OPTIONS:"
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
     echo "  -d, --debug                   Enable debug mode for verbose output"
+    echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
+    echo "  --skip-packages               Skip package installation (for development)"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
     echo "  -h, --help                    Show this help message"
     echo
@@ -48,6 +52,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         -d|--debug)
             DEBUG_MODE="true"
+            shift
+            ;;
+        -o|--offline)
+            OFFLINE_MODE="true"
+            shift
+            ;;
+        --skip-packages)
+            SKIP_PACKAGES="true"
             shift
             ;;
         -p|--playbook)
@@ -174,8 +186,17 @@ apt_get_wrapper() {
 
 # Function to install Ansible on different distributions
 install_ansible() {
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${RED}✗ Cannot install Ansible in offline mode.${NC}"
+        echo -e "${YELLOW}Please install Ansible manually before running this script in offline mode.${NC}"
+        echo -e "${YELLOW}For Ubuntu/Debian: sudo apt-get install ansible${NC}"
+        echo -e "${YELLOW}For RHEL/CentOS: sudo dnf install ansible${NC}"
+        echo -e "${YELLOW}For other distributions, consult your package manager.${NC}"
+        exit 1
+    fi
+
     echo -e "${YELLOW}Installing Ansible...${NC}"
-    
+
     # Set noninteractive mode for apt-based installations
     export DEBIAN_FRONTEND=noninteractive
 
@@ -430,13 +451,18 @@ run_playbook() {
         echo -e "${YELLOW}Debug mode enabled - verbose output will be shown${NC}"
         ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
     fi
-    
+
+    # Add offline mode message
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${YELLOW}⚠ Running in offline mode - skipping internet-dependent tasks${NC}"
+    fi
+
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
     if [ -f "./inventory" ]; then
-        ansible-playbook -i inventory "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
+        ansible-playbook -i inventory "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     else
-        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
+        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     fi
     
     if [ $? -eq 0 ]; then
@@ -451,6 +477,105 @@ run_playbook() {
 echo "==============================================="
 echo "    Ansible Setup and Playbook Runner"
 echo "==============================================="
+
+# Display offline mode status early
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${YELLOW}⚠ OFFLINE MODE ENABLED${NC}"
+    echo -e "${YELLOW}⚠ Internet-dependent operations will be skipped${NC}"
+    echo
+
+    # Look for offline archive and extract it
+    echo -e "${YELLOW}Looking for offline installation archive...${NC}"
+    OFFLINE_ARCHIVE=$(find "$SCRIPT_DIR" -name "lme-offline-*.tar.gz" | head -1)
+
+    if [ -n "$OFFLINE_ARCHIVE" ]; then
+        echo -e "${GREEN}✓ Found offline archive: $(basename "$OFFLINE_ARCHIVE")${NC}"
+
+        # Check if already extracted
+        if [ -d "$SCRIPT_DIR/offline_resources" ]; then
+            echo -e "${GREEN}✓ Offline resources already extracted, skipping extraction${NC}"
+        else
+            echo -e "${YELLOW}Extracting offline resources...${NC}"
+            # Extract archive to parent directory (archive contains full LME directory)
+            tar -xzf "$OFFLINE_ARCHIVE" -C "$(dirname "$SCRIPT_DIR")"
+
+            # The archive contains the LME directory with offline_resources inside it
+            # If we're running from a different LME directory, we need to copy the offline_resources
+            EXTRACTED_LME_DIR=$(tar -tzf "$OFFLINE_ARCHIVE" | head -1 | cut -d'/' -f1)
+            if [ "$EXTRACTED_LME_DIR" != "$(basename "$SCRIPT_DIR")" ]; then
+                echo -e "${YELLOW}Copying offline resources from extracted archive...${NC}"
+                cp -r "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/offline_resources" "$SCRIPT_DIR/"
+            fi
+        fi
+
+        # Install packages
+        if [ "$SKIP_PACKAGES" = "true" ]; then
+            echo -e "${YELLOW}Skipping package installation (--skip-packages flag enabled)${NC}"
+        else
+            echo -e "${YELLOW}Installing required packages...${NC}"
+            cd "$SCRIPT_DIR/offline_resources/packages"
+            if [ -f "./install_packages_offline.sh" ]; then
+                ./install_packages_offline.sh
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}✗ Package installation failed${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}✗ Package installation script not found${NC}"
+                exit 1
+            fi
+        fi
+
+        # Load containers
+        echo -e "${YELLOW}Loading container images...${NC}"
+        cd "$SCRIPT_DIR/offline_resources"
+
+        # Check if containers are already loaded
+        if sudo podman images --format "{{.Repository}}" | grep -q "localhost\|docker\." > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Container images already loaded, skipping container loading${NC}"
+        else
+            if [ -f "./load_containers.sh" ]; then
+                ./load_containers.sh
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}✗ Container loading failed${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}✗ Container loading script not found${NC}"
+                exit 1
+            fi
+        fi
+
+        # Return to original directory
+        cd "$SCRIPT_DIR"
+
+        # Verify podman is now available
+        echo -e "${YELLOW}Verifying podman installation...${NC}"
+        # Update PATH to include potential Nix locations
+        export PATH=/nix/var/nix/profiles/default/bin:$PATH
+
+        if command -v podman >/dev/null 2>&1; then
+            PODMAN_VERSION=$(podman --version)
+            PODMAN_LOCATION=$(which podman)
+            echo -e "${GREEN}✓ Podman is available: $PODMAN_VERSION${NC}"
+            echo -e "${GREEN}✓ Podman location: $PODMAN_LOCATION${NC}"
+        else
+            echo -e "${RED}✗ Podman is still not available after installation${NC}"
+            echo -e "${YELLOW}Checking common locations:${NC}"
+            ls -la /usr/bin/podman* 2>/dev/null || echo "  No podman in /usr/bin/"
+            ls -la /usr/local/bin/podman* 2>/dev/null || echo "  No podman in /usr/local/bin/"
+            ls -la /nix/var/nix/profiles/default/bin/podman* 2>/dev/null || echo "  No podman in Nix default profile"
+            echo -e "${YELLOW}PATH: $PATH${NC}"
+            exit 1
+        fi
+
+        echo -e "${GREEN}✓ Offline resources prepared successfully${NC}"
+    else
+        echo -e "${RED}✗ No offline archive found (lme-offline-*.tar.gz)${NC}"
+        echo -e "${YELLOW}Please ensure the offline archive is in the same directory as install.sh${NC}"
+        exit 1
+    fi
+fi
 
 # Check sudo access first
 check_sudo_access
@@ -518,10 +643,20 @@ fi
 # Check if ansible is already installed
 check_ansible
 if [ $? -ne 0 ]; then
+    # In offline mode, ansible must be pre-installed
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${RED}✗ Ansible is required but not installed.${NC}"
+        echo -e "${YELLOW}In offline mode, Ansible must be pre-installed.${NC}"
+        echo -e "${YELLOW}Please install Ansible manually:${NC}"
+        echo -e "${YELLOW}  For Ubuntu/Debian: sudo apt-get install ansible${NC}"
+        echo -e "${YELLOW}  For RHEL/CentOS: sudo dnf install ansible${NC}"
+        exit 1
+    fi
+
     # Detect distribution and install ansible
     detect_distro
     install_ansible
-    
+
     # Verify installation
     if ! check_ansible; then
         echo -e "${RED}Failed to verify Ansible installation. Please install manually.${NC}"

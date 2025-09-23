@@ -8,6 +8,7 @@
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
     debug_mode: false  # Default debug mode to false
+    offline_mode: false  # Default offline mode to false - set to true for offline installation
     
     # Storage configuration
     storage_runroot: "/run/containers/storage"
