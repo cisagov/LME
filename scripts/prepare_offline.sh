@@ -173,8 +173,21 @@ cleanup_temp_podman() {
         # Debian/Ubuntu - always remove system podman
         if command -v podman &> /dev/null; then
             echo -e "${YELLOW}Uninstalling system Podman on Debian/Ubuntu...${NC}"
-            sudo apt-get remove -y podman podman-docker
-            sudo apt-get autoremove -y
+
+            # Fix any interrupted dpkg operations first
+            sudo dpkg --configure -a
+
+            # Remove podman packages
+            if sudo apt-get remove -y podman podman-docker; then
+                sudo apt-get autoremove -y
+                echo -e "${GREEN}✓ System Podman packages removed successfully${NC}"
+            else
+                echo -e "${RED}✗ Failed to remove Podman packages${NC}"
+                echo -e "${YELLOW}You may need to manually run: sudo dpkg --configure -a${NC}"
+                echo -e "${YELLOW}Then: sudo apt-get remove -y podman podman-docker${NC}"
+            fi
+        else
+            echo -e "${GREEN}✓ No system Podman found to remove${NC}"
         fi
     elif [[ -f /etc/redhat-release ]]; then
         # RHEL/CentOS/Fedora
