@@ -353,23 +353,34 @@ download_packages() {
     # Download Nix packages for offline installation
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
 
-    # Check if we're on macOS - if so, skip Nix package building for Ubuntu compatibility
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo -e "${YELLOW}Running on macOS - skipping Nix package building for Ubuntu compatibility${NC}"
-        echo -e "${YELLOW}Ubuntu 22.04 will use apt packages for podman instead${NC}"
+    # Detect Ubuntu version for version-specific handling
+    PREP_UBUNTU_VERSION=""
+    if [ -f /etc/lsb-release ]; then
+        PREP_UBUNTU_VERSION=$(grep DISTRIB_RELEASE /etc/lsb-release | cut -d= -f2)
+        echo -e "${YELLOW}Detected preparation system: Ubuntu $PREP_UBUNTU_VERSION${NC}"
+    fi
 
-        # Create marker file to indicate we skipped Nix building
+    # For Ubuntu 22.04 preparation systems, use a simpler approach to avoid Nix daemon issues
+    if [ "$PREP_UBUNTU_VERSION" = "22.04" ]; then
+        echo -e "${YELLOW}Ubuntu 22.04 detected - using simplified package preparation${NC}"
+        echo -e "${YELLOW}Will use apt packages for podman instead of Nix to avoid daemon issues${NC}"
+
+        # Create marker file to indicate we're using apt approach
         mkdir -p "$OUTPUT_DIR/packages/nix"
         mkdir -p "$OUTPUT_DIR/nix"
-        echo "skipped-macos" > "$OUTPUT_DIR/packages/nix/build-status.txt"
-        echo "skipped-macos" > "$OUTPUT_DIR/nix/build-status.txt"
+        echo "ubuntu-22.04-apt" > "$OUTPUT_DIR/packages/nix/build-status.txt"
+        echo "ubuntu-22.04-apt" > "$OUTPUT_DIR/nix/build-status.txt"
 
-        # Add podman to the apt packages list for Ubuntu 22.04
+        # Add podman to the apt packages list
         echo "podman" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
         echo "podman-docker" >> "$OUTPUT_DIR/packages/debs/additional-packages.txt"
 
+        echo -e "${GREEN}✓ Ubuntu 22.04 package preparation completed (using apt approach)${NC}"
         return 0
     fi
+
+    # Continue with existing Nix-based approach for Ubuntu 24.04 and other systems
+    echo -e "${YELLOW}Using Nix-based package preparation (Ubuntu 24.04 compatible)${NC}"
 
     # Check if Nix is available on the prepare system and install if needed
     if ! command -v nix-build >/dev/null 2>&1; then
@@ -397,15 +408,46 @@ download_packages() {
             source "/etc/profile.d/nix.sh"
         fi
 
-        # Start Nix daemon if it's not running (for multi-user installs)
-        if [ -f "/etc/systemd/system/nix-daemon.service" ] && command -v systemctl >/dev/null 2>&1; then
-            echo -e "${YELLOW}Starting Nix daemon...${NC}"
-            sudo systemctl start nix-daemon || true
+        # Add current user to nix-users group if it exists
+        if getent group nix-users >/dev/null 2>&1; then
+            echo -e "${YELLOW}Adding user to nix-users group...${NC}"
+            sudo usermod -a -G nix-users $USER
         fi
+
+        # Start and enable Nix daemon if it's not running (for multi-user installs)
+        if [ -f "/etc/systemd/system/nix-daemon.service" ] && command -v systemctl >/dev/null 2>&1; then
+            echo -e "${YELLOW}Starting and enabling Nix daemon...${NC}"
+            sudo systemctl enable nix-daemon
+            sudo systemctl start nix-daemon
+
+            # Wait for daemon to be ready
+            echo -e "${YELLOW}Waiting for Nix daemon to be ready...${NC}"
+            sleep 5
+
+            # Check if daemon is running
+            if sudo systemctl is-active --quiet nix-daemon; then
+                echo -e "${GREEN}✓ Nix daemon is running${NC}"
+            else
+                echo -e "${RED}✗ Nix daemon failed to start${NC}"
+                sudo systemctl status nix-daemon
+            fi
+        fi
+
+        # Reload the shell environment to pick up Nix
+        echo -e "${YELLOW}Reloading shell environment...${NC}"
+        if [ -f "/etc/profile.d/nix.sh" ]; then
+            source "/etc/profile.d/nix.sh"
+        fi
+
+        # Export PATH to include Nix binaries
+        export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
         # Check again after installation
         if ! command -v nix-build >/dev/null 2>&1; then
-            echo -e "${RED}✗ Failed to install Nix${NC}"
+            echo -e "${RED}✗ Failed to install Nix or nix-build not available${NC}"
+            echo -e "${YELLOW}Checking Nix installation...${NC}"
+            ls -la /nix/var/nix/profiles/default/bin/ 2>/dev/null || echo "Nix bin directory not found"
+            echo -e "${YELLOW}Current PATH: $PATH${NC}"
             exit 1
         fi
 
@@ -418,16 +460,60 @@ download_packages() {
 
     # Set up Nix channels if not already configured
     echo -e "${YELLOW}Checking Nix channels configuration...${NC}"
+
+    # Check if we can access Nix daemon
+    if ! nix-channel --list >/dev/null 2>&1; then
+        echo -e "${RED}✗ Cannot access Nix daemon. Checking permissions...${NC}"
+
+        # Check if user is in nix-users group
+        if ! groups | grep -q nix-users; then
+            echo -e "${YELLOW}Adding user to nix-users group and restarting session...${NC}"
+            sudo usermod -a -G nix-users $USER
+            echo -e "${YELLOW}Please log out and log back in, then run this script again.${NC}"
+            echo -e "${YELLOW}Alternatively, run: newgrp nix-users${NC}"
+            exit 1
+        fi
+
+        # Check daemon socket permissions
+        if [ -S "/nix/var/nix/daemon-socket/socket" ]; then
+            echo -e "${YELLOW}Checking daemon socket permissions...${NC}"
+            ls -la /nix/var/nix/daemon-socket/socket
+            sudo chmod 666 /nix/var/nix/daemon-socket/socket 2>/dev/null || true
+        fi
+
+        # Try again
+        if ! nix-channel --list >/dev/null 2>&1; then
+            echo -e "${RED}✗ Still cannot access Nix daemon after permission fixes${NC}"
+            exit 1
+        fi
+    fi
+
     if ! nix-channel --list | grep -q "nixpkgs"; then
         echo -e "${YELLOW}Adding nixpkgs channel...${NC}"
-        nix-channel --add https://nixos.org/channels/nixos-unstable nixpkgs
-        nix-channel --update
-        echo -e "${GREEN}✓ Nixpkgs channel added and updated${NC}"
+        if nix-channel --add https://nixos.org/channels/nixos-unstable nixpkgs; then
+            echo -e "${GREEN}✓ Nixpkgs channel added${NC}"
+        else
+            echo -e "${RED}✗ Failed to add nixpkgs channel${NC}"
+            exit 1
+        fi
+
+        echo -e "${YELLOW}Updating Nix channels...${NC}"
+        if nix-channel --update; then
+            echo -e "${GREEN}✓ Nixpkgs channel updated${NC}"
+        else
+            echo -e "${RED}✗ Failed to update nixpkgs channel${NC}"
+            exit 1
+        fi
     else
         echo -e "${GREEN}✓ Nixpkgs channel already configured${NC}"
         # Update channels to ensure we have latest packages
         echo -e "${YELLOW}Updating Nix channels...${NC}"
-        nix-channel --update
+        if nix-channel --update; then
+            echo -e "${GREEN}✓ Nix channels updated${NC}"
+        else
+            echo -e "${RED}✗ Failed to update Nix channels${NC}"
+            exit 1
+        fi
     fi
 
     echo -e "${YELLOW}Building podman package with Nix (this may take several minutes)...${NC}"
@@ -679,7 +765,7 @@ POLICY_EOF
 elif [ "$UBUNTU_VERSION" = "22.04" ] && [ -f "$NIX_DIR/build-status.txt" ]; then
     # Check if Nix packages were skipped during preparation
     BUILD_STATUS=$(cat "$NIX_DIR/build-status.txt" 2>/dev/null || echo "")
-    if [ "$BUILD_STATUS" = "skipped-macos" ]; then
+    if [ "$BUILD_STATUS" = "skipped-macos" ] || [ "$BUILD_STATUS" = "ubuntu-22.04-apt" ]; then
         echo -e "${YELLOW}Nix packages were skipped during preparation - installing podman via apt for Ubuntu 22.04${NC}"
 
         # Install podman via apt
@@ -691,7 +777,7 @@ elif [ "$UBUNTU_VERSION" = "22.04" ] && [ -f "$NIX_DIR/build-status.txt" ]; then
             exit 1
         fi
     else
-        echo -e "${RED}✗ No Nix packages found and unknown build status${NC}"
+        echo -e "${RED}✗ No Nix packages found and unknown build status: $BUILD_STATUS${NC}"
         exit 1
     fi
 else
