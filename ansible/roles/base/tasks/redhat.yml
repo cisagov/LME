@@ -36,6 +36,7 @@
   delay: 10
   until: dnf_install is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
 
 - name: Debug - Show common packages install result
   debug:
@@ -56,6 +57,12 @@
   delay: 10
   until: dnf_install_redhat is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Display offline mode message for package installation
+  debug:
+    msg: "Skipping package installation - offline mode enabled. Packages should be pre-installed from offline resources."
+  when: offline_mode | default(false)
 
 - name: Debug - Show Red Hat packages install result
   debug:

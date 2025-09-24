@@ -108,7 +108,19 @@
     dest: /opt/nix-install/install-nix.sh
     mode: '0755'
   become: yes
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
+
+- name: Copy Nix installer from offline resources
+  copy:
+    src: "{{ clone_directory }}/offline_resources/nix/install-nix.sh"
+    dest: /opt/nix-install/install-nix.sh
+    mode: '0755'
+  become: yes
+  when:
+    - not nix_installed.stat.exists
+    - offline_mode | default(false)
 
 - name: Install Nix package manager
   shell: sh /opt/nix-install/install-nix.sh --daemon --yes
@@ -192,12 +204,14 @@
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
 
 - name: Update Nix channel
   command: nix-channel --update
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
 
 - name: Check if nix-users group exists
   group:
@@ -217,6 +231,16 @@
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
+
+- name: Install podman from offline Nix packages
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    nix-env -i {{ clone_directory }}/offline_resources/nix/podman.nar
+  become: yes
+  when:
+    - offline_mode | default(false)
+    - not nix_installed.stat.exists
 
 # Second restorecon: Apply contexts to newly installed packages
 - name: Apply SELinux contexts after package installation (post-install #2)
