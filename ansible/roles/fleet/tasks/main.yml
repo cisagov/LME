@@ -187,6 +187,18 @@
     msg: "Fleet server hosts successfully set to {{ fleet_server_hosts_result.json.item.fleet_server_hosts }}"
   when: debug_mode | bool
 
+# Configure Kibana for Fleet offline mode
+- name: Configure Kibana for Fleet offline mode
+  blockinfile:
+    path: /opt/lme/config/kibana.yml
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Fleet Offline Configuration"
+    insertbefore: "xpack.fleet.packages:"
+    block: |
+      xpack.fleet.registryUrl: "http://lme-fleet-distribution:8080"
+      xpack.fleet.isAirGapped: true
+  become: yes
+  when: offline_mode | default(false)
+
 - name: Set Fleet default output hosts
   uri:
     url: "{{ local_kbn_url }}/api/fleet/outputs/fleet-default-output"

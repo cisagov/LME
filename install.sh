@@ -709,5 +709,48 @@ fi
 check_playbook
 run_playbook
 
+# Configure offline mode settings if in offline mode
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${YELLOW}Configuring offline mode settings...${NC}"
+
+    # Ensure /opt/lme directory exists
+    sudo mkdir -p /opt/lme
+
+    # Create offline mode marker files
+    sudo touch /opt/lme/OFFLINE_MODE
+    sudo touch /opt/lme/FLEET_SETUP_FINISHED
+
+    # Configure Kibana for offline mode if not already configured by Ansible
+    KIBANA_CONFIG="$SCRIPT_DIR/config/kibana.yml"
+    if [ -f "$KIBANA_CONFIG" ] && ! grep -q "xpack.fleet.registryUrl" "$KIBANA_CONFIG"; then
+        echo -e "${YELLOW}Configuring Kibana for Fleet offline mode...${NC}"
+
+        # Add Fleet offline configuration before xpack.fleet.packages line
+        sudo awk '
+        /^xpack\.fleet\.packages:/ {
+            print "xpack.fleet.registryUrl: \"http://lme-fleet-distribution:8080\""
+            print "xpack.fleet.isAirGapped: true"
+            print ""
+        }
+        { print }
+        ' "$KIBANA_CONFIG" > /tmp/kibana_offline.yml
+
+        sudo mv /tmp/kibana_offline.yml "$KIBANA_CONFIG"
+        echo -e "${GREEN}✓ Kibana configured for Fleet offline mode${NC}"
+    fi
+
+    # Configure Kibana container for offline certificate trust
+    KIBANA_CONTAINER="/etc/containers/systemd/lme-kibana.container"
+    if [ -f "$KIBANA_CONTAINER" ]; then
+        echo -e "${YELLOW}Configuring Kibana container for offline certificate trust...${NC}"
+
+        # Replace NODE_EXTRA_CA_CERTS to use only local CA
+        sudo sed -i 's|NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt|NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca/ca.crt|g' "$KIBANA_CONTAINER"
+        echo -e "${GREEN}✓ Kibana container configured for offline certificate trust${NC}"
+    fi
+
+    echo -e "${GREEN}✓ Offline mode configuration completed${NC}"
+fi
+
 echo -e "${GREEN}All operations completed successfully!${NC}"
 exit 0

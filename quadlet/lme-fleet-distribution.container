@@ -1,0 +1,25 @@
+# lme-fleet-distribution.container
+[Unit]
+Description=Fleet Distribution Server (Package Registry)
+After=lme-network.service
+Requires=lme-network.service
+PartOf=lme.service
+ConditionPathExists=/opt/lme/OFFLINE_MODE
+
+[Service]
+Restart=always
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+[Install]
+WantedBy=default.target lme.service
+
+[Container]
+ContainerName=lme-fleet-distribution
+Environment=PACKAGE_REGISTRY_BASE_PATH=/package-registry
+EnvironmentFile=/opt/lme/lme-environment.env
+Image=localhost/package-registry:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-fleet-distribution --health-interval=30s
+PublishPort=8080:8080
+HealthCmd=CMD-SHELL curl -f http://localhost:8080/health || exit 1
+UserNS=auto:uidmapping=0:174680:3048,gidmapping=0:174680:3048
