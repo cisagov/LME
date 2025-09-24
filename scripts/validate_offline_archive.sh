@@ -90,9 +90,9 @@ validate_container_images() {
     
     # Required container images (from config/containers.txt)
     local required_images=(
-        "elasticsearch_8.18.0.tar"
-        "elastic-agent_8.18.0.tar"
-        "kibana_8.18.0.tar"
+        "elasticsearch_8.18.3.tar"
+        "elastic-agent_8.18.3.tar"
+        "kibana_8.18.3.tar"
         "wazuh-manager_4.9.1.tar"
         "elastalert2_2.20.0.tar"
     )
@@ -133,19 +133,31 @@ validate_other_resources() {
     check_resource "$offline_dir/nix/install-nix.sh" "Nix installer script" "false"
 }
 
+# Function to validate LME directory structure
+validate_lme_structure() {
+    local lme_dir="$1"
+    echo -e "${YELLOW}Validating LME directory structure...${NC}"
+
+    check_resource "$lme_dir/config" "Config directory"
+    check_resource "$lme_dir/config/example.env" "Example environment file"
+    check_resource "$lme_dir/install.sh" "Installation script"
+    check_resource "$lme_dir/ansible" "Ansible directory"
+    check_resource "$lme_dir/scripts" "Scripts directory"
+}
+
 # Main validation function
 validate_offline_resources() {
     local base_dir="$1"
-    
+
     echo -e "${YELLOW}Validating offline resources in: $base_dir${NC}"
     echo
-    
+
     # Check main structure
     check_resource "$base_dir" "Offline resources directory"
     check_resource "$base_dir/container_images" "Container images directory"
     check_resource "$base_dir/packages" "Packages directory"
     check_resource "$base_dir/packages/nix" "Nix packages directory"
-    
+
     # Validate specific components
     validate_container_images "$base_dir/container_images"
     validate_nix_packages "$base_dir/packages/nix"
@@ -177,6 +189,8 @@ if [ -n "$ARCHIVE_PATH" ]; then
         # Find the LME directory in the archive
         LME_EXTRACTED_DIR=$(find "$TEMP_DIR" -name "LME" -type d | head -1)
         if [ -n "$LME_EXTRACTED_DIR" ]; then
+            # Validate LME directory structure first
+            validate_lme_structure "$LME_EXTRACTED_DIR"
             OFFLINE_DIR="$LME_EXTRACTED_DIR/offline_resources"
         else
             echo -e "${RED}✗ Could not find LME directory in archive${NC}"

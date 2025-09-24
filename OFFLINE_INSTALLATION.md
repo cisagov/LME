@@ -303,15 +303,29 @@ The correct offline installation workflow is:
 
 1. **Preparation** (on internet-connected system):
    ```bash
+   # Navigate to your LME directory
+   cd /path/to/LME
+
+   # Run the preparation script
    ./scripts/prepare_offline.sh
+
+   # This creates: lme-offline-YYYYMMDD-HHMMSS.tar.gz
    ```
 
 2. **Transfer**: Copy `lme-offline-*.tar.gz` to target system
 
 3. **Installation** (on offline system):
    ```bash
+   # Extract the archive (this creates a LME directory)
    tar -xzf lme-offline-*.tar.gz
+
+   # Navigate into the extracted LME directory
    cd LME
+
+   # Verify you're in the right place
+   ls -la config/example.env  # This should exist
+
+   # Run the offline installation
    sudo ./install.sh --offline
    ```
 
@@ -323,6 +337,13 @@ The correct offline installation workflow is:
    # Check containers are loaded
    sudo podman images
    ```
+
+### Critical Notes
+
+- **Always run `install.sh` from INSIDE the extracted LME directory**
+- The archive contains the complete LME source code and offline resources
+- Do NOT try to run the installation from outside the LME directory
+- The `config/example.env` file must be present for installation to work
 
 ### Debug Mode
 

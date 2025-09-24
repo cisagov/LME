@@ -512,11 +512,18 @@ if [ "$OFFLINE_MODE" = "true" ]; then
             tar -xzf "$OFFLINE_ARCHIVE" -C "$(dirname "$SCRIPT_DIR")"
 
             # The archive contains the LME directory with offline_resources inside it
-            # If we're running from a different LME directory, we need to copy the offline_resources
+            # If we're running from a different LME directory, we need to copy the offline_resources AND config
             EXTRACTED_LME_DIR=$(tar -tzf "$OFFLINE_ARCHIVE" | head -1 | cut -d'/' -f1)
             if [ "$EXTRACTED_LME_DIR" != "$(basename "$SCRIPT_DIR")" ]; then
                 echo -e "${YELLOW}Copying offline resources from extracted archive...${NC}"
                 cp -r "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/offline_resources" "$SCRIPT_DIR/"
+
+                # Also copy config directory if it doesn't exist or is incomplete
+                if [ ! -f "$SCRIPT_DIR/config/example.env" ] && [ -f "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/config/example.env" ]; then
+                    echo -e "${YELLOW}Copying config directory from extracted archive...${NC}"
+                    cp -r "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/config" "$SCRIPT_DIR/"
+                    echo -e "${GREEN}✓ Config directory copied${NC}"
+                fi
             fi
         fi
 
@@ -713,6 +720,24 @@ fi
 # Get machine IP addresses
 get_ip_addresses
 echo -e "${GREEN}Final IP address to use: ${IPVAR:-Unknown}${NC}"
+
+# Validate that we have the required config directory and files
+if [ ! -d "config" ]; then
+    echo -e "${RED}✗ Config directory not found in current directory${NC}"
+    echo -e "${RED}Please ensure you're running this script from the LME directory${NC}"
+    echo -e "${YELLOW}Expected directory structure:${NC}"
+    echo -e "${YELLOW}  LME/config/example.env${NC}"
+    echo -e "${YELLOW}  LME/install.sh${NC}"
+    echo -e "${YELLOW}  LME/offline_resources/ (for offline mode)${NC}"
+    exit 1
+fi
+
+if [ ! -f "config/example.env" ]; then
+    echo -e "${RED}✗ config/example.env not found${NC}"
+    echo -e "${RED}This file is required for LME installation${NC}"
+    echo -e "${YELLOW}Please ensure you have the complete LME directory structure${NC}"
+    exit 1
+fi
 
 # Check if lme-environment.env exists
 if [ -f "config/lme-environment.env" ]; then
