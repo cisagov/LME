@@ -65,6 +65,11 @@
     force: yes
   become: yes
 
+- name: Check if podman quadlet directory exists
+  stat:
+    path: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
+  register: quadlet_dir
+
 - name: Ensure correct podman systemd generator is linked in the nix profile
   file:
     src: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
@@ -72,6 +77,7 @@
     state: link
     force: yes
   become: yes
+  when: quadlet_dir.stat.exists
 
 # Apply contexts to podman symlinks after they're created
 - name: Apply SELinux contexts to podman symlinks (post-symlink)

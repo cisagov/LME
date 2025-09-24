@@ -37,3 +37,32 @@
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
   become: yes
   when: not (offline_mode | default(false))
+
+- name: Import podman closure from offline Nix packages
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    if [ -f "{{ clone_directory }}/offline_resources/packages/nix/podman-closure.nar" ]; then
+      nix-store --import < "{{ clone_directory }}/offline_resources/packages/nix/podman-closure.nar"
+      echo "Podman closure imported successfully"
+    else
+      echo "Podman closure file not found"
+      exit 1
+    fi
+  become: yes
+  when:
+    - offline_mode | default(false)
+
+- name: Install podman from imported closure
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    if [ -f "{{ clone_directory }}/offline_resources/packages/nix/podman-store-path.txt" ]; then
+      PODMAN_STORE_PATH=$(cat "{{ clone_directory }}/offline_resources/packages/nix/podman-store-path.txt")
+      nix-env -i "$PODMAN_STORE_PATH"
+      echo "Podman installed from store path: $PODMAN_STORE_PATH"
+    else
+      echo "Podman store path file not found"
+      exit 1
+    fi
+  become: yes
+  when:
+    - offline_mode | default(false)
