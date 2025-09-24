@@ -665,10 +665,94 @@ EOF
 
     chmod +x "$OUTPUT_DIR/packages/install_packages_offline.sh"
 
-# Nix packages successfully prepared for offline installation
+# Set up Nix and import podman
 if [ -f "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
-    echo -e "${GREEN}✓ Nix packages prepared successfully${NC}"
-    echo -e "${GREEN}✓ Podman closure exported: $OUTPUT_DIR/packages/nix/podman-closure.nar${NC}"
+    echo -e "${YELLOW}Setting up Nix daemon...${NC}"
+    sudo systemctl enable nix-daemon 2>/dev/null || true
+    sudo systemctl start nix-daemon 2>/dev/null || true
+
+    # Wait for Nix daemon to be ready
+    echo -e "${YELLOW}Waiting for Nix daemon to start...${NC}"
+    sleep 10
+
+    # Verify Nix daemon is running
+    if ! systemctl is-active --quiet nix-daemon; then
+        echo -e "${RED}✗ Nix daemon failed to start${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Nix daemon is running${NC}"
+
+    # Import Nix packages from offline archive
+    echo -e "${YELLOW}Importing Nix packages from offline archive...${NC}"
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+
+    # Import the closure
+    if sudo nix-store --import < "$OUTPUT_DIR/packages/nix/podman-closure.nar"; then
+        echo -e "${GREEN}✓ Podman packages imported from offline archive${NC}"
+    else
+        echo -e "${RED}✗ Failed to import Nix packages${NC}"
+        exit 1
+    fi
+
+    # Install podman from the specific store path if available
+    if [ -f "$OUTPUT_DIR/packages/nix/podman-store-path.txt" ]; then
+        PODMAN_STORE_PATH=$(cat "$OUTPUT_DIR/packages/nix/podman-store-path.txt")
+        echo -e "${YELLOW}Installing podman from store path: $PODMAN_STORE_PATH${NC}"
+
+        if [ -d "$PODMAN_STORE_PATH" ]; then
+            if sudo nix-env -i "$PODMAN_STORE_PATH"; then
+                echo -e "${GREEN}✓ Podman installed successfully from Nix${NC}"
+
+                # Remove conflicting Ubuntu podman package if present
+                sudo apt-get remove -y podman 2>/dev/null || true
+
+                # Create symlinks with proper paths for root access
+                echo -e "${YELLOW}Creating podman symlinks for root access...${NC}"
+                sudo ln -sf /nix/var/nix/profiles/default/bin/podman /usr/local/bin/podman 2>/dev/null || true
+                sudo ln -sf /nix/var/nix/profiles/default/bin/podman /usr/bin/podman 2>/dev/null || true
+
+                # Update PATH for root user (critical for sudo -i podman)
+                echo -e "${YELLOW}Updating PATH for root user...${NC}"
+                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | sudo tee -a /root/.profile >/dev/null
+                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | sudo tee -a /root/.bashrc >/dev/null
+
+                # Also update for current user
+                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | tee -a ~/.profile >/dev/null 2>&1 || true
+                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | tee -a ~/.bashrc >/dev/null 2>&1 || true
+
+                # Create podman policy configuration (required for container operations)
+                echo -e "${YELLOW}Creating podman policy configuration...${NC}"
+                sudo mkdir -p /etc/containers
+                sudo tee /etc/containers/policy.json > /dev/null << 'POLICY_EOF'
+{
+    "default": [
+        {
+            "type": "insecureAcceptAnything"
+        }
+    ],
+    "transports":
+        {
+            "docker-daemon":
+                {
+                    "": [{"type":"insecureAcceptAnything"}]
+                }
+        }
+}
+POLICY_EOF
+                echo -e "${GREEN}✓ Podman policy configuration created${NC}"
+            else
+                echo -e "${RED}✗ Failed to install podman from Nix${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}✗ Store path not found: $PODMAN_STORE_PATH${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${RED}✗ No store path file found${NC}"
+        exit 1
+    fi
 else
     echo -e "${RED}✗ No Nix packages found - podman-closure.nar is missing${NC}"
     echo -e "${RED}The prepare script failed to create the Nix packages${NC}"
