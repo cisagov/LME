@@ -8,7 +8,7 @@ NC='\033[0m' # No Color
 
 # Default playbook location - can be overridden with command line argument
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PLAYBOOK_PATH="./ansible/site.yml"
+PLAYBOOK_PATH="$SCRIPT_DIR/ansible/site.yml"
 CUSTOM_IP=""
 HAS_SUDO_ACCESS=""
 IPVAR=""
@@ -459,8 +459,8 @@ run_playbook() {
 
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
-    if [ -f "./inventory" ]; then
-        ansible-playbook -i inventory "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
+    if [ -f "$SCRIPT_DIR/inventory" ]; then
+        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     else
         ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     fi
@@ -830,9 +830,9 @@ if [ "$OFFLINE_MODE" = "true" ]; then
         else
             # Load containers
             cd "$SCRIPT_DIR/offline_resources"
-            if [ -f "./load_containers.sh" ]; then
+            if [ -f "$SCRIPT_DIR/offline_resources/load_containers.sh" ]; then
                 echo -e "${YELLOW}Running container loading script...${NC}"
-                ./load_containers.sh
+                "$SCRIPT_DIR/offline_resources/load_containers.sh"
                 if [ $? -ne 0 ]; then
                     echo -e "${RED}✗ Container loading failed${NC}"
                     exit 1
