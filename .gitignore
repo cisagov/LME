@@ -20,10 +20,10 @@ lme.conf
 /testing/tests/.env
 **/.pytest_cache/
 **/__pycache__/
-/testing/*.password.txt
+/testing/**/*.password.txt
 /testing/configure/azure_scripts/config.ps1
 /testing/configure.zip
-/testing/*.output.log
+/testing/**/*.output.log
 /testing/tests/report.html
 testing/tests/assets/style.css
 .history/
