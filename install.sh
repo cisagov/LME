@@ -721,35 +721,17 @@ fi
 get_ip_addresses
 echo -e "${GREEN}Final IP address to use: ${IPVAR:-Unknown}${NC}"
 
-# Validate that we have the required config directory and files
-if [ ! -d "config" ]; then
-    echo -e "${RED}✗ Config directory not found in current directory${NC}"
-    echo -e "${RED}Please ensure you're running this script from the LME directory${NC}"
-    echo -e "${YELLOW}Expected directory structure:${NC}"
-    echo -e "${YELLOW}  LME/config/example.env${NC}"
-    echo -e "${YELLOW}  LME/install.sh${NC}"
-    echo -e "${YELLOW}  LME/offline_resources/ (for offline mode)${NC}"
-    exit 1
-fi
-
-if [ ! -f "config/example.env" ]; then
-    echo -e "${RED}✗ config/example.env not found${NC}"
-    echo -e "${RED}This file is required for LME installation${NC}"
-    echo -e "${YELLOW}Please ensure you have the complete LME directory structure${NC}"
-    exit 1
-fi
-
 # Check if lme-environment.env exists
-if [ -f "config/lme-environment.env" ]; then
+if [ -f "$SCRIPT_DIR/config/lme-environment.env" ]; then
     echo -e "${GREEN}✓ lme-environment.env already exists, skipping creation${NC}"
 else
     if [ "$NON_INTERACTIVE" = "true" ]; then
         if [ "$AUTO_CREATE_ENV" = "true" ]; then
             echo -e "${YELLOW}Creating environment file in non-interactive mode...${NC}"
-            cp config/example.env config/lme-environment.env
+            cp "$SCRIPT_DIR/config/example.env" "$SCRIPT_DIR/config/lme-environment.env"
             if [ $? -eq 0 ]; then
                 # Use sed to replace the IPVAR line with the new IP
-                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" config/lme-environment.env
+                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" "$SCRIPT_DIR/config/lme-environment.env"
                 if [ $? -eq 0 ]; then
                     echo -e "${GREEN}✓ Successfully created and updated environment file${NC}"
                 else
@@ -769,10 +751,10 @@ else
         read -p "> " confirm
         if [[ $confirm =~ ^[Yy]$ ]]; then
             echo -e "${YELLOW}Creating environment file...${NC}"
-            cp config/example.env config/lme-environment.env
+            cp "$SCRIPT_DIR/config/example.env" "$SCRIPT_DIR/config/lme-environment.env"
             if [ $? -eq 0 ]; then
                 # Use sed to replace the IPVAR line with the new IP
-                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" config/lme-environment.env
+                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" "$SCRIPT_DIR/config/lme-environment.env"
                 if [ $? -eq 0 ]; then
                     echo -e "${GREEN}✓ Successfully created and updated environment file${NC}"
                 else
