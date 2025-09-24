@@ -484,6 +484,18 @@ if [ "$OFFLINE_MODE" = "true" ]; then
     echo -e "${YELLOW}⚠ Internet-dependent operations will be skipped${NC}"
     echo
 
+    # Validate offline archive if validation script exists
+    if [ -f "$SCRIPT_DIR/scripts/validate_offline_archive.sh" ]; then
+        echo -e "${YELLOW}Validating offline resources...${NC}"
+        if "$SCRIPT_DIR/scripts/validate_offline_archive.sh" -d "$SCRIPT_DIR/offline_resources" 2>/dev/null; then
+            echo -e "${GREEN}✓ Offline resources validation passed${NC}"
+        else
+            echo -e "${YELLOW}⚠ Offline resources validation failed or incomplete${NC}"
+            echo -e "${YELLOW}Continuing with installation...${NC}"
+        fi
+        echo
+    fi
+
     # Look for offline archive and extract it
     echo -e "${YELLOW}Looking for offline installation archive...${NC}"
     OFFLINE_ARCHIVE=$(find "$SCRIPT_DIR" -name "lme-offline-*.tar.gz" | head -1)
@@ -582,48 +594,8 @@ if [ "$OFFLINE_MODE" = "true" ]; then
             echo -e "${GREEN}✓ Nix installer found in offline resources${NC}"
         fi
 
-        # Load containers
-        echo -e "${YELLOW}Loading container images...${NC}"
-        cd "$SCRIPT_DIR/offline_resources"
-
-        # Check if containers are already loaded
-        if sudo podman images --format "{{.Repository}}" | grep -q "localhost\|docker\." > /dev/null 2>&1; then
-            echo -e "${GREEN}✓ Container images already loaded, skipping container loading${NC}"
-        else
-            if [ -f "./load_containers.sh" ]; then
-                ./load_containers.sh
-                if [ $? -ne 0 ]; then
-                    echo -e "${RED}✗ Container loading failed${NC}"
-                    exit 1
-                fi
-            else
-                echo -e "${RED}✗ Container loading script not found${NC}"
-                exit 1
-            fi
-        fi
-
-        # Return to original directory
-        cd "$SCRIPT_DIR"
-
-        # Verify podman is now available
-        echo -e "${YELLOW}Verifying podman installation...${NC}"
-        # Update PATH to include potential Nix locations
-        export PATH=/nix/var/nix/profiles/default/bin:$PATH
-
-        if command -v podman >/dev/null 2>&1; then
-            PODMAN_VERSION=$(podman --version)
-            PODMAN_LOCATION=$(which podman)
-            echo -e "${GREEN}✓ Podman is available: $PODMAN_VERSION${NC}"
-            echo -e "${GREEN}✓ Podman location: $PODMAN_LOCATION${NC}"
-        else
-            echo -e "${RED}✗ Podman is still not available after installation${NC}"
-            echo -e "${YELLOW}Checking common locations:${NC}"
-            ls -la /usr/bin/podman* 2>/dev/null || echo "  No podman in /usr/bin/"
-            ls -la /usr/local/bin/podman* 2>/dev/null || echo "  No podman in /usr/local/bin/"
-            ls -la /nix/var/nix/profiles/default/bin/podman* 2>/dev/null || echo "  No podman in Nix default profile"
-            echo -e "${YELLOW}PATH: $PATH${NC}"
-            exit 1
-        fi
+        # Note: Container loading will happen AFTER Ansible installs Nix and podman
+        echo -e "${YELLOW}Container images will be loaded after Nix and podman installation${NC}"
 
         # Setup CVE database for offline Wazuh vulnerability detection
         echo -e "${YELLOW}Setting up CVE database for offline vulnerability detection...${NC}"
@@ -821,7 +793,69 @@ fi
 check_playbook
 run_playbook
 
+# Load containers for offline mode AFTER Ansible has installed Nix and podman
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${YELLOW}Loading container images for offline installation...${NC}"
 
+    # Ensure proper PATH for Nix binaries
+    export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+
+    # Debug: Show current PATH and environment
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo -e "${YELLOW}Debug: Current PATH: $PATH${NC}"
+        echo -e "${YELLOW}Debug: Checking podman locations:${NC}"
+        echo -e "${YELLOW}  /nix/var/nix/profiles/default/bin/podman: $(test -x /nix/var/nix/profiles/default/bin/podman && echo 'Found' || echo 'Not found')${NC}"
+        echo -e "${YELLOW}  /usr/bin/podman: $(test -x /usr/bin/podman && echo 'Found' || echo 'Not found')${NC}"
+        echo -e "${YELLOW}  /usr/local/bin/podman: $(test -x /usr/local/bin/podman && echo 'Found' || echo 'Not found')${NC}"
+    fi
+
+    # Verify podman is now available
+    echo -e "${YELLOW}Verifying podman installation...${NC}"
+    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; command -v podman" >/dev/null 2>&1; then
+        PODMAN_VERSION=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman --version")
+        PODMAN_LOCATION=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; which podman")
+        echo -e "${GREEN}✓ Podman is available: $PODMAN_VERSION${NC}"
+        echo -e "${GREEN}✓ Podman location: $PODMAN_LOCATION${NC}"
+
+        # Check if containers are already loaded
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman images --format '{{.Repository}}'" | grep -q "localhost\|docker\." > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Container images already loaded, skipping container loading${NC}"
+        else
+            # Load containers
+            cd "$SCRIPT_DIR/offline_resources"
+            if [ -f "./load_containers.sh" ]; then
+                echo -e "${YELLOW}Running container loading script...${NC}"
+                ./load_containers.sh
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}✗ Container loading failed${NC}"
+                    exit 1
+                fi
+                echo -e "${GREEN}✓ Container images loaded successfully${NC}"
+            else
+                echo -e "${RED}✗ Container loading script not found${NC}"
+                exit 1
+            fi
+            cd "$SCRIPT_DIR"
+        fi
+    else
+        echo -e "${RED}✗ Podman is not available after Ansible installation${NC}"
+        echo -e "${YELLOW}Troubleshooting steps:${NC}"
+        echo -e "${YELLOW}1. Check if Nix is installed: ls -la /nix/var/nix/profiles/default/bin/podman${NC}"
+        echo -e "${YELLOW}2. Try running: sudo -i podman --version${NC}"
+        echo -e "${YELLOW}3. Check Ansible logs for Nix/podman installation errors${NC}"
+        echo -e "${YELLOW}4. Verify offline resources: $SCRIPT_DIR/scripts/validate_offline_archive.sh -d $SCRIPT_DIR/offline_resources${NC}"
+
+        # Additional debugging information
+        echo -e "${YELLOW}Debug information:${NC}"
+        echo -e "${YELLOW}  Current PATH: $PATH${NC}"
+        echo -e "${YELLOW}  Nix directory exists: $(test -d /nix && echo 'Yes' || echo 'No')${NC}"
+        echo -e "${YELLOW}  Nix profiles directory: $(test -d /nix/var/nix/profiles && echo 'Yes' || echo 'No')${NC}"
+        echo -e "${YELLOW}  Default profile: $(test -d /nix/var/nix/profiles/default && echo 'Yes' || echo 'No')${NC}"
+        echo -e "${YELLOW}  Offline resources: $(test -d $SCRIPT_DIR/offline_resources && echo 'Yes' || echo 'No')${NC}"
+
+        exit 1
+    fi
+fi
 
 echo -e "${GREEN}All operations completed successfully!${NC}"
 exit 0

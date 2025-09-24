@@ -146,6 +146,20 @@
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 
+# Validate offline resources are available when in offline mode
+- name: Check for offline Nix packages when in offline mode
+  stat:
+    path: "{{ clone_directory }}/offline_resources/packages/nix/podman-closure.nar"
+  register: offline_nix_packages
+  when: offline_mode | default(false)
+
+- name: Fail if offline Nix packages are missing
+  fail:
+    msg: "Offline mode enabled but Nix packages not found. Expected: {{ clone_directory }}/offline_resources/packages/nix/podman-closure.nar"
+  when:
+    - offline_mode | default(false)
+    - not offline_nix_packages.stat.exists
+
 - name: Install Podman using Nix
   command: nix-env -iA nixpkgs.podman
   become: yes
@@ -169,6 +183,27 @@
   command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
   become: yes
   changed_when: true
+
+# Validate podman installation
+- name: Verify podman is accessible
+  shell: |
+    export PATH=/nix/var/nix/profiles/default/bin:$PATH
+    podman --version
+  become: yes
+  register: podman_version_check
+  failed_when: podman_version_check.rc != 0
+
+- name: Display podman version and location
+  debug:
+    msg: "Podman installed successfully: {{ podman_version_check.stdout }}"
+
+- name: Create installation marker for offline mode
+  file:
+    path: /opt/lme/PODMAN_INSTALLED
+    state: touch
+    mode: '0644'
+  become: yes
+  when: offline_mode | default(false)
 
 # Include container setup tasks
 - name: Setup containers for podman

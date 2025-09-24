@@ -10,6 +10,22 @@ The offline installation mode allows you to install LME on systems without inter
 - Bypassing HIBP (Have I Been Pwned) password checks
 - Using pre-downloaded/cached resources
 
+### Two-Phase Process
+
+LME offline installation uses a two-phase process:
+
+1. **Preparation Phase** (`prepare_offline.sh`):
+   - Run on a system with internet access
+   - Downloads all required resources
+   - Creates a complete offline archive
+   - Includes container images, system packages, Nix packages, and installers
+
+2. **Installation Phase** (`install.sh --offline`):
+   - Run on the target offline system
+   - Extracts and uses pre-downloaded resources
+   - Installs LME without requiring internet access
+   - Handles proper sequencing of Nix, podman, and container loading
+
 ## Supported Operating Systems
 
 - Ubuntu 22.04 LTS
@@ -48,11 +64,21 @@ Ensure the following Nix packages are available:
 
 ## Offline Installation Methods
 
-### Method 1: Using install.sh with --offline flag
+### Method 1: Using install.sh with --offline flag (Recommended)
+
+This is the recommended method as it handles the complete offline installation workflow:
 
 ```bash
 sudo ./install.sh --offline
 ```
+
+**What this does**:
+1. Extracts offline archive if present
+2. Installs system packages from offline resources
+3. Runs Ansible playbook with offline mode enabled
+4. Installs Nix and podman from offline packages
+5. Loads container images after podman is available
+6. Configures and starts LME services
 
 Additional options can be combined:
 ```bash
@@ -64,6 +90,11 @@ sudo ./install.sh --offline --ip 192.168.1.100 --debug
 ```bash
 ansible-playbook ansible/site.yml --extra-vars '{"offline_mode": true}'
 ```
+
+**Note**: When using Ansible directly, you must manually:
+- Install system packages first
+- Load container images after Ansible completes
+- Ensure offline resources are available
 
 ### Method 3: Environment Variable
 
@@ -118,9 +149,22 @@ The script automatically downloads:
 - Container images
 - Agent installers (Wazuh and Elastic agents)
 - CVE database for offline vulnerability detection
-- System packages
+- System packages (both .deb and .rpm)
+- Nix packages (podman and dependencies)
 - Creates installation scripts and documentation
 - Includes complete LME source code in the archive
+
+### Validating Offline Archive
+
+After creating the offline archive, you can validate its completeness:
+
+```bash
+# Validate the archive
+./scripts/validate_offline_archive.sh -a lme-offline-YYYYMMDD-HHMMSS.tar.gz
+
+# Or validate extracted resources
+./scripts/validate_offline_archive.sh -d ./offline_resources
+```
 
 ### Manual Preparation (Alternative)
 
@@ -185,6 +229,114 @@ podman load -i elastalert2.tar
 2. **Install system packages** (if not already installed)
 
 3. **Verify all prerequisites are met**
+
+## Troubleshooting Offline Installation
+
+### Common Issues and Solutions
+
+#### 1. "podman: command not found" Error
+
+**Problem**: Container loading fails with "sudo: podman: command not found"
+
+**Solution**: This usually indicates the installation sequence is incorrect. Ensure you're following the proper workflow:
+
+```bash
+# Correct sequence:
+sudo ./install.sh --offline  # This installs Nix and podman first
+# Container loading happens automatically after Ansible completes
+```
+
+**Debug steps**:
+```bash
+# Check if Nix is installed
+ls -la /nix/var/nix/profiles/default/bin/podman
+
+# Check if podman is accessible to root
+sudo bash -c 'export PATH=/nix/var/nix/profiles/default/bin:$PATH; podman --version'
+
+# Validate offline resources
+./scripts/validate_offline_archive.sh -d ./offline_resources
+```
+
+#### 2. "Failed to install Podman" Error
+
+**Problem**: System package installation fails in offline mode
+
+**Solution**: The offline installation uses Nix packages, not system packages. Ensure:
+- You're using the latest version of the offline archive
+- The archive contains Nix packages (`offline_resources/packages/nix/`)
+- You're running `install.sh --offline`, not trying to load containers manually
+
+#### 3. Container Loading Fails
+
+**Problem**: Container images fail to load
+
+**Solution**:
+```bash
+# Verify container images exist
+ls -la offline_resources/container_images/
+
+# Check podman is working
+sudo bash -c 'export PATH=/nix/var/nix/profiles/default/bin:$PATH; podman images'
+
+# Manually load containers (if needed)
+cd offline_resources
+./load_containers.sh
+```
+
+#### 4. Archive Validation Fails
+
+**Problem**: Offline archive is incomplete or corrupted
+
+**Solution**:
+```bash
+# Re-run preparation script
+./scripts/prepare_offline.sh
+
+# Validate the new archive
+./scripts/validate_offline_archive.sh -a lme-offline-*.tar.gz
+```
+
+### Installation Workflow
+
+The correct offline installation workflow is:
+
+1. **Preparation** (on internet-connected system):
+   ```bash
+   ./scripts/prepare_offline.sh
+   ```
+
+2. **Transfer**: Copy `lme-offline-*.tar.gz` to target system
+
+3. **Installation** (on offline system):
+   ```bash
+   tar -xzf lme-offline-*.tar.gz
+   cd LME
+   sudo ./install.sh --offline
+   ```
+
+4. **Verification**:
+   ```bash
+   # Check services are running
+   sudo systemctl status lme
+
+   # Check containers are loaded
+   sudo podman images
+   ```
+
+### Debug Mode
+
+For detailed troubleshooting, enable debug mode:
+
+```bash
+sudo ./install.sh --offline --debug
+```
+
+This provides verbose output showing:
+- PATH configuration
+- Podman location and version
+- Container loading progress
+- Ansible task details
 
 ## Agent Installation
 

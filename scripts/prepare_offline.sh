@@ -926,6 +926,7 @@ generate_load_script() {
 #!/bin/bash
 
 # Container Loading Script for Offline LME Installation
+# This script is designed to work AFTER Nix and podman have been installed by Ansible
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -942,75 +943,41 @@ if [ ! -d "$IMAGES_DIR" ]; then
     exit 1
 fi
 
-# Check if podman is available and install if needed
-export PATH=/nix/var/nix/profiles/default/bin:$PATH
-PODMAN_CMD=""
+# Ensure proper PATH for Nix binaries
+export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
 echo -e "${YELLOW}Checking for podman availability...${NC}"
 
-# Function to install podman
-install_podman() {
-    echo -e "${YELLOW}Installing Podman...${NC}"
-
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        if command -v brew &> /dev/null; then
-            echo -e "${YELLOW}Installing Podman via Homebrew...${NC}"
-            brew install podman
-        else
-            echo -e "${RED}Homebrew not found. Please install Homebrew first${NC}"
-            exit 1
-        fi
-    elif [[ -f /etc/debian_version ]]; then
-        # Debian/Ubuntu
-        echo -e "${YELLOW}Installing Podman on Debian/Ubuntu...${NC}"
-        sudo apt-get update
-        sudo apt-get install -y podman
-    elif [[ -f /etc/redhat-release ]]; then
-        # RHEL/CentOS/Fedora
-        echo -e "${YELLOW}Installing Podman on RHEL/CentOS/Fedora...${NC}"
-        if command -v dnf &> /dev/null; then
-            sudo dnf install -y podman
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y podman
-        else
-            echo -e "${RED}Neither dnf nor yum found${NC}"
-            exit 1
-        fi
+# Function to check if podman is accessible
+check_podman_access() {
+    local test_cmd="$1"
+    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $test_cmd --version" >/dev/null 2>&1; then
+        return 0
     else
-        echo -e "${RED}Unsupported OS for automatic Podman installation${NC}"
-        exit 1
+        return 1
     fi
 }
 
-# Check if root can access podman (this is what we actually need)
-if sudo bash -c 'command -v podman' >/dev/null 2>&1; then
-    PODMAN_CMD="podman"
-    echo -e "${GREEN}✓ Podman is available for root user${NC}"
-elif sudo test -x "/nix/var/nix/profiles/default/bin/podman"; then
-    PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
-    echo -e "${GREEN}✓ Podman found in Nix profile${NC}"
-elif sudo test -x "/usr/local/bin/podman"; then
-    PODMAN_CMD="/usr/local/bin/podman"
-    echo -e "${GREEN}✓ Podman found in /usr/local/bin${NC}"
-else
-    echo -e "${YELLOW}Podman not found, installing automatically...${NC}"
-    install_podman
+# Determine the correct podman command
+PODMAN_CMD=""
 
-    # Check again after installation
-    if sudo bash -c 'command -v podman' >/dev/null 2>&1; then
-        PODMAN_CMD="podman"
-        echo -e "${GREEN}✓ Podman installed successfully${NC}"
-    elif sudo test -x "/nix/var/nix/profiles/default/bin/podman"; then
-        PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
-        echo -e "${GREEN}✓ Podman found in Nix profile after installation${NC}"
-    elif sudo test -x "/usr/local/bin/podman"; then
-        PODMAN_CMD="/usr/local/bin/podman"
-        echo -e "${GREEN}✓ Podman found in /usr/local/bin after installation${NC}"
-    else
-        echo -e "${RED}✗ Failed to install Podman${NC}"
-        exit 1
-    fi
+# Check for Nix-installed podman (preferred for offline mode)
+if check_podman_access "/nix/var/nix/profiles/default/bin/podman"; then
+    PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
+    echo -e "${GREEN}✓ Using Nix-installed podman${NC}"
+elif check_podman_access "podman"; then
+    PODMAN_CMD="podman"
+    echo -e "${GREEN}✓ Using system podman${NC}"
+else
+    echo -e "${RED}✗ Podman not found or not accessible${NC}"
+    echo -e "${RED}This script should be run AFTER the LME installation has completed${NC}"
+    echo -e "${RED}and Nix with podman has been installed.${NC}"
+    echo -e "${YELLOW}Troubleshooting steps:${NC}"
+    echo -e "${YELLOW}1. Ensure you have run 'sudo ./install.sh --offline' first${NC}"
+    echo -e "${YELLOW}2. Check if Nix is installed: ls -la /nix/var/nix/profiles/default/bin/podman${NC}"
+    echo -e "${YELLOW}3. Try running: sudo -i podman --version${NC}"
+    echo -e "${YELLOW}4. Check PATH: sudo bash -c 'echo \$PATH'${NC}"
+    exit 1
 fi
 
 echo -e "${GREEN}Using Podman: $PODMAN_CMD${NC}"
@@ -1024,15 +991,15 @@ for tar_file in "$IMAGES_DIR"/*.tar; do
     if [ -f "$tar_file" ]; then
         # Extract expected image name from tar filename
         image_name=$(basename "$tar_file" .tar)
-        
-        # Check if image is already loaded
-        if sudo $PODMAN_CMD images --format "{{.Repository}}:{{.Tag}}" | grep -q "$image_name" || \
-           sudo $PODMAN_CMD images --format "{{.Repository}}" | grep -q "$(echo $image_name | cut -d'_' -f1)"; then
+
+        # Check if image is already loaded (with proper PATH)
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}'" | grep -q "$image_name" || \
+           sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}'" | grep -q "$(echo $image_name | cut -d'_' -f1)"; then
             echo -e "${GREEN}✓ $(basename "$tar_file") already loaded, skipping${NC}"
             SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
         else
             echo -e "${YELLOW}Loading $(basename "$tar_file")...${NC}"
-            if sudo $PODMAN_CMD load -i "$tar_file"; then
+            if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD load -i '$tar_file'"; then
                 echo -e "${GREEN}✓ Successfully loaded $(basename "$tar_file")${NC}"
                 LOADED_COUNT=$((LOADED_COUNT + 1))
             else
@@ -1051,7 +1018,7 @@ if [ $FAILED_COUNT -gt 0 ]; then
     echo -e "${RED}  Failed to load: $FAILED_COUNT${NC}"
 fi
 
-echo -e "${YELLOW}Verify loaded images with: sudo $PODMAN_CMD images${NC}"
+echo -e "${YELLOW}Verify loaded images with: sudo bash -c 'export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images'${NC}"
 
 if [ $FAILED_COUNT -gt 0 ]; then
     exit 1
