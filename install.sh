@@ -709,5 +709,27 @@ fi
 check_playbook
 run_playbook
 
+# Clean up Nix installation if in offline mode (since we only needed it temporarily for podman)
+if [ "$OFFLINE_MODE" = "true" ] && [ -d "/nix" ]; then
+    echo -e "${YELLOW}Cleaning up temporary Nix installation...${NC}"
+
+    # Stop Nix daemon if running
+    sudo systemctl stop nix-daemon 2>/dev/null || true
+    sudo systemctl disable nix-daemon 2>/dev/null || true
+
+    # Remove Nix directory and files
+    sudo rm -rf /nix 2>/dev/null || true
+    sudo rm -f /etc/systemd/system/nix-daemon.* 2>/dev/null || true
+    sudo rm -f /etc/profile.d/nix.sh 2>/dev/null || true
+
+    # Clean up user profiles (remove Nix PATH entries)
+    sed -i '/nix\/var\/nix\/profiles\/default\/bin/d' ~/.profile 2>/dev/null || true
+    sed -i '/nix\/var\/nix\/profiles\/default\/bin/d' ~/.bashrc 2>/dev/null || true
+    sudo sed -i '/nix\/var\/nix\/profiles\/default\/bin/d' /root/.profile 2>/dev/null || true
+    sudo sed -i '/nix\/var\/nix\/profiles\/default\/bin/d' /root/.bashrc 2>/dev/null || true
+
+    echo -e "${GREEN}✓ Nix cleanup completed${NC}"
+fi
+
 echo -e "${GREEN}All operations completed successfully!${NC}"
 exit 0
