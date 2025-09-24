@@ -610,6 +610,103 @@ if [ "$OFFLINE_MODE" = "true" ]; then
             exit 1
         fi
 
+        # Setup CVE database for offline Wazuh vulnerability detection
+        echo -e "${YELLOW}Setting up CVE database for offline vulnerability detection...${NC}"
+        if [ -f "$SCRIPT_DIR/offline_resources/cve/cves.zip" ]; then
+            sudo mkdir -p /opt/lme/cve
+            sudo cp "$SCRIPT_DIR/offline_resources/cve/cves.zip" /opt/lme/cve/
+            sudo chown root:root /opt/lme/cve/cves.zip
+            sudo chmod 644 /opt/lme/cve/cves.zip
+            echo -e "${GREEN}✓ CVE database copied to /opt/lme/cve/cves.zip${NC}"
+
+            # Configure Wazuh to use offline CVE database
+            echo -e "${YELLOW}Configuring Wazuh for offline CVE database...${NC}"
+            if [ -f "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf" ]; then
+                # Create backup
+                sudo cp "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf" "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf.backup.$(date +%Y%m%d-%H%M%S)"
+
+                # Add offline-url to vulnerability-detection section if not already present
+                if ! grep -q "offline-url" "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf"; then
+                    # Use awk to insert the offline-url line after feed-update-interval
+                    awk '/feed-update-interval>60m<\/feed-update-interval>/ { print; print "     <offline-url>file:///opt/lme/cve/cves.zip</offline-url>"; next } 1' "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf" > /tmp/wazuh_manager_temp.conf
+                    sudo mv /tmp/wazuh_manager_temp.conf "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf"
+                    echo -e "${GREEN}✓ Wazuh configuration updated for offline CVE database${NC}"
+                else
+                    echo -e "${GREEN}✓ Wazuh configuration already contains offline CVE database setting${NC}"
+                fi
+            else
+                echo -e "${RED}✗ Wazuh configuration file not found${NC}"
+            fi
+
+            # Add CVE database volume mount to Wazuh container
+            echo -e "${YELLOW}Adding CVE database volume mount to Wazuh container...${NC}"
+            WAZUH_CONTAINER_FILE="$SCRIPT_DIR/quadlet/lme-wazuh-manager.container"
+            if [ -f "$WAZUH_CONTAINER_FILE" ]; then
+                # Create backup
+                sudo cp "$WAZUH_CONTAINER_FILE" "$WAZUH_CONTAINER_FILE.backup.$(date +%Y%m%d-%H%M%S)"
+
+                # Add CVE volume mount if not already present
+                if ! grep -q "Volume=/opt/lme/cve" "$WAZUH_CONTAINER_FILE"; then
+                    # Use awk to insert the CVE volume mount after the ca-certificates line
+                    awk '/Volume=.*ca-certificates.crt:ro/ { print; print "Volume=/opt/lme/cve:/opt/lme/cve:ro"; next } 1' "$WAZUH_CONTAINER_FILE" > /tmp/wazuh_container_temp.conf
+                    sudo mv /tmp/wazuh_container_temp.conf "$WAZUH_CONTAINER_FILE"
+                    echo -e "${GREEN}✓ CVE database volume mount added to Wazuh container${NC}"
+                else
+                    echo -e "${GREEN}✓ CVE database volume mount already present in Wazuh container${NC}"
+                fi
+            else
+                echo -e "${RED}✗ Wazuh container file not found${NC}"
+            fi
+        else
+            echo -e "${YELLOW}⚠ CVE database not found in offline resources, skipping${NC}"
+        fi
+
+        # Configure Kibana for Fleet offline mode
+        echo -e "${YELLOW}Configuring Kibana for Fleet offline mode...${NC}"
+
+        # Add Fleet offline configuration to the source kibana.yml
+        if ! grep -q "xpack.fleet.registryUrl" "$SCRIPT_DIR/config/kibana.yml"; then
+            # Insert Fleet offline configuration before xpack.fleet.packages
+            awk '/^xpack\.fleet\.packages:/ {
+                print "# Fleet offline/air-gapped configuration"
+                print "xpack.fleet.registryUrl: \"http://lme-fleet-distribution:8080\""
+                print "xpack.fleet.isAirGapped: true"
+                print ""
+            } 1' "$SCRIPT_DIR/config/kibana.yml" > /tmp/kibana_temp.yml
+            mv /tmp/kibana_temp.yml "$SCRIPT_DIR/config/kibana.yml"
+            echo -e "${GREEN}✓ Kibana configured for Fleet offline mode${NC}"
+        else
+            echo -e "${GREEN}✓ Kibana already configured for Fleet offline mode${NC}"
+        fi
+
+        # Configure Kibana container to use only local CA in offline mode
+        echo -e "${YELLOW}Configuring Kibana container for offline CA trust...${NC}"
+        KIBANA_CONTAINER_FILE="$SCRIPT_DIR/quadlet/lme-kibana.container"
+
+        if [ -f "$KIBANA_CONTAINER_FILE" ]; then
+            # Replace NODE_EXTRA_CA_CERTS to use only local CA
+            sed -i 's|NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt|NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca/ca.crt|g' "$KIBANA_CONTAINER_FILE"
+            echo -e "${GREEN}✓ Kibana container configured to trust only local CA${NC}"
+        else
+            echo -e "${RED}✗ Kibana container file not found${NC}"
+        fi
+
+        # Configure all container files for offline mode (add Pull=never)
+        echo -e "${YELLOW}Configuring container files for offline mode...${NC}"
+        for container_file in "$SCRIPT_DIR/quadlet"/*.container; do
+            if [ -f "$container_file" ] && ! grep -q "Pull=never" "$container_file"; then
+                # Add Pull=never after the Image= line
+                sed -i '/^Image=/a Pull=never' "$container_file"
+                echo -e "${GREEN}✓ Configured $(basename "$container_file") for offline mode${NC}"
+            fi
+        done
+
+        # Create offline mode marker files
+        echo -e "${YELLOW}Creating offline mode marker files...${NC}"
+        sudo mkdir -p /opt/lme
+        sudo touch /opt/lme/OFFLINE_MODE
+        sudo touch /opt/lme/FLEET_SETUP_FINISHED
+
         echo -e "${GREEN}✓ Offline resources prepared successfully${NC}"
     else
         echo -e "${RED}✗ No offline archive found (lme-offline-*.tar.gz)${NC}"
@@ -709,48 +806,7 @@ fi
 check_playbook
 run_playbook
 
-# Configure offline mode settings if in offline mode
-if [ "$OFFLINE_MODE" = "true" ]; then
-    echo -e "${YELLOW}Configuring offline mode settings...${NC}"
 
-    # Ensure /opt/lme directory exists
-    sudo mkdir -p /opt/lme
-
-    # Create offline mode marker files
-    sudo touch /opt/lme/OFFLINE_MODE
-    sudo touch /opt/lme/FLEET_SETUP_FINISHED
-
-    # Configure Kibana for offline mode if not already configured by Ansible
-    KIBANA_CONFIG="$SCRIPT_DIR/config/kibana.yml"
-    if [ -f "$KIBANA_CONFIG" ] && ! grep -q "xpack.fleet.registryUrl" "$KIBANA_CONFIG"; then
-        echo -e "${YELLOW}Configuring Kibana for Fleet offline mode...${NC}"
-
-        # Add Fleet offline configuration before xpack.fleet.packages line
-        sudo awk '
-        /^xpack\.fleet\.packages:/ {
-            print "xpack.fleet.registryUrl: \"http://lme-fleet-distribution:8080\""
-            print "xpack.fleet.isAirGapped: true"
-            print ""
-        }
-        { print }
-        ' "$KIBANA_CONFIG" > /tmp/kibana_offline.yml
-
-        sudo mv /tmp/kibana_offline.yml "$KIBANA_CONFIG"
-        echo -e "${GREEN}✓ Kibana configured for Fleet offline mode${NC}"
-    fi
-
-    # Configure Kibana container for offline certificate trust
-    KIBANA_CONTAINER="/etc/containers/systemd/lme-kibana.container"
-    if [ -f "$KIBANA_CONTAINER" ]; then
-        echo -e "${YELLOW}Configuring Kibana container for offline certificate trust...${NC}"
-
-        # Replace NODE_EXTRA_CA_CERTS to use only local CA
-        sudo sed -i 's|NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt|NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca/ca.crt|g' "$KIBANA_CONTAINER"
-        echo -e "${GREEN}✓ Kibana container configured for offline certificate trust${NC}"
-    fi
-
-    echo -e "${GREEN}✓ Offline mode configuration completed${NC}"
-fi
 
 echo -e "${GREEN}All operations completed successfully!${NC}"
 exit 0
