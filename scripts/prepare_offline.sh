@@ -213,6 +213,12 @@ cleanup_temp_podman() {
             rm -rf "$HOME/.nix-defexpr"
         fi
 
+        # Remove Nix backup files that can interfere with future installations
+        sudo rm -f /etc/bashrc.backup-before-nix 2>/dev/null || true
+        sudo rm -f /etc/profile.d/nix.sh.backup-before-nix 2>/dev/null || true
+        sudo rm -f /etc/zshrc.backup-before-nix 2>/dev/null || true
+        sudo rm -f /etc/bash.bashrc.backup-before-nix 2>/dev/null || true
+
         echo -e "${GREEN}✓ Temporary Nix installation cleaned up${NC}"
     fi
 }
