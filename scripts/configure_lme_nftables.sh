@@ -497,6 +497,22 @@ main() {
     
     log_success "LME nftables configuration completed!"
     log_info "Configuration will persist across reboots via /etc/nftables.conf"
+    
+    # Recommend restart for complete activation
+    echo
+    log_warning "⚠️  IMPORTANT: System restart recommended for complete nftables activation"
+    echo "After applying nftables configuration changes, it is highly recommended to reboot"
+    echo "the machine to ensure all networking and container rules take effect properly."
+    echo
+    echo "This is especially important for:"
+    echo "- Container networking changes - Ensures podman interfaces and bridge networks restart correctly"
+    echo "- nftables rule persistence - Confirms all rules are properly loaded from configuration files"
+    echo "- Network interface binding - Ensures proper interface-to-rule assignments"
+    echo "- Service startup order - Guarantees nftables, networking, and containers start in the correct sequence"
+    echo
+    echo "To restart the system:"
+    echo "  sudo reboot"
+    echo
 }
 
 # Run main function if script is executed directly

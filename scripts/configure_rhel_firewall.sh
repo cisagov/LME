@@ -358,6 +358,22 @@ main() {
     provide_troubleshooting
     
     log_success "LME firewall configuration completed!"
+    
+    # Recommend restart for complete activation
+    echo
+    log_warning "⚠️  IMPORTANT: System restart recommended for complete firewall activation"
+    echo "After applying firewall configuration changes, it is highly recommended to reboot"
+    echo "the machine to ensure all networking and container rules take effect properly."
+    echo
+    echo "This is especially important for:"
+    echo "- Container networking changes - Ensures podman interfaces restart correctly"
+    echo "- Firewall rule persistence - Confirms all permanent rules are properly loaded"
+    echo "- Network interface binding - Ensures proper interface-to-zone assignments"
+    echo "- Service startup order - Guarantees firewall, networking, and containers start correctly"
+    echo
+    echo "To restart the system:"
+    echo "  sudo reboot"
+    echo
 }
 
 # Run main function if script is executed directly
