@@ -43,7 +43,6 @@
       - policycoreutils
       - policycoreutils-python-utils
       - checkpolicy
-      - libsemanage-devel
       - selinux-policy
       - selinux-policy-targeted
       - libselinux-utils
