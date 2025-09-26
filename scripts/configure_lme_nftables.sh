@@ -204,9 +204,8 @@ backup_nftables() {
 # Function to create LME nftables configuration
 create_lme_nftables() {
     local container_subnet="$1"
-    local primary_iface="$2"
-    local podman_iface="$3"
-    local enable_wazuh_api="$4"
+    local podman_iface="$2"
+    local enable_wazuh_api="$3"
     
     log_info "Creating LME nftables configuration..."
     
@@ -240,16 +239,19 @@ table inet lme_filter {
         # Allow SSH (modify port if needed)
         tcp dport 22 accept
         
-        # LME service ports on primary interface
-        iifname "$primary_iface" tcp dport { 1514, 1515, 8220, 9200, 5601, 443 } accept
+        # LME service ports - accessible from all interfaces
+        tcp dport { 1514, 1515, 8220, 9200, 5601, 443 } accept
+        
+        # Wazuh syslog UDP port
+        udp dport 514 accept
 EOF
 
     # Add Wazuh API port if requested
     if [[ "$enable_wazuh_api" == "yes" ]]; then
         cat >> /tmp/lme_nftables.conf << EOF
         
-        # Wazuh API port
-        iifname "$primary_iface" tcp dport 55000 accept
+        # Wazuh API port - accessible from all interfaces
+        tcp dport 55000 accept
 EOF
     fi
 
@@ -309,18 +311,21 @@ table ip lme_nat {
     chain postrouting {
         type nat hook postrouting priority srcnat; policy accept;
         
-        # Masquerade traffic from container network going out primary interface
-        ip saddr $container_subnet oifname "$primary_iface" masquerade
-        
-        # General masquerading for container traffic (except loopback)
-        oifname != "lo" masquerade
+        # Masquerade traffic from container network
+        ip saddr $container_subnet masquerade
     }
 }
 EOF
 
     # Move the configuration file to its final location
     mv /tmp/lme_nftables.conf "$config_file"
-    chmod 640 "$config_file"
+    chmod 644 "$config_file"
+    
+    # Fix SELinux context if SELinux is enabled
+    if command -v restorecon &> /dev/null; then
+        restorecon "$config_file" 2>/dev/null || true
+        log_info "SELinux context restored for $config_file"
+    fi
     
     log_success "nftables configuration created at $config_file"
 }
@@ -342,7 +347,13 @@ apply_nftables() {
     log_success "nftables configuration applied"
     
     # Add to main nftables config to persist across reboots
+    # Handle different distributions (RHEL uses /etc/sysconfig/nftables.conf)
     local main_config="/etc/nftables.conf"
+    if [[ -f "/etc/sysconfig/nftables.conf" ]]; then
+        main_config="/etc/sysconfig/nftables.conf"
+        log_info "Detected RHEL/CentOS system, using $main_config"
+    fi
+    
     if [[ -f "$main_config" ]]; then
         if ! grep -q "include.*lme.nft" "$main_config"; then
             echo 'include "/etc/nftables/lme.nft"' | tee -a "$main_config" > /dev/null
@@ -445,13 +456,12 @@ main() {
     
     # Detect network configuration
     container_subnet=$(detect_lme_network)
-    read -r primary_iface podman_iface <<< "$(detect_interfaces)"
+    podman_iface=$(detect_interfaces | awk '{print $2}')
     
     # Display detected configuration
     echo
     log_info "Detected Configuration:"
     echo "  Container Subnet: $container_subnet"
-    echo "  Primary Interface: $primary_iface"
     echo "  Podman Interface: ${podman_iface:-"None detected"}"
     echo
     
@@ -476,7 +486,7 @@ main() {
     backup_nftables
     
     # Create and apply nftables configuration
-    create_lme_nftables "$container_subnet" "$primary_iface" "$podman_iface" "$enable_wazuh_api"
+    create_lme_nftables "$container_subnet" "$podman_iface" "$enable_wazuh_api"
     apply_nftables
     
     # Verify configuration
@@ -487,6 +497,22 @@ main() {
     
     log_success "LME nftables configuration completed!"
     log_info "Configuration will persist across reboots via /etc/nftables.conf"
+    
+    # Recommend restart for complete activation
+    echo
+    log_warning "⚠️  IMPORTANT: System restart recommended for complete nftables activation"
+    echo "After applying nftables configuration changes, it is highly recommended to reboot"
+    echo "the machine to ensure all networking and container rules take effect properly."
+    echo
+    echo "This is especially important for:"
+    echo "- Container networking changes - Ensures podman interfaces and bridge networks restart correctly"
+    echo "- nftables rule persistence - Confirms all rules are properly loaded from configuration files"
+    echo "- Network interface binding - Ensures proper interface-to-rule assignments"
+    echo "- Service startup order - Guarantees nftables, networking, and containers start in the correct sequence"
+    echo
+    echo "To restart the system:"
+    echo "  sudo reboot"
+    echo
 }
 
 # Run main function if script is executed directly
