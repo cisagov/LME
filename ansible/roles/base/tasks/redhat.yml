@@ -105,6 +105,31 @@
   become: yes
   when: ansible_os_family == 'RedHat'
 
+# Configure user namespace ID mappings for rootful containers
+- name: Check if root user already has subuid range
+  shell: grep -q "^root:" /etc/subuid
+  register: root_subuid_exists
+  failed_when: false
+  changed_when: false
+  become: yes
+
+- name: Add subuid range for root user using usermod
+  command: usermod --add-subuids 165536-231071 root
+  become: yes
+  when: root_subuid_exists.rc != 0
+
+- name: Check if root user already has subgid range
+  shell: grep -q "^root:" /etc/subgid
+  register: root_subgid_exists
+  failed_when: false
+  changed_when: false
+  become: yes
+
+- name: Add subgid range for root user using usermod
+  command: usermod --add-subgids 165536-231071 root
+  become: yes
+  when: root_subgid_exists.rc != 0
+
 - name: Disable and stop firewalld service
   systemd:
     name: firewalld
