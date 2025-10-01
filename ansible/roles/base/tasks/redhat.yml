@@ -114,9 +114,10 @@
   become: yes
 
 - name: Add subuid range for root user using usermod
-  command: usermod --add-subuids 165536-231071 root
+  command: usermod --add-subuids 100000-165535 root
   become: yes
   when: root_subuid_exists.rc != 0
+  register: subuid_added
 
 - name: Check if root user already has subgid range
   shell: grep -q "^root:" /etc/subgid
@@ -126,9 +127,20 @@
   become: yes
 
 - name: Add subgid range for root user using usermod
-  command: usermod --add-subgids 165536-231071 root
+  command: usermod --add-subgids 100000-165535 root
   become: yes
   when: root_subgid_exists.rc != 0
+  register: subgid_added
+
+- name: Run podman system migrate after subuid/subgid changes
+  shell: |
+    export PATH=/nix/var/nix/profiles/default/bin:$PATH
+    podman system migrate
+  args:
+    executable: /bin/bash
+  become: yes
+  when: subuid_added.changed or subgid_added.changed
+  ignore_errors: yes
 
 - name: Disable and stop firewalld service
   systemd:
