@@ -24,6 +24,10 @@
     kibana_system_password: "{{ global_secrets.kibana_system | default('') }}"
     wazuh_api_password: "{{ global_secrets.wazuh_api | default('') }}"
 
+- name: Set kibana version from stack version
+  ansible.builtin.set_fact:
+    kibana_version: "{{ stack_version }}"
+
 - name: Debug - Display set variables (sensitive information redacted)
   debug:
     msg:
@@ -142,6 +146,39 @@
     msg: "Fleet setup response: {{ fleet_setup }}"
   when: debug_mode | bool
 
+- name: Wait for Fleet distribution server to be ready (offline mode)
+  uri:
+    url: "https://{{ ipvar }}:8080/health"
+    method: GET
+    validate_certs: no
+    status_code: [200]
+  register: distribution_health
+  until: distribution_health.status == 200
+  retries: 30
+  delay: 10
+  when: offline_mode | default(false)
+  ignore_errors: yes
+
+- name: Debug distribution server health
+  debug:
+    msg: "Distribution server health: {{ distribution_health }}"
+  when:
+    - offline_mode | default(false)
+    - debug_mode | bool
+
+
+
+- name: Ensure Kibana config directory exists
+  file:
+    path: "/opt/lme/config"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+  when: offline_mode | default(false)
+
+
 - name: Get CA fingerprint
   ansible.builtin.shell: |
     set -a
@@ -160,7 +197,22 @@
     var: ca_fingerprint.stdout
   when: debug_mode | bool
 
-- name: Set Fleet server hosts
+- name: Wait for Kibana API to be ready before Fleet configuration
+  uri:
+    url: "{{ local_kbn_url }}/api/status"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: [200]
+  register: kibana_api_ready
+  until: kibana_api_ready.status == 200
+  retries: 30
+  delay: 10
+  no_log: "{{ not debug_mode }}"
+
+- name: Set Fleet server hosts (online mode)
   uri:
     url: "{{ local_kbn_url }}/api/fleet/settings"
     method: PUT
@@ -177,8 +229,8 @@
       fleet_server_hosts: ["https://{{ ipvar }}:{{ fleet_port }}"]
     status_code: [200]
   register: fleet_server_hosts_result
-  retries: 3
-  delay: 10
+  retries: 5
+  delay: 15
   until: fleet_server_hosts_result.status == 200
   no_log: "{{ not debug_mode }}"
 
@@ -186,18 +238,6 @@
   debug:
     msg: "Fleet server hosts successfully set to {{ fleet_server_hosts_result.json.item.fleet_server_hosts }}"
   when: debug_mode | bool
-
-# Configure Kibana for Fleet offline mode
-- name: Configure Kibana for Fleet offline mode
-  blockinfile:
-    path: /opt/lme/config/kibana.yml
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - Fleet Offline Configuration"
-    insertbefore: "xpack.fleet.packages:"
-    block: |
-      xpack.fleet.registryUrl: "http://lme-fleet-distribution:8080"
-      xpack.fleet.isAirGapped: true
-  become: yes
-  when: offline_mode | default(false)
 
 - name: Set Fleet default output hosts
   uri:
