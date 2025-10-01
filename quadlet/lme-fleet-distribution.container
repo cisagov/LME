@@ -17,7 +17,7 @@ WantedBy=default.target lme.service
 ContainerName=lme-fleet-distribution
 Environment=PACKAGE_REGISTRY_BASE_PATH=/package-registry
 EnvironmentFile=/opt/lme/lme-environment.env
-Image=localhost/package-registry:LME_LATEST
+Image=localhost/distribution:LME_LATEST
 Network=lme
 PodmanArgs=--network-alias lme-fleet-distribution --health-interval=30s
 PublishPort=8080:8080
