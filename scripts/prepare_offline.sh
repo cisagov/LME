@@ -378,6 +378,7 @@ download_packages() {
     mkdir -p "$OUTPUT_DIR/packages/debs"
     mkdir -p "$OUTPUT_DIR/packages/rpms"
     mkdir -p "$OUTPUT_DIR/packages/nix"
+    mkdir -p "$OUTPUT_DIR/nix"
 
     # Define OS-specific package lists
     if [ "$PACKAGE_MANAGER" = "apt" ]; then
@@ -446,6 +447,19 @@ download_packages() {
 
     # Return to original directory
     cd "$SCRIPT_DIR"
+
+    # Download Nix installer script for offline installation
+    echo -e "${YELLOW}Downloading Nix installer for offline installation...${NC}"
+    NIX_INSTALLER_URL="https://nixos.org/nix/install"
+
+    if curl -L "$NIX_INSTALLER_URL" -o "$OUTPUT_DIR/nix/install-nix.sh"; then
+        chmod +x "$OUTPUT_DIR/nix/install-nix.sh"
+        echo -e "${GREEN}✓ Nix installer downloaded successfully${NC}"
+    else
+        echo -e "${RED}✗ Failed to download Nix installer${NC}"
+        echo -e "${RED}This is required for offline RedHat installations${NC}"
+        exit 1
+    fi
 
     # Download Nix packages for offline installation
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
@@ -1044,6 +1058,7 @@ Archive Contents:
 - offline_resources/ directory containing:
   - container_images/     : Container image tar files
   - packages/            : Package lists and installation scripts
+  - nix/                 : Nix installer script for RedHat systems
   - agents/              : Agent installers (Wazuh and Elastic agents)
   - cve/                 : CVE database for offline Wazuh vulnerability detection
   - docs/               : Documentation
