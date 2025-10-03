@@ -157,8 +157,8 @@ if command -v podman &> /dev/null; then
     if [ -n "$LME_IMAGES" ]; then
         echo "$LME_IMAGES" | xargs -r podman rmi -f 2>/dev/null || true
     fi
-    
-    # Remove specific LME images
+
+    # Remove specific LME images (localhost tags)
     podman rmi -f \
         localhost/elasticsearch:LME_LATEST \
         localhost/kibana:LME_LATEST \
@@ -166,8 +166,34 @@ if command -v podman &> /dev/null; then
         localhost/wazuh-manager:LME_LATEST \
         localhost/elastalert2:LME_LATEST \
         localhost/package-registry:LME_LATEST \
+        localhost/distribution:LME_LATEST \
         2>/dev/null || true
-    
+
+    # Remove original source images from docker.elastic.co and docker.io
+    echo "  Removing source images..."
+    podman rmi -f \
+        docker.elastic.co/elasticsearch/elasticsearch:8.18.3 \
+        docker.elastic.co/kibana/kibana:8.18.3 \
+        docker.elastic.co/beats/elastic-agent:8.18.3 \
+        docker.io/wazuh/wazuh-manager:4.9.1 \
+        docker.io/jertel/elastalert2:2.20.0 \
+        docker.elastic.co/package-registry/distribution:8.18.3 \
+        2>/dev/null || true
+
+    # Remove any dangling/none images
+    echo "  Removing dangling images..."
+    DANGLING_IMAGES=$(podman images -f "dangling=true" -q || true)
+    if [ -n "$DANGLING_IMAGES" ]; then
+        echo "$DANGLING_IMAGES" | xargs -r podman rmi -f 2>/dev/null || true
+    fi
+
+    # Remove any remaining LME-related images
+    echo "  Removing any remaining LME-related images..."
+    REMAINING_LME=$(podman images --format "{{.Repository}}:{{.Tag}}" | grep -E "(elasticsearch|kibana|elastic-agent|wazuh|elastalert|package-registry|distribution)" || true)
+    if [ -n "$REMAINING_LME" ]; then
+        echo "$REMAINING_LME" | xargs -r podman rmi -f 2>/dev/null || true
+    fi
+
     echo -e "${GREEN}✓ Images removed${NC}"
 else
     echo -e "${YELLOW}⚠ Podman not found, skipping image removal${NC}"
@@ -198,8 +224,22 @@ rm -rf /opt/lme
 rm -rf /etc/lme
 echo -e "${GREEN}✓ Configuration removed${NC}"
 
-# Step 12: Reload systemd
-echo -e "${YELLOW}[12/12] Reloading systemd daemon...${NC}"
+# Step 12: Clean up podman system
+echo -e "${YELLOW}[12/13] Cleaning up podman system...${NC}"
+if command -v podman &> /dev/null; then
+    echo "  Pruning unused images..."
+    podman image prune -a -f 2>/dev/null || true
+    echo "  Pruning unused volumes..."
+    podman volume prune -f 2>/dev/null || true
+    echo "  Pruning system..."
+    podman system prune -a -f 2>/dev/null || true
+    echo -e "${GREEN}✓ Podman system cleaned${NC}"
+else
+    echo -e "${YELLOW}⚠ Podman not found, skipping system cleanup${NC}"
+fi
+
+# Step 13: Reload systemd
+echo -e "${YELLOW}[13/13] Reloading systemd daemon...${NC}"
 systemctl daemon-reload
 echo -e "${GREEN}✓ Systemd reloaded${NC}"
 
