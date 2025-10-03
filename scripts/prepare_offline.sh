@@ -98,10 +98,8 @@ download_containers() {
         exit 1
     fi
 
-    # Read containers from file and add package registry
+    # Read containers from file (package-registry should already be in containers.txt)
     local containers=$(cat "$CONTAINERS_FILE" | grep -v '^#' | grep -v '^$')
-    containers="$containers
-docker.elastic.co/package-registry/distribution:8.18.3"
 
     for container in $containers; do
         echo -e "${YELLOW}Processing: $container${NC}"
@@ -110,7 +108,13 @@ docker.elastic.co/package-registry/distribution:8.18.3"
         image_name=$(echo "$container" | sed 's|.*/||' | sed 's/:/_/g')
         output_file="$OUTPUT_DIR/containers/${image_name}.tar"
 
-        # Check if image already exists
+        # Skip if tar file already exists
+        if [ -f "$output_file" ]; then
+            echo -e "${GREEN}  ✓ Tar file already exists: $(basename $output_file), skipping${NC}"
+            continue
+        fi
+
+        # Check if image already exists in podman
         if podman image exists "$container" 2>/dev/null; then
             echo -e "${GREEN}  ✓ Image already exists: $container${NC}"
         else
