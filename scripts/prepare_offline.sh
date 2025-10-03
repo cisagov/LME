@@ -1007,14 +1007,33 @@ for tar_file in "$IMAGES_DIR"/*.tar; do
         image_name=$(basename "$tar_file" .tar)
 
         # Check if image is already loaded (with proper PATH)
-        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}'" | grep -q "$image_name" || \
-           sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}'" | grep -q "$(echo $image_name | cut -d'_' -f1)"; then
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}'" | grep -q "localhost/$image_name" || \
+           sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}'" | grep -q "localhost/$(echo $image_name | cut -d'_' -f1)"; then
             echo -e "${GREEN}✓ $(basename "$tar_file") already loaded, skipping${NC}"
             SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
         else
             echo -e "${YELLOW}Loading $(basename "$tar_file")...${NC}"
             if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD load -i '$tar_file'"; then
                 echo -e "${GREEN}✓ Successfully loaded $(basename "$tar_file")${NC}"
+
+                # Tag the loaded image with localhost/ prefix and LME_LATEST
+                # Extract the short name (e.g., elasticsearch from elasticsearch_8.18.3.tar)
+                short_name=$(echo "$image_name" | sed 's/_[0-9].*//')
+                echo -e "${YELLOW}  Tagging as localhost/${short_name}:LME_LATEST...${NC}"
+
+                # Find the full image name that was just loaded
+                loaded_image=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}' | grep -E '(docker\\.elastic\\.co|docker\\.io).*${short_name}' | head -n1")
+
+                if [ -n "$loaded_image" ]; then
+                    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD tag '$loaded_image' localhost/${short_name}:LME_LATEST"; then
+                        echo -e "${GREEN}  ✓ Tagged as localhost/${short_name}:LME_LATEST${NC}"
+                    else
+                        echo -e "${RED}  ✗ Failed to tag image${NC}"
+                    fi
+                else
+                    echo -e "${RED}  ✗ Could not find loaded image to tag${NC}"
+                fi
+
                 LOADED_COUNT=$((LOADED_COUNT + 1))
             else
                 echo -e "${RED}✗ Failed to load $(basename "$tar_file")${NC}"
