@@ -102,25 +102,42 @@ download_containers() {
     
     for container in $containers; do
         echo -e "${YELLOW}Pulling $container...${NC}"
-        if podman pull "$container"; then
-            echo -e "${GREEN}✓ Pulled $container${NC}"
+        # Check if image already exists
+        if podman image exists "$container" 2>/dev/null; then
+            echo -e "${GREEN}✓ Image already exists: $container${NC}"
         else
-            echo -e "${RED}✗ Failed to pull $container${NC}"
-            exit 1
+            if podman pull "$container"; then
+                echo -e "${GREEN}✓ Pulled $container${NC}"
+            else
+                echo -e "${RED}✗ Failed to pull $container${NC}"
+                exit 1
+            fi
         fi
     done
-    
+
     # Add package registry for offline mode
     echo -e "${YELLOW}Pulling Fleet package registry...${NC}"
-    podman pull docker.elastic.co/package-registry/distribution:8.18.3
-    
+    if podman image exists docker.elastic.co/package-registry/distribution:8.18.3 2>/dev/null; then
+        echo -e "${GREEN}✓ Image already exists: Fleet package registry${NC}"
+    else
+        if podman pull docker.elastic.co/package-registry/distribution:8.18.3; then
+            echo -e "${GREEN}✓ Pulled Fleet package registry${NC}"
+        else
+            echo -e "${RED}✗ Failed to pull Fleet package registry${NC}"
+            exit 1
+        fi
+    fi
+
     # Save all images to tar files
     echo -e "${YELLOW}Saving container images to tar files...${NC}"
-    podman save -o "$OUTPUT_DIR/containers/lme-containers.tar" \
+    if podman save -o "$OUTPUT_DIR/containers/lme-containers.tar" \
         $(cat "$CONTAINERS_FILE" | grep -v '^#' | grep -v '^$') \
-        docker.elastic.co/package-registry/distribution:8.18.3
-    
-    echo -e "${GREEN}✓ Container images saved to $OUTPUT_DIR/containers/lme-containers.tar${NC}"
+        docker.elastic.co/package-registry/distribution:8.18.3; then
+        echo -e "${GREEN}✓ Container images saved to $OUTPUT_DIR/containers/lme-containers.tar${NC}"
+    else
+        echo -e "${RED}✗ Failed to save container images${NC}"
+        exit 1
+    fi
 }
 
 # Download system packages for Ubuntu 24.04
