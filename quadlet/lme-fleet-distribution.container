@@ -5,7 +5,7 @@ Wants=network-online.target
 ConditionPathExists=/opt/lme/OFFLINE_MODE
 
 [Container]
-Image=localhost/package-registry:LME_LATEST
+Image=localhost/distribution:LME_LATEST
 ContainerName=lme-fleet-distribution
 Network=lme.network
 PublishPort=8080:8080

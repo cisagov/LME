@@ -80,33 +80,19 @@
   debug:
     msg: "Failed to pull container: {{ item.item }}"
   loop: "{{ pull_result.results }}"
-  when:
-    - not (offline_mode | default(false))
-    - item is failed
+  when: item is failed and not (offline_mode | default(false))
   loop_control:
     label: "{{ item.item }}"
 
-- name: Load containers from offline archive
-  shell: |
-    export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    podman load -i {{ clone_directory }}/offline_resources/containers/lme-containers.tar
-  args:
-    executable: /bin/bash
-  become: yes
-  when: offline_mode | default(false)
-  register: load_result
-
-- name: Display container load result
+- name: Display offline mode message for containers
   debug:
-    var: load_result
-  when:
-    - offline_mode | default(false)
-    - debug_mode | default(false)
+    msg: "Offline mode enabled - skipping container pulls. Ensure all required container images are already present on the system."
+  when: offline_mode | default(false)
 
 - name: Tag containers
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+    podman image tag {{ item }} localhost/{{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
   args:
     executable: /bin/bash
   loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
