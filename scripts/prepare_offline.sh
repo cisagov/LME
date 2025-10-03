@@ -213,6 +213,12 @@ cleanup_temp_podman() {
             rm -rf "$HOME/.nix-defexpr"
         fi
 
+        # Remove Nix backup files that can interfere with future installations
+        sudo rm -f /etc/bashrc.backup-before-nix 2>/dev/null || true
+        sudo rm -f /etc/profile.d/nix.sh.backup-before-nix 2>/dev/null || true
+        sudo rm -f /etc/zshrc.backup-before-nix 2>/dev/null || true
+        sudo rm -f /etc/bash.bashrc.backup-before-nix 2>/dev/null || true
+
         echo -e "${GREEN}✓ Temporary Nix installation cleaned up${NC}"
     fi
 }
@@ -266,49 +272,32 @@ download_containers() {
     done < "$CONTAINERS_FILE"
 }
 
-# Download packages for offline installation
-download_packages() {
-    echo -e "${YELLOW}Downloading packages for offline installation...${NC}"
 
-    # Create package cache directory
-    mkdir -p "$OUTPUT_DIR/packages/debs"
-    mkdir -p "$OUTPUT_DIR/packages/nix"
 
-    # Define package lists
-    PACKAGES=(
-        "curl"
-        "wget"
-        "gnupg2"
-        "sudo"
-        "git"
-        "openssh-client"
-        "expect"
-        "apt-transport-https"
-        "ca-certificates"
-        "gnupg"
-        "lsb-release"
-        "software-properties-common"
-        "fuse-overlayfs"
-        "build-essential"
-        "python3-pip"
-        "python3-pexpect"
-        "locales"
-        "uidmap"
-        "ansible"
-        "nix-bin"
-        "nix-setup-systemd"
-    )
+# Download file with fallback from wget to curl
+download_file() {
+    local url="$1"
+    local filename="$2"
 
-    # Update package lists first
+    if command -v wget >/dev/null 2>&1; then
+        wget -q --show-progress "$url" -O "$filename"
+    elif command -v curl >/dev/null 2>&1; then
+        curl -L --progress-bar "$url" -o "$filename"
+    else
+        echo -e "${RED}✗ Neither wget nor curl is available${NC}"
+        return 1
+    fi
+}
+
+# Download packages using apt (Ubuntu/Debian)
+download_apt_packages() {
     echo -e "${YELLOW}Updating package lists...${NC}"
     sudo apt-get update
 
-    # Add Ansible PPA to get latest version
     echo -e "${YELLOW}Adding Ansible PPA...${NC}"
     sudo add-apt-repository --yes --update ppa:ansible/ansible
     sudo apt-get update
 
-    # Download packages
     echo -e "${YELLOW}Downloading packages...${NC}"
     cd "$OUTPUT_DIR/packages/debs"
     for package in "${PACKAGES[@]}"; do
@@ -316,14 +305,161 @@ download_packages() {
         apt-get download "$package" 2>/dev/null || echo -e "${RED}  ✗ Failed to download $package${NC}"
     done
 
-    # Download dependencies recursively
     echo -e "${YELLOW}Downloading package dependencies...${NC}"
     for package in "${PACKAGES[@]}"; do
         apt-get download $(apt-cache depends --recurse --no-recommends --no-suggests --no-conflicts --no-breaks --no-replaces --no-enhances "$package" | grep "^\w" | sort -u) 2>/dev/null || true
     done
 
+    cd "$SCRIPT_DIR"
+}
+
+# Download packages using dnf (RHEL/CentOS/AlmaLinux/Rocky)
+download_dnf_packages() {
+    echo -e "${YELLOW}Updating package cache...${NC}"
+    sudo dnf makecache
+
+    echo -e "${YELLOW}Installing EPEL repository...${NC}"
+    sudo dnf install -y epel-release
+
+    echo -e "${YELLOW}Downloading packages...${NC}"
+    cd "$OUTPUT_DIR/packages/rpms"
+    for package in "${PACKAGES[@]}"; do
+        echo -e "${YELLOW}  Downloading $package...${NC}"
+        dnf download "$package" 2>/dev/null || echo -e "${RED}  ✗ Failed to download $package${NC}"
+    done
+
+    echo -e "${YELLOW}Downloading package dependencies...${NC}"
+    for package in "${PACKAGES[@]}"; do
+        dnf download --resolve "$package" 2>/dev/null || true
+    done
+
+    cd "$SCRIPT_DIR"
+}
+
+# Detect operating system
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_ID="$ID"
+        OS_VERSION_ID="$VERSION_ID"
+    elif [ -f /etc/redhat-release ]; then
+        OS_ID="rhel"
+    elif [ -f /etc/debian_version ]; then
+        OS_ID="debian"
+    else
+        OS_ID="unknown"
+    fi
+
+    case "$OS_ID" in
+        ubuntu|debian|linuxmint|pop)
+            PACKAGE_MANAGER="apt"
+            ;;
+        rhel|centos|rocky|almalinux|fedora)
+            PACKAGE_MANAGER="dnf"
+            ;;
+        *)
+            echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
+            echo -e "${YELLOW}Supported systems: Ubuntu, Debian, RHEL, CentOS, Rocky Linux, AlmaLinux, Fedora${NC}"
+            exit 1
+            ;;
+    esac
+
+    echo -e "${GREEN}✓ Detected OS: $OS_ID (using $PACKAGE_MANAGER)${NC}"
+}
+
+# Download packages for offline installation
+download_packages() {
+    echo -e "${YELLOW}Downloading packages for offline installation...${NC}"
+
+    # Detect OS first
+    detect_os
+
+    # Create package cache directories
+    mkdir -p "$OUTPUT_DIR/packages/debs"
+    mkdir -p "$OUTPUT_DIR/packages/rpms"
+    mkdir -p "$OUTPUT_DIR/packages/nix"
+    mkdir -p "$OUTPUT_DIR/nix"
+
+    # Define OS-specific package lists
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        PACKAGES=(
+            "curl"
+            "wget"
+            "gnupg2"
+            "sudo"
+            "git"
+            "openssh-client"
+            "expect"
+            "apt-transport-https"
+            "ca-certificates"
+            "gnupg"
+            "lsb-release"
+            "software-properties-common"
+            "fuse-overlayfs"
+            "build-essential"
+            "python3-pip"
+            "python3-pexpect"
+            "locales"
+            "uidmap"
+            "ansible"
+            "nix-bin"
+            "nix-setup-systemd"
+        )
+    else
+        # RHEL/CentOS/AlmaLinux/Rocky packages
+        PACKAGES=(
+            "curl"
+            "wget"
+            "gnupg2"
+            "sudo"
+            "git"
+            "openssh-clients"
+            "expect"
+            "ca-certificates"
+            "gnupg"
+            "redhat-lsb-core"
+            "fuse-overlayfs"
+            "gcc"
+            "gcc-c++"
+            "make"
+            "python3-pip"
+            "python3-pexpect"
+            "glibc-langpack-en"
+            "shadow-utils"
+            "ansible"
+            "policycoreutils"
+            "policycoreutils-python-utils"
+            "checkpolicy"
+            "selinux-policy"
+            "selinux-policy-targeted"
+            "libselinux-utils"
+            "container-selinux"
+            "fuse3-libs"
+        )
+    fi
+
+    # Download packages based on package manager
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        download_apt_packages
+    else
+        download_dnf_packages
+    fi
+
     # Return to original directory
     cd "$SCRIPT_DIR"
+
+    # Download Nix installer script for offline installation
+    echo -e "${YELLOW}Downloading Nix installer for offline installation...${NC}"
+    NIX_INSTALLER_URL="https://nixos.org/nix/install"
+
+    if curl -L "$NIX_INSTALLER_URL" -o "$OUTPUT_DIR/nix/install-nix.sh"; then
+        chmod +x "$OUTPUT_DIR/nix/install-nix.sh"
+        echo -e "${GREEN}✓ Nix installer downloaded successfully${NC}"
+    else
+        echo -e "${RED}✗ Failed to download Nix installer${NC}"
+        echo -e "${RED}This is required for offline RedHat installations${NC}"
+        exit 1
+    fi
 
     # Download Nix packages for offline installation
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
@@ -454,11 +590,11 @@ download_packages() {
         exit 1
     fi
 
-    # Generate offline installation script
+    # Generate universal offline installation script that detects OS at runtime
     cat > "$OUTPUT_DIR/packages/install_packages_offline.sh" << 'EOF'
 #!/bin/bash
 
-# Script to install packages offline on the target system
+# Script to install packages offline - detects OS at runtime
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -467,120 +603,93 @@ NC='\033[0m'
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 DEBS_DIR="$SCRIPT_DIR/debs"
+RPMS_DIR="$SCRIPT_DIR/rpms"
 NIX_DIR="$SCRIPT_DIR/nix"
 
 echo -e "${YELLOW}Installing required packages for LME offline installation...${NC}"
 
-if [ ! -d "$DEBS_DIR" ]; then
-    echo -e "${RED}✗ Debs directory not found: $DEBS_DIR${NC}"
-    exit 1
-fi
-
-# Install packages from local .deb files
-echo -e "${YELLOW}Installing packages from local .deb files...${NC}"
-cd "$DEBS_DIR"
-
-# Install all .deb files
-if ls *.deb 1> /dev/null 2>&1; then
-    echo -e "${YELLOW}Installing .deb packages...${NC}"
-    sudo dpkg -i *.deb || true
-    # Fix any broken dependencies
-    echo -e "${YELLOW}Fixing any broken dependencies...${NC}"
-    sudo apt-get install -f -y
-    echo -e "${GREEN}✓ Package installation complete!${NC}"
+# Detect OS at runtime
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_ID="$ID"
+elif [ -f /etc/redhat-release ]; then
+    OS_ID="rhel"
+elif [ -f /etc/debian_version ]; then
+    OS_ID="debian"
 else
-    echo -e "${RED}✗ No .deb files found in debs directory${NC}"
+    OS_ID="unknown"
+fi
+
+case "$OS_ID" in
+    ubuntu|debian|linuxmint|pop)
+        PACKAGE_MANAGER="apt"
+        PACKAGES_DIR="$DEBS_DIR"
+        PACKAGE_EXT="deb"
+        ;;
+    rhel|centos|rocky|almalinux|fedora)
+        PACKAGE_MANAGER="dnf"
+        PACKAGES_DIR="$RPMS_DIR"
+        PACKAGE_EXT="rpm"
+        ;;
+    *)
+        echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
+        exit 1
+        ;;
+esac
+
+echo -e "${GREEN}✓ Detected OS: $OS_ID (using $PACKAGE_MANAGER for $PACKAGE_EXT packages)${NC}"
+
+if [ ! -d "$PACKAGES_DIR" ]; then
+    echo -e "${RED}✗ Packages directory not found: $PACKAGES_DIR${NC}"
     exit 1
 fi
 
-# Set up Nix and import podman
+# Install packages based on detected OS
+echo -e "${YELLOW}Installing packages from local .$PACKAGE_EXT files...${NC}"
+cd "$PACKAGES_DIR"
+
+if [ "$PACKAGE_MANAGER" = "apt" ]; then
+    # Install .deb packages
+    if ls *.deb 1> /dev/null 2>&1; then
+        echo -e "${YELLOW}Installing .deb packages...${NC}"
+        sudo dpkg -i *.deb || true
+        echo -e "${YELLOW}Fixing any broken dependencies...${NC}"
+        sudo apt-get install -f -y
+        echo -e "${GREEN}✓ Package installation complete!${NC}"
+    else
+        echo -e "${RED}✗ No .deb files found in debs directory${NC}"
+        exit 1
+    fi
+else
+    # Install .rpm packages
+    if ls *.rpm 1> /dev/null 2>&1; then
+        echo -e "${YELLOW}Installing .rpm packages...${NC}"
+        sudo dnf localinstall -y *.rpm
+        echo -e "${GREEN}✓ Package installation complete!${NC}"
+    else
+        echo -e "${RED}✗ No .rpm files found in rpms directory${NC}"
+        exit 1
+    fi
+fi
+
+# Set up Nix and import podman (common for both Ubuntu and RHEL)
 if [ -f "$NIX_DIR/podman-closure.nar" ]; then
-    echo -e "${YELLOW}Setting up Nix daemon...${NC}"
-    sudo systemctl enable nix-daemon 2>/dev/null || true
-    sudo systemctl start nix-daemon 2>/dev/null || true
-
-    # Wait for Nix daemon to be ready
-    echo -e "${YELLOW}Waiting for Nix daemon to start...${NC}"
-    sleep 10
-
-    # Verify Nix daemon is running
-    if ! systemctl is-active --quiet nix-daemon; then
-        echo -e "${RED}✗ Nix daemon failed to start${NC}"
-        exit 1
-    fi
-
-    echo -e "${GREEN}✓ Nix daemon is running${NC}"
-    
-    # Import Nix packages from offline archive
-    echo -e "${YELLOW}Importing Nix packages from offline archive...${NC}"
+    echo -e "${YELLOW}Setting up Nix and importing podman...${NC}"
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    
-    # Import the closure
-    if sudo nix-store --import < "$NIX_DIR/podman-closure.nar"; then
-        echo -e "${GREEN}✓ Podman packages imported from offline archive${NC}"
-    else
-        echo -e "${RED}✗ Failed to import Nix packages${NC}"
-        exit 1
-    fi
+    sudo nix-store --import < "$NIX_DIR/podman-closure.nar"
+    echo -e "${GREEN}✓ Podman packages imported from offline archive${NC}"
+fi
 
-    # Install podman from the specific store path if available
-    if [ -f "$NIX_DIR/podman-store-path.txt" ]; then
-        PODMAN_STORE_PATH=$(cat "$NIX_DIR/podman-store-path.txt")
-        echo -e "${YELLOW}Installing podman from store path: $PODMAN_STORE_PATH${NC}"
-        
-        if [ -d "$PODMAN_STORE_PATH" ]; then
-            if sudo nix-env -i "$PODMAN_STORE_PATH"; then
-                echo -e "${GREEN}✓ Podman installed successfully from Nix${NC}"
-                
-                # Remove conflicting Ubuntu podman package if present
-                sudo apt-get remove -y podman 2>/dev/null || true
-                
-                # Create symlinks with proper paths for root access
-                echo -e "${YELLOW}Creating podman symlinks for root access...${NC}"
-                sudo ln -sf /nix/var/nix/profiles/default/bin/podman /usr/local/bin/podman 2>/dev/null || true
-                sudo ln -sf /nix/var/nix/profiles/default/bin/podman /usr/bin/podman 2>/dev/null || true
-                
-                # Update PATH for root user (critical for sudo -i podman)
-                echo -e "${YELLOW}Updating PATH for root user...${NC}"
-                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | sudo tee -a /root/.profile >/dev/null
-                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | sudo tee -a /root/.bashrc >/dev/null
-                
-                # Also update for current user
-                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | tee -a ~/.profile >/dev/null 2>&1 || true
-                echo 'export PATH=/nix/var/nix/profiles/default/bin:$PATH' | tee -a ~/.bashrc >/dev/null 2>&1 || true
-                
-                # Create podman policy configuration (required for container operations)
-                echo -e "${YELLOW}Creating podman policy configuration...${NC}"
-                sudo mkdir -p /etc/containers
-                sudo tee /etc/containers/policy.json > /dev/null << 'POLICY_EOF'
-{
-    "default": [
-        {
-            "type": "insecureAcceptAnything"
-        }
-    ],
-    "transports":
-        {
-            "docker-daemon":
-                {
-                    "": [{"type":"insecureAcceptAnything"}]
-                }
-        }
-}
-POLICY_EOF
-                echo -e "${GREEN}✓ Podman policy configuration created${NC}"
-            else
-                echo -e "${RED}✗ Failed to install podman from Nix${NC}"
-                exit 1
-            fi
-        else
-            echo -e "${RED}✗ Store path not found: $PODMAN_STORE_PATH${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${RED}✗ No store path file found${NC}"
-        exit 1
-    fi
+echo -e "${GREEN}✓ All packages installed successfully!${NC}"
+EOF
+
+    chmod +x "$OUTPUT_DIR/packages/install_packages_offline.sh"
+
+# Nix packages successfully prepared for offline installation
+if [ -f "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
+    echo -e "${GREEN}✓ Nix packages prepared successfully${NC}"
+    echo -e "${GREEN}✓ Podman closure exported: $OUTPUT_DIR/packages/nix/podman-closure.nar${NC}"
+
 else
     echo -e "${RED}✗ No Nix packages found - podman-closure.nar is missing${NC}"
     echo -e "${RED}The prepare script failed to create the Nix packages${NC}"
@@ -693,7 +802,7 @@ download_agents() {
 
     # Wazuh Windows agent
     echo -e "${YELLOW}  Downloading Wazuh Windows agent...${NC}"
-    if wget -q --show-progress "https://packages.wazuh.com/4.x/windows/wazuh-agent-${WAZUH_VERSION}-1.msi"; then
+    if download_file "https://packages.wazuh.com/4.x/windows/wazuh-agent-${WAZUH_VERSION}-1.msi" "wazuh-agent-${WAZUH_VERSION}-1.msi"; then
         echo -e "${GREEN}  ✓ Wazuh Windows agent downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Wazuh Windows agent${NC}"
@@ -701,7 +810,7 @@ download_agents() {
 
     # Wazuh Linux DEB agent
     echo -e "${YELLOW}  Downloading Wazuh Linux DEB agent...${NC}"
-    if wget -q --show-progress "https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_${WAZUH_VERSION}-1_amd64.deb"; then
+    if download_file "https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_${WAZUH_VERSION}-1_amd64.deb" "wazuh-agent_${WAZUH_VERSION}-1_amd64.deb"; then
         echo -e "${GREEN}  ✓ Wazuh Linux DEB agent downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Wazuh Linux DEB agent${NC}"
@@ -709,7 +818,7 @@ download_agents() {
 
     # Wazuh Linux RPM agent
     echo -e "${YELLOW}  Downloading Wazuh Linux RPM agent...${NC}"
-    if wget -q --show-progress "https://packages.wazuh.com/4.x/yum/wazuh-agent-${WAZUH_VERSION}-1.x86_64.rpm"; then
+    if download_file "https://packages.wazuh.com/4.x/yum/wazuh-agent-${WAZUH_VERSION}-1.x86_64.rpm" "wazuh-agent-${WAZUH_VERSION}-1.x86_64.rpm"; then
         echo -e "${GREEN}  ✓ Wazuh Linux RPM agent downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Wazuh Linux RPM agent${NC}"
@@ -720,7 +829,7 @@ download_agents() {
 
     # Elastic Agent Windows
     echo -e "${YELLOW}  Downloading Elastic Agent Windows...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-windows-x86_64.zip"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-windows-x86_64.zip" "elastic-agent-${STACK_VERSION}-windows-x86_64.zip"; then
         echo -e "${GREEN}  ✓ Elastic Agent Windows downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Windows${NC}"
@@ -728,7 +837,7 @@ download_agents() {
 
     # Elastic Agent Linux DEB
     echo -e "${YELLOW}  Downloading Elastic Agent Linux DEB...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-amd64.deb"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-amd64.deb" "elastic-agent-${STACK_VERSION}-amd64.deb"; then
         echo -e "${GREEN}  ✓ Elastic Agent Linux DEB downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Linux DEB${NC}"
@@ -736,7 +845,7 @@ download_agents() {
 
     # Elastic Agent Linux RPM
     echo -e "${YELLOW}  Downloading Elastic Agent Linux RPM...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-x86_64.rpm"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-x86_64.rpm" "elastic-agent-${STACK_VERSION}-x86_64.rpm"; then
         echo -e "${GREEN}  ✓ Elastic Agent Linux RPM downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Linux RPM${NC}"
@@ -744,7 +853,7 @@ download_agents() {
 
     # Elastic Agent Linux TAR.GZ
     echo -e "${YELLOW}  Downloading Elastic Agent Linux TAR.GZ...${NC}"
-    if wget -q --show-progress "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-linux-x86_64.tar.gz"; then
+    if download_file "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-${STACK_VERSION}-linux-x86_64.tar.gz" "elastic-agent-${STACK_VERSION}-linux-x86_64.tar.gz"; then
         echo -e "${GREEN}  ✓ Elastic Agent Linux TAR.GZ downloaded${NC}"
     else
         echo -e "${RED}  ✗ Failed to download Elastic Agent Linux TAR.GZ${NC}"
@@ -831,6 +940,7 @@ generate_load_script() {
 #!/bin/bash
 
 # Container Loading Script for Offline LME Installation
+# This script is designed to work AFTER Nix and podman have been installed by Ansible
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -847,75 +957,41 @@ if [ ! -d "$IMAGES_DIR" ]; then
     exit 1
 fi
 
-# Check if podman is available and install if needed
-export PATH=/nix/var/nix/profiles/default/bin:$PATH
-PODMAN_CMD=""
+# Ensure proper PATH for Nix binaries
+export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
 echo -e "${YELLOW}Checking for podman availability...${NC}"
 
-# Function to install podman
-install_podman() {
-    echo -e "${YELLOW}Installing Podman...${NC}"
-
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        if command -v brew &> /dev/null; then
-            echo -e "${YELLOW}Installing Podman via Homebrew...${NC}"
-            brew install podman
-        else
-            echo -e "${RED}Homebrew not found. Please install Homebrew first${NC}"
-            exit 1
-        fi
-    elif [[ -f /etc/debian_version ]]; then
-        # Debian/Ubuntu
-        echo -e "${YELLOW}Installing Podman on Debian/Ubuntu...${NC}"
-        sudo apt-get update
-        sudo apt-get install -y podman
-    elif [[ -f /etc/redhat-release ]]; then
-        # RHEL/CentOS/Fedora
-        echo -e "${YELLOW}Installing Podman on RHEL/CentOS/Fedora...${NC}"
-        if command -v dnf &> /dev/null; then
-            sudo dnf install -y podman
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y podman
-        else
-            echo -e "${RED}Neither dnf nor yum found${NC}"
-            exit 1
-        fi
+# Function to check if podman is accessible
+check_podman_access() {
+    local test_cmd="$1"
+    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $test_cmd --version" >/dev/null 2>&1; then
+        return 0
     else
-        echo -e "${RED}Unsupported OS for automatic Podman installation${NC}"
-        exit 1
+        return 1
     fi
 }
 
-# Check if root can access podman (this is what we actually need)
-if sudo bash -c 'command -v podman' >/dev/null 2>&1; then
-    PODMAN_CMD="podman"
-    echo -e "${GREEN}✓ Podman is available for root user${NC}"
-elif sudo test -x "/nix/var/nix/profiles/default/bin/podman"; then
-    PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
-    echo -e "${GREEN}✓ Podman found in Nix profile${NC}"
-elif sudo test -x "/usr/local/bin/podman"; then
-    PODMAN_CMD="/usr/local/bin/podman"
-    echo -e "${GREEN}✓ Podman found in /usr/local/bin${NC}"
-else
-    echo -e "${YELLOW}Podman not found, installing automatically...${NC}"
-    install_podman
+# Determine the correct podman command
+PODMAN_CMD=""
 
-    # Check again after installation
-    if sudo bash -c 'command -v podman' >/dev/null 2>&1; then
-        PODMAN_CMD="podman"
-        echo -e "${GREEN}✓ Podman installed successfully${NC}"
-    elif sudo test -x "/nix/var/nix/profiles/default/bin/podman"; then
-        PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
-        echo -e "${GREEN}✓ Podman found in Nix profile after installation${NC}"
-    elif sudo test -x "/usr/local/bin/podman"; then
-        PODMAN_CMD="/usr/local/bin/podman"
-        echo -e "${GREEN}✓ Podman found in /usr/local/bin after installation${NC}"
-    else
-        echo -e "${RED}✗ Failed to install Podman${NC}"
-        exit 1
-    fi
+# Check for Nix-installed podman (preferred for offline mode)
+if check_podman_access "/nix/var/nix/profiles/default/bin/podman"; then
+    PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
+    echo -e "${GREEN}✓ Using Nix-installed podman${NC}"
+elif check_podman_access "podman"; then
+    PODMAN_CMD="podman"
+    echo -e "${GREEN}✓ Using system podman${NC}"
+else
+    echo -e "${RED}✗ Podman not found or not accessible${NC}"
+    echo -e "${RED}This script should be run AFTER the LME installation has completed${NC}"
+    echo -e "${RED}and Nix with podman has been installed.${NC}"
+    echo -e "${YELLOW}Troubleshooting steps:${NC}"
+    echo -e "${YELLOW}1. Ensure you have run 'sudo ./install.sh --offline' first${NC}"
+    echo -e "${YELLOW}2. Check if Nix is installed: ls -la /nix/var/nix/profiles/default/bin/podman${NC}"
+    echo -e "${YELLOW}3. Try running: sudo -i podman --version${NC}"
+    echo -e "${YELLOW}4. Check PATH: sudo bash -c 'echo \$PATH'${NC}"
+    exit 1
 fi
 
 echo -e "${GREEN}Using Podman: $PODMAN_CMD${NC}"
@@ -929,16 +1005,35 @@ for tar_file in "$IMAGES_DIR"/*.tar; do
     if [ -f "$tar_file" ]; then
         # Extract expected image name from tar filename
         image_name=$(basename "$tar_file" .tar)
-        
-        # Check if image is already loaded
-        if sudo $PODMAN_CMD images --format "{{.Repository}}:{{.Tag}}" | grep -q "$image_name" || \
-           sudo $PODMAN_CMD images --format "{{.Repository}}" | grep -q "$(echo $image_name | cut -d'_' -f1)"; then
+
+        # Check if image is already loaded (with proper PATH)
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}'" | grep -q "localhost/$image_name" || \
+           sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}'" | grep -q "localhost/$(echo $image_name | cut -d'_' -f1)"; then
             echo -e "${GREEN}✓ $(basename "$tar_file") already loaded, skipping${NC}"
             SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
         else
             echo -e "${YELLOW}Loading $(basename "$tar_file")...${NC}"
-            if sudo $PODMAN_CMD load -i "$tar_file"; then
+            if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD load -i '$tar_file'"; then
                 echo -e "${GREEN}✓ Successfully loaded $(basename "$tar_file")${NC}"
+
+                # Tag the loaded image with localhost/ prefix and LME_LATEST
+                # Extract the short name (e.g., elasticsearch from elasticsearch_8.18.3.tar)
+                short_name=$(echo "$image_name" | sed 's/_[0-9].*//')
+                echo -e "${YELLOW}  Tagging as localhost/${short_name}:LME_LATEST...${NC}"
+
+                # Find the full image name that was just loaded
+                loaded_image=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}' | grep -E '(docker\\.elastic\\.co|docker\\.io).*${short_name}' | head -n1")
+
+                if [ -n "$loaded_image" ]; then
+                    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD tag '$loaded_image' localhost/${short_name}:LME_LATEST"; then
+                        echo -e "${GREEN}  ✓ Tagged as localhost/${short_name}:LME_LATEST${NC}"
+                    else
+                        echo -e "${RED}  ✗ Failed to tag image${NC}"
+                    fi
+                else
+                    echo -e "${RED}  ✗ Could not find loaded image to tag${NC}"
+                fi
+
                 LOADED_COUNT=$((LOADED_COUNT + 1))
             else
                 echo -e "${RED}✗ Failed to load $(basename "$tar_file")${NC}"
@@ -956,7 +1051,7 @@ if [ $FAILED_COUNT -gt 0 ]; then
     echo -e "${RED}  Failed to load: $FAILED_COUNT${NC}"
 fi
 
-echo -e "${YELLOW}Verify loaded images with: sudo $PODMAN_CMD images${NC}"
+echo -e "${YELLOW}Verify loaded images with: sudo bash -c 'export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images'${NC}"
 
 if [ $FAILED_COUNT -gt 0 ]; then
     exit 1
@@ -982,6 +1077,7 @@ Archive Contents:
 - offline_resources/ directory containing:
   - container_images/     : Container image tar files
   - packages/            : Package lists and installation scripts
+  - nix/                 : Nix installer script for RedHat systems
   - agents/              : Agent installers (Wazuh and Elastic agents)
   - cve/                 : CVE database for offline Wazuh vulnerability detection
   - docs/               : Documentation
