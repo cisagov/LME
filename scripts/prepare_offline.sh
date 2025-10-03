@@ -91,53 +91,49 @@ create_output_dirs() {
 
 # Download container images
 download_containers() {
-    echo -e "${YELLOW}Downloading container images...${NC}"
-    
+    echo -e "${YELLOW}Downloading and saving container images...${NC}"
+
     if [ ! -f "$CONTAINERS_FILE" ]; then
         echo -e "${RED}Container list file not found: $CONTAINERS_FILE${NC}"
         exit 1
     fi
-    
+
+    # Read containers from file and add package registry
     local containers=$(cat "$CONTAINERS_FILE" | grep -v '^#' | grep -v '^$')
-    
+    containers="$containers
+docker.elastic.co/package-registry/distribution:8.18.3"
+
     for container in $containers; do
-        echo -e "${YELLOW}Pulling $container...${NC}"
+        echo -e "${YELLOW}Processing: $container${NC}"
+
+        # Extract image name for filename (replace / and : with _)
+        image_name=$(echo "$container" | sed 's|.*/||' | sed 's/:/_/g')
+        output_file="$OUTPUT_DIR/containers/${image_name}.tar"
+
         # Check if image already exists
         if podman image exists "$container" 2>/dev/null; then
-            echo -e "${GREEN}✓ Image already exists: $container${NC}"
+            echo -e "${GREEN}  ✓ Image already exists: $container${NC}"
         else
+            echo -e "${YELLOW}  Pulling image...${NC}"
             if podman pull "$container"; then
-                echo -e "${GREEN}✓ Pulled $container${NC}"
+                echo -e "${GREEN}  ✓ Successfully pulled $container${NC}"
             else
-                echo -e "${RED}✗ Failed to pull $container${NC}"
+                echo -e "${RED}  ✗ Failed to pull $container${NC}"
                 exit 1
             fi
         fi
-    done
 
-    # Add package registry for offline mode
-    echo -e "${YELLOW}Pulling Fleet package registry...${NC}"
-    if podman image exists docker.elastic.co/package-registry/distribution:8.18.3 2>/dev/null; then
-        echo -e "${GREEN}✓ Image already exists: Fleet package registry${NC}"
-    else
-        if podman pull docker.elastic.co/package-registry/distribution:8.18.3; then
-            echo -e "${GREEN}✓ Pulled Fleet package registry${NC}"
+        # Save the image as individual tar file
+        echo -e "${YELLOW}  Saving image to $output_file...${NC}"
+        if podman save -o "$output_file" "$container"; then
+            echo -e "${GREEN}  ✓ Successfully saved to $(basename $output_file)${NC}"
         else
-            echo -e "${RED}✗ Failed to pull Fleet package registry${NC}"
+            echo -e "${RED}  ✗ Failed to save $container${NC}"
             exit 1
         fi
-    fi
+    done
 
-    # Save all images to tar files
-    echo -e "${YELLOW}Saving container images to tar files...${NC}"
-    if podman save -o "$OUTPUT_DIR/containers/lme-containers.tar" \
-        $(cat "$CONTAINERS_FILE" | grep -v '^#' | grep -v '^$') \
-        docker.elastic.co/package-registry/distribution:8.18.3; then
-        echo -e "${GREEN}✓ Container images saved to $OUTPUT_DIR/containers/lme-containers.tar${NC}"
-    else
-        echo -e "${RED}✗ Failed to save container images${NC}"
-        exit 1
-    fi
+    echo -e "${GREEN}✓ All container images downloaded and saved${NC}"
 }
 
 # Download system packages for Ubuntu 24.04
@@ -298,10 +294,78 @@ EOF
     cat > "$OUTPUT_DIR/scripts/load_containers.sh" << 'EOF'
 #!/bin/bash
 set -e
-echo "Loading container images..."
-cd "$(dirname "$0")/../containers"
-sudo podman load -i lme-containers.tar
-echo "✓ Container images loaded"
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+SCRIPT_DIR="$(dirname "$0")"
+CONTAINERS_DIR="$SCRIPT_DIR/../containers"
+
+echo -e "${YELLOW}Loading and tagging container images...${NC}"
+
+if [ ! -d "$CONTAINERS_DIR" ]; then
+    echo -e "${RED}✗ Containers directory not found: $CONTAINERS_DIR${NC}"
+    exit 1
+fi
+
+# Ensure podman is in PATH
+export PATH=$PATH:/nix/var/nix/profiles/default/bin
+
+# Load and tag each container image
+for tar_file in "$CONTAINERS_DIR"/*.tar; do
+    if [ -f "$tar_file" ]; then
+        echo -e "${YELLOW}Loading $(basename "$tar_file")...${NC}"
+
+        # Load the image and capture the output to get the actual image name
+        LOAD_OUTPUT=$(sudo podman load -i "$tar_file" 2>&1)
+        echo "$LOAD_OUTPUT"
+
+        # Extract the loaded image name from output (format: "Loaded image: docker.elastic.co/...")
+        LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | grep -oP 'Loaded image: \K.*' || echo "$LOAD_OUTPUT" | grep -oP 'Getting image source signatures.*' && sudo podman images --format "{{.Repository}}:{{.Tag}}" | head -1)
+
+        if [ -z "$LOADED_IMAGE" ]; then
+            echo -e "${RED}✗ Failed to determine loaded image name${NC}"
+            continue
+        fi
+
+        echo -e "${GREEN}  ✓ Loaded: $LOADED_IMAGE${NC}"
+
+        # Determine the target tag based on the image name
+        # Extract the last component before the version (e.g., elasticsearch, kibana, etc.)
+        IMAGE_COMPONENT=$(echo "$LOADED_IMAGE" | awk -F'/' '{print $NF}' | cut -d':' -f1)
+        TARGET_TAG="localhost/${IMAGE_COMPONENT}:LME_LATEST"
+
+        echo -e "${YELLOW}  Tagging as: $TARGET_TAG${NC}"
+
+        if sudo podman tag "$LOADED_IMAGE" "$TARGET_TAG"; then
+            echo -e "${GREEN}  ✓ Tagged successfully${NC}"
+
+            # Verify the tag
+            if sudo podman image exists "$TARGET_TAG"; then
+                # Get image IDs to verify they match
+                SOURCE_ID=$(sudo podman images --format "{{.ID}}" "$LOADED_IMAGE" | head -1)
+                TARGET_ID=$(sudo podman images --format "{{.ID}}" "$TARGET_TAG" | head -1)
+
+                if [ "$SOURCE_ID" = "$TARGET_ID" ]; then
+                    echo -e "${GREEN}  ✓ Verified: Image IDs match ($SOURCE_ID)${NC}"
+                else
+                    echo -e "${RED}  ✗ Warning: Image ID mismatch! Source=$SOURCE_ID Target=$TARGET_ID${NC}"
+                fi
+            else
+                echo -e "${RED}  ✗ Tag verification failed${NC}"
+            fi
+        else
+            echo -e "${RED}  ✗ Failed to tag image${NC}"
+        fi
+
+        echo ""
+    fi
+done
+
+echo -e "${GREEN}✓ Container images loaded and tagged${NC}"
+echo -e "${YELLOW}Verify with: sudo podman images${NC}"
 EOF
     
     chmod +x "$OUTPUT_DIR/scripts"/*.sh
