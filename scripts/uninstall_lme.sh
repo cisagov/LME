@@ -68,10 +68,10 @@ echo -e "${GREEN}✓ Service disabled${NC}"
 # Step 3: Stop all LME containers
 echo -e "${YELLOW}[3/12] Stopping all LME containers...${NC}"
 if command -v podman &> /dev/null; then
-    # Get list of LME containers
-    LME_CONTAINERS=$(podman ps -a --format "{{.Names}}" | grep -E "^lme-" || true)
+    # Get list of LME containers with timeout
+    LME_CONTAINERS=$(timeout 5 podman ps -a --format "{{.Names}}" 2>/dev/null | grep -E "^lme-" || true)
     if [ -n "$LME_CONTAINERS" ]; then
-        echo "$LME_CONTAINERS" | xargs -r podman stop 2>/dev/null || true
+        echo "$LME_CONTAINERS" | xargs -r timeout 10 podman stop 2>/dev/null || true
         echo -e "${GREEN}✓ Containers stopped${NC}"
     else
         echo -e "${GREEN}✓ No LME containers found${NC}"
@@ -84,7 +84,7 @@ fi
 echo -e "${YELLOW}[4/12] Removing all LME containers...${NC}"
 if command -v podman &> /dev/null; then
     if [ -n "$LME_CONTAINERS" ]; then
-        echo "$LME_CONTAINERS" | xargs -r podman rm -f 2>/dev/null || true
+        echo "$LME_CONTAINERS" | xargs -r timeout 10 podman rm -f 2>/dev/null || true
         echo -e "${GREEN}✓ Containers removed${NC}"
     else
         echo -e "${GREEN}✓ No LME containers to remove${NC}"
@@ -116,20 +116,20 @@ if command -v podman &> /dev/null; then
         "lme_filebeat_var"
         "lme_elastalert2_logs"
     )
-    
+
     for volume in "${LME_VOLUMES[@]}"; do
-        if podman volume exists "$volume" 2>/dev/null; then
-            podman volume rm "$volume" 2>/dev/null || true
+        if timeout 3 podman volume exists "$volume" 2>/dev/null; then
+            timeout 10 podman volume rm "$volume" 2>/dev/null || true
             echo "  Removed: $volume"
         fi
     done
-    
+
     # Also remove any other volumes starting with lme_
-    OTHER_VOLUMES=$(podman volume ls --format "{{.Name}}" | grep "^lme_" || true)
+    OTHER_VOLUMES=$(timeout 5 podman volume ls --format "{{.Name}}" 2>/dev/null | grep "^lme_" || true)
     if [ -n "$OTHER_VOLUMES" ]; then
-        echo "$OTHER_VOLUMES" | xargs -r podman volume rm 2>/dev/null || true
+        echo "$OTHER_VOLUMES" | xargs -r timeout 10 podman volume rm 2>/dev/null || true
     fi
-    
+
     echo -e "${GREEN}✓ Volumes removed${NC}"
 else
     echo -e "${YELLOW}⚠ Podman not found, skipping volume removal${NC}"
@@ -138,9 +138,9 @@ fi
 # Step 6: Remove all LME secrets
 echo -e "${YELLOW}[6/12] Removing all LME secrets...${NC}"
 if command -v podman &> /dev/null; then
-    LME_SECRETS=$(podman secret ls --format "{{.Name}}" | grep -E "^(elastic|kibana_system|wazuh|wazuh_api)$" || true)
+    LME_SECRETS=$(timeout 5 podman secret ls --format "{{.Name}}" 2>/dev/null | grep -E "^(elastic|kibana_system|wazuh|wazuh_api)$" || true)
     if [ -n "$LME_SECRETS" ]; then
-        echo "$LME_SECRETS" | xargs -r podman secret rm 2>/dev/null || true
+        echo "$LME_SECRETS" | xargs -r timeout 10 podman secret rm 2>/dev/null || true
         echo -e "${GREEN}✓ Secrets removed${NC}"
     else
         echo -e "${GREEN}✓ No LME secrets found${NC}"
@@ -153,13 +153,13 @@ fi
 echo -e "${YELLOW}[7/12] Removing LME container images...${NC}"
 if command -v podman &> /dev/null; then
     # Remove images tagged with LME_LATEST
-    LME_IMAGES=$(podman images --format "{{.Repository}}:{{.Tag}}" | grep "LME_LATEST" || true)
+    LME_IMAGES=$(timeout 5 podman images --format "{{.Repository}}:{{.Tag}}" 2>/dev/null | grep "LME_LATEST" || true)
     if [ -n "$LME_IMAGES" ]; then
-        echo "$LME_IMAGES" | xargs -r podman rmi -f 2>/dev/null || true
+        echo "$LME_IMAGES" | xargs -r timeout 30 podman rmi -f 2>/dev/null || true
     fi
 
     # Remove specific LME images (localhost tags)
-    podman rmi -f \
+    timeout 30 podman rmi -f \
         localhost/elasticsearch:LME_LATEST \
         localhost/kibana:LME_LATEST \
         localhost/elastic-agent:LME_LATEST \
@@ -171,7 +171,7 @@ if command -v podman &> /dev/null; then
 
     # Remove original source images from docker.elastic.co and docker.io
     echo "  Removing source images..."
-    podman rmi -f \
+    timeout 30 podman rmi -f \
         docker.elastic.co/elasticsearch/elasticsearch:8.18.3 \
         docker.elastic.co/kibana/kibana:8.18.3 \
         docker.elastic.co/beats/elastic-agent:8.18.3 \
@@ -182,16 +182,16 @@ if command -v podman &> /dev/null; then
 
     # Remove any dangling/none images
     echo "  Removing dangling images..."
-    DANGLING_IMAGES=$(podman images -f "dangling=true" -q || true)
+    DANGLING_IMAGES=$(timeout 5 podman images -f "dangling=true" -q 2>/dev/null || true)
     if [ -n "$DANGLING_IMAGES" ]; then
-        echo "$DANGLING_IMAGES" | xargs -r podman rmi -f 2>/dev/null || true
+        echo "$DANGLING_IMAGES" | xargs -r timeout 30 podman rmi -f 2>/dev/null || true
     fi
 
     # Remove any remaining LME-related images
     echo "  Removing any remaining LME-related images..."
-    REMAINING_LME=$(podman images --format "{{.Repository}}:{{.Tag}}" | grep -E "(elasticsearch|kibana|elastic-agent|wazuh|elastalert|package-registry|distribution)" || true)
+    REMAINING_LME=$(timeout 5 podman images --format "{{.Repository}}:{{.Tag}}" 2>/dev/null | grep -E "(elasticsearch|kibana|elastic-agent|wazuh|elastalert|package-registry|distribution)" || true)
     if [ -n "$REMAINING_LME" ]; then
-        echo "$REMAINING_LME" | xargs -r podman rmi -f 2>/dev/null || true
+        echo "$REMAINING_LME" | xargs -r timeout 30 podman rmi -f 2>/dev/null || true
     fi
 
     echo -e "${GREEN}✓ Images removed${NC}"
@@ -228,11 +228,11 @@ echo -e "${GREEN}✓ Configuration removed${NC}"
 echo -e "${YELLOW}[12/13] Cleaning up podman system...${NC}"
 if command -v podman &> /dev/null; then
     echo "  Pruning unused images..."
-    podman image prune -a -f 2>/dev/null || true
+    timeout 30 podman image prune -a -f 2>/dev/null || true
     echo "  Pruning unused volumes..."
-    podman volume prune -f 2>/dev/null || true
+    timeout 30 podman volume prune -f 2>/dev/null || true
     echo "  Pruning system..."
-    podman system prune -a -f 2>/dev/null || true
+    timeout 60 podman system prune -a -f 2>/dev/null || true
     echo -e "${GREEN}✓ Podman system cleaned${NC}"
 else
     echo -e "${YELLOW}⚠ Podman not found, skipping system cleanup${NC}"

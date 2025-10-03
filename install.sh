@@ -454,37 +454,23 @@ setup_offline_mode() {
 
     # Install packages from offline cache
     echo -e "${YELLOW}Installing packages from offline cache...${NC}"
-    detect_distro
 
-    case $DISTRO in
-        ubuntu|debian)
-            if [ -f "${SCRIPT_DIR}/offline_resources/scripts/install_packages_ubuntu.sh" ]; then
-                bash "${SCRIPT_DIR}/offline_resources/scripts/install_packages_ubuntu.sh"
-            else
-                echo -e "${RED}✗ Ubuntu package installation script not found${NC}"
-                exit 1
-            fi
-            ;;
-        rhel|almalinux|rocky|centos)
-            if [ -f "${SCRIPT_DIR}/offline_resources/scripts/install_packages_redhat.sh" ]; then
-                bash "${SCRIPT_DIR}/offline_resources/scripts/install_packages_redhat.sh"
-            else
-                echo -e "${RED}✗ RedHat package installation script not found${NC}"
-                exit 1
-            fi
-            ;;
-        *)
-            echo -e "${RED}✗ Unsupported distribution for offline mode: $DISTRO${NC}"
-            exit 1
-            ;;
-    esac
+    # Use universal offline package installation script
+    if [ -f "${SCRIPT_DIR}/offline_resources/packages/install_packages_offline.sh" ]; then
+        bash "${SCRIPT_DIR}/offline_resources/packages/install_packages_offline.sh"
+    else
+        echo -e "${RED}✗ Offline package installation script not found${NC}"
+        echo -e "${RED}Expected: ${SCRIPT_DIR}/offline_resources/packages/install_packages_offline.sh${NC}"
+        exit 1
+    fi
 
     # Load container images
     echo -e "${YELLOW}Loading container images from offline cache...${NC}"
-    if [ -f "${SCRIPT_DIR}/offline_resources/scripts/load_containers.sh" ]; then
-        bash "${SCRIPT_DIR}/offline_resources/scripts/load_containers.sh"
+    if [ -f "${SCRIPT_DIR}/offline_resources/load_containers.sh" ]; then
+        bash "${SCRIPT_DIR}/offline_resources/load_containers.sh"
     else
         echo -e "${RED}✗ Container load script not found${NC}"
+        echo -e "${RED}Expected: ${SCRIPT_DIR}/offline_resources/load_containers.sh${NC}"
         exit 1
     fi
 
