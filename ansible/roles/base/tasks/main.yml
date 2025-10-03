@@ -13,7 +13,10 @@
 
 # Include common OS tasks first
 - name: Include common OS tasks
-  include_tasks: "{{ ansible_distribution | lower }}.yml"
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
   when: ansible_distribution is defined
 
 # Include version-specific tasks with fallback

@@ -12,10 +12,12 @@
 - name: Include OS-specific tasks
   include_tasks: "{{ item }}"
   with_first_found:
-    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}.yml"
-    - "{{ ansible_distribution | lower }}.yml"
-    - "{{ ansible_os_family | lower }}.yml"
-    - "common.yml"
+    - files:
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}.yml"
+        - "{{ ansible_distribution | lower }}.yml"
+        - "{{ ansible_os_family | lower }}.yml"
+        - "common.yml"
+      skip: true
 
 # These tasks are common to all distributions
 - name: Update PATH for Ansible execution
