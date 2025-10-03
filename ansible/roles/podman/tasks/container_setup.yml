@@ -74,14 +74,34 @@
   delay: 5
   until: pull_result is not failed
   ignore_errors: yes
+  when: not (offline_mode | default(false))
 
 - name: Display container pull errors
   debug:
     msg: "Failed to pull container: {{ item.item }}"
   loop: "{{ pull_result.results }}"
-  when: item is failed
+  when:
+    - not (offline_mode | default(false))
+    - item is failed
   loop_control:
     label: "{{ item.item }}"
+
+- name: Load containers from offline archive
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman load -i {{ clone_directory }}/offline_resources/containers/lme-containers.tar
+  args:
+    executable: /bin/bash
+  become: yes
+  when: offline_mode | default(false)
+  register: load_result
+
+- name: Display container load result
+  debug:
+    var: load_result
+  when:
+    - offline_mode | default(false)
+    - debug_mode | default(false)
 
 - name: Tag containers
   shell: |
@@ -103,4 +123,4 @@
   loop: "{{ tag_result.results }}"
   when: item is failed
   loop_control:
-    label: "{{ item.item }}" 
+    label: "{{ item.item }}"

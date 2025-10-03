@@ -10,6 +10,12 @@
   delay: 10
   until: apt_update is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Skip package installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping package installation (packages should be pre-installed)"
+  when: offline_mode | default(false)
 
 - name: Install common packages
   apt:
@@ -21,6 +27,7 @@
   delay: 10
   until: apt_install is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
 
 - name: Install required Ubuntu packages
   apt:
@@ -32,6 +39,7 @@
   delay: 10
   until: apt_install_ubuntu is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
 
 - name: Set timezone information
   debconf:

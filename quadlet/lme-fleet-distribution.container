@@ -1,0 +1,20 @@
+[Unit]
+Description=LME Fleet Package Distribution Server (Offline Mode)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/lme/OFFLINE_MODE
+
+[Container]
+Image=localhost/package-registry:LME_LATEST
+ContainerName=lme-fleet-distribution
+Network=lme.network
+PublishPort=8080:8080
+Environment=PACKAGE_REGISTRY_BASE_PATH=/packages
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target default.target
+

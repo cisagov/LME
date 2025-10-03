@@ -589,4 +589,23 @@
 - name: Display read-only user credentials
   debug:
     msg: "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: {{ read_only_password.stdout }}"
-  when: read_only_password is defined and read_only_password.stdout is defined 
+  when: read_only_password is defined and read_only_password.stdout is defined
+
+# Configure Kibana for offline/air-gapped mode
+- name: Configure Kibana for offline mode
+  blockinfile:
+    path: /opt/lme/config/kibana.yml
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OFFLINE MODE"
+    block: |
+      xpack.fleet.registryUrl: "http://lme-fleet-distribution:8080"
+      xpack.fleet.isAirGapped: true
+  become: yes
+  when: offline_mode | default(false)
+  notify: restart kibana
+
+- name: Restart Kibana to apply offline configuration
+  systemd:
+    name: lme-kibana.service
+    state: restarted
+  become: yes
+  when: offline_mode | default(false)

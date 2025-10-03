@@ -13,6 +13,7 @@ CUSTOM_IP=""
 HAS_SUDO_ACCESS=""
 IPVAR=""
 DEBUG_MODE="false"
+OFFLINE_MODE="false"
 
 # Environment variables for non-interactive mode
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
@@ -27,6 +28,7 @@ usage() {
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
     echo "  -d, --debug                   Enable debug mode for verbose output"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
+    echo "  --offline                     Run in offline mode (requires offline resources)"
     echo "  -h, --help                    Show this help message"
     echo
     echo "Environment Variables:"
@@ -53,6 +55,10 @@ while [[ $# -gt 0 ]]; do
         -p|--playbook)
             PLAYBOOK_PATH="$2"
             shift 2
+            ;;
+        --offline)
+            OFFLINE_MODE="true"
+            shift
             ;;
         -h|--help)
             usage
@@ -435,10 +441,72 @@ check_sudo_access() {
     fi
 }
 
+# Function to setup offline mode
+setup_offline_mode() {
+    echo -e "${YELLOW}Setting up offline installation mode...${NC}"
+
+    # Check if offline resources exist
+    if [ ! -d "${SCRIPT_DIR}/offline_resources" ]; then
+        echo -e "${RED}✗ Offline resources directory not found!${NC}"
+        echo -e "${YELLOW}Please run prepare_offline.sh first to download offline resources.${NC}"
+        exit 1
+    fi
+
+    # Install packages from offline cache
+    echo -e "${YELLOW}Installing packages from offline cache...${NC}"
+    detect_distro
+
+    case $DISTRO in
+        ubuntu|debian)
+            if [ -f "${SCRIPT_DIR}/offline_resources/scripts/install_packages_ubuntu.sh" ]; then
+                bash "${SCRIPT_DIR}/offline_resources/scripts/install_packages_ubuntu.sh"
+            else
+                echo -e "${RED}✗ Ubuntu package installation script not found${NC}"
+                exit 1
+            fi
+            ;;
+        rhel|almalinux|rocky|centos)
+            if [ -f "${SCRIPT_DIR}/offline_resources/scripts/install_packages_redhat.sh" ]; then
+                bash "${SCRIPT_DIR}/offline_resources/scripts/install_packages_redhat.sh"
+            else
+                echo -e "${RED}✗ RedHat package installation script not found${NC}"
+                exit 1
+            fi
+            ;;
+        *)
+            echo -e "${RED}✗ Unsupported distribution for offline mode: $DISTRO${NC}"
+            exit 1
+            ;;
+    esac
+
+    # Load container images
+    echo -e "${YELLOW}Loading container images from offline cache...${NC}"
+    if [ -f "${SCRIPT_DIR}/offline_resources/scripts/load_containers.sh" ]; then
+        bash "${SCRIPT_DIR}/offline_resources/scripts/load_containers.sh"
+    else
+        echo -e "${RED}✗ Container load script not found${NC}"
+        exit 1
+    fi
+
+    # Setup CVE database if available
+    if [ -f "${SCRIPT_DIR}/offline_resources/cve/cves.zip" ]; then
+        echo -e "${YELLOW}Setting up offline CVE database...${NC}"
+        sudo mkdir -p /opt/lme/cve
+        sudo cp "${SCRIPT_DIR}/offline_resources/cve/cves.zip" /opt/lme/cve/
+        echo -e "${GREEN}✓ CVE database configured${NC}"
+    fi
+
+    # Create offline mode marker file
+    sudo mkdir -p /opt/lme
+    sudo touch /opt/lme/OFFLINE_MODE
+
+    echo -e "${GREEN}✓ Offline mode setup complete${NC}"
+}
+
 # Function to run the playbook
 run_playbook() {
     echo -e "${YELLOW}Running Ansible playbook...${NC}"
-    
+
     # If sudo requires password, we need to pass -K for sudo password
     if [ "${HAS_SUDO_ACCESS}" = "false" ]; then
         ANSIBLE_OPTS="-K"
@@ -451,13 +519,19 @@ run_playbook() {
     else
         ANSIBLE_OPTS=""
     fi
-    
+
     # Add debug mode if enabled
     if [ "$DEBUG_MODE" = "true" ]; then
         echo -e "${YELLOW}Debug mode enabled - verbose output will be shown${NC}"
         ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
     fi
-    
+
+    # Add offline mode if enabled
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${YELLOW}Offline mode enabled - internet-dependent tasks will be skipped${NC}"
+        ANSIBLE_OPTS="$ANSIBLE_OPTS -e offline_mode=true"
+    fi
+
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
     if [ -f "./inventory" ]; then
@@ -465,7 +539,7 @@ run_playbook() {
     else
         ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
     fi
-    
+
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Main installation playbook completed successfully!${NC}"
     else
@@ -542,13 +616,27 @@ else
     fi
 fi
 
+# Handle offline mode setup if enabled
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${YELLOW}  OFFLINE INSTALLATION MODE${NC}"
+    echo -e "${YELLOW}========================================${NC}"
+    setup_offline_mode
+fi
+
 # Check if ansible is already installed
 check_ansible
 if [ $? -ne 0 ]; then
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${RED}✗ Ansible is not installed and offline mode is enabled.${NC}"
+        echo -e "${YELLOW}Please ensure Ansible is installed before running offline installation.${NC}"
+        exit 1
+    fi
+
     # Detect distribution and install ansible
     detect_distro
     install_ansible
-    
+
     # Verify installation
     if ! check_ansible; then
         echo -e "${RED}Failed to verify Ansible installation. Please install manually.${NC}"

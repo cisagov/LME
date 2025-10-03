@@ -10,6 +10,12 @@
   delay: 10
   until: dnf_update is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Skip package installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping package installation (packages should be pre-installed)"
+  when: offline_mode | default(false)
 
 - name: Check if curl-minimal is installed
   command: rpm -q curl-minimal
@@ -24,6 +30,7 @@
 - name: Debug - Show common packages to be installed
   debug:
     msg: "Installing common packages: {{ common_packages | join(', ') }}"
+  when: not (offline_mode | default(false))
 
 - name: Install common packages
   dnf:
@@ -35,6 +42,7 @@
   delay: 10
   until: dnf_install is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
 
 - name: Debug - Show common packages install result
   debug:
@@ -44,6 +52,7 @@
 - name: Debug - Show Red Hat packages to be installed
   debug:
     msg: "Installing Red Hat packages: {{ redhat_packages | join(', ') }}"
+  when: not (offline_mode | default(false))
 
 - name: Install required Red Hat packages
   dnf:
@@ -55,6 +64,7 @@
   delay: 10
   until: dnf_install_redhat is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
 
 - name: Debug - Show Red Hat packages install result
   debug:

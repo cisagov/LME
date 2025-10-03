@@ -5,3 +5,4 @@
     name: "{{ ubuntu_24_04_packages | default([]) }}"
     state: present
   become: yes
+  when: not (offline_mode | default(false))
