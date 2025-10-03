@@ -8,12 +8,13 @@ NC='\033[0m' # No Color
 
 # Default playbook location - can be overridden with command line argument
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PLAYBOOK_PATH="./ansible/site.yml"
+PLAYBOOK_PATH="$SCRIPT_DIR/ansible/site.yml"
 CUSTOM_IP=""
 HAS_SUDO_ACCESS=""
 IPVAR=""
 DEBUG_MODE="false"
 OFFLINE_MODE="false"
+SKIP_PACKAGES="false"
 
 # Environment variables for non-interactive mode
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
@@ -27,8 +28,9 @@ usage() {
     echo "OPTIONS:"
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
     echo "  -d, --debug                   Enable debug mode for verbose output"
+    echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
+    echo "  --skip-packages               Skip package installation (for development)"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
-    echo "  --offline                     Run in offline mode (requires offline resources)"
     echo "  -h, --help                    Show this help message"
     echo
     echo "Environment Variables:"
@@ -52,13 +54,17 @@ while [[ $# -gt 0 ]]; do
             DEBUG_MODE="true"
             shift
             ;;
+        -o|--offline)
+            OFFLINE_MODE="true"
+            shift
+            ;;
+        --skip-packages)
+            SKIP_PACKAGES="true"
+            shift
+            ;;
         -p|--playbook)
             PLAYBOOK_PATH="$2"
             shift 2
-            ;;
-        --offline)
-            OFFLINE_MODE="true"
-            shift
             ;;
         -h|--help)
             usage
@@ -180,8 +186,17 @@ apt_get_wrapper() {
 
 # Function to install Ansible on different distributions
 install_ansible() {
+    if [ "$OFFLINE_MODE" = "true" ]; then
+        echo -e "${RED}✗ Cannot install Ansible in offline mode.${NC}"
+        echo -e "${YELLOW}Please install Ansible manually before running this script in offline mode.${NC}"
+        echo -e "${YELLOW}For Ubuntu/Debian: sudo apt-get install ansible${NC}"
+        echo -e "${YELLOW}For RHEL/CentOS: sudo dnf install ansible${NC}"
+        echo -e "${YELLOW}For other distributions, consult your package manager.${NC}"
+        exit 1
+    fi
+
     echo -e "${YELLOW}Installing Ansible...${NC}"
-    
+
     # Set noninteractive mode for apt-based installations
     export DEBIAN_FRONTEND=noninteractive
 
@@ -197,22 +212,24 @@ install_ansible() {
             sudo dnf install -y ansible
             ;;
         centos|rhel|rocky|almalinux)
-            # Ask user which installation method to use
-            use_pip=false
-            if [ "$NON_INTERACTIVE" != "true" ]; then
-                echo -e "${YELLOW}Choose Ansible installation method:${NC}"
-                echo "  1. Fedora EPEL repository (default)"
-                echo "  2. Python pip"
-                read -p "Select option (1 or 2): " install_choice
-
-                if [[ "$install_choice" == "2" ]]; then
-                    use_pip=true
-                fi
+            # Install EPEL repository first
+            echo "Installing EPEL repository..."
+            if ! sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm -E %rhel).noarch.rpm; then
+                echo -e "${RED}✗ Failed to install EPEL repository${NC}"
+                exit 1
             fi
-
-            if [ "$use_pip" = true ]; then
-                # Install via pip
-                echo -e "${YELLOW}Installing Ansible via pip...${NC}"
+            echo -e "${GREEN}✓ EPEL repository installed${NC}"
+            
+            # For RHEL, you might also need to enable CodeReady Builder repository
+            if [[ "$DISTRO" == "rhel" ]]; then
+                sudo subscription-manager repos --enable codeready-builder-for-rhel-$(rpm -E %rhel)-$(arch)-rpms 2>/dev/null || true
+            fi
+            
+            # Now try to install ansible via dnf
+            if sudo dnf install -y ansible; then
+                echo -e "${GREEN}✓ Ansible installed via dnf${NC}"
+            else
+                echo -e "${YELLOW}⚠ dnf installation failed, trying pip installation...${NC}"
                 sudo dnf install -y python3-pip
                 sudo pip3 install ansible
                 # Create symlink to make pip-installed ansible available in PATH
@@ -220,35 +237,6 @@ install_ansible() {
                     sudo ln -sf /usr/local/bin/ansible /usr/bin/ansible
                     sudo ln -sf /usr/local/bin/ansible-vault /usr/bin/ansible-vault
                     echo -e "${GREEN}✓ Created symlink for ansible in /usr/bin${NC}"
-                fi
-                echo -e "${GREEN}✓ Ansible installed via pip${NC}"
-            else
-                # Install EPEL repository first
-                echo "Installing EPEL repository..."
-                if ! sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm -E %rhel).noarch.rpm; then
-                    echo -e "${RED}✗ Failed to install EPEL repository${NC}"
-                    exit 1
-                fi
-                echo -e "${GREEN}✓ EPEL repository installed${NC}"
-
-                # For RHEL, you might also need to enable CodeReady Builder repository
-                if [[ "$DISTRO" == "rhel" ]]; then
-                    sudo subscription-manager repos --enable codeready-builder-for-rhel-$(rpm -E %rhel)-$(arch)-rpms 2>/dev/null || true
-                fi
-
-                # Now try to install ansible via dnf
-                if sudo dnf install -y ansible; then
-                    echo -e "${GREEN}✓ Ansible installed via dnf${NC}"
-                else
-                    echo -e "${YELLOW}⚠ dnf installation failed, trying pip installation...${NC}"
-                    sudo dnf install -y python3-pip
-                    sudo pip3 install ansible
-                    # Create symlink to make pip-installed ansible available in PATH
-                    if [ -f /usr/local/bin/ansible ] && [ ! -f /usr/bin/ansible ]; then
-                        sudo ln -sf /usr/local/bin/ansible /usr/bin/ansible
-                        sudo ln -sf /usr/local/bin/ansible-vault /usr/bin/ansible-vault
-                        echo -e "${GREEN}✓ Created symlink for ansible in /usr/bin${NC}"
-                    fi
                 fi
             fi
             ;;
@@ -441,58 +429,10 @@ check_sudo_access() {
     fi
 }
 
-# Function to setup offline mode
-setup_offline_mode() {
-    echo -e "${YELLOW}Setting up offline installation mode...${NC}"
-
-    # Check if offline resources exist
-    if [ ! -d "${SCRIPT_DIR}/offline_resources" ]; then
-        echo -e "${RED}✗ Offline resources directory not found!${NC}"
-        echo -e "${YELLOW}Please run prepare_offline.sh first to download offline resources.${NC}"
-        exit 1
-    fi
-
-    # Install packages from offline cache
-    echo -e "${YELLOW}Installing packages from offline cache...${NC}"
-
-    # Use universal offline package installation script
-    if [ -f "${SCRIPT_DIR}/offline_resources/packages/install_packages_offline.sh" ]; then
-        bash "${SCRIPT_DIR}/offline_resources/packages/install_packages_offline.sh"
-    else
-        echo -e "${RED}✗ Offline package installation script not found${NC}"
-        echo -e "${RED}Expected: ${SCRIPT_DIR}/offline_resources/packages/install_packages_offline.sh${NC}"
-        exit 1
-    fi
-
-    # Load container images
-    echo -e "${YELLOW}Loading container images from offline cache...${NC}"
-    if [ -f "${SCRIPT_DIR}/offline_resources/load_containers.sh" ]; then
-        bash "${SCRIPT_DIR}/offline_resources/load_containers.sh"
-    else
-        echo -e "${RED}✗ Container load script not found${NC}"
-        echo -e "${RED}Expected: ${SCRIPT_DIR}/offline_resources/load_containers.sh${NC}"
-        exit 1
-    fi
-
-    # Setup CVE database if available
-    if [ -f "${SCRIPT_DIR}/offline_resources/cve/cves.zip" ]; then
-        echo -e "${YELLOW}Setting up offline CVE database...${NC}"
-        sudo mkdir -p /opt/lme/cve
-        sudo cp "${SCRIPT_DIR}/offline_resources/cve/cves.zip" /opt/lme/cve/
-        echo -e "${GREEN}✓ CVE database configured${NC}"
-    fi
-
-    # Create offline mode marker file
-    sudo mkdir -p /opt/lme
-    sudo touch /opt/lme/OFFLINE_MODE
-
-    echo -e "${GREEN}✓ Offline mode setup complete${NC}"
-}
-
 # Function to run the playbook
 run_playbook() {
     echo -e "${YELLOW}Running Ansible playbook...${NC}"
-
+    
     # If sudo requires password, we need to pass -K for sudo password
     if [ "${HAS_SUDO_ACCESS}" = "false" ]; then
         ANSIBLE_OPTS="-K"
@@ -505,27 +445,26 @@ run_playbook() {
     else
         ANSIBLE_OPTS=""
     fi
-
+    
     # Add debug mode if enabled
     if [ "$DEBUG_MODE" = "true" ]; then
         echo -e "${YELLOW}Debug mode enabled - verbose output will be shown${NC}"
         ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
     fi
 
-    # Add offline mode if enabled
+    # Add offline mode message
     if [ "$OFFLINE_MODE" = "true" ]; then
-        echo -e "${YELLOW}Offline mode enabled - internet-dependent tasks will be skipped${NC}"
-        ANSIBLE_OPTS="$ANSIBLE_OPTS -e offline_mode=true"
+        echo -e "${YELLOW}⚠ Running in offline mode - skipping internet-dependent tasks${NC}"
     fi
 
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
-    if [ -f "./inventory" ]; then
-        ansible-playbook -i inventory "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
+    if [ -f "$SCRIPT_DIR/inventory" ]; then
+        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     else
-        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'"}' $ANSIBLE_OPTS
+        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     fi
-
+    
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Main installation playbook completed successfully!${NC}"
     else
@@ -538,6 +477,237 @@ run_playbook() {
 echo "==============================================="
 echo "    Ansible Setup and Playbook Runner"
 echo "==============================================="
+
+# Display offline mode status early
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${YELLOW}⚠ OFFLINE MODE ENABLED${NC}"
+    echo -e "${YELLOW}⚠ Internet-dependent operations will be skipped${NC}"
+    echo
+
+    # Validate offline archive if validation script exists
+    if [ -f "$SCRIPT_DIR/scripts/validate_offline_archive.sh" ]; then
+        echo -e "${YELLOW}Validating offline resources...${NC}"
+        if "$SCRIPT_DIR/scripts/validate_offline_archive.sh" -d "$SCRIPT_DIR/offline_resources" 2>/dev/null; then
+            echo -e "${GREEN}✓ Offline resources validation passed${NC}"
+        else
+            echo -e "${YELLOW}⚠ Offline resources validation failed or incomplete${NC}"
+            echo -e "${YELLOW}Continuing with installation...${NC}"
+        fi
+        echo
+    fi
+
+    # Look for offline archive and extract it
+    echo -e "${YELLOW}Looking for offline installation archive...${NC}"
+    OFFLINE_ARCHIVE=$(find "$SCRIPT_DIR" -name "lme-offline-*.tar.gz" | head -1)
+
+    if [ -n "$OFFLINE_ARCHIVE" ]; then
+        echo -e "${GREEN}✓ Found offline archive: $(basename "$OFFLINE_ARCHIVE")${NC}"
+
+        # Check if already extracted
+        if [ -d "$SCRIPT_DIR/offline_resources" ]; then
+            echo -e "${GREEN}✓ Offline resources already extracted, skipping extraction${NC}"
+        else
+            echo -e "${YELLOW}Extracting offline resources...${NC}"
+            # Extract archive to parent directory (archive contains full LME directory)
+            tar -xzf "$OFFLINE_ARCHIVE" -C "$(dirname "$SCRIPT_DIR")"
+
+            # The archive contains the LME directory with offline_resources inside it
+            # If we're running from a different LME directory, we need to copy the offline_resources AND config
+            EXTRACTED_LME_DIR=$(tar -tzf "$OFFLINE_ARCHIVE" | head -1 | cut -d'/' -f1)
+            if [ "$EXTRACTED_LME_DIR" != "$(basename "$SCRIPT_DIR")" ]; then
+                echo -e "${YELLOW}Copying offline resources from extracted archive...${NC}"
+                cp -r "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/offline_resources" "$SCRIPT_DIR/"
+
+                # Also copy config directory if it doesn't exist or is incomplete
+                if [ ! -f "$SCRIPT_DIR/config/example.env" ] && [ -f "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/config/example.env" ]; then
+                    echo -e "${YELLOW}Copying config directory from extracted archive...${NC}"
+                    cp -r "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/config" "$SCRIPT_DIR/"
+                    echo -e "${GREEN}✓ Config directory copied${NC}"
+                fi
+            fi
+        fi
+
+        # Install packages
+        if [ "$SKIP_PACKAGES" = "true" ]; then
+            echo -e "${YELLOW}Skipping package installation (--skip-packages flag enabled)${NC}"
+        else
+            echo -e "${YELLOW}Installing required packages...${NC}"
+            cd "$SCRIPT_DIR/offline_resources/packages"
+
+            # Detect OS and install appropriate packages
+            if [ -f /etc/os-release ]; then
+                . /etc/os-release
+                OS_ID="$ID"
+            elif [ -f /etc/redhat-release ]; then
+                OS_ID="rhel"
+            elif [ -f /etc/debian_version ]; then
+                OS_ID="debian"
+            else
+                OS_ID="unknown"
+            fi
+
+            case "$OS_ID" in
+                ubuntu|debian|linuxmint|pop)
+                    PACKAGES_DIR="debs"
+                    PACKAGE_EXT="deb"
+                    INSTALL_CMD="sudo dpkg -i *.deb && sudo apt-get install -f -y"
+                    ;;
+                rhel|centos|rocky|almalinux|fedora)
+                    PACKAGES_DIR="rpms"
+                    PACKAGE_EXT="rpm"
+                    INSTALL_CMD="sudo rpm -Uvh --force --nodeps *.rpm"
+                    ;;
+                *)
+                    echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
+                    exit 1
+                    ;;
+            esac
+
+            echo -e "${GREEN}✓ Detected OS: $OS_ID (looking for $PACKAGE_EXT packages)${NC}"
+
+            if [ ! -d "$PACKAGES_DIR" ]; then
+                echo -e "${RED}✗ Packages directory not found: $PACKAGES_DIR${NC}"
+                exit 1
+            fi
+
+            cd "$PACKAGES_DIR"
+            if ls *.$PACKAGE_EXT 1> /dev/null 2>&1; then
+                echo -e "${YELLOW}Installing .$PACKAGE_EXT packages...${NC}"
+                eval $INSTALL_CMD
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}✓ Package installation complete!${NC}"
+                else
+                    echo -e "${RED}✗ Package installation failed${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}✗ No .$PACKAGE_EXT files found in $PACKAGES_DIR directory${NC}"
+                exit 1
+            fi
+        fi
+
+        # Ensure Nix installer is available for Ansible
+        echo -e "${YELLOW}Preparing Nix installer for offline installation...${NC}"
+        if [ ! -f "$SCRIPT_DIR/offline_resources/nix/install-nix.sh" ]; then
+            echo -e "${YELLOW}Nix installer not found in offline resources, copying from system...${NC}"
+            mkdir -p "$SCRIPT_DIR/offline_resources/nix"
+            if [ -f "/opt/nix-install/install-nix.sh" ]; then
+                cp "/opt/nix-install/install-nix.sh" "$SCRIPT_DIR/offline_resources/nix/"
+                echo -e "${GREEN}✓ Nix installer copied from system${NC}"
+            else
+                echo -e "${YELLOW}⚠ Nix installer not found, Ansible will handle installation${NC}"
+            fi
+        else
+            echo -e "${GREEN}✓ Nix installer found in offline resources${NC}"
+        fi
+
+        # Note: Container loading will happen AFTER Ansible installs Nix and podman
+        echo -e "${YELLOW}Container images will be loaded after Nix and podman installation${NC}"
+
+        # Setup CVE database for offline Wazuh vulnerability detection
+        echo -e "${YELLOW}Setting up CVE database for offline vulnerability detection...${NC}"
+        if [ -f "$SCRIPT_DIR/offline_resources/cve/cves.zip" ]; then
+            sudo mkdir -p /opt/lme/cve
+            sudo cp "$SCRIPT_DIR/offline_resources/cve/cves.zip" /opt/lme/cve/
+            sudo chown root:root /opt/lme/cve/cves.zip
+            sudo chmod 644 /opt/lme/cve/cves.zip
+            echo -e "${GREEN}✓ CVE database copied to /opt/lme/cve/cves.zip${NC}"
+
+            # Configure Wazuh to use offline CVE database
+            echo -e "${YELLOW}Configuring Wazuh for offline CVE database...${NC}"
+            if [ -f "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf" ]; then
+                # Create backup
+                sudo cp "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf" "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf.backup.$(date +%Y%m%d-%H%M%S)"
+
+                # Add offline-url to vulnerability-detection section if not already present
+                if ! grep -q "offline-url" "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf"; then
+                    # Use awk to insert the offline-url line after feed-update-interval
+                    awk '/feed-update-interval>60m<\/feed-update-interval>/ { print; print "     <offline-url>file:///opt/lme/cve/cves.zip</offline-url>"; next } 1' "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf" > /tmp/wazuh_manager_temp.conf
+                    sudo mv /tmp/wazuh_manager_temp.conf "$SCRIPT_DIR/config/wazuh_cluster/wazuh_manager.conf"
+                    echo -e "${GREEN}✓ Wazuh configuration updated for offline CVE database${NC}"
+                else
+                    echo -e "${GREEN}✓ Wazuh configuration already contains offline CVE database setting${NC}"
+                fi
+            else
+                echo -e "${RED}✗ Wazuh configuration file not found${NC}"
+            fi
+
+            # Add CVE database volume mount to Wazuh container
+            echo -e "${YELLOW}Adding CVE database volume mount to Wazuh container...${NC}"
+            WAZUH_CONTAINER_FILE="$SCRIPT_DIR/quadlet/lme-wazuh-manager.container"
+            if [ -f "$WAZUH_CONTAINER_FILE" ]; then
+                # Create backup
+                sudo cp "$WAZUH_CONTAINER_FILE" "$WAZUH_CONTAINER_FILE.backup.$(date +%Y%m%d-%H%M%S)"
+
+                # Add CVE volume mount if not already present
+                if ! grep -q "Volume=/opt/lme/cve" "$WAZUH_CONTAINER_FILE"; then
+                    # Use awk to insert the CVE volume mount after the ca-certificates line
+                    awk '/Volume=.*ca-certificates.crt:ro/ { print; print "Volume=/opt/lme/cve:/opt/lme/cve:ro"; next } 1' "$WAZUH_CONTAINER_FILE" > /tmp/wazuh_container_temp.conf
+                    sudo mv /tmp/wazuh_container_temp.conf "$WAZUH_CONTAINER_FILE"
+                    echo -e "${GREEN}✓ CVE database volume mount added to Wazuh container${NC}"
+                else
+                    echo -e "${GREEN}✓ CVE database volume mount already present in Wazuh container${NC}"
+                fi
+            else
+                echo -e "${RED}✗ Wazuh container file not found${NC}"
+            fi
+        else
+            echo -e "${YELLOW}⚠ CVE database not found in offline resources, skipping${NC}"
+        fi
+
+        # Configure Kibana for Fleet offline mode
+        echo -e "${YELLOW}Configuring Kibana for Fleet offline mode...${NC}"
+
+        # Add Fleet offline configuration to the source kibana.yml
+        if ! grep -q "xpack.fleet.registryUrl" "$SCRIPT_DIR/config/kibana.yml"; then
+            # Insert Fleet offline configuration before xpack.fleet.packages
+            awk '/^xpack\.fleet\.packages:/ {
+                print "# Fleet offline/air-gapped configuration"
+                print "xpack.fleet.registryUrl: \"http://lme-fleet-distribution:8080\""
+                print "xpack.fleet.isAirGapped: true"
+                print ""
+            } 1' "$SCRIPT_DIR/config/kibana.yml" > /tmp/kibana_temp.yml
+            mv /tmp/kibana_temp.yml "$SCRIPT_DIR/config/kibana.yml"
+            echo -e "${GREEN}✓ Kibana configured for Fleet offline mode${NC}"
+        else
+            echo -e "${GREEN}✓ Kibana already configured for Fleet offline mode${NC}"
+        fi
+
+        # Configure Kibana container to use only local CA in offline mode
+        echo -e "${YELLOW}Configuring Kibana container for offline CA trust...${NC}"
+        KIBANA_CONTAINER_FILE="$SCRIPT_DIR/quadlet/lme-kibana.container"
+
+        if [ -f "$KIBANA_CONTAINER_FILE" ]; then
+            # Replace NODE_EXTRA_CA_CERTS to use only local CA
+            sed -i 's|NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt|NODE_EXTRA_CA_CERTS=/usr/share/kibana/config/certs/ca/ca.crt|g' "$KIBANA_CONTAINER_FILE"
+            echo -e "${GREEN}✓ Kibana container configured to trust only local CA${NC}"
+        else
+            echo -e "${RED}✗ Kibana container file not found${NC}"
+        fi
+
+        # Configure all container files for offline mode (add Pull=never)
+        echo -e "${YELLOW}Configuring container files for offline mode...${NC}"
+        for container_file in "$SCRIPT_DIR/quadlet"/*.container; do
+            if [ -f "$container_file" ] && ! grep -q "Pull=never" "$container_file"; then
+                # Add Pull=never after the Image= line
+                sed -i '/^Image=/a Pull=never' "$container_file"
+                echo -e "${GREEN}✓ Configured $(basename "$container_file") for offline mode${NC}"
+            fi
+        done
+
+        # Create offline mode marker files
+        echo -e "${YELLOW}Creating offline mode marker files...${NC}"
+        sudo mkdir -p /opt/lme
+        sudo touch /opt/lme/OFFLINE_MODE
+        sudo touch /opt/lme/FLEET_SETUP_FINISHED
+
+        echo -e "${GREEN}✓ Offline resources prepared successfully${NC}"
+    else
+        echo -e "${RED}✗ No offline archive found (lme-offline-*.tar.gz)${NC}"
+        echo -e "${YELLOW}Please ensure the offline archive is in the same directory as install.sh${NC}"
+        exit 1
+    fi
+fi
 
 # Check sudo access first
 check_sudo_access
@@ -552,16 +722,16 @@ get_ip_addresses
 echo -e "${GREEN}Final IP address to use: ${IPVAR:-Unknown}${NC}"
 
 # Check if lme-environment.env exists
-if [ -f "config/lme-environment.env" ]; then
+if [ -f "$SCRIPT_DIR/config/lme-environment.env" ]; then
     echo -e "${GREEN}✓ lme-environment.env already exists, skipping creation${NC}"
 else
     if [ "$NON_INTERACTIVE" = "true" ]; then
         if [ "$AUTO_CREATE_ENV" = "true" ]; then
             echo -e "${YELLOW}Creating environment file in non-interactive mode...${NC}"
-            cp config/example.env config/lme-environment.env
+            cp "$SCRIPT_DIR/config/example.env" "$SCRIPT_DIR/config/lme-environment.env"
             if [ $? -eq 0 ]; then
                 # Use sed to replace the IPVAR line with the new IP
-                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" config/lme-environment.env
+                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" "$SCRIPT_DIR/config/lme-environment.env"
                 if [ $? -eq 0 ]; then
                     echo -e "${GREEN}✓ Successfully created and updated environment file${NC}"
                 else
@@ -581,10 +751,10 @@ else
         read -p "> " confirm
         if [[ $confirm =~ ^[Yy]$ ]]; then
             echo -e "${YELLOW}Creating environment file...${NC}"
-            cp config/example.env config/lme-environment.env
+            cp "$SCRIPT_DIR/config/example.env" "$SCRIPT_DIR/config/lme-environment.env"
             if [ $? -eq 0 ]; then
                 # Use sed to replace the IPVAR line with the new IP
-                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" config/lme-environment.env
+                sed -i "s/IPVAR=.*/IPVAR=${IPVAR}/" "$SCRIPT_DIR/config/lme-environment.env"
                 if [ $? -eq 0 ]; then
                     echo -e "${GREEN}✓ Successfully created and updated environment file${NC}"
                 else
@@ -602,20 +772,16 @@ else
     fi
 fi
 
-# Handle offline mode setup if enabled
-if [ "$OFFLINE_MODE" = "true" ]; then
-    echo -e "${YELLOW}========================================${NC}"
-    echo -e "${YELLOW}  OFFLINE INSTALLATION MODE${NC}"
-    echo -e "${YELLOW}========================================${NC}"
-    setup_offline_mode
-fi
-
 # Check if ansible is already installed
 check_ansible
 if [ $? -ne 0 ]; then
+    # In offline mode, ansible must be pre-installed
     if [ "$OFFLINE_MODE" = "true" ]; then
-        echo -e "${RED}✗ Ansible is not installed and offline mode is enabled.${NC}"
-        echo -e "${YELLOW}Please ensure Ansible is installed before running offline installation.${NC}"
+        echo -e "${RED}✗ Ansible is required but not installed.${NC}"
+        echo -e "${YELLOW}In offline mode, Ansible must be pre-installed.${NC}"
+        echo -e "${YELLOW}Please install Ansible manually:${NC}"
+        echo -e "${YELLOW}  For Ubuntu/Debian: sudo apt-get install ansible${NC}"
+        echo -e "${YELLOW}  For RHEL/CentOS: sudo dnf install ansible${NC}"
         exit 1
     fi
 
@@ -633,6 +799,70 @@ fi
 # Check if playbook exists and run it
 check_playbook
 run_playbook
+
+# Load containers for offline mode AFTER Ansible has installed Nix and podman
+if [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${YELLOW}Loading container images for offline installation...${NC}"
+
+    # Ensure proper PATH for Nix binaries
+    export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+
+    # Debug: Show current PATH and environment
+    if [ "$DEBUG_MODE" = "true" ]; then
+        echo -e "${YELLOW}Debug: Current PATH: $PATH${NC}"
+        echo -e "${YELLOW}Debug: Checking podman locations:${NC}"
+        echo -e "${YELLOW}  /nix/var/nix/profiles/default/bin/podman: $(test -x /nix/var/nix/profiles/default/bin/podman && echo 'Found' || echo 'Not found')${NC}"
+        echo -e "${YELLOW}  /usr/bin/podman: $(test -x /usr/bin/podman && echo 'Found' || echo 'Not found')${NC}"
+        echo -e "${YELLOW}  /usr/local/bin/podman: $(test -x /usr/local/bin/podman && echo 'Found' || echo 'Not found')${NC}"
+    fi
+
+    # Verify podman is now available
+    echo -e "${YELLOW}Verifying podman installation...${NC}"
+    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; command -v podman" >/dev/null 2>&1; then
+        PODMAN_VERSION=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman --version")
+        PODMAN_LOCATION=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; which podman")
+        echo -e "${GREEN}✓ Podman is available: $PODMAN_VERSION${NC}"
+        echo -e "${GREEN}✓ Podman location: $PODMAN_LOCATION${NC}"
+
+        # Check if containers are already loaded
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman images --format '{{.Repository}}'" | grep -q "localhost\|docker\." > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Container images already loaded, skipping container loading${NC}"
+        else
+            # Load containers
+            cd "$SCRIPT_DIR/offline_resources"
+            if [ -f "$SCRIPT_DIR/offline_resources/load_containers.sh" ]; then
+                echo -e "${YELLOW}Running container loading script...${NC}"
+                "$SCRIPT_DIR/offline_resources/load_containers.sh"
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}✗ Container loading failed${NC}"
+                    exit 1
+                fi
+                echo -e "${GREEN}✓ Container images loaded successfully${NC}"
+            else
+                echo -e "${RED}✗ Container loading script not found${NC}"
+                exit 1
+            fi
+            cd "$SCRIPT_DIR"
+        fi
+    else
+        echo -e "${RED}✗ Podman is not available after Ansible installation${NC}"
+        echo -e "${YELLOW}Troubleshooting steps:${NC}"
+        echo -e "${YELLOW}1. Check if Nix is installed: ls -la /nix/var/nix/profiles/default/bin/podman${NC}"
+        echo -e "${YELLOW}2. Try running: sudo -i podman --version${NC}"
+        echo -e "${YELLOW}3. Check Ansible logs for Nix/podman installation errors${NC}"
+        echo -e "${YELLOW}4. Verify offline resources: $SCRIPT_DIR/scripts/validate_offline_archive.sh -d $SCRIPT_DIR/offline_resources${NC}"
+
+        # Additional debugging information
+        echo -e "${YELLOW}Debug information:${NC}"
+        echo -e "${YELLOW}  Current PATH: $PATH${NC}"
+        echo -e "${YELLOW}  Nix directory exists: $(test -d /nix && echo 'Yes' || echo 'No')${NC}"
+        echo -e "${YELLOW}  Nix profiles directory: $(test -d /nix/var/nix/profiles && echo 'Yes' || echo 'No')${NC}"
+        echo -e "${YELLOW}  Default profile: $(test -d /nix/var/nix/profiles/default && echo 'Yes' || echo 'No')${NC}"
+        echo -e "${YELLOW}  Offline resources: $(test -d $SCRIPT_DIR/offline_resources && echo 'Yes' || echo 'No')${NC}"
+
+        exit 1
+    fi
+fi
 
 echo -e "${GREEN}All operations completed successfully!${NC}"
 exit 0
