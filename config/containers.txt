@@ -1,6 +1,6 @@
 docker.elastic.co/elasticsearch/elasticsearch:8.18.3
 docker.elastic.co/beats/elastic-agent:8.18.3
 docker.elastic.co/kibana/kibana:8.18.3
-docker.io/wazuh/wazuh-manager:4.9.1
+docker.io/wazuh/wazuh-manager:4.9.
 docker.io/jertel/elastalert2:2.20.0
-docker.elastic.co/package-registry/distribution:8.18.3
+docker.elastic.co/package-registry/distribution-lite:8.18.3
