@@ -1,0 +1,8 @@
+- hosts: caldera
+  vars:
+      caldera_server:
+          caldera_version: "5.3.0"
+      general:
+          attack_range_password: "password"
+  roles:
+      - roles/ludus_ar_caldera

@@ -1,0 +1,51 @@
+#cloud-config
+#
+# Cloud Init user-data config. 
+# Do not alter first line of this file.
+# https://cloudinit.readthedocs.io/en/latest/
+autoinstall:
+  apt:
+    fallback: offline-install
+  network:
+    version: 2
+    ethernets:
+      all-ethernet:
+        match:
+          name: en*
+        dhcp4: true
+  version: 1
+  locale: en_US
+  keyboard:
+  layout: en
+  variant: us
+  storage:
+    layout:
+      name: direct
+  identity:
+    hostname: ubuntu2404
+    username: localuser
+    password: '$6$9LXz9IdyDI4t0f3W$vjNQR9vQgASKa/Sot10nhQwSlRfd/dIEn.Tk1PT8p5.okR52xdR9EbjgfmHneXyjgH4peU9L8Fg810UZzv5M8/' # mkpasswd -m sha-512 password
+  timezone: America/New_York
+  ssh:
+    install-server: true
+    allow-pw: true
+  packages:
+    - ca-certificates
+    - sudo
+    #- qemu-guest-agent
+    - python3
+    #- acpid
+    #- dbus
+    #- ifupdown
+  user-data:
+    disable_root: false
+  late-commands:
+    - 'echo PubkeyAcceptedKeyTypes=+ssh-rsa >> /target/etc/ssh/sshd_config'  # Required for packer to connect via SSH. See https://github.com/hashicorp/packer/issues/11733
+    - 'echo "localuser ALL = (root) NOPASSWD: ALL" > /target/etc/sudoers.d/localuser'
+    - |   # Disable unattended upgrades
+      cat <<EOF | sudo tee /target/etc/apt/apt.conf.d/20auto-upgrades
+        APT::Periodic::Update-Package-Lists "0";
+        APT::Periodic::Download-Upgradeable-Packages "0";
+        APT::Periodic::AutocleanInterval "0";
+        APT::Periodic::Unattended-Upgrade "0";
+      EOF

@@ -1,0 +1,20 @@
+---
+
+- name: Install dependencies [Caldera]
+  include_tasks: dependencies.yml
+
+- name: Install GO [Caldera]
+  include_tasks: go.yml
+
+- name: Install Node [Caldera]
+  include_tasks: node.yml
+
+- name: Install UPX [Caldera]
+  include_tasks: upx.yml
+
+- name: Update Path [Caldera]
+  include_tasks: path.yml
+
+- name: Install [Caldera]
+  include_tasks: caldera.yml
+

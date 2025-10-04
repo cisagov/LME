@@ -45,3 +45,5 @@ testing/upgrade_testing/
 .cache/
 .venv/
 *.env
+final_vars.pkrvars.hcl
+inventory.ini

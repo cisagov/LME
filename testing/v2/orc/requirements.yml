@@ -1,0 +1,27 @@
+---
+#TODO: remove the unnessary stuff from this at some point
+collections:
+  - name: ansible.windows
+    version: 2.7.0
+  - name: ansible.posix
+    version: 1.6.2
+  - name: ansible.utils
+    version: 5.1.2
+  - name: community.general
+    version: 10.3.0
+  - name: community.windows
+    version: 2.3.0
+  - name: chocolatey.chocolatey
+    version: 1.5.3
+  - name: microsoft.ad
+    version: 1.8.0
+  - name: vladgh.samba
+    version: 3.4.0
+
+roles:
+  - name: lae.proxmox
+    version: v1.8.0
+  - name: geerlingguy.packer
+    version: 1.0.2
+  - name: ansible-thoteam.nexus3-oss
+    version: v2.5.2

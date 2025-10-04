@@ -1,0 +1,18 @@
+- name: Install agents on Linux
+  package:
+    name: "{{ item }}-agent"
+    state: present
+  loop: "{{ agent_list }}"
+  when: ansible_os_family != "Windows"
+
+- name: Install Elastic Agent on Windows
+  win_package:
+    path: "https://artifacts.elastic.co/downloads/elastic-agent/elastic-agent-latest-windows-x86_64.msi"
+    state: present
+  when: ansible_os_family == "Windows" and 'elastic' in agent_list
+
+- name: Install Wazuh Agent on Windows
+  win_package:
+    path: "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.x.x-x.msi"
+    state: present
+  when: ansible_os_family == "Windows" and 'wazuh' in agent_list

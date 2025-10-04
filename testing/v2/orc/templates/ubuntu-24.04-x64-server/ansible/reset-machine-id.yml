@@ -1,0 +1,27 @@
+
+- hosts: all
+  become: true
+  tasks:
+    - name: Remove /etc/machine-id
+      ansible.builtin.file:
+        path: /etc/machine-id
+        state: absent
+      register: etc_machine_id
+
+    - name: Touch /etc/machine-id
+      ansible.builtin.file:
+        path: /etc/machine-id
+        state: touch
+      when: etc_machine_id is changed
+
+    - name: Remove /var/lib/dbus/machine-id
+      ansible.builtin.file:
+        path: /var/lib/dbus/machine-id
+        state: absent
+      register: var_lib_dbus_machine_id
+
+    - name: Touch /var/lib/dbus/machine-id
+      ansible.builtin.file:
+        path: /var/lib/dbus/machine-id
+        state: touch
+      when: var_lib_dbus_machine_id is changed

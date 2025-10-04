@@ -1,0 +1,9 @@
+---
+- name: Install GO [Caldera]
+  become: true
+  ansible.builtin.unarchive:
+    src: "https://go.dev/dl/go{{ ludus_ar_caldera_go_version }}.linux-amd64.tar.gz"
+    dest: /usr/local
+    remote_src: true
+    owner: root
+    group: root

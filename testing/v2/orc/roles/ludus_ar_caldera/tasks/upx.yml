@@ -1,0 +1,9 @@
+---
+- name: Install UPX [Caldera]
+  become: true
+  ansible.builtin.unarchive:
+    src: "https://github.com/upx/upx/releases/download/v{{ ludus_ar_caldera_upx_version }}/upx-{{ ludus_ar_caldera_upx_version }}-amd64_linux.tar.xz"
+    dest: /usr/local
+    remote_src: true
+    owner: root
+    group: root

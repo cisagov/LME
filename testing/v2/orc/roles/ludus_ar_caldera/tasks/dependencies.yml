@@ -1,0 +1,13 @@
+---
+- name: Installing Dependencies [Caldera]
+  become: true
+  ansible.builtin.apt:
+      name:
+          - git
+          - curl
+          - wget
+          - pipenv
+          - lsof
+          - python3-pip
+      update_cache: true
+      clean: true
