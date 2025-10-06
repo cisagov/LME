@@ -108,10 +108,12 @@ def _setup(windows_count, linux_count, network_cidr, state_dir):
             os.makedirs(experiment_dir)
 
     # logic check
-    available_ips = [ip for ip in ip_list if ip != gateway]
-    if len(available_ips) < (windows_count + linux_count):
+    # Build a mutable list of available IP addresses (as strings) excluding the gateway.
+    # We'll pop IPs from this list as we allocate them to ensure each IP is used only once.
+    available_ips = [str(ip) for ip in ip_list if ip != gateway]
+    if len(available_ips) < (windows_count + linux_count + 1):  # +1 for the Caldera host
         raise ValueError(
-            f"Not enough IPs in {network_cidr} for {windows_count + linux_count} hosts"
+            f"Not enough IPs in {network_cidr} for {windows_count + linux_count + 1} hosts"
         )
 
     # ansible ssh key
@@ -151,11 +153,29 @@ async def _generate_mm_files(hosts_data, params):
     # Use the files_path_dir passed via params (fallback to ~/files for backward compatibility)
     files_path_dir = params.get("files_path_dir", os.path.expanduser("~/files"))
     caldera_snapshot_path = os.path.join(files_path_dir, "caldera.qcow")
+
+    files_path_dir = params.get("files_path_dir", os.path.expanduser("~/files"))
+    lme_snapshot_path = os.path.join(files_path_dir, "lme.qcow")
+
     # Start the Caldera disk snapshot in the background; we don't need the
     # result here, so we don't await it.
-    asyncio.create_task(
-        create_disk_snapshot(linux_qcow_path, caldera_snapshot_path)
-    )
+    tasks = []
+
+    if not os.path.exists(caldera_snapshot_path):
+        task = asyncio.create_task(
+            create_disk_snapshot(linux_qcow_path, caldera_snapshot_path)
+        )
+        tasks.append(task)
+    else:
+        logging.warning(f"File {caldera_snapshot_path} already exists; skipping snapshot creation.")
+
+    if not os.path.exists(lme_snapshot_path):
+        task = asyncio.create_task(
+            create_disk_snapshot(linux_qcow_path, lme_snapshot_path)
+        )
+        tasks.append(task)
+    else:
+        logging.warning(f"File {lme_snapshot_path} already exists; skipping snapshot creation.")
 
     # Derive the Windows QCOW directory path by stripping the filename from the full path
     windows_qcow_directory_path = os.path.dirname(windows_qcow_path)
@@ -206,6 +226,55 @@ async def _generate_mm_files(hosts_data, params):
         vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
         with open(vm_file_path, "w") as vm_file:
             vm_file.write(vm_config)
+
+    #make sure the copy's finish:
+    for t in tasks:
+        if not t.done():
+            await t
+
+def _write_inventory_file_content(f, hosts_data, _format_host):
+    """Helper that writes the inventory content to an open file handle."""
+    f.write("[lme_servers]\n")
+    for ip, data in hosts_data["all"]["children"]["linux"]["hosts"].items():
+        f.write(_format_host(ip, data) + "\n")
+    f.write("\n")
+    f.write("[windows]\n")
+    for ip, data in hosts_data["all"]["children"]["windows"]["hosts"].items():
+        f.write(_format_host(ip, data) + "\n")
+    f.write("\n")
+    f.write("[windows:vars]\n")
+    f.write("ansible_user=localuser\n")
+    f.write("ansible_password=password\n")
+    f.write("ansible_connection=winrm\n")
+    f.write("ansible_winrm_transport=basic\n")
+    f.write("ansible_port=5986\n")
+    f.write("ansible_winrm_scheme=https\n")
+    f.write("ansible_winrm_server_cert_validation=ignore\n")
+    f.write("\n")
+    f.write("[lme_servers:vars]\n")
+    f.write("ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n")
+
+def _write_inventory_file(inventory_path, hosts_data, format_host):
+    """Write the inventory.ini file based on hosts_data."""
+    with open(inventory_path, "w") as f:
+        _write_inventory_file_content(f, hosts_data, format_host)
+
+
+def _format_host(entry_ip: str, entry_data: dict) -> str:
+    """
+    Return a formatted inventory line for a host.
+    This function was moved out of ``generate_inventory_vars_and_scripts`` to
+    improve readability and reduce the nesting depth of that large function.
+    """
+    hostname = entry_data.get("hostname") or entry_data.get("desired_hostname") or entry_ip
+    parts = [f"{hostname}", f"ansible_host={entry_ip}"]
+    if "ansible_ssh_private_key_file" in entry_data:
+        parts.append("ansible_user=localuser")
+        parts.append(f"ansible_ssh_private_key_file={entry_data['ansible_ssh_private_key_file']}")
+    else:
+        parts.append("ansible_user=localuser")
+        parts.append("ansible_password=password")
+    return " ".join(parts)
 
 def generate_inventory_vars_and_scripts(windows_count, linux_count, network_cidr, state_dir=None,
                                         network_name="EXP",
@@ -271,10 +340,9 @@ Generate state_{experiment_id}:
         },
     )
 
-    # 2 Additional Linux hosts (skip the LME IP)
-    for i in range(1, linux_count):
-        ip_addr = str(available_ips[i])
-        used_ips.add(ip_addr)
+    # 2 Additional Linux hosts
+    for i in range(linux_count):
+        ip_addr = available_ips.pop(0)
         _add_host(
             "linux",
             ip_addr,
@@ -288,8 +356,7 @@ Generate state_{experiment_id}:
 
     # 3 Windows hosts
     for i in range(windows_count):
-        ip_addr = str(available_ips[linux_count + i])
-        used_ips.add(ip_addr)
+        ip_addr = available_ips.pop(0)
         _add_host(
             "windows",
             ip_addr,
@@ -300,10 +367,10 @@ Generate state_{experiment_id}:
             },
         )
 
-    # 4 Caldera host – first free IP after the used … 
-    caldera_ip = next((str(c) for c in available_ips if str(c) not in used_ips), None)
-    if caldera_ip is None:
+    # 4 Caldera host – next free IP
+    if not available_ips:
         raise RuntimeError("Unable to allocate IP for caldera host")
+    caldera_ip = available_ips.pop(0)
     _add_host(
         "linux",
         caldera_ip,
