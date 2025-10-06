@@ -50,3 +50,7 @@ cloud.md
 # SELinux build artifacts
 ansible/roles/base/files/selinux/*.mod
 ansible/roles/base/files/selinux/*.pp
+
+# Offline Install
+offline_resources/
+lme-offline-*.tar.gz

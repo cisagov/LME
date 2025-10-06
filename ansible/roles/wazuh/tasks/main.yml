@@ -9,6 +9,16 @@
     wazuh_password: "{{ global_secrets.wazuh | default('') }}"
     wazuh_api_password: "{{ global_secrets.wazuh_api | default('') }}"
 
+# Configure Wazuh for offline mode (CVE database)
+- name: Configure Wazuh vulnerability detection for offline mode
+  ansible.builtin.lineinfile:
+    path: /opt/lme/config/wazuh_cluster/wazuh_manager.conf
+    insertafter: '<feed-update-interval>60m</feed-update-interval>'
+    line: '     <offline-url>file:///opt/lme/cve/cves.zip</offline-url>'
+    state: present
+  become: yes
+  when: offline_mode | default(false)
+
 # Fix Wazuh RBAC
 - name: Fix Wazuh RBAC
   ansible.builtin.expect:

@@ -48,6 +48,34 @@
       - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
   when: debug_mode | bool
 
+# Start Fleet distribution server FIRST in offline mode (before any package queries)
+- name: Enable and start Fleet distribution service
+  systemd:
+    name: lme-fleet-distribution
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+  when: offline_mode | default(false)
+
+- name: Wait for Fleet distribution server to be ready
+  uri:
+    url: "http://localhost:8080/health"
+    method: GET
+    status_code: 200
+  register: distribution_health
+  until: distribution_health.status is defined and distribution_health.status == 200
+  retries: 60
+  delay: 5
+  when: offline_mode | default(false)
+
+- name: Check if Fleet distribution server is ready
+  fail:
+    msg: "Fleet distribution server failed to start after 5 minutes"
+  when:
+    - offline_mode | default(false)
+    - distribution_health.status is not defined or distribution_health.status != 200
+
 # Wait for Kibana to be fully ready
 - name: Wait for Kibana to be fully ready
   uri:
@@ -592,6 +620,8 @@
   when: read_only_password is defined and read_only_password.stdout is defined
 
 # Configure Kibana for offline/air-gapped mode
+# Note: This must happen BEFORE Kibana starts (during podman role config copy)
+# The configuration is added to the file that gets mounted into the Kibana container
 - name: Configure Kibana for offline mode
   blockinfile:
     path: /opt/lme/config/kibana.yml
@@ -599,13 +629,5 @@
     block: |
       xpack.fleet.registryUrl: "http://lme-fleet-distribution:8080"
       xpack.fleet.isAirGapped: true
-  become: yes
-  when: offline_mode | default(false)
-  notify: restart kibana
-
-- name: Restart Kibana to apply offline configuration
-  systemd:
-    name: lme-kibana.service
-    state: restarted
   become: yes
   when: offline_mode | default(false)

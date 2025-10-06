@@ -655,23 +655,9 @@ if [ "$OFFLINE_MODE" = "true" ]; then
             echo -e "${YELLOW}⚠ CVE database not found in offline resources, skipping${NC}"
         fi
 
-        # Configure Kibana for Fleet offline mode
-        echo -e "${YELLOW}Configuring Kibana for Fleet offline mode...${NC}"
-
-        # Add Fleet offline configuration to the source kibana.yml
-        if ! grep -q "xpack.fleet.registryUrl" "$SCRIPT_DIR/config/kibana.yml"; then
-            # Insert Fleet offline configuration before xpack.fleet.packages
-            awk '/^xpack\.fleet\.packages:/ {
-                print "# Fleet offline/air-gapped configuration"
-                print "xpack.fleet.registryUrl: \"http://lme-fleet-distribution:8080\""
-                print "xpack.fleet.isAirGapped: true"
-                print ""
-            } 1' "$SCRIPT_DIR/config/kibana.yml" > /tmp/kibana_temp.yml
-            mv /tmp/kibana_temp.yml "$SCRIPT_DIR/config/kibana.yml"
-            echo -e "${GREEN}✓ Kibana configured for Fleet offline mode${NC}"
-        else
-            echo -e "${GREEN}✓ Kibana already configured for Fleet offline mode${NC}"
-        fi
+        # Note: Kibana offline configuration is handled by Ansible in the fleet role
+        # The fleet role will add xpack.fleet.registryUrl and xpack.fleet.isAirGapped
+        # to /opt/lme/config/kibana.yml after it's copied from the source
 
         # Configure Kibana container to use only local CA in offline mode
         echo -e "${YELLOW}Configuring Kibana container for offline CA trust...${NC}"
@@ -798,9 +784,8 @@ fi
 
 # Check if playbook exists and run it
 check_playbook
-run_playbook
 
-# Load containers for offline mode AFTER Ansible has installed Nix and podman
+# Load containers for offline mode BEFORE running Ansible playbook
 if [ "$OFFLINE_MODE" = "true" ]; then
     echo -e "${YELLOW}Loading container images for offline installation...${NC}"
 
@@ -862,6 +847,12 @@ if [ "$OFFLINE_MODE" = "true" ]; then
 
         exit 1
     fi
+
+    # Run the Ansible playbook after container loading in offline mode
+    run_playbook
+else
+    # Run the Ansible playbook normally in online mode
+    run_playbook
 fi
 
 echo -e "${GREEN}All operations completed successfully!${NC}"

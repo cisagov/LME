@@ -240,13 +240,23 @@
 
 - name: Import Nix packages from offline resources
   shell: |
-    nix-store --import < {{ clone_directory }}/offline_resources/nix/podman-closure.nar
+    nix-store --import < {{ clone_directory }}/offline_resources/packages/nix/podman-closure.nar
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
   when:
     - offline_mode | default(false)
-    - not nix_installed.stat.exists
+  ignore_errors: yes
+
+- name: Install podman from imported store path in offline mode
+  shell: |
+    PODMAN_STORE_PATH=$(cat {{ clone_directory }}/offline_resources/packages/nix/podman-store-path.txt)
+    nix-env -i "$PODMAN_STORE_PATH"
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when:
+    - offline_mode | default(false)
   ignore_errors: yes
 
 # Second restorecon: Apply contexts to newly installed packages

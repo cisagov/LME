@@ -569,17 +569,32 @@ download_packages() {
 
     # Export podman and all its dependencies
     echo -e "${YELLOW}Exporting podman closure (this may take a few minutes)...${NC}"
-    if nix-store --export $PODMAN_PATHS > "$OUTPUT_DIR/packages/nix/podman-closure.nar" 2>/dev/null; then
+
+    # Determine if we need sudo for nix-store export
+    # Multi-user Nix installations require root access to export
+    NIX_EXPORT_CMD="nix-store --export $PODMAN_PATHS"
+    if [ -d "/nix/var/nix/db" ] && [ "$(stat -c %U /nix/var/nix/db 2>/dev/null)" = "root" ]; then
+        # Multi-user installation - need sudo
+        echo -e "${YELLOW}Detected multi-user Nix installation, using sudo for export...${NC}"
+        NIX_EXPORT_CMD="sudo nix-store --export $PODMAN_PATHS"
+    fi
+
+    if $NIX_EXPORT_CMD > "$OUTPUT_DIR/packages/nix/podman-closure.nar" 2>/dev/null; then
         echo -e "${GREEN}✓ Successfully exported podman closure${NC}"
-        
+
+        # Fix ownership if we used sudo
+        if [[ "$NIX_EXPORT_CMD" == sudo* ]]; then
+            sudo chown $USER:$USER "$OUTPUT_DIR/packages/nix/podman-closure.nar"
+        fi
+
         # Save the store path for reference
         echo "$PODMAN_STORE_PATH" > "$OUTPUT_DIR/packages/nix/podman-store-path.txt"
         echo -e "${GREEN}✓ Store path saved to podman-store-path.txt${NC}"
-        
+
         # Get size of the export
         NAR_SIZE=$(du -h "$OUTPUT_DIR/packages/nix/podman-closure.nar" | cut -f1)
         echo -e "${GREEN}✓ Exported closure size: $NAR_SIZE${NC}"
-        
+
         # Verify the file was created and has content
         if [ ! -s "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
             echo -e "${RED}✗ Exported file is empty or missing${NC}"
