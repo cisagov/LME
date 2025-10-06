@@ -7,32 +7,30 @@ import ipaddress
 import subprocess
 import logging
 import shutil
+import asyncio
 
 import yaml
 
 import minimega
 
-def create_disk_snapshot(base_disk_path, output_disk_path):
+async def create_disk_snapshot(base_disk_path, output_disk_path):
+    """Asynchronously copy the base disk image to the specified output location.
 
+    This function resolves both paths, ensures the destination directory exists,
+    and then copies the file using a background thread to avoid blocking the
+    event loop. It returns the absolute path of the copied file.
+    """
     # Resolve both paths to absolute, user‑expanded locations
-    base_path = os.path.abspath(os.path.expanduser(base_disk_path))
-
-    # Determine the filename from the desired output path
-    filename = os.path.basename(output_disk_path)
-    temp_path = os.path.abspath(os.path.join(files_dir, filename))
+    src_path = os.path.abspath(os.path.expanduser(base_disk_path))
+    dst_path = os.path.abspath(os.path.expanduser(output_disk_path))
 
     # Ensure the final output directory exists
-    out_path = os.path.abspath(os.path.expanduser(output_disk_path))
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
 
-    # Create the snapshot in Minimega's files directory
-    mm = minimega.connect()
-    mm.disk_snapshot(base_path, filename)
+    # Perform the copy in a background thread
+    await asyncio.to_thread(shutil.copy2, src_path, dst_path)
 
-    # Move the snapshot to the user‑specified final location
-    shutil.move(temp_path, out_path)
-
-    return out_path
+    return dst_path
 
 #give me a function to generate a mac address string that increments itself
 def generate_mac_address():
@@ -133,7 +131,7 @@ def _setup(windows_count, linux_count, network_cidr, state_dir):
         "linux_public_key": linux_public_key,
     }
 
-def _generate_mm_files(hosts_data, params):
+async def _generate_mm_files(hosts_data, params):
     """Generate .mm configuration files for Windows and Linux VMs, with special handling for LME and Caldera."""
     # Extract needed parameters from the supplied dict
     windows_qcow_path = params["windows_qcow_path"]
@@ -150,14 +148,14 @@ def _generate_mm_files(hosts_data, params):
     caldera_memory = params.get("caldera_memory", default_memory)
     caldera_cpu = params.get("caldera_cpu", default_cpu)
 
-    #create snapshot disks that I write to:
-    # Create a snapshot of the Linux QCOW for the Caldera VM.
-    # The snapshot will be placed in the user‑specified files_path directory
-    # with the filename "caldera.qcow".
-    files_path_dir = os.path.expanduser("~/files")
+    # Use the files_path_dir passed via params (fallback to ~/files for backward compatibility)
+    files_path_dir = params.get("files_path_dir", os.path.expanduser("~/files"))
     caldera_snapshot_path = os.path.join(files_path_dir, "caldera.qcow")
-    caldera_path = create_disk_snapshot(linux_qcow_path, caldera_snapshot_path)
-
+    # Start the Caldera disk snapshot in the background; we don't need the
+    # result here, so we don't await it.
+    asyncio.create_task(
+        create_disk_snapshot(linux_qcow_path, caldera_snapshot_path)
+    )
 
     # Derive the Windows QCOW directory path by stripping the filename from the full path
     windows_qcow_directory_path = os.path.dirname(windows_qcow_path)
@@ -208,8 +206,6 @@ def _generate_mm_files(hosts_data, params):
         vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
         with open(vm_file_path, "w") as vm_file:
             vm_file.write(vm_config)
-
-
 
 def generate_inventory_vars_and_scripts(windows_count, linux_count, network_cidr, state_dir=None,
                                         network_name="EXP",
@@ -354,16 +350,17 @@ Generate state_{experiment_id}:
     params["network_name"] = network_name
     params["mm_dir"] = mm_dir
 
+    # Add files_path_dir to params so _generate_mm_files can use it
+    params["files_path_dir"] = files_path
+
     #setup custom memory:
     params["lme_memory"] = 32*1024
     params["lme_cpu"] = 8
     #params["caldera_memory"] = 32*1024
     #params["caldera_cpu"] = 8
 
-
-
-
-    _generate_mm_files(hosts_data, params)
+    # Call the async MM file generator
+    asyncio.run(_generate_mm_files(hosts_data, params))
 
     # ---------------------------------------------------------------------
     # Generate a simple Ansible inventory file (INI format)

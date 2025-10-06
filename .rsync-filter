@@ -1,0 +1,5 @@
+# Exclude all dotfiles and dot‑directories at any depth
+- **/.*
+- **/.*/
+- testing/v2/orc/ludus
+- .git
