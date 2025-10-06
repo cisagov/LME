@@ -1,13 +1,38 @@
 #!/usr/bin/env python3
-
 import argparse
 import os
 import random
 import string
 import ipaddress
 import subprocess
+import logging
+import shutil
 
 import yaml
+
+import minimega
+
+def create_disk_snapshot(base_disk_path, output_disk_path):
+
+    # Resolve both paths to absolute, user‑expanded locations
+    base_path = os.path.abspath(os.path.expanduser(base_disk_path))
+
+    # Determine the filename from the desired output path
+    filename = os.path.basename(output_disk_path)
+    temp_path = os.path.abspath(os.path.join(files_dir, filename))
+
+    # Ensure the final output directory exists
+    out_path = os.path.abspath(os.path.expanduser(output_disk_path))
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+    # Create the snapshot in Minimega's files directory
+    mm = minimega.connect()
+    mm.disk_snapshot(base_path, filename)
+
+    # Move the snapshot to the user‑specified final location
+    shutil.move(temp_path, out_path)
+
+    return out_path
 
 #give me a function to generate a mac address string that increments itself
 def generate_mac_address():
@@ -19,21 +44,37 @@ def generate_random_string(length=8):
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
 def generate_ssh_key_pair(key_path):
-    """Generate an RSA key pair using ssh-keygen."""
+    """Generate an RSA key pair using ssh-keygen only if the key does not already exist."""
+    private_key_path = key_path
+    public_key_path = f"{key_path}.pub"
+
+    # If both key files already exist, just read and return them
+    if os.path.exists(private_key_path) and os.path.exists(public_key_path):
+        with open(private_key_path, "r") as f:
+            private_key = f.read().strip()
+        with open(public_key_path, "r") as f:
+            public_key = f.read().strip()
+        return private_key, public_key
+
+    if subprocess.run(["which", "ssh-keygen"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode != 0:
+        raise RuntimeError("ssh-keygen not found. Please install OpenSSH tools.")
+
+    # Otherwise, generate a new key pair
     subprocess.run(
-        ["ssh-keygen", "-t", "rsa", "-b", "4096", "-f", key_path, "-N", ""],
+        ["ssh-keygen", "-t", "rsa", "-b", "4096", "-f", private_key_path, "-N", ""],
         check=True,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        stderr=subprocess.PIPE,
     )
-    with open(key_path, "r") as f:
+    with open(private_key_path, "r") as f:
         private_key = f.read().strip()
-    with open(f"{key_path}.pub", "r") as f:
+    with open(public_key_path, "r") as f:
         public_key = f.read().strip()
-    os.remove(f"{key_path}.pub")
+
     return private_key, public_key
 
 def _setup(windows_count, linux_count, network_cidr, state_dir):
+
     """
     Perform the initial environment preparation shared by
     ``generate_inventory_vars_and_scripts``.
@@ -92,7 +133,89 @@ def _setup(windows_count, linux_count, network_cidr, state_dir):
         "linux_public_key": linux_public_key,
     }
 
+def _generate_mm_files(hosts_data, params):
+    """Generate .mm configuration files for Windows and Linux VMs, with special handling for LME and Caldera."""
+    # Extract needed parameters from the supplied dict
+    windows_qcow_path = params["windows_qcow_path"]
+    linux_qcow_path = params["linux_qcow_path"]
+    default_memory = params["memory"]
+    default_cpu = params["cpu"]
+    OVMF_PATH = params["OVMF_PATH"]
+    network_name = params["network_name"]
+    mm_dir = params["mm_dir"]
+
+    # Optional per‑host overrides; fall back to defaults if not provided
+    lme_memory = params.get("lme_memory", default_memory)
+    lme_cpu = params.get("lme_cpu", default_cpu)
+    caldera_memory = params.get("caldera_memory", default_memory)
+    caldera_cpu = params.get("caldera_cpu", default_cpu)
+
+    #create snapshot disks that I write to:
+    # Create a snapshot of the Linux QCOW for the Caldera VM.
+    # The snapshot will be placed in the user‑specified files_path directory
+    # with the filename "caldera.qcow".
+    files_path_dir = os.path.expanduser("~/files")
+    caldera_snapshot_path = os.path.join(files_path_dir, "caldera.qcow")
+    caldera_path = create_disk_snapshot(linux_qcow_path, caldera_snapshot_path)
+
+
+    # Derive the Windows QCOW directory path by stripping the filename from the full path
+    windows_qcow_directory_path = os.path.dirname(windows_qcow_path)
+
+    # Windows VMs
+    for ip, data in hosts_data["all"]["children"]["windows"]["hosts"].items():
+        vm_name = data.get("hostname") or ip
+        vm_config = f"""#windows
+    clear vm config
+    vm config disk {windows_qcow_path}
+    vm config snapshot true
+    vm config memory {default_memory}
+    vm config vcpus {default_cpu}
+    vm config machine q35
+
+    vm config qemu-append -drive file={OVMF_PATH},if=pflash,unit=0,format=raw,readonly=on -drive file={windows_qcow_directory_path}/efivars.fd,if=pflash,unit=1,format=raw
+
+    vm config net {network_name}
+    vm launch kvm {vm_name}
+    """
+        vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
+        with open(vm_file_path, "w") as vm_file:
+            vm_file.write(vm_config)
+
+    # Linux VMs – include special handling for LME and Caldera
+    for ip, data in hosts_data["all"]["children"]["linux"]["hosts"].items():
+        vm_name = data.get("hostname") or data.get("desired_hostname") or ip
+        # Choose memory/cpu based on the host name
+        if vm_name == "lme":
+            mem = lme_memory
+            cpus = lme_cpu
+        elif vm_name == "caldera":
+            mem = caldera_memory
+            cpus = caldera_cpu
+        else:
+            mem = default_memory
+            cpus = default_cpu
+
+        vm_config = f"""#linux
+    clear vm config
+    vm config disk {linux_qcow_path}
+    vm config snapshot true
+    vm config memory {mem}
+    vm config vcpus {cpus}
+    vm config net {network_name}
+    vm launch kvm {vm_name}
+    """
+        vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
+        with open(vm_file_path, "w") as vm_file:
+            vm_file.write(vm_config)
+
+
+
 def generate_inventory_vars_and_scripts(windows_count, linux_count, network_cidr, state_dir=None,
+                                        network_name="EXP",
+                                        files_path="/home/user/files/",
+                                        linux_qcow_path="/home/user/files/ubuntu-24.04-x64-server-template/ubuntu/ubuntu-24.04-x64-server-template",
+                                        windows_qcow_path="/home/user/files/win11-23h2-x64-enterprise-gold/win11-23h2-x64-enterprise-gold",
                                         windows_user="localuser", windows_password="password",
                                         linux_user="localuser", linux_password="password",
                                         memory=8192, cpu=4):
@@ -211,20 +334,6 @@ Generate state_{experiment_id}:
     with open(vars_path, "w") as f:
         yaml.dump(vars_data, f, default_flow_style=False)
 
-    #TODO: make these cli params
-    # Define the base path for VM files (adjust as needed)
-    # Define the base directory for VM files (adjust as needed)
-    files_base = os.path.expanduser("~/files")
-    network_name = "EXP"
-
-    # Directory containing the Windows QCOW image
-    qcow_dir_name = "win11-23h2-x64-enterprise-gold"
-    qcow_directory_path = os.path.abspath(os.path.join(files_base, qcow_dir_name))
-    qcow_path = os.path.join(qcow_directory_path, qcow_dir_name)
-
-    #print(f"QCOW directory: {qcow_directory_path}")
-    #print(f"QCOW path: {qcow_path}")
-
     #toggle ovmf settings
     if os.path.exists("/usr/share/OVMF/OVMF_CODE_4M.fd"):
         OVMF_PATH = "/usr/share/OVMF/OVMF_CODE_4M.fd"
@@ -235,41 +344,26 @@ Generate state_{experiment_id}:
     mm_dir = os.path.join(experiment_dir, "mm")
     os.makedirs(mm_dir, exist_ok=True)
 
-    # Generate configuration snippets for each Windows VM
-    for ip, data in hosts_data["all"]["children"]["windows"]["hosts"].items():
-        vm_name = data.get("hostname") or ip
-        vm_config = f"""#windows
-clear vm config
-vm config disk {qcow_path}
-vm config snapshot true
-vm config memory {memory}
-vm config vcpus {cpu}
-vm config machine q35
+    #setup subfunciton call
+    params = {}
+    params["windows_qcow_path"] = windows_qcow_path
+    params["linux_qcow_path"] = linux_qcow_path
+    params["memory"] = memory
+    params["cpu"] = cpu
+    params["OVMF_PATH"] = OVMF_PATH
+    params["network_name"] = network_name
+    params["mm_dir"] = mm_dir
 
-vm config qemu-append -drive file={OVMF_PATH},if=pflash,unit=0,format=raw,readonly=on -drive file={qcow_directory_path}/efivars.fd,if=pflash,unit=1,format=raw
+    #setup custom memory:
+    params["lme_memory"] = 32*1024
+    params["lme_cpu"] = 8
+    #params["caldera_memory"] = 32*1024
+    #params["caldera_cpu"] = 8
 
-vm config net {network_name}
-vm launch kvm {vm_name}
-"""
-        vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
-        with open(vm_file_path, "w") as vm_file:
-            vm_file.write(vm_config)
 
-    # Generate configuration snippets for each Linux VM
-    for ip, data in hosts_data["all"]["children"]["linux"]["hosts"].items():
-        vm_name = data.get("hostname") or data.get("desired_hostname") or ip
-        vm_config = f"""#linux
-clear vm config
-vm config disk {qcow_path}
-vm config snapshot true
-vm config memory {memory}
-vm config vcpus {cpu}
-vm config net {network_name}
-vm launch kvm {vm_name}
-"""
-        vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
-        with open(vm_file_path, "w") as vm_file:
-            vm_file.write(vm_config)
+
+
+    _generate_mm_files(hosts_data, params)
 
     # ---------------------------------------------------------------------
     # Generate a simple Ansible inventory file (INI format)
@@ -347,8 +441,6 @@ def main():
     )
     args = parser.parse_args()
 
-    if subprocess.run(["which", "ssh-keygen"], stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode != 0:
-        raise RuntimeError("ssh-keygen not found. Please install OpenSSH tools.")
 
 
     generate_inventory_vars_and_scripts(args.windows, args.linux, args.network, args.state_dir, memory=args.memory, cpu=args.cpu)

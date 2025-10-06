@@ -3,3 +3,4 @@ hosts.yml
 vars.yml
 Pipfile
 state_*
+minimega.py
