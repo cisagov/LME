@@ -117,6 +117,59 @@ get_vg_free_space_gb() {
     echo "$free_gb"
 }
 
+# Function to expand physical disk partition to get more space
+expand_physical_partition() {
+    local disk="/dev/sda"
+
+    log "Checking if physical disk has unallocated space..."
+
+    # Check and fix GPT table
+    log "Checking GPT partition table..."
+    if ! parted --script --fix "$disk" print > /dev/null 2>&1; then
+        error "Failed to read or fix partition table"
+    fi
+    success "GPT table checked"
+
+    # Find the LVM partition (usually the last one)
+    local lvm_part_num=$(parted --script "$disk" print | grep "lvm" | tail -1 | awk '{print $1}')
+    if [[ -z "$lvm_part_num" ]]; then
+        error "Could not find LVM partition"
+    fi
+
+    local lvm_partition="/dev/sda${lvm_part_num}"
+    log "Found LVM partition: ${lvm_partition} (partition ${lvm_part_num})"
+
+    # Get current partition end and disk size
+    local part_info=$(parted --script "$disk" print | grep "^ *${lvm_part_num} ")
+    local part_end=$(echo "$part_info" | awk '{print $3}')
+    local disk_size=$(parted --script "$disk" print | grep "^Disk /dev/sda:" | awk '{print $3}')
+
+    log "LVM partition ends at: $part_end"
+    log "Total disk size: $disk_size"
+
+    # Check if partition already uses full disk
+    if [[ "$part_end" == "$disk_size" ]]; then
+        log "LVM partition already uses full disk space"
+        return 1
+    fi
+
+    # Expand the LVM partition to use all available space
+    log "Expanding LVM partition ${lvm_partition} to use full disk (100%)..."
+    if ! parted --script "$disk" resizepart "$lvm_part_num" 100%; then
+        error "Failed to expand LVM partition"
+    fi
+    success "LVM partition expanded to use full disk"
+
+    # Resize physical volume
+    log "Resizing physical volume..."
+    if ! pvresize "$lvm_partition"; then
+        error "Failed to resize physical volume"
+    fi
+    success "Physical volume resized"
+
+    return 0
+}
+
 # Function to backup LVM configuration
 backup_lvm_config() {
     local backup_file="/root/lvm_backup_$(date +%Y%m%d_%H%M%S).txt"
@@ -238,24 +291,20 @@ expand_root_lv() {
     success "Root filesystem expanded to ${target_size_gb}GB"
 }
 
-# Function to use alternative approach: move offline resources to /var
-suggest_alternative_approach() {
-    log "=== ALTERNATIVE APPROACH ==="
-    echo
-    warning "Since /var has 103GB free space and root (/) only has 4GB total,"
-    warning "the recommended approach is to store offline resources in /var instead of root."
-    echo
-    log "Suggested solution:"
-    echo "  1. Modify prepare_offline.sh to use /var/lme/offline_resources"
-    echo "  2. This avoids risky LVM resizing operations"
-    echo "  3. /var already has plenty of space (103GB free)"
-    echo
-    log "To implement this:"
-    echo "  - Edit scripts/prepare_offline.sh"
-    echo "  - Change: OUTPUT_DIR=\"/root/LME/offline_resources\""
-    echo "  - To:     OUTPUT_DIR=\"/var/lme/offline_resources\""
-    echo
-    success "This is the safest and simplest solution!"
+# Function to reduce /var by shrinking it (requires taking /var offline)
+reduce_var_with_backup() {
+    local vg_name="$1"
+    local var_lv="$2"
+    local reduce_gb="$3"
+
+    error "To free up ${reduce_gb}GB from /var, you need to:\n" \
+          "1. Boot into rescue/single-user mode\n" \
+          "2. Backup /var data\n" \
+          "3. Reduce the /var logical volume\n" \
+          "4. Restore /var data\n" \
+          "\n" \
+          "This script cannot safely do this while the system is running.\n" \
+          "However, the physical disk expansion should have provided enough space."
 }
 
 # Main execution
@@ -284,11 +333,20 @@ main() {
     log "Root LV: $root_lv"
     log "Var LV: $var_lv"
     echo
-    
-    # Check current free space in VG
+
+    # First, try to expand the physical partition to get more space
+    log "Step 1: Expanding physical disk partition if possible..."
+    if expand_physical_partition; then
+        success "Physical partition expanded - volume group now has more space"
+    else
+        log "Physical partition already at maximum size"
+    fi
+    echo
+
+    # Check current free space in VG (after potential expansion)
     local vg_free_gb=$(get_vg_free_space_gb "$vg_name")
     log "Free space in volume group: ${vg_free_gb}GB"
-    
+
     if [[ $vg_free_gb -ge 26 ]]; then
         # We have enough free space to expand root without shrinking /var
         log "Good news! Volume group has ${vg_free_gb}GB free space."
@@ -324,20 +382,12 @@ main() {
         success "You can now run prepare_offline.sh"
         
     else
-        # Not enough free space - need to shrink /var (risky with XFS)
-        warning "Volume group only has ${vg_free_gb}GB free space."
-        warning "Need to shrink /var to free up space for root."
-        echo
-        
-        # Check if /var is XFS
-        local var_fs_type=$(get_fs_type "/var")
-        if [[ "$var_fs_type" == "xfs" ]]; then
-            error "Cannot proceed: /var uses XFS filesystem which cannot be shrunk.\n" \
-                  "See alternative approach below."
-        fi
-        
-        suggest_alternative_approach
-        exit 1
+        # Not enough free space even after expanding physical partition
+        error "Volume group only has ${vg_free_gb}GB free space after expanding physical partition.\n" \
+              "Need at least 26GB to expand root to 30GB.\n" \
+              "\n" \
+              "Your disk may not have enough total capacity.\n" \
+              "Check 'lsblk' and 'parted /dev/sda print' to see total disk size."
     fi
 }
 
