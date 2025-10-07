@@ -36,11 +36,12 @@
     # Default timezone settings
     timezone_area: "Etc"  # Change to your area: America, Europe, Asia, etc.
     timezone_zone: "UTC"  # Change to your timezone: New_York, London, Tokyo, etc.
+    nix_profile_symlink_path: /nix/var/nix/profiles/default
   roles:
     - role: base
       tags: ['base', 'all']
     - role: nix
-      tags: ['base', 'all']
+      tags: ['base', 'system', 'all']
     - role: podman
       tags: ['system', 'all']
     - role: elasticsearch

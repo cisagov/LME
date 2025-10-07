@@ -1,0 +1,83 @@
+module lme_policy 1.0;
+
+require {
+    type container_t;
+    type cert_t;
+    type cgroup_t;
+    type ephemeral_port_t;
+    type fusefs_t;
+    type http_port_t;
+    type init_t;
+    type proc_net_t;
+    type random_device_t;
+    type sysfs_t;
+    type unreserved_port_t;
+    type wap_wsp_port_t;
+    type container_ro_file_t;
+    type container_var_lib_t;
+    type container_var_run_t;
+    type container_runtime_exec_t;
+    type bin_t;
+    type lib_t;
+    type etc_t;
+    type ld_so_t;
+    type shell_exec_t;
+    type init_exec_t;
+    type kvm_device_t;
+    type fs_t;
+    type user_home_t;
+
+    class file { getattr open read append create execute execute_no_trans lock map rename setattr unlink write };
+    class dir { add_name create remove_name write };
+    class lnk_file read;
+    class sock_file { write create setattr unlink };
+    class tcp_socket { name_connect accept connect create getattr getopt setopt shutdown };
+    class udp_socket { connect create getattr setopt };
+    class netlink_route_socket { bind create getattr nlmsg_read };
+    class process { execmem siginh };
+    class fifo_file { getattr ioctl read write create open unlink };
+    class chr_file { getattr read write };
+    class filesystem quotamod;
+    class blk_file { create rename unlink };
+    class cap_userns dac_override;
+}
+
+#============================================================================
+# Container Policy Rules (merged from container_policy.te)
+#============================================================================
+
+allow container_t cert_t:file getattr;
+allow container_t cgroup_t:file { open read };
+allow container_t ephemeral_port_t:tcp_socket name_connect;
+allow container_t fusefs_t:dir { add_name create remove_name write };
+allow container_t fusefs_t:file { append create execute execute_no_trans lock map open read rename setattr unlink write };
+allow container_t fusefs_t:lnk_file read;
+allow container_t fusefs_t:sock_file write;
+allow container_t http_port_t:tcp_socket name_connect;
+allow container_t init_t:fifo_file { getattr ioctl read write };
+allow container_t proc_net_t:lnk_file read;
+allow container_t random_device_t:chr_file getattr;
+allow container_t self:cap_userns dac_override;
+allow container_t self:netlink_route_socket { bind create getattr nlmsg_read };
+allow container_t self:process execmem;
+allow container_t self:tcp_socket { accept connect create getattr getopt setopt shutdown };
+allow container_t self:udp_socket { connect create getattr setopt };
+allow container_t sysfs_t:file { open read };
+allow container_t sysfs_t:lnk_file read;
+allow container_t unreserved_port_t:tcp_socket name_connect;
+allow container_t wap_wsp_port_t:tcp_socket name_connect;
+allow init_t container_ro_file_t:blk_file { create rename unlink };
+allow init_t container_t:process siginh;
+allow init_t container_var_lib_t:fifo_file { create open read unlink write };
+allow init_t container_var_lib_t:sock_file { create setattr unlink write };
+allow init_t container_var_run_t:file write;
+
+# Additional allows derived from nix_lme.te (focused, minimal set)
+allow init_t container_var_run_t:file { append create rename setattr };
+allow init_t kvm_device_t:chr_file { read write };
+allow init_t fs_t:filesystem quotamod;
+allow init_t user_home_t:file { open read };
+
+# Allow systemd (init_t) to read generator symlink labeled init_exec_t
+allow init_t init_exec_t:lnk_file read;
+allow init_t bin_t:lnk_file read;

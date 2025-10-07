@@ -66,6 +66,9 @@ done
 
 # Function to check if ansible is installed
 check_ansible() {
+    # Add /usr/local/bin to PATH for pip-installed packages
+    export PATH="/usr/local/bin:$PATH"
+    
     if command -v ansible &> /dev/null; then
         echo -e "${GREEN}✓ Ansible is already installed!${NC}"
         ansible --version | head -n 1
@@ -175,7 +178,7 @@ install_ansible() {
     
     # Set noninteractive mode for apt-based installations
     export DEBIAN_FRONTEND=noninteractive
-    
+
     case $DISTRO in
         ubuntu|debian|linuxmint|pop)
             sudo ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
@@ -188,8 +191,60 @@ install_ansible() {
             sudo dnf install -y ansible
             ;;
         centos|rhel|rocky|almalinux)
-            sudo dnf install -y epel-release
-            sudo dnf install -y ansible
+            # Ask user which installation method to use
+            use_pip=false
+            if [ "$NON_INTERACTIVE" != "true" ]; then
+                echo -e "${YELLOW}Choose Ansible installation method:${NC}"
+                echo "  1. Fedora EPEL repository (default)"
+                echo "  2. Python pip"
+                read -p "Select option (1 or 2): " install_choice
+
+                if [[ "$install_choice" == "2" ]]; then
+                    use_pip=true
+                fi
+            fi
+
+            if [ "$use_pip" = true ]; then
+                # Install via pip
+                echo -e "${YELLOW}Installing Ansible via pip...${NC}"
+                sudo dnf install -y python3-pip
+                sudo pip3 install ansible
+                # Create symlink to make pip-installed ansible available in PATH
+                if [ -f /usr/local/bin/ansible ] && [ ! -f /usr/bin/ansible ]; then
+                    sudo ln -sf /usr/local/bin/ansible /usr/bin/ansible
+                    sudo ln -sf /usr/local/bin/ansible-vault /usr/bin/ansible-vault
+                    echo -e "${GREEN}✓ Created symlink for ansible in /usr/bin${NC}"
+                fi
+                echo -e "${GREEN}✓ Ansible installed via pip${NC}"
+            else
+                # Install EPEL repository first
+                echo "Installing EPEL repository..."
+                if ! sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-$(rpm -E %rhel).noarch.rpm; then
+                    echo -e "${RED}✗ Failed to install EPEL repository${NC}"
+                    exit 1
+                fi
+                echo -e "${GREEN}✓ EPEL repository installed${NC}"
+
+                # For RHEL, you might also need to enable CodeReady Builder repository
+                if [[ "$DISTRO" == "rhel" ]]; then
+                    sudo subscription-manager repos --enable codeready-builder-for-rhel-$(rpm -E %rhel)-$(arch)-rpms 2>/dev/null || true
+                fi
+
+                # Now try to install ansible via dnf
+                if sudo dnf install -y ansible; then
+                    echo -e "${GREEN}✓ Ansible installed via dnf${NC}"
+                else
+                    echo -e "${YELLOW}⚠ dnf installation failed, trying pip installation...${NC}"
+                    sudo dnf install -y python3-pip
+                    sudo pip3 install ansible
+                    # Create symlink to make pip-installed ansible available in PATH
+                    if [ -f /usr/local/bin/ansible ] && [ ! -f /usr/bin/ansible ]; then
+                        sudo ln -sf /usr/local/bin/ansible /usr/bin/ansible
+                        sudo ln -sf /usr/local/bin/ansible-vault /usr/bin/ansible-vault
+                        echo -e "${GREEN}✓ Created symlink for ansible in /usr/bin${NC}"
+                    fi
+                fi
+            fi
             ;;
         arch|manjaro)
             sudo pacman -Sy --noconfirm ansible
@@ -400,7 +455,7 @@ run_playbook() {
     # Add debug mode if enabled
     if [ "$DEBUG_MODE" = "true" ]; then
         echo -e "${YELLOW}Debug mode enabled - verbose output will be shown${NC}"
-        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true"
+        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
     fi
     
     # Run the main installation playbook

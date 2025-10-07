@@ -24,8 +24,10 @@ def get_os_version() -> Dict[str, str]:
     data = {}
     with open(release_path, 'r') as fp:
         for line in fp.readlines():
-            key, value = line.strip().split("=", 1)
-            data[key] = value
+            line = line.strip()
+            if line and "=" in line:
+                key, value = line.split("=", 1)
+                data[key] = value
 
 
     info["name"] = data.get("NAME", "").strip("\"")
@@ -33,26 +35,44 @@ def get_os_version() -> Dict[str, str]:
     
     return info
 
-def get_package_version(package: str) -> str:
+def get_package_version(package: str, os_info: Dict[str, str]) -> str:
     version = 'unknown'
-
+    
+    os_name = os_info.get("name", "").lower()
+    
     try:
-        result = subprocess.run(['apt-cache', 'show', package], capture_output=True, text=True, timeout=10)
-        if result.returncode == 0:
-            version_match = re.search(r'Version:\s*([^\n]+)', result.stdout)
-            if version_match:
-                version = version_match.group(1).strip()
+        # Determine which package manager to use based on OS
+        if 'red hat' in os_name or 'rhel' in os_name or 'centos' in os_name or 'fedora' in os_name:
+            # Use dnf/yum for Red Hat-based systems
+            for cmd in ['dnf', 'yum']:
+                try:
+                    result = subprocess.run([cmd, 'info', package], capture_output=True, text=True, timeout=10)
+                    if result.returncode == 0:
+                        version_match = re.search(r'Version\s*:\s*([^\n]+)', result.stdout)
+                        if version_match:
+                            version = version_match.group(1).strip()
+                            break
+                except FileNotFoundError:
+                    continue
+        else:
+            # Use apt for Debian/Ubuntu systems
+            result = subprocess.run(['apt-cache', 'show', package], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                version_match = re.search(r'Version:\s*([^\n]+)', result.stdout)
+                if version_match:
+                    version = version_match.group(1).strip()
     except(subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
         version = 'unknown'
 
     return version
 
 class Package():
-    def __init__(self, name: str, version: str, file: Path, pkg_type: str):
+    def __init__(self, name: str, version: str, file: Path, pkg_type: str, os_info: Dict[str, str] = None):
         self.name = name
         self.version = version
         self.file = file
         self.package_type = pkg_type
+        self.os_info = os_info or {}
 
         self.hash_string = self.make_hash_string()
         self.reference_locator = self.get_reference_locator()
@@ -60,8 +80,27 @@ class Package():
 
     def get_reference_locator(self) -> str:
         reference_locator = "NOASSERTION"
-        if self.package_type == "apt":
-            reference_locator = f"pkg:deb/debian/{self.name}"
+        
+        if self.package_type == "rpm":
+            # For Red Hat-based systems
+            os_name = self.os_info.get("name", "").lower()
+            if 'red hat' in os_name or 'rhel' in os_name:
+                reference_locator = f"pkg:rpm/redhat/{self.name}"
+            elif 'centos' in os_name:
+                reference_locator = f"pkg:rpm/centos/{self.name}"
+            elif 'fedora' in os_name:
+                reference_locator = f"pkg:rpm/fedora/{self.name}"
+            else:
+                reference_locator = f"pkg:rpm/{self.name}"
+        elif self.package_type == "deb":
+            # For Debian-based systems
+            os_name = self.os_info.get("name", "").lower()
+            if 'ubuntu' in os_name:
+                reference_locator = f"pkg:deb/ubuntu/{self.name}"
+            elif 'debian' in os_name:
+                reference_locator = f"pkg:deb/debian/{self.name}"
+            else:
+                reference_locator = f"pkg:deb/{self.name}"
         elif self.package_type == "nix":
             reference_locator = f"pkg:nix/{self.name}"
 
@@ -227,7 +266,7 @@ class NixPackageParser():
         sbom_part = SbomPart(root_package_id)
         spdx_file_id = sbom_part.add_file(self.file_path, self.baseDir)
         for pkg in self.nix_packages:
-            p = Package(pkg, "unknown", self.file_path, "nix")
+            p = Package(pkg, "unknown", self.file_path, "nix", {})
             sbom_part.add_package(p, spdx_file_id)
         return sbom_part
 
@@ -244,20 +283,35 @@ class AptPackageSBOMGenerator():
         os_release = self.os_info.get("version", "").lower()
         os_release = os_release.replace(".", "_")
 
-        # print(os_name, os_release, release)
+        # print(f"Checking release '{release}' against OS '{os_name}' version '{os_release}'")
 
-        if " " in os_name:
-            os_name = os_name.split(" ")[0] #debian 
-
-        if 'common' in release:
+        # Always include common packages
+        if 'common' in release.lower():
             return True
+            
+        # Handle Red Hat Enterprise Linux
+        if 'red hat' in os_name or 'rhel' in os_name:
+            if 'redhat' in release.lower():
+                # If there are no numbers in the release name, assume it applies to all versions
+                if not re.search(r'\d', release):
+                    return True
+                # Check for version match (e.g., redhat_9 matches version 9.x)
+                major_version = os_release.split('_')[0] if '_' in os_release else os_release.split('.')[0]
+                if major_version in release.lower():
+                    return True
+            return False
+            
+        # Handle other distributions
+        if " " in os_name:
+            os_name = os_name.split(" ")[0]  # Take first word (e.g., "red" from "red hat")
+            
         if os_name in release.lower():
-            #if there are no numbers, assume no version name
+            # If there are no numbers, assume no version name
             if not re.search(r'\d', release):
                 return True
-
             if os_release in release.lower():
                 return True
+                
         return False 
 
     def get_apt_packages_list(self):
@@ -270,8 +324,15 @@ class AptPackageSBOMGenerator():
             if self.is_valid_release_type(release_type):
                 packages.update(package_list)
 
+        # Determine package type based on OS
+        os_name = self.os_info.get("name", "").lower()
+        if 'red hat' in os_name or 'rhel' in os_name or 'centos' in os_name or 'fedora' in os_name:
+            pkg_type = "rpm"
+        else:
+            pkg_type = "deb"
+            
         for package in packages:
-            pkg = Package(package, get_package_version(package), self.filepath, pkg_type="apt")
+            pkg = Package(package, get_package_version(package, self.os_info), self.filepath, pkg_type, self.os_info)
             self.package_details.append(pkg)
 
     def make_sbom_data(self, root_package_id: str) -> SbomPart:
@@ -294,11 +355,18 @@ def main():
     os_info = get_os_version()
 
     nix_dir = base_dir / "roles" / "nix" / "tasks"
-    nix_file_path = nix_dir / "ubuntu.yml" #default to ubuntu
-    if 'ubuntu' in os_info.get("name", "").lower():
+    os_name = os_info.get("name", "").lower()
+    
+    # Select the appropriate nix file based on OS
+    if 'red hat' in os_name or 'rhel' in os_name:
+        nix_file_path = nix_dir / "redhat.yml"
+    elif 'ubuntu' in os_name:
         nix_file_path = nix_dir / "ubuntu.yml"
-    elif 'debian' in os_info.get("name", "").lower():
+    elif 'debian' in os_name:
         nix_file_path = nix_dir / "debian.yml"
+    else:
+        # Default to common if no specific match
+        nix_file_path = nix_dir / "common.yml"
 
     nixParser = NixPackageParser(nix_file_path, base_dir)
 

@@ -101,7 +101,7 @@ jobs:
           ls -la && \
           cd /home/lme-user/LME/testing/v2/installers && \
           IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-          ./install_v2/install.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
+          ./install_v2/install_rhel.sh lme-user \$IP_ADDRESS  "pipe-${{ env.UNIQUE_ID }}.password.txt" ${{ env.BRANCH_NAME }}
         "
 
     - name: Retrieve Elastic password 
@@ -153,7 +153,7 @@ jobs:
           echo elastic=\"$ES_PASSWORD\" >> .env && \
           cat .env && \
           source venv/bin/activate && \
-          pytest -v api_tests/linux_only/ selenium_tests/linux_only/'
+          pytest -v api_tests/linux_only/ selenium_tests/linux_only/ api_tests/connectivity/'
         "
         
     - name: Cleanup Azure resources

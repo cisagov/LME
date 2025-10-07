@@ -32,6 +32,12 @@
   debug:
     msg: "Backup base directory: {{ backup_base_dir }}"
   
+- name: Include SELinux variable setup
+  include_role:
+    name: base
+    tasks_from: selinux_vars.yml
+  tags: selinux
+  
 - name: Display backup location
   debug:
     msg: "Backups will be stored in: {{ backup_base_dir }}/backups"
@@ -120,12 +126,12 @@
     mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_containers_systemd"
     
     # Copy the LME installation
-    cp -a "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme/"
+    {{ cp_preserve_cmd }} "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme/"
     LME_COPY_STATUS=$?
     
     # Copy the vault and password files from /etc/lme
     if [ -d "/etc/lme" ]; then
-      cp -a "/etc/lme/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_lme/"
+      {{ cp_preserve_cmd }} "/etc/lme/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_lme/"
       ETC_LME_COPY_STATUS=$?
     else
       echo "Warning: /etc/lme directory not found"
@@ -134,7 +140,7 @@
     
     # Copy the systemd container files from /etc/containers/systemd
     if [ -d "/etc/containers/systemd" ]; then
-      cp -a "/etc/containers/systemd/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_containers_systemd/"
+      {{ cp_preserve_cmd }} "/etc/containers/systemd/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_containers_systemd/"
       SYSTEMD_COPY_STATUS=$?
       echo "Systemd container files backed up successfully"
     else
@@ -266,7 +272,7 @@
     
     # Copy the volume contents
     if [ -d "$VOLUME_PATH" ] && [ "$(ls -A $VOLUME_PATH)" ]; then
-      cp -a "$VOLUME_PATH/." "$VOLUME_DIR/data/"
+      {{ cp_preserve_cmd }} "$VOLUME_PATH/." "$VOLUME_DIR/data/"
       if [ $? -eq 0 ]; then
         echo "SUCCESS" > "$VOLUME_DIR/backup_status.txt"
         echo "Volume {{ item }} backed up successfully"
