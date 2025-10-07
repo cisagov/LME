@@ -22,6 +22,9 @@ async def create_disk_snapshot(base_disk_path, output_disk_path):
     event loop. It returns the absolute path of the copied file.
     """
     # Resolve both paths to absolute, user‑expanded locations
+    # Ensure the paths are printed to stdout during the async execution
+    logging.debug(base_disk_path)
+    logging.debug(output_disk_path)
     src_path = os.path.abspath(os.path.expanduser(base_disk_path))
     dst_path = os.path.abspath(os.path.expanduser(output_disk_path))
 
@@ -206,6 +209,7 @@ async def _generate_mm_files(hosts_data, params):
     # Linux VMs – include special handling for LME and Caldera
     for ip, data in hosts_data["all"]["children"]["linux"]["hosts"].items():
         vm_name = data.get("hostname") or data.get("desired_hostname") or ip
+        mac = data.get("mac")
         # Choose memory/cpu based on the host name
         if vm_name == "lme":
             mem = lme_memory
@@ -300,6 +304,10 @@ def _generate_dnsmasq_mm(hosts_data: dict, params: dict) -> None:
     dnsmasq process is already running, the function attempts to stop it
     via a privileged ``minimega`` call.
     """
+    # Retrieve the directory where .mm files are stored.
+    mm_dir = params.get("mm_dir")
+    if mm_dir is None:
+        raise ValueError("Parameter 'mm_dir' is required to generate dnsmasq.mm")
 
     # If a dnsmasq process is already running, attempt to stop it via minimega.
     # TODO: start here, and get the correct dnsmasq id from minimega
@@ -315,8 +323,7 @@ def _generate_dnsmasq_mm(hosts_data: dict, params: dict) -> None:
     #except Exception as exc:
     #    logging.warning(f"Failed to manage existing dnsmasq process: {exc}")
 
-    files_path_dir = params.get("files_path_dir", os.path.expanduser("~/files"))
-    dnsmasq_path = os.path.join(files_path_dir, "dnsmasq.mm")
+    dnsmasq_path = os.path.join(mm_dir, "dnsmasq.mm")
 
     network_name = params.get("network_name", "EXP")
     gateway_ip = str(params.get("gateway_ip", "10.0.1.1"))
@@ -345,7 +352,7 @@ def _generate_dnsmasq_mm(hosts_data: dict, params: dict) -> None:
     lines.append("dnsmasq configure 0 dns upstream server 1.1.1.1")
 
     # Ensure the target directory exists and write the file.
-    os.makedirs(files_path_dir, exist_ok=True)
+    os.makedirs(mm_dir, exist_ok=True)
     with open(dnsmasq_path, "w") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -402,7 +409,7 @@ Generate state_{experiment_id}:
     used_ips: set[str] = set()
 
     # 1 LME_BOX – first Linux host
-    lme_ip = str(available_ips[0])
+    lme_ip = available_ips.pop(0)
     used_ips.add(lme_ip)
     _add_host(
         "linux",
