@@ -220,7 +220,7 @@ async def _generate_mm_files(hosts_data, params):
     vm config snapshot true
     vm config memory {mem}
     vm config vcpus {cpus}
-    vm config net {network_name}
+    vm config net {network_name},{mac}
     vm launch kvm {vm_name}
     """
         vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
@@ -349,7 +349,7 @@ def _generate_dnsmasq_mm(hosts_data: dict, params: dict) -> None:
 def generate_inventory_vars_and_scripts(windows_count, linux_count, network_cidr, state_dir=None,
                                         network_name="EXP",
                                         files_path="/home/user/files/",
-                                        linux_qcow_path="/home/user/files/ubuntu-24.04-x64-server-template/ubuntu/ubuntu-24.04-x64-server-template",
+                                        linux_qcow_path="/home/user/files/ubuntu-24.04-x64-server-template/ubuntu-24.04-x64-server-template",
                                         windows_qcow_path="/home/user/files/win11-23h2-x64-enterprise-gold/win11-23h2-x64-enterprise-gold",
                                         windows_user="localuser", windows_password="password",
                                         linux_user="localuser", linux_password="password",
@@ -390,8 +390,10 @@ Generate state_{experiment_id}:
         }
     }
 
-    # Helper to add a host entry to the given group
+    # Helper to add a host entry to the given group, assigning a deterministic MAC
     def _add_host(group: str, ip_addr: str, data: dict) -> None:
+        hostname = data.get("hostname") or data.get("desired_hostname") or ip_addr
+        data["mac"] = _mac_for(hostname)
         hosts_data["all"]["children"][group]["hosts"][ip_addr] = data
 
     used_ips: set[str] = set()
