@@ -276,6 +276,76 @@ def _format_host(entry_ip: str, entry_data: dict) -> str:
         parts.append("ansible_password=password")
     return " ".join(parts)
 
+# -----------------------------------------------------------------
+# Helper to generate a deterministic MAC address from a hostname
+# -----------------------------------------------------------------
+def _mac_for(hostname: str) -> str:
+    """Return a locally‑administered deterministic MAC address derived from ``hostname``."""
+    h = hashlib.sha1(hostname.encode()).digest()
+    mac_bytes = [h[i] for i in range(6)]
+    # Set the locally administered bit and clear the multicast bit.
+    mac_bytes[0] = (mac_bytes[0] & 0b11111110) | 0b00000010
+    return ":".join(f"{b:02x}" for b in mac_bytes)
+
+# -----------------------------------------------------------------
+# Top‑level helper to generate dnsmasq.mm
+# -----------------------------------------------------------------
+def _generate_dnsmasq_mm(hosts_data: dict, params: dict) -> None:
+    """Create a dnsmasq.mm file mirroring the static host configuration.
+
+    The file is written to ``files_path_dir`` (default ``~/files``). If a
+    dnsmasq process is already running, the function attempts to stop it
+    via a privileged ``minimega`` call.
+    """
+
+    # If a dnsmasq process is already running, attempt to stop it via minimega.
+    # TODO: start here, and get the correct dnsmasq id from minimega
+    #try:
+    #    result = subprocess.run(["pgrep", "-f", "dnsmasq"], capture_output=True, text=True)
+    #    if result.returncode == 0 and result.stdout.strip():
+    #        # Use minimega's Python API to stop the existing dnsmasq instance (ID 0 assumed).
+    #        stop_cmd = "dnsmasq stop 0"
+    #        subprocess.run(
+    #            ["sudo", "python3", "-c", f"import minimega; minimega.run('{stop_cmd}')"],
+    #            check=False,
+    #        )
+    #except Exception as exc:
+    #    logging.warning(f"Failed to manage existing dnsmasq process: {exc}")
+
+    files_path_dir = params.get("files_path_dir", os.path.expanduser("~/files"))
+    dnsmasq_path = os.path.join(files_path_dir, "dnsmasq.mm")
+
+    network_name = params.get("network_name", "EXP")
+    gateway_ip = str(params.get("gateway_ip", "10.0.1.1"))
+    # Assume a /24 network for simplicity.
+    start_ip = ipaddress.ip_address(gateway_ip) + 1
+    end_ip = ipaddress.ip_address(gateway_ip) + 254
+
+    lines = [
+        f"tap create {network_name} ip {gateway_ip}/24",
+        f"dnsmasq start {gateway_ip} {start_ip} {end_ip}",
+    ]
+
+    # Add static entries for Linux hosts.
+    for ip, data in hosts_data["all"]["children"]["linux"]["hosts"].items():
+        # ``mac`` is assigned during host creation in ``_add_host``.
+        mac = data.get("mac")
+        lines.append(f"dnsmasq configure 0 ip {mac} {ip}")
+
+    # Add static entries for Windows hosts.
+    for ip, data in hosts_data["all"]["children"]["windows"]["hosts"].items():
+        # ``mac`` is assigned during host creation in ``_add_host``.
+        mac = data.get("mac")
+        lines.append(f"dnsmasq configure 0 ip {mac} {ip}")
+
+    # Upstream DNS server (can be adjusted as needed).
+    lines.append("dnsmasq configure 0 dns upstream server 1.1.1.1")
+
+    # Ensure the target directory exists and write the file.
+    os.makedirs(files_path_dir, exist_ok=True)
+    with open(dnsmasq_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
 def generate_inventory_vars_and_scripts(windows_count, linux_count, network_cidr, state_dir=None,
                                         network_name="EXP",
                                         files_path="/home/user/files/",
