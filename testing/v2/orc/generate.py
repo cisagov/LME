@@ -505,8 +505,6 @@ def main():
     )
     args = parser.parse_args()
 
-
-
     generate_inventory_vars_and_scripts(args.windows, args.linux, args.network, args.state_dir, memory=args.memory, cpu=args.cpu)
 
 if __name__ == "__main__":
