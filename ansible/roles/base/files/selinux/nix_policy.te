@@ -1,0 +1,16 @@
+module nix_policy 1.0;
+
+require {
+    type bin_t;
+    type ld_so_t;
+    type lib_t;
+    type shell_exec_t;
+    type systemd_unit_file_t;
+    class file { getattr open read execute execute_no_trans map };
+    class lnk_file read;
+}
+
+# Minimal Nix policy: primarily file contexts; no allows beyond default
+# Kept small because main behavior relies on contexts provided in nix_policy.fc
+
+

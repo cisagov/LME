@@ -1,0 +1,15 @@
+---
+# Red Hat-specific tasks for podman setup
+
+- name: Enable linger for user
+  command: "loginctl enable-linger {{ install_user }}"
+  become: yes
+  changed_when: true
+  ignore_errors: true
+
+- name: Ensure containers directory exists
+  file:
+    path: /etc/containers
+    state: directory
+    mode: '0755'
+  become: yes

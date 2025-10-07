@@ -37,6 +37,70 @@
     mode: '0644'
   become: yes
 
+# Ensure quadlet helper and systemd generator are available from standard paths
+- name: Ensure /usr/libexec/podman exists
+  file:
+    path: /usr/libexec/podman
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Link quadlet helper into /usr/libexec/podman
+  file:
+    src: /nix/var/nix/profiles/default/libexec/podman/quadlet
+    dest: /usr/libexec/podman/quadlet
+    state: link
+    force: true
+  become: yes
+
+- name: Ensure podman systemd generator is linked
+  file:
+    src: /nix/var/nix/profiles/default/libexec/podman/quadlet
+    dest: /usr/lib/systemd/system-generators/podman-system-generator
+    state: link
+    force: true
+  become: yes
+
+- name: Restore contexts on quadlet/generator paths (best-effort)
+  command: restorecon -v /usr/libexec/podman/quadlet /usr/lib/systemd/system-generators/podman-system-generator
+  changed_when: false
+  failed_when: false
+  become: yes
+
+# ---------------------------------------------------------------------------
+# Apply SELinux contexts after podman installation and symlink creation
+# ---------------------------------------------------------------------------
+
+# Apply SELinux contexts to paths (now that podman_policy module defines the contexts)
+- name: Apply SELinux contexts to system generator paths (if they exist)
+  command: restorecon -Rv "{{ item }}"
+  changed_when: false
+  failed_when: false
+  become: yes
+  loop:
+    - "/usr/libexec/podman/quadlet"
+    - "/usr/lib/systemd/system-generators/podman-system-generator"
+    - "/usr/lib/systemd/system-generators"
+    - "/etc/systemd/system-generators"  # May be created by systemd after module load
+    - "/etc/containers/systemd"
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Apply SELinux contexts to Nix paths (final podman restorecon)
+  command: restorecon -Rv "{{ item }}"
+  changed_when: false
+  failed_when: false
+  become: yes
+  loop:
+    - "/nix/var/nix/profiles/default"
+    - "/nix/store"
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
 - name: Reload systemd daemon
   systemd:
     daemon_reload: yes
