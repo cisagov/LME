@@ -525,9 +525,11 @@ Generate state_{experiment_id}:
     # top‑level function defined later in this module)
     _write_inventory_file(inventory_path, hosts_data, _format_host)
 
-    logging.debug(f"Generated hosts.yml, vars.yml, and inventory.ini in {experiment_dir} (random_str: {random_str})")
-    logging.debug(f"SSH keys generated: {linux_key_path} (Linux)")
-    logging.info(f"Generated Experiment in {experiment_dir}")
+    logging.info(f"Generated hosts.yml, vars.yml, and inventory.ini in {experiment_dir} (random_str: {random_str})")
+    logging.info(f"SSH keys generated: {linux_key_path} (Linux)")
+    #print(f"EXPERIMENT_DIRECTORY: {experiment_dir}")
+    #print(f"to deploy:\n\texport STATE=\"{experiment_dir}\"")
+    print(f"To Deploy your Experiment:\n\tSTATE=\"{experiment_dir}\" python3 generate.py --deploy")
 
 
 def main():
@@ -538,9 +540,9 @@ def main():
     python3 generate.py --windows 2 --linux 3 --network 192.168.0.0/24 --gateway 192.168.0.1 --priv_dir ./keys --script_dir init_scripts --ludus_network my_network --role_config_dir ludus_roles
     """
     parser = argparse.ArgumentParser(description=main.__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--windows", type=int, required=True, help="Number of Windows clients")
-    parser.add_argument("--linux", type=int, required=True, help="Number of Linux clients")
-    parser.add_argument("--network", type=str, required=True, help="Network CIDR (e.g., 192.168.0.0/24)")
+    parser.add_argument("--windows", type=int, help="Number of Windows clients")
+    parser.add_argument("--linux", type=int, help="Number of Linux clients")
+    parser.add_argument("--network", type=str, help="Network CIDR (e.g., 192.168.0.0/24)")
     #parser.add_argument("--gateway", type=str, help="Gateway IP (defaults to first usable IP)")
     parser.add_argument("--state_dir", type=str, default=None, help="Directory for init scripts")
     parser.add_argument(
@@ -561,9 +563,48 @@ def main():
         default=4,
         help="vCPUs per VM (default: 4)",
     )
+
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging output",
+    )
+
+    parser.add_argument(
+        "--deploy",
+        action="store_true",
+        help="Run deploy after generating the configuration",
+    )
     args = parser.parse_args()
 
-    generate_inventory_vars_and_scripts(args.windows, args.linux, args.network, args.state_dir, memory=args.memory, cpu=args.cpu)
+    # Set logging level based on the debug flag
+    if args.debug:
+        log_level = logging.INFO
+        logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(message)s")
+
+    if args.deploy:
+        deploy()
+    else:
+        # Validate that required arguments are provided
+        missing_args = []
+        if args.windows is None:
+            missing_args.append("--windows")
+        if args.linux is None:
+            missing_args.append("--linux")
+        if not args.network:
+            missing_args.append("--network")
+        if missing_args:
+            # Use argparse's built‑in error handling to display a helpful message
+            parser.error(f"Missing required arguments: {', '.join(missing_args)}")
+
+        generate_inventory_vars_and_scripts(
+            args.windows,
+            args.linux,
+            args.network,
+            args.state_dir,
+            memory=args.memory,
+            cpu=args.cpu,
+        )
 
 if __name__ == "__main__":
     main()
