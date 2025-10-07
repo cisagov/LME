@@ -7,7 +7,7 @@ set -euo pipefail
 # ----------------------------------------------------------------------
 # Configuration – edit these values to match your environment
 # ----------------------------------------------------------------------
-REMOTE="${REMOTE:?Please set the REMOTE environment variable}"   # destination for rsync
+REMOTE=${REMOTE:?Please set the REMOTE environment variable}   # destination for rsyn
 echo $REMOTE
 
 # ----------------------------------------------------------------------
@@ -25,8 +25,6 @@ if [[ ! -f .rsync-filter ]]; then
   exit 1
 fi
 
-## AI! add another background process here g
-
 # ----------------------------------------------------------------------
 # Start watching.  -0   → NUL‑delimited output (safe for any filename)
 #               -r   → watch recursively
@@ -43,10 +41,11 @@ while IFS= read -r -d '' file; do
   # Ensure the relative path does not start with a leading slash.
   rel="${rel#/}"
   # Sync the changed file, preserving the directory hierarchy.
-  echo "$rel"
+  echo $file "->" $REMOTE$rel
   rsync -avz --filter='dir-merge /.rsync-filter' "$file" "${REMOTE}${rel}"
-  # Notify the user when the file has been transferred.
-  # On macOS we can use `osascript` to display a native notification.
+
+  #Notify the user when the file has been transferred.
+  # On macOS we can use `osascript` to display a notification.
   if command -v osascript >/dev/null 2>&1; then
     osascript -e "display notification \"Synced $rel\" with title \"rsync\""
   else

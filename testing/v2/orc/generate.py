@@ -331,7 +331,10 @@ def _generate_dnsmasq_mm(hosts_data: dict, params: dict) -> None:
     start_ip = ipaddress.ip_address(gateway_ip) + 1
     end_ip = ipaddress.ip_address(gateway_ip) + 254
 
+    #TODO: get the dnsmasq id dynamically from minimega
     lines = [
+        "# IF THIS ERRORS, CHANGE THE dnsmasq id 0 -> current dnsmasq_id+1"
+        "# sudo /opt/minimega/bin/minimega -e dnsmasq"
         f"tap create {network_name} ip {gateway_ip}/24",
         f"dnsmasq start {gateway_ip} {start_ip} {end_ip}",
     ]
