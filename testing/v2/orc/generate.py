@@ -8,6 +8,7 @@ import subprocess
 import logging
 import shutil
 import asyncio
+import hashlib
 
 import yaml
 
@@ -183,6 +184,8 @@ async def _generate_mm_files(hosts_data, params):
     # Windows VMs
     for ip, data in hosts_data["all"]["children"]["windows"]["hosts"].items():
         vm_name = data.get("hostname") or ip
+        #vm_config = f"""#windows
+        mac = data.get("mac")
         vm_config = f"""#windows
     clear vm config
     vm config disk {windows_qcow_path}
@@ -193,7 +196,7 @@ async def _generate_mm_files(hosts_data, params):
 
     vm config qemu-append -drive file={OVMF_PATH},if=pflash,unit=0,format=raw,readonly=on -drive file={windows_qcow_directory_path}/efivars.fd,if=pflash,unit=1,format=raw
 
-    vm config net {network_name}
+    vm config net {network_name},{mac}
     vm launch kvm {vm_name}
     """
         vm_file_path = os.path.join(mm_dir, f"{vm_name}.mm")
