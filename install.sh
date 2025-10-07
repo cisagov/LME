@@ -459,6 +459,13 @@ run_playbook() {
 
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
+
+    # Set Ansible temp directories to avoid I/O errors
+    export ANSIBLE_LOCAL_TEMP=/opt/ansible-tmp
+    export ANSIBLE_REMOTE_TEMP=/opt/ansible-tmp
+    sudo mkdir -p /opt/ansible-tmp
+    sudo chown $(whoami):$(whoami) /opt/ansible-tmp
+
     if [ -f "$SCRIPT_DIR/inventory" ]; then
         ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
     else
@@ -785,7 +792,10 @@ fi
 # Check if playbook exists and run it
 check_playbook
 
-# Load containers for offline mode BEFORE running Ansible playbook
+# Run the Ansible playbook FIRST (installs Nix and podman)
+run_playbook
+
+# Load containers for offline mode AFTER Ansible playbook completes
 if [ "$OFFLINE_MODE" = "true" ]; then
     echo -e "${YELLOW}Loading container images for offline installation...${NC}"
 
@@ -847,12 +857,6 @@ if [ "$OFFLINE_MODE" = "true" ]; then
 
         exit 1
     fi
-
-    # Run the Ansible playbook after container loading in offline mode
-    run_playbook
-else
-    # Run the Ansible playbook normally in online mode
-    run_playbook
 fi
 
 echo -e "${GREEN}All operations completed successfully!${NC}"

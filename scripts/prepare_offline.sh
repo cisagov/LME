@@ -319,18 +319,32 @@ download_dnf_packages() {
     sudo dnf makecache
 
     echo -e "${YELLOW}Installing EPEL repository...${NC}"
-    sudo dnf install -y epel-release
+    if [ "$OS_ID" = "rhel" ]; then
+        # For RHEL, install EPEL from Fedora URL and disable RHUI repos
+        sudo dnf install --disablerepo="*rhui*" -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+    else
+        # For other distributions, use standard package
+        sudo dnf install -y epel-release
+    fi
 
     echo -e "${YELLOW}Downloading packages...${NC}"
     cd "$OUTPUT_DIR/packages/rpms"
+
+    # For RHEL on Azure, disable broken RHUI repos to use working subscription manager repos
+    if [ "$OS_ID" = "rhel" ]; then
+        REPO_FLAGS="--disablerepo=*rhui*"
+    else
+        REPO_FLAGS=""
+    fi
+
     for package in "${PACKAGES[@]}"; do
         echo -e "${YELLOW}  Downloading $package...${NC}"
-        dnf download "$package" 2>/dev/null || echo -e "${RED}  ✗ Failed to download $package${NC}"
+        dnf download $REPO_FLAGS "$package" 2>/dev/null || echo -e "${RED}  ✗ Failed to download $package${NC}"
     done
 
     echo -e "${YELLOW}Downloading package dependencies...${NC}"
     for package in "${PACKAGES[@]}"; do
-        dnf download --resolve "$package" 2>/dev/null || true
+        dnf download --resolve $REPO_FLAGS "$package" 2>/dev/null || true
     done
 
     cd "$SCRIPT_DIR"
@@ -417,7 +431,6 @@ download_packages() {
             "expect"
             "ca-certificates"
             "gnupg"
-            "redhat-lsb-core"
             "fuse-overlayfs"
             "gcc"
             "gcc-c++"
@@ -954,8 +967,7 @@ generate_load_script() {
     cat > "$OUTPUT_DIR/load_containers.sh" << 'EOF'
 #!/bin/bash
 
-# Container Loading Script for Offline LME Installation
-# This script is designed to work AFTER Nix and podman have been installed by Ansible
+# Simple Container Loading Script for Offline LME Installation
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -967,93 +979,72 @@ IMAGES_DIR="$SCRIPT_DIR/container_images"
 
 echo -e "${YELLOW}Loading container images for offline LME installation...${NC}"
 
-if [ ! -d "$IMAGES_DIR" ]; then
-    echo -e "${RED}✗ Container images directory not found: $IMAGES_DIR${NC}"
-    exit 1
-fi
-
 # Ensure proper PATH for Nix binaries
 export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
-echo -e "${YELLOW}Checking for podman availability...${NC}"
+# Simple mapping of tar files to target names
+declare -A IMAGE_MAP
+IMAGE_MAP["elasticsearch_8.18.3.tar"]="localhost/elasticsearch:LME_LATEST"
+IMAGE_MAP["kibana_8.18.3.tar"]="localhost/kibana:LME_LATEST"
+IMAGE_MAP["elastic-agent_8.18.3.tar"]="localhost/elastic-agent:LME_LATEST"
+IMAGE_MAP["wazuh-manager_4.9.1.tar"]="localhost/wazuh-manager:LME_LATEST"
+IMAGE_MAP["elastalert2_2.20.0.tar"]="localhost/elastalert2:LME_LATEST"
+IMAGE_MAP["distribution_lite-8.18.3.tar"]="localhost/distribution:LME_LATEST"
 
-# Function to check if podman is accessible
-check_podman_access() {
-    local test_cmd="$1"
-    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $test_cmd --version" >/dev/null 2>&1; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Determine the correct podman command
-PODMAN_CMD=""
-
-# Check for Nix-installed podman (preferred for offline mode)
-if check_podman_access "/nix/var/nix/profiles/default/bin/podman"; then
-    PODMAN_CMD="/nix/var/nix/profiles/default/bin/podman"
-    echo -e "${GREEN}✓ Using Nix-installed podman${NC}"
-elif check_podman_access "podman"; then
-    PODMAN_CMD="podman"
-    echo -e "${GREEN}✓ Using system podman${NC}"
-else
-    echo -e "${RED}✗ Podman not found or not accessible${NC}"
-    echo -e "${RED}This script should be run AFTER the LME installation has completed${NC}"
-    echo -e "${RED}and Nix with podman has been installed.${NC}"
-    echo -e "${YELLOW}Troubleshooting steps:${NC}"
-    echo -e "${YELLOW}1. Ensure you have run 'sudo ./install.sh --offline' first${NC}"
-    echo -e "${YELLOW}2. Check if Nix is installed: ls -la /nix/var/nix/profiles/default/bin/podman${NC}"
-    echo -e "${YELLOW}3. Try running: sudo -i podman --version${NC}"
-    echo -e "${YELLOW}4. Check PATH: sudo bash -c 'echo \$PATH'${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}Using Podman: $PODMAN_CMD${NC}"
-
-# Load all tar files in the images directory
 LOADED_COUNT=0
 FAILED_COUNT=0
-SKIPPED_COUNT=0
 
 for tar_file in "$IMAGES_DIR"/*.tar; do
     if [ -f "$tar_file" ]; then
-        # Extract expected image name from tar filename
-        image_name=$(basename "$tar_file" .tar)
+        filename=$(basename "$tar_file")
+        target_name="${IMAGE_MAP[$filename]}"
 
-        # Check if image is already loaded (with proper PATH)
-        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}'" | grep -q "localhost/$image_name" || \
-           sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}'" | grep -q "localhost/$(echo $image_name | cut -d'_' -f1)"; then
-            echo -e "${GREEN}✓ $(basename "$tar_file") already loaded, skipping${NC}"
-            SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+        if [ -z "$target_name" ]; then
+            echo -e "${RED}✗ Unknown tar file: $filename${NC}"
+            FAILED_COUNT=$((FAILED_COUNT + 1))
+            continue
+        fi
+
+        # Check if already tagged
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman images --format '{{.Repository}}:{{.Tag}}'" | grep -q "$target_name"; then
+            echo -e "${GREEN}✓ $filename already loaded and tagged${NC}"
+            continue
+        fi
+
+        echo -e "${YELLOW}Loading $filename...${NC}"
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman load -i '$tar_file'"; then
+            echo -e "${GREEN}✓ Loaded $filename${NC}"
+
+            # Get the image that was just loaded and tag it
+            echo -e "${YELLOW}  Tagging as $target_name...${NC}"
+
+            # Find the loaded image and tag it
+            case "$filename" in
+                "elasticsearch_8.18.3.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/elasticsearch/elasticsearch:8.18.3 $target_name"
+                    ;;
+                "kibana_8.18.3.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/kibana/kibana:8.18.3 $target_name"
+                    ;;
+                "elastic-agent_8.18.3.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/beats/elastic-agent:8.18.3 $target_name"
+                    ;;
+                "wazuh-manager_4.9.1.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.io/wazuh/wazuh-manager:4.9.1 $target_name"
+                    ;;
+                "elastalert2_2.20.0.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.io/jertel/elastalert2:2.20.0 $target_name"
+                    ;;
+                "distribution_lite-8.18.3.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/package-registry/distribution:lite-8.18.3 $target_name"
+                    ;;
+            esac
+
+            echo -e "${GREEN}  ✓ Tagged as $target_name${NC}"
+            LOADED_COUNT=$((LOADED_COUNT + 1))
         else
-            echo -e "${YELLOW}Loading $(basename "$tar_file")...${NC}"
-            if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD load -i '$tar_file'"; then
-                echo -e "${GREEN}✓ Successfully loaded $(basename "$tar_file")${NC}"
-
-                # Tag the loaded image with localhost/ prefix and LME_LATEST
-                # Extract the short name (e.g., elasticsearch from elasticsearch_8.18.3.tar)
-                short_name=$(echo "$image_name" | sed 's/_[0-9].*//')
-                echo -e "${YELLOW}  Tagging as localhost/${short_name}:LME_LATEST...${NC}"
-
-                # Find the full image name that was just loaded
-                loaded_image=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images --format '{{.Repository}}:{{.Tag}}' | grep -E '(docker\\.elastic\\.co|docker\\.io).*${short_name}' | head -n1")
-
-                if [ -n "$loaded_image" ]; then
-                    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD tag '$loaded_image' localhost/${short_name}:LME_LATEST"; then
-                        echo -e "${GREEN}  ✓ Tagged as localhost/${short_name}:LME_LATEST${NC}"
-                    else
-                        echo -e "${RED}  ✗ Failed to tag image${NC}"
-                    fi
-                else
-                    echo -e "${RED}  ✗ Could not find loaded image to tag${NC}"
-                fi
-
-                LOADED_COUNT=$((LOADED_COUNT + 1))
-            else
-                echo -e "${RED}✗ Failed to load $(basename "$tar_file")${NC}"
-                FAILED_COUNT=$((FAILED_COUNT + 1))
-            fi
+            echo -e "${RED}✗ Failed to load $filename${NC}"
+            FAILED_COUNT=$((FAILED_COUNT + 1))
         fi
     fi
 done
@@ -1061,93 +1052,19 @@ done
 echo
 echo -e "${GREEN}Container loading summary:${NC}"
 echo -e "${GREEN}  Successfully loaded: $LOADED_COUNT${NC}"
-echo -e "${YELLOW}  Already loaded (skipped): $SKIPPED_COUNT${NC}"
 if [ $FAILED_COUNT -gt 0 ]; then
     echo -e "${RED}  Failed to load: $FAILED_COUNT${NC}"
-fi
-
-echo -e "${YELLOW}Verify loaded images with: sudo bash -c 'export PATH=/nix/var/nix/profiles/default/bin:\$PATH; $PODMAN_CMD images'${NC}"
-
-if [ $FAILED_COUNT -gt 0 ]; then
     exit 1
 fi
+
+echo -e "${GREEN}✓ All container images loaded and tagged successfully${NC}"
 EOF
 
     chmod +x "$OUTPUT_DIR/load_containers.sh"
     echo -e "${GREEN}✓ Container load script created: $OUTPUT_DIR/load_containers.sh${NC}"
 }
 
-# Generate installation instructions
-generate_instructions() {
-    echo -e "${YELLOW}Generating offline installation instructions...${NC}"
 
-    cat > "$OUTPUT_DIR/docs/OFFLINE_INSTALLATION_INSTRUCTIONS.txt" << EOF
-LME Offline Installation Instructions
-====================================
-
-This archive contains the complete LME source code and all resources needed for offline installation.
-
-Archive Contents:
-- LME source code (complete repository)
-- offline_resources/ directory containing:
-  - container_images/     : Container image tar files
-  - packages/            : Package lists and installation scripts
-  - nix/                 : Nix installer script for RedHat systems
-  - agents/              : Agent installers (Wazuh and Elastic agents)
-  - cve/                 : CVE database for offline Wazuh vulnerability detection
-  - docs/               : Documentation
-  - load_containers.sh  : Script to load container images
-
-Steps for Offline Installation:
-==============================
-
-1. Transfer the lme-offline-*.tar.gz file to the target system
-
-2. Extract the archive:
-   tar -xzf lme-offline-*.tar.gz
-
-3. Navigate to the extracted LME directory and run installation:
-   cd LME
-   ./install.sh --offline
-
-   The install script will automatically:
-   - Install required system packages
-   - Load container images
-   - Configure and start LME services
-   - Set up CVE database for offline vulnerability detection
-
-4. Install agents on endpoint systems:
-   - Agent installers are available in the offline_resources/agents/ directory
-   - Configure agents to connect to your LME server IP/hostname
-
-CRITICAL NOTES:
-===============
-
-- Podman is installed via Nix and must be accessible to root user
-- Use 'sudo podman' or 'sudo -i podman' for container operations
-- All container images will be loaded for root user access
-- The installation scripts handle root PATH configuration
-
-Troubleshooting:
-===============
-
-- Ensure all packages from packages/ directory are installed
-- Verify Ansible is installed: ansible --version
-- Verify podman is available to root: sudo podman --version
-- Verify all container images are loaded with 'sudo podman images'
-- Check that root can access podman: sudo which podman
-
-Security Notes:
-==============
-
-- HIBP password checks are skipped in offline mode
-- Use strong, unique passwords (minimum 12 characters)
-- Implement proper network security measures
-- Apply security updates when internet access becomes available
-EOF
-
-    echo -e "${GREEN}✓ Installation instructions created: $OUTPUT_DIR/docs/OFFLINE_INSTALLATION_INSTRUCTIONS.txt${NC}"
-}
 
 # Main execution
 main() {
@@ -1167,7 +1084,6 @@ main() {
     download_agents
     download_cve_database
     generate_load_script
-    generate_instructions
     create_offline_archive
 
     echo -e "${GREEN}✓ Offline preparation complete!${NC}"
