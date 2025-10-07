@@ -4,6 +4,9 @@ on:
   # pull_request:
   #   branches:
   #     - '*'
+  push:
+    branches:
+      - develop
   workflow_dispatch:
     inputs:
       azure_region:

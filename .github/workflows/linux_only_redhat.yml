@@ -23,9 +23,13 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  pull_request:
+  push:
     branches:
-      - '*'
+      - develop
+  # pull_request:
+  #   branches:
+  #     - '*'
+  
 
 jobs:
   build-and-test-linux-only-redhat:
