@@ -484,6 +484,7 @@ Generate state_{experiment_id}:
 
     #setup subfunciton call
     params = {}
+    params["gateway_ip"] = gateway
     params["windows_qcow_path"] = windows_qcow_path
     params["linux_qcow_path"] = linux_qcow_path
     params["memory"] = memory
@@ -504,45 +505,17 @@ Generate state_{experiment_id}:
     # Call the async MM file generator
     asyncio.run(_generate_mm_files(hosts_data, params))
 
+    # Execute the helper to create dnsmasq.mm
+    _generate_dnsmasq_mm(hosts_data, params)
+
     # ---------------------------------------------------------------------
     # Generate a simple Ansible inventory file (INI format)
     # ---------------------------------------------------------------------
-    def _format_host(entry_ip: str, entry_data: dict) -> str:
-        """
-        Return a formatted inventory line for a host.
-        """
-        hostname = entry_data.get("hostname") or entry_data.get("desired_hostname") or entry_ip
-        parts = [f"{hostname}", f"ansible_host={entry_ip}"]
-        if "ansible_ssh_private_key_file" in entry_data:
-            parts.append("ansible_user=localuser")
-            parts.append(f"ansible_ssh_private_key_file={entry_data['ansible_ssh_private_key_file']}")
-        else:
-            parts.append("ansible_user=localuser")
-            parts.append("ansible_password=password")
-        return " ".join(parts)
+    # Call the helper to write the inventory file (the formatter is now a
+    # top‑level function defined later in this module)
+    _write_inventory_file(inventory_path, hosts_data, _format_host)
 
-    with open(inventory_path, "w") as f:
-        f.write("[lme_servers]\n")
-        for ip, data in hosts_data["all"]["children"]["linux"]["hosts"].items():
-            f.write(_format_host(ip, data) + "\n")
-        f.write("\n")
-        f.write("[windows]\n")
-        for ip, data in hosts_data["all"]["children"]["windows"]["hosts"].items():
-            f.write(_format_host(ip, data) + "\n")
-        f.write("\n")
-        f.write("[windows:vars]\n")
-        f.write("ansible_user=localuser\n")
-        f.write("ansible_password=password\n")
-        f.write("ansible_connection=winrm\n")
-        f.write("ansible_winrm_transport=basic\n")
-        f.write("ansible_port=5986\n")
-        f.write("ansible_winrm_scheme=https\n")
-        f.write("ansible_winrm_server_cert_validation=ignore\n")
-        f.write("\n")
-        f.write("[lme_servers:vars]\n")
-        f.write("ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n")
-
-    logging.debug(f"Generated hosts.yml, vars.yml, and inventory.ini in {experiment_dir} (experiment ID: {random_str})")
+    logging.debug(f"Generated hosts.yml, vars.yml, and inventory.ini in {experiment_dir} (random_str: {random_str})")
     logging.debug(f"SSH keys generated: {linux_key_path} (Linux)")
     logging.info(f"Generated Experiment in {experiment_dir}")
 
