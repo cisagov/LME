@@ -49,7 +49,16 @@
       - container-selinux
     state: present
   become: yes
-  when: selinux_available | default(false)
+  when:
+    - selinux_available | default(false)
+    - not (offline_mode | default(false))
+
+- name: Skip SELinux policy tools installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping SELinux policy tools installation (should be pre-installed)"
+  when:
+    - selinux_available | default(false)
+    - offline_mode | default(false)
 
 - name: Ensure SELinux policy directory exists
   file:

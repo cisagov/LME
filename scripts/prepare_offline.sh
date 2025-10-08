@@ -447,6 +447,7 @@ download_packages() {
             "selinux-policy-targeted"
             "libselinux-utils"
             "container-selinux"
+            "dnf-plugins-core"
             "fuse3-libs"
         )
     fi

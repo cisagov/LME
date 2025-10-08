@@ -11,6 +11,7 @@
   delay: 5
   until: epel_key_import is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
 
 - name: Install EPEL repository
   dnf:
@@ -22,12 +23,19 @@
   delay: 5
   until: epel_install is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Skip EPEL installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping EPEL GPG key and repository installation (should be pre-installed from offline packages)"
+  when: offline_mode | default(false)
 
 - name: Install dnf-plugins-core
   dnf:
     name: dnf-plugins-core
     state: present
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Check available repositories
   command: dnf repolist --all
@@ -68,3 +76,9 @@
   delay: 10
   until: dnf_install_rh9 is success
   ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Skip Red Hat 9-specific packages installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping Red Hat 9-specific packages installation (should be pre-installed)"
+  when: offline_mode | default(false)
