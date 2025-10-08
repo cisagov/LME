@@ -1,0 +1,54 @@
+- name: Check if Elastic agent bin exists on Ludus for Debian/Ubuntu Targets
+  ansible.builtin.stat:
+    path: "{{ ludus_install_directory }}/resources/elastic/elastic-agent-{{ ludus_elastic_agent_version }}-linux-x86_64.tar.gz"
+  register: linux_agent_exists
+  delegate_to: localhost
+
+- name: Download the Linux Elastic agent if it doesn't exist
+  ansible.builtin.get_url:
+    url: "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-{{ ludus_elastic_agent_version }}-linux-x86_64.tar.gz"
+    dest: "/opt/ludus/resources/elastic/elastic-agent-{{ ludus_elastic_agent_version }}-linux-x86_64.tar.gz"
+    mode: "0644"
+  delegate_to: localhost
+  when: not linux_agent_exists.stat.exists
+
+- name: Create Ludus directory on Linux target if it doesn't exist
+  ansible.builtin.file:
+    path: "/opt/ludus"
+    state: directory
+    mode: "0770"
+
+- name: Copy Elastic agent to Linux target
+  ansible.builtin.copy:
+    src: "{{ ludus_install_directory }}/resources/elastic/elastic-agent-{{ ludus_elastic_agent_version }}-linux-x86_64.tar.gz"
+    dest: "/opt/ludus"
+    mode: "0644"
+
+- name: Check if elastic-agent is installed on Linux
+  ansible.builtin.shell: 'if [ -f /usr/bin/elastic-agent ]; then echo true; fi'
+  register: elastic_agent_installed_linux
+  changed_when: elastic_agent_installed_linux.stdout == "true"
+  ignore_errors: true
+
+- name: Uninstall Elastic agent if installed on Linux
+  ansible.builtin.shell: '/usr/bin/elastic-agent uninstall -f'
+  when: elastic_agent_installed_linux.stdout | default('false') == "true"
+
+- name: Remove existing Elastic agent directory
+  ansible.builtin.file:
+    path: "/opt/ludus/elastic-agent-{{ ludus_elastic_agent_version }}"
+    state: absent
+  become: true
+
+- name: Unzip Elastic agent on Linux target
+  ansible.builtin.shell: 'tar -xzf "/opt/ludus/elastic-agent-{{ ludus_elastic_agent_version }}-linux-x86_64.tar.gz" -C "/opt/ludus"'
+
+- name: Remove existing Elastic Agent directory
+  ansible.builtin.file:
+    path: "/opt/Elastic/Agent"
+    state: absent
+  become: true
+
+- name: Install Elastic agent on Linux target
+  ansible.builtin.command: "/opt/ludus/elastic-agent-{{ ludus_elastic_agent_version }}-linux-x86_64/elastic-agent install  --url={{ ludus_elastic_fleet_server }} --enrollment-token={{ ludus_elastic_enrollment_token }} --force --insecure"
+  become: true

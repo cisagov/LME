@@ -1,0 +1,80 @@
+- name: Check if Elastic agent bin exists on Ludus for Windows targets
+  ansible.builtin.stat:
+    path: "{{ ludus_install_directory }}/resources/elastic/elastic-agent-{{ ludus_elastic_agent_version }}-windows-x86_64.zip"
+  register: windows_agent_exists
+  delegate_to: localhost
+
+- name: Download the Windows Elastic agent if it doesn't exist
+  ansible.builtin.get_url:
+    url: "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-{{ ludus_elastic_agent_version }}-windows-x86_64.zip"
+    dest: "{{ ludus_install_directory }}/resources/elastic/elastic-agent-{{ ludus_elastic_agent_version }}-windows-x86_64.zip"
+    mode: "0644"
+  delegate_to: localhost
+  when: not windows_agent_exists.stat.exists
+
+- name: Create Ludus directory on Windows target if it doesn't exist
+  ansible.windows.win_file:
+    path: C:\ludus
+    state: directory
+
+- name: Copy Elastic agent to Windows target
+  ansible.windows.win_copy:
+    src: "{{ ludus_install_directory }}/resources/elastic/elastic-agent-{{ ludus_elastic_agent_version }}-windows-x86_64.zip"
+    dest: "C:\\ludus"
+
+- name: Check if Elastic agent is installed on Windows
+  ansible.windows.win_stat:
+    path: "C:\\Program Files\\Elastic\\Agent\\elastic-agent.exe"
+  register: elastic_agent_installed
+
+- name: Uninstall Elastic agent if installed on Windows
+  ansible.windows.win_shell: "& 'C:\\Program Files\\Elastic\\Agent\\elastic-agent.exe' uninstall -f"
+  when: elastic_agent_installed.stat.exists
+
+- name: Get PowerShell version on Windows
+  ansible.windows.win_shell: $PSVersionTable.PSVersion.Major
+  register: ps_version
+
+- name: Unzip Elastic agent on Windows target (PowerShell 5+)
+  ansible.windows.win_shell: >
+    Expand-Archive -Path 'C:\\ludus\\elastic-agent-{{ ludus_elastic_agent_version }}-windows-x86_64.zip' `
+    -force -DestinationPath 'C:\\ludus'
+  when: ps_version.stdout | int >= 5
+
+- name: Unzip Elastic agent on Windows target (PowerShell 4 and below)
+  ansible.windows.win_shell: >
+    Add-Type -AssemblyName System.IO.Compression.FileSystem;
+    [System.IO.Compression.ZipFile]::ExtractToDirectory('C:\\ludus\\elastic-agent-{{ ludus_elastic_agent_version }}-windows-x86_64.zip', 'C:\\ludus')
+  when: ps_version.stdout | int < 5
+
+- name: Elastic agent full path on Windows
+  ansible.builtin.set_fact:
+    elastic_agent_path: "C:\\ludus\\elastic-agent-{{ ludus_elastic_agent_version }}-windows-x86_64\\elastic-agent.exe"
+
+- name: Set full URL for Elastic Fleet server
+  ansible.builtin.set_fact:
+    elastic_url: "{{ ludus_elastic_fleet_server }}"
+
+- name: Debug print Elastic agent path
+  ansible.builtin.debug:
+    msg: "Elastic agent path: {{ elastic_agent_path }}"
+
+- name: Debug print Elastic Fleet server URL
+  ansible.builtin.debug:
+    msg: "Elastic Fleet server URL: {{ elastic_url }}"
+
+- name: Install Elastic agent on Windows target
+  ansible.windows.win_shell: |
+    & "{{ elastic_agent_path }}" install --url="{{ elastic_url }}" --enrollment-token="{{ ludus_elastic_enrollment_token }}" --force --insecure
+
+  # Install sysmon if either:
+  # - the user has set ludus_elastic_install_sysmon to true, regardless of the Elastic agent version
+  # - the user has not set ludus_elastic_install_sysmon and the Elastic agent version is 9.0.0 or higher
+  # Never install sysmon if either:
+  # - the user has set ludus_elastic_install_sysmon to false, regardless of the Elastic agent version
+  # - the user has left ludus_elastic_install_sysmon unset and the Elastic agent version is less than 9.0.0
+- name: Install Sysmon if required
+  ansible.builtin.include_tasks: sysmon.yml
+  when:
+    - (ludus_elastic_install_sysmon is none and ludus_elastic_agent_version is version('9.0.0', '>='))
+      or (ludus_elastic_install_sysmon | default(true, true))

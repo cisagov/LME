@@ -530,6 +530,9 @@ Generate state_{experiment_id}:
     #print(f"EXPERIMENT_DIRECTORY: {experiment_dir}")
     #print(f"to deploy:\n\texport STATE=\"{experiment_dir}\"")
     print(f"To Deploy your Experiment:\n\tSTATE=\"{experiment_dir}\" python3 generate.py --deploy")
+    # Print default credentials for the VMs
+    print(f"Default VM credentials: username='{windows_user}', password='{windows_password}'")
+    print(f"Linux VM credentials: username='{linux_user}', password='{linux_password}'") 
 
 
 def main():

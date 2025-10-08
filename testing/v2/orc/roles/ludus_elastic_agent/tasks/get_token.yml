@@ -1,0 +1,24 @@
+- name: Find VM with ludus_elastic_container as a role
+  ansible.builtin.set_fact:
+    ludus_elastic_vm: "{{ ludus | search_roles('ludus_elastic_container') }}"
+
+- name: Fail if no elastic server VM found
+  ansible.builtin.fail:
+    msg: "Could not find any VM that has the *.ludus_elastic_container role in your config"
+  when: ludus_elastic_vm is undefined or ludus_elastic_vm == None or ludus_elastic_vm | length == 0
+
+- name: Get the enrollment-token from the server
+  ansible.builtin.slurp:
+    path: "{{ ludus_elastic_container_install_path }}/enrollment_token.txt"
+  register: token_slurp
+  delegate_to: "{{ ludus_elastic_vm.vm_name }}"
+  ignore_errors: true
+
+- name: Fail if we didn't get a token
+  ansible.builtin.fail:
+    msg: "Unable to get an enrollment token from {{ ludus_elastic_vm.vm_name }}"
+  when: token_slurp.failed
+
+- name: Set the token
+  ansible.builtin.set_fact:
+    ludus_elastic_enrollment_token: "{{ token_slurp['content'] | b64decode }}"

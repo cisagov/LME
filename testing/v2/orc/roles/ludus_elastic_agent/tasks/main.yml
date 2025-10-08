@@ -1,0 +1,34 @@
+---
+- name: Alert if ludus_elastic_enrollment_token is not set
+  ansible.builtin.debug:
+    msg: "ludus_elastic_enrollment_token is not set. Attempting to get one automatically."
+  when: ludus_elastic_enrollment_token == ""
+
+- name: Get an enrollment token automatically
+  ansible.builtin.include_tasks:
+    file: get_token.yml
+  when: ludus_elastic_enrollment_token == ""
+
+- name: Alert is ludus_elastic_fleet_server is not set
+  ansible.builtin.debug:
+    msg: "ludus_elastic_fleet_server is not set. Attempting to set it automatically."
+  when: ludus_elastic_fleet_server == ""
+
+- name: Get an enrollment token automatically
+  ansible.builtin.include_tasks:
+    file: get_fleet_server.yml
+  when: ludus_elastic_fleet_server == ""
+
+- name: Setup Elastic agent on a Windows machine
+  ansible.builtin.include_tasks:
+    file: windows.yml
+  when: ansible_os_family == "Windows"
+
+- name: Setup Elastic agent on a Debian based machine
+  ansible.builtin.include_tasks:
+    file: debian.yml
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Tell the user to check the Kibana Dashboard
+  ansible.builtin.debug:
+    msg: "Check the Kibana Dashboard for the status of the Elastic agent!"

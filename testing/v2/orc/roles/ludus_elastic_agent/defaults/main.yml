@@ -1,0 +1,9 @@
+---
+ludus_install_directory: /opt/ludus
+ludus_elastic_container_install_path: /opt/elastic_container # on the server VM for automatic token extraction
+ludus_elastic_fleet_port: "8220" # what port does the server VM fleet service listen on (for automatic fleet server URL)
+ludus_elastic_enrollment_token: ""
+ludus_elastic_fleet_server: ""
+ludus_elastic_agent_version: "9.0.1"
+ludus_elastic_install_sysmon: true # if not set, defaults to true if the Elastic agent version is 9.0.0 or higher, false otherwise
+ludus_elastic_sysmon_path: "C:\\Program Files (x86)\\Sysmon"

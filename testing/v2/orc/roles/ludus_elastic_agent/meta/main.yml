@@ -1,0 +1,24 @@
+---
+dependencies: []
+
+galaxy_info:
+  role_name: ludus_elastic_agent
+  author: badsectorlabs
+  description: Installs an Elastic Agent on a windows, debian or ubuntu target
+  company: Bad Sector Labs
+  license: GPLv3
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Windows
+      versions:
+        - "all"
+    - name: Debian
+      versions:
+        - "buster"
+        - "bullseye"
+    - name: Ubuntu
+      versions:
+        - "focal"
+        - "bionic"
+  galaxy_tags:
+    - elasticagent
