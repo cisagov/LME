@@ -84,9 +84,8 @@
   loop_control:
     label: "{{ item.item }}"
 
-- name: Display offline mode message for containers
-  debug:
-    msg: "Offline mode enabled - containers already loaded and tagged by install.sh"
+- name: Load and tag containers from offline resources
+  include_tasks: load_offline_containers.yml
   when: offline_mode | default(false)
 
 - name: Tag containers (online mode only)

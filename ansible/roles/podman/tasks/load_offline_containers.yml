@@ -1,0 +1,15 @@
+---
+# Load and tag container images from offline resources by running load_containers.sh
+
+- name: Run load_containers.sh script to load and tag all container images
+  shell: |
+    export PATH=/nix/var/nix/profiles/default/bin:$PATH
+    {{ clone_directory }}/offline_resources/load_containers.sh
+  args:
+    executable: /bin/bash
+  register: load_containers_result
+  become: yes
+
+- name: Display container loading output
+  debug:
+    var: load_containers_result.stdout_lines

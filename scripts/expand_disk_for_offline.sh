@@ -129,25 +129,22 @@ expand_logical_volumes() {
     fi
     
     # Calculate allocation (split free space between /home, /var, and root)
-    # /home needs MOST space for LME repo and offline_resources (40GB)
-    # /var needs space for containers/logs (20GB)
-    # root gets remainder
+    # /home needs ~42GB total for LME repo and offline_resources (currently 1GB, need +41GB)
+    # /var needs ~100GB total for containers/logs (currently 8GB, need +92GB)
+    # root/usr/tmp get remainder
 
-    local home_expand_gb=40
-    local var_expand_gb=20
-    local root_expand_gb=$((vg_free_gb - home_expand_gb - var_expand_gb))
+    # Target: /home gets 20% of free space (~42GB final)
+    #         /var gets 44% of free space (~100GB final)
+    #         remainder goes to root/usr/tmp (36%)
 
-    if [[ $root_expand_gb -lt 0 ]]; then
-        # Not enough space for all three, adjust proportionally
-        home_expand_gb=$((vg_free_gb * 60 / 100))  # 60% to /home
-        var_expand_gb=$((vg_free_gb * 30 / 100))   # 30% to /var
-        root_expand_gb=$((vg_free_gb - home_expand_gb - var_expand_gb))  # remainder to root
-    fi
+    local home_expand_gb=$((vg_free_gb * 20 / 100))  # 20% to /home
+    local var_expand_gb=$((vg_free_gb * 44 / 100))   # 44% to /var
+    local root_expand_gb=$((vg_free_gb - home_expand_gb - var_expand_gb))  # remainder to root
 
     log "Will expand:"
-    log "  - /home: +${home_expand_gb}GB (for LME repo and offline_resources)"
-    log "  - /var: +${var_expand_gb}GB (for containers/logs)"
-    log "  - Root: +${root_expand_gb}GB"
+    log "  - /home: +${home_expand_gb}GB (20% - for LME repo and offline_resources, target ~42GB total)"
+    log "  - /var: +${var_expand_gb}GB (44% - for containers/logs, target ~100GB total)"
+    log "  - Root: +${root_expand_gb}GB (36% - remainder)"
 
     # Find logical volumes
     local root_lv=$(findmnt -n -o SOURCE / 2>/dev/null)
@@ -243,9 +240,9 @@ show_final_status() {
 main() {
     log "LME Disk Expansion for Offline Preparation"
     log "This script expands disk with allocation optimized for offline resources:"
-    log "  - /home gets 60% (for LME repo and offline_resources)"
-    log "  - /var gets 30% (for containers/logs)"
-    log "  - root gets 10% (remainder)"
+    log "  - /home gets 20% (for LME repo and offline_resources, target ~42GB total)"
+    log "  - /var gets 44% (for containers/logs, target ~100GB total)"
+    log "  - root gets 36% (remainder)"
     echo
     
     # Show current status
@@ -254,9 +251,9 @@ main() {
     # Confirm with user
     if [[ "${1:-}" != "--yes" ]]; then
         warning "This will expand the disk with allocation optimized for offline preparation:"
-        warning "  - /home: 60% of free space (for offline_resources)"
-        warning "  - /var: 30% of free space (for containers)"
-        warning "  - root: 10% of free space (remainder)"
+        warning "  - /home: 20% of free space (target ~42GB total for offline_resources)"
+        warning "  - /var: 44% of free space (target ~100GB total for containers)"
+        warning "  - root: 36% of free space (remainder)"
         echo
         read -p "Do you want to continue? [y/N]: " -n 1 -r
         echo
