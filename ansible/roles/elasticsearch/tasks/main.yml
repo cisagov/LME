@@ -109,7 +109,7 @@
   no_log: "{{ not debug_mode }}"
   become: yes
 
-# Set default index template for single-node cluster replica settings
+# Set default index template for single-node cluster replica settings (non-data-stream indices)
 - name: Set default index template for replica settings
   uri:
     url: "{{ local_es_url }}/_index_template/lme_single_node_replica_template"
@@ -130,6 +130,7 @@
   register: template_result
   when: result.status is defined and result.status == 200
   no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
 
 # Set data stream template specifically for data streams
 - name: Set data stream template for replica settings
