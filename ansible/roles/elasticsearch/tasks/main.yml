@@ -79,6 +79,11 @@
     executable: /bin/bash
   ignore_errors: true
 
+- name: Set readonly password as fact for other roles
+  set_fact:
+    readonly_user_password: "{{ read_only_password.stdout }}"
+  when: read_only_password.stdout is defined
+
 - name: Create readonly user using uri module
   uri:
     url: "{{ local_es_url }}/_security/user/readonly_user"
@@ -96,13 +101,74 @@
   register: user_creation_result
   when: result.status is defined and result.status == 200
 
-- name: Display readonly user credentials
-  debug:
-    msg: "Read-only user created. Username: readonly_user, Password: {{ read_only_password.stdout }}"
-  no_log: "{{ not debug_mode }}"
+# Password display moved to cleanup role to show at the end
 
 # Change elastic user password
 - name: Change elastic user password
   shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "Content-Type: application/json" -d "{\"password\":\"{{ elastic_password }}\"}" "https://127.0.0.1:9200/_security/user/elastic/_password"'
   no_log: "{{ not debug_mode }}"
-  become: yes 
+  become: yes
+
+# Set default index template for single-node cluster replica settings
+- name: Set default index template for replica settings
+  uri:
+    url: "{{ local_es_url }}/_index_template/lme_single_node_replica_template"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      index_patterns: ["*"]
+      priority: 10000
+      template:
+        settings:
+          index:
+            number_of_replicas: 0
+    status_code: [200, 201]
+  register: template_result
+  when: result.status is defined and result.status == 200
+  no_log: "{{ not debug_mode }}"
+
+# Set data stream template specifically for data streams
+- name: Set data stream template for replica settings
+  uri:
+    url: "{{ local_es_url }}/_index_template/lme_datastream_replica_template"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      index_patterns: [".ds-*"]
+      priority: 10001
+      template:
+        settings:
+          index:
+            number_of_replicas: 0
+    status_code: [200, 201]
+  register: datastream_template_result
+  when: result.status is defined and result.status == 200
+  no_log: "{{ not debug_mode }}"
+
+
+# Set cluster-wide default for new indices (Elasticsearch 7.0+)
+- name: Set cluster-wide default number of replicas
+  uri:
+    url: "{{ local_es_url }}/_cluster/settings"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      persistent:
+        cluster.routing.allocation.require._tier_preference: "data_content"
+        cluster.routing.allocation.total_shards_per_node: 1000
+    status_code: [200, 201]
+  register: cluster_settings_result
+  when: result.status is defined and result.status == 200
+  no_log: "{{ not debug_mode }}" 

@@ -54,4 +54,6 @@
       tags: ['system', 'all']
     - role: fleet
       tags: ['system', 'all']
+    - role: cleanup
+      tags: ['cleanup', 'all']
     
