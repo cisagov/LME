@@ -120,7 +120,7 @@
     force_basic_auth: yes
     body_format: json
     body:
-      index_patterns: ["*"]
+      index_patterns: ["*", "-.ds-*", "-.internal*", "-.security*"]
       priority: 10000
       template:
         settings:
