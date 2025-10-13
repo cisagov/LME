@@ -449,6 +449,7 @@ download_packages() {
             "container-selinux"
             "dnf-plugins-core"
             "fuse3-libs"
+            "nix"
         )
     fi
 
@@ -461,19 +462,6 @@ download_packages() {
 
     # Return to original directory
     cd "$SCRIPT_DIR"
-
-    # Download Nix installer script for offline installation
-    echo -e "${YELLOW}Downloading Nix installer for offline installation...${NC}"
-    NIX_INSTALLER_URL="https://nixos.org/nix/install"
-
-    if curl -L "$NIX_INSTALLER_URL" -o "$OUTPUT_DIR/nix/install-nix.sh"; then
-        chmod +x "$OUTPUT_DIR/nix/install-nix.sh"
-        echo -e "${GREEN}✓ Nix installer downloaded successfully${NC}"
-    else
-        echo -e "${RED}✗ Failed to download Nix installer${NC}"
-        echo -e "${RED}This is required for offline RedHat installations${NC}"
-        exit 1
-    fi
 
     # Download Nix packages for offline installation
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"

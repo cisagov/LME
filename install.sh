@@ -593,21 +593,6 @@ if [ "$OFFLINE_MODE" = "true" ]; then
             fi
         fi
 
-        # Ensure Nix installer is available for Ansible
-        echo -e "${YELLOW}Preparing Nix installer for offline installation...${NC}"
-        if [ ! -f "$SCRIPT_DIR/offline_resources/nix/install-nix.sh" ]; then
-            echo -e "${YELLOW}Nix installer not found in offline resources, copying from system...${NC}"
-            mkdir -p "$SCRIPT_DIR/offline_resources/nix"
-            if [ -f "/opt/nix-install/install-nix.sh" ]; then
-                cp "/opt/nix-install/install-nix.sh" "$SCRIPT_DIR/offline_resources/nix/"
-                echo -e "${GREEN}✓ Nix installer copied from system${NC}"
-            else
-                echo -e "${YELLOW}⚠ Nix installer not found, Ansible will handle installation${NC}"
-            fi
-        else
-            echo -e "${GREEN}✓ Nix installer found in offline resources${NC}"
-        fi
-
         # Note: Container loading will happen AFTER Ansible installs Nix and podman
         echo -e "${YELLOW}Container images will be loaded after Nix and podman installation${NC}"
 

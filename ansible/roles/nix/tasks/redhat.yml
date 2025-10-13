@@ -86,13 +86,15 @@
     path: /nix/var/nix/profiles/default/bin/nix
   register: nix_installed
 
-- name: Create nix installation directory  
+- name: Create nix installation directory
   file:
     path: /opt/nix-install
     state: directory
     mode: '0755'
   become: yes
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
 
 - name: Create temporary directory for Nix install
   file:
@@ -100,7 +102,9 @@
     state: directory
     mode: '0755'
   become: yes
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
 
 - name: Download Nix installer
   get_url:
@@ -112,28 +116,25 @@
     - not nix_installed.stat.exists
     - not (offline_mode | default(false))
 
-- name: Copy Nix installer from offline resources
-  copy:
-    src: "{{ clone_directory }}/offline_resources/nix/install-nix.sh"
-    dest: /opt/nix-install/install-nix.sh
-    mode: '0755'
-  become: yes
-  when:
-    - not nix_installed.stat.exists
-    - offline_mode | default(false)
-
 - name: Install Nix package manager
   shell: sh /opt/nix-install/install-nix.sh --daemon --yes
   become: yes
   environment:
     TMPDIR: /opt/nix-install/tmp
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
   register: nix_install_result
 
 - name: Debug Nix installation result
   debug:
     var: nix_install_result
   when: debug_mode | default(false) and not nix_installed.stat.exists
+
+- name: Skip Nix installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping Nix installation (should be pre-installed from offline packages)"
+  when: offline_mode | default(false)
 
 
 # First restorecon: Apply contexts to basic Nix structure immediately after install
