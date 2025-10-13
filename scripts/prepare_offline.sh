@@ -449,7 +449,8 @@ download_packages() {
             "container-selinux"
             "dnf-plugins-core"
             "fuse3-libs"
-            "nix"
+            "xz"
+            "bzip2"
         )
     fi
 
@@ -462,6 +463,24 @@ download_packages() {
 
     # Return to original directory
     cd "$SCRIPT_DIR"
+
+    # Download Nix binary tarball for RHEL offline installation
+    if [ "$PACKAGE_MANAGER" = "dnf" ]; then
+        echo -e "${YELLOW}Downloading Nix binary tarball for RHEL offline installation...${NC}"
+        mkdir -p "$OUTPUT_DIR/nix"
+
+        # Download the official Nix binary tarball
+        NIX_VERSION="2.24.10"
+        NIX_TARBALL_URL="https://releases.nixos.org/nix/nix-${NIX_VERSION}/nix-${NIX_VERSION}-x86_64-linux.tar.xz"
+
+        if curl -L "$NIX_TARBALL_URL" -o "$OUTPUT_DIR/nix/nix-${NIX_VERSION}-x86_64-linux.tar.xz"; then
+            echo -e "${GREEN}✓ Nix binary tarball downloaded successfully${NC}"
+        else
+            echo -e "${RED}✗ Failed to download Nix binary tarball${NC}"
+            echo -e "${RED}This is required for offline RHEL installations${NC}"
+            exit 1
+        fi
+    fi
 
     # Download Nix packages for offline installation
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"

@@ -86,6 +86,7 @@
     path: /nix/var/nix/profiles/default/bin/nix
   register: nix_installed
 
+# Online installation using official installer script
 - name: Create nix installation directory
   file:
     path: /opt/nix-install
@@ -116,7 +117,7 @@
     - not nix_installed.stat.exists
     - not (offline_mode | default(false))
 
-- name: Install Nix package manager
+- name: Install Nix package manager (online mode)
   shell: sh /opt/nix-install/install-nix.sh --daemon --yes
   become: yes
   environment:
@@ -131,10 +132,46 @@
     var: nix_install_result
   when: debug_mode | default(false) and not nix_installed.stat.exists
 
-- name: Skip Nix installation in offline mode
+# Offline installation from binary tarball
+- name: Find Nix tarball in offline resources
+  find:
+    paths: "{{ clone_directory }}/offline_resources/nix"
+    patterns: "nix-*-x86_64-linux.tar.xz"
+  register: nix_tarball
+  when:
+    - not nix_installed.stat.exists
+    - offline_mode | default(false)
+
+- name: Extract Nix tarball
+  unarchive:
+    src: "{{ nix_tarball.files[0].path }}"
+    dest: /tmp
+    remote_src: yes
+  become: yes
+  when:
+    - not nix_installed.stat.exists
+    - offline_mode | default(false)
+    - nix_tarball.files | length > 0
+
+- name: Install Nix from tarball (offline mode)
+  shell: |
+    set -e
+    cd /tmp/nix-*-x86_64-linux
+    ./install --daemon --yes
+  become: yes
+  when:
+    - not nix_installed.stat.exists
+    - offline_mode | default(false)
+    - nix_tarball.files | length > 0
+  register: nix_offline_install_result
+
+- name: Debug offline Nix installation result
   debug:
-    msg: "Offline mode enabled - skipping Nix installation (should be pre-installed from offline packages)"
-  when: offline_mode | default(false)
+    var: nix_offline_install_result
+  when:
+    - debug_mode | default(false)
+    - not nix_installed.stat.exists
+    - offline_mode | default(false)
 
 
 # First restorecon: Apply contexts to basic Nix structure immediately after install
