@@ -33,12 +33,13 @@ echo "  • LME configuration files"
 echo "  • Quadlet files"
 echo "  • Systemd generator symlinks"
 echo ""
-echo -e "${YELLOW}The following will NOT be removed:${NC}"
+echo -e "${YELLOW}Additional cleanup (for development):${NC}"
 echo "  • Nix package manager (/nix)"
-echo "  • Podman installation"
-echo "  • System packages (ansible, etc.)"
+echo "  • Podman installation and data"
 echo "  • Sysctl settings"
 echo "  • User limits configuration"
+echo "  • User container configs"
+echo "  • Ansible temporary files"
 echo ""
 read -p "Are you sure you want to continue? (type 'yes' to confirm): " confirm
 
@@ -225,7 +226,7 @@ rm -rf /etc/lme
 echo -e "${GREEN}✓ Configuration removed${NC}"
 
 # Step 12: Clean up podman system
-echo -e "${YELLOW}[12/13] Cleaning up podman system...${NC}"
+echo -e "${YELLOW}[12/20] Cleaning up podman system...${NC}"
 if command -v podman &> /dev/null; then
     echo "  Pruning unused images..."
     timeout 30 podman image prune -a -f 2>/dev/null || true
@@ -239,9 +240,130 @@ else
 fi
 
 # Step 13: Reload systemd
-echo -e "${YELLOW}[13/13] Reloading systemd daemon...${NC}"
+echo -e "${YELLOW}[13/20] Reloading systemd daemon...${NC}"
 systemctl daemon-reload
 echo -e "${GREEN}✓ Systemd reloaded${NC}"
+
+# Step 14: Remove user container configs
+echo -e "${YELLOW}[14/20] Removing user container configurations...${NC}"
+rm -rf ~/.config/containers 2>/dev/null || true
+rm -rf /root/.config/containers 2>/dev/null || true
+# Remove for all users in /home
+for user_home in /home/*; do
+    if [ -d "$user_home" ]; then
+        rm -rf "$user_home/.config/containers" 2>/dev/null || true
+    fi
+done
+echo -e "${GREEN}✓ User container configs removed${NC}"
+
+# Step 15: Remove podman data directories
+echo -e "${YELLOW}[15/20] Removing podman data directories...${NC}"
+rm -rf /var/lib/containers 2>/dev/null || true
+rm -rf ~/.local/share/containers 2>/dev/null || true
+rm -rf /root/.local/share/containers 2>/dev/null || true
+for user_home in /home/*; do
+    if [ -d "$user_home" ]; then
+        rm -rf "$user_home/.local/share/containers" 2>/dev/null || true
+    fi
+done
+echo -e "${GREEN}✓ Podman data directories removed${NC}"
+
+# Step 16: Remove sysctl settings
+echo -e "${YELLOW}[16/20] Removing sysctl settings...${NC}"
+if [ -f /etc/sysctl.conf ]; then
+    # Remove LME-related sysctl settings
+    sed -i '/# LME/d' /etc/sysctl.conf 2>/dev/null || true
+    sed -i '/vm.max_map_count/d' /etc/sysctl.conf 2>/dev/null || true
+    sed -i '/fs.inotify.max_user_watches/d' /etc/sysctl.conf 2>/dev/null || true
+    sed -i '/fs.inotify.max_user_instances/d' /etc/sysctl.conf 2>/dev/null || true
+    sysctl -p 2>/dev/null || true
+fi
+echo -e "${GREEN}✓ Sysctl settings removed${NC}"
+
+# Step 17: Remove user limits
+echo -e "${YELLOW}[17/20] Removing user limits configuration...${NC}"
+if [ -f /etc/security/limits.conf ]; then
+    # Remove LME-related limits
+    sed -i '/# LME/d' /etc/security/limits.conf 2>/dev/null || true
+    sed -i '/nofile/d' /etc/security/limits.conf 2>/dev/null || true
+    sed -i '/nproc/d' /etc/security/limits.conf 2>/dev/null || true
+fi
+echo -e "${GREEN}✓ User limits removed${NC}"
+
+# Step 18: Remove Ansible temporary files
+echo -e "${YELLOW}[18/20] Removing Ansible temporary files...${NC}"
+rm -rf /opt/ansible-tmp 2>/dev/null || true
+rm -rf ~/.ansible 2>/dev/null || true
+rm -rf /root/.ansible 2>/dev/null || true
+echo -e "${GREEN}✓ Ansible temporary files removed${NC}"
+
+# Step 19: Stop and disable nix-daemon
+echo -e "${YELLOW}[19/20] Stopping and disabling nix-daemon...${NC}"
+systemctl stop nix-daemon.socket 2>/dev/null || true
+systemctl stop nix-daemon.service 2>/dev/null || true
+systemctl disable nix-daemon.socket 2>/dev/null || true
+systemctl disable nix-daemon.service 2>/dev/null || true
+echo -e "${GREEN}✓ Nix daemon stopped and disabled${NC}"
+
+# Step 20: Remove Nix completely
+echo -e "${YELLOW}[20/20] Removing Nix package manager...${NC}"
+# Remove Nix daemon service files
+rm -f /etc/systemd/system/nix-daemon.service 2>/dev/null || true
+rm -f /etc/systemd/system/nix-daemon.socket 2>/dev/null || true
+rm -f /usr/lib/systemd/system/nix-daemon.service 2>/dev/null || true
+rm -f /usr/lib/systemd/system/nix-daemon.socket 2>/dev/null || true
+
+# Remove Nix profile scripts
+rm -f /etc/profile.d/nix.sh 2>/dev/null || true
+rm -f /etc/profile.d/nix-daemon.sh 2>/dev/null || true
+rm -f /etc/bashrc.backup-before-nix 2>/dev/null || true
+rm -f /etc/bash.bashrc.backup-before-nix 2>/dev/null || true
+rm -f /etc/zshrc.backup-before-nix 2>/dev/null || true
+
+# Remove Nix directories
+rm -rf /nix 2>/dev/null || true
+rm -rf ~/.nix-profile 2>/dev/null || true
+rm -rf ~/.nix-defexpr 2>/dev/null || true
+rm -rf ~/.nix-channels 2>/dev/null || true
+rm -rf /root/.nix-profile 2>/dev/null || true
+rm -rf /root/.nix-defexpr 2>/dev/null || true
+rm -rf /root/.nix-channels 2>/dev/null || true
+
+# Remove Nix from user profiles
+for user_home in /home/*; do
+    if [ -d "$user_home" ]; then
+        rm -rf "$user_home/.nix-profile" 2>/dev/null || true
+        rm -rf "$user_home/.nix-defexpr" 2>/dev/null || true
+        rm -rf "$user_home/.nix-channels" 2>/dev/null || true
+        # Remove Nix PATH entries from user profiles
+        sed -i '/nix\/var\/nix\/profiles/d' "$user_home/.profile" 2>/dev/null || true
+        sed -i '/nix\/var\/nix\/profiles/d' "$user_home/.bashrc" 2>/dev/null || true
+        sed -i '/nix\/var\/nix\/profiles/d' "$user_home/.bash_profile" 2>/dev/null || true
+    fi
+done
+
+# Remove Nix PATH entries from root profiles
+sed -i '/nix\/var\/nix\/profiles/d' /root/.profile 2>/dev/null || true
+sed -i '/nix\/var\/nix\/profiles/d' /root/.bashrc 2>/dev/null || true
+sed -i '/nix\/var\/nix\/profiles/d' /root/.bash_profile 2>/dev/null || true
+
+# Remove podman symlinks created by Nix
+rm -f /usr/local/bin/podman 2>/dev/null || true
+rm -f /usr/bin/podman 2>/dev/null || true
+
+# Remove nix-users group
+groupdel nix-users 2>/dev/null || true
+
+# Remove build users
+for i in {1..32}; do
+    userdel nixbld$i 2>/dev/null || true
+done
+
+# Remove build group
+groupdel nixbld 2>/dev/null || true
+
+systemctl daemon-reload
+echo -e "${GREEN}✓ Nix completely removed${NC}"
 
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
@@ -250,21 +372,19 @@ echo -e "${GREEN}╔════════════════════
 echo ""
 echo -e "${YELLOW}What was removed:${NC}"
 echo "  ✓ All LME systemd services"
-echo "  ✓ All LME containers"
+echo "  ✓ All LME containers and images"
 echo "  ✓ All LME volumes and data"
 echo "  ✓ All LME secrets"
-echo "  ✓ All LME container images"
 echo "  ✓ LME configuration files"
 echo "  ✓ Quadlet files"
+echo "  ✓ Nix package manager (completely removed)"
+echo "  ✓ Podman data directories"
+echo "  ✓ User container configurations"
+echo "  ✓ Sysctl settings"
+echo "  ✓ User limits configuration"
+echo "  ✓ Ansible temporary files"
 echo ""
-echo -e "${YELLOW}What remains on the system:${NC}"
-echo "  • Nix package manager (/nix)"
-echo "  • Podman installation"
-echo "  • System packages (ansible, etc.)"
-echo "  • Sysctl settings in /etc/sysctl.conf"
-echo "  • User limits in /etc/security/limits.conf"
-echo "  • User container configs in ~/.config/containers"
-echo ""
-echo -e "${GREEN}You can now run install.sh again to perform a fresh installation.${NC}"
+echo -e "${GREEN}System is now in a clean state for fresh installation.${NC}"
+echo -e "${GREEN}You can run install.sh to perform a completely fresh installation.${NC}"
 echo ""
 
