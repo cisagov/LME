@@ -47,23 +47,28 @@
   command: dnf config-manager --set-enabled crb
   become: yes
   changed_when: true
-  when: "'crb' in available_repos.stdout"
+  when:
+    - "'crb' in available_repos.stdout"
+    - not (offline_mode | default(false))
   ignore_errors: true
 
 - name: Enable PowerTools repository (CentOS)
   command: dnf config-manager --set-enabled powertools
   become: yes
   changed_when: true
-  when: "'powertools' in available_repos.stdout"
+  when:
+    - "'powertools' in available_repos.stdout"
+    - not (offline_mode | default(false))
   ignore_errors: true
 
 - name: Enable CodeReady Builder for RHEL (if registered)
   command: subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms
   become: yes
   changed_when: true
-  when: 
+  when:
     - "'codeready-builder' in available_repos.stdout"
     - ansible_distribution == "RedHat"
+    - not (offline_mode | default(false))
   ignore_errors: true
 
 - name: Install Red Hat 9-specific packages

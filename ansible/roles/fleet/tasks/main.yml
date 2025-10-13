@@ -634,15 +634,5 @@
     msg: "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: {{ read_only_password.stdout }}"
   when: read_only_password is defined and read_only_password.stdout is defined
 
-# Configure Kibana for offline/air-gapped mode
-# Note: This must happen BEFORE Kibana starts (during podman role config copy)
-# The configuration is added to the file that gets mounted into the Kibana container
-- name: Configure Kibana for offline mode
-  blockinfile:
-    path: /opt/lme/config/kibana.yml
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - OFFLINE MODE"
-    block: |
-      xpack.fleet.registryUrl: "http://lme-fleet-distribution:8080"
-      xpack.fleet.isAirGapped: true
-  become: yes
-  when: offline_mode | default(false)
+# Note: Kibana offline mode configuration now happens in podman role
+# (before Kibana starts) instead of here
