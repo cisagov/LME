@@ -80,14 +80,14 @@ check_internet() {
 check_podman() {
     echo -e "${YELLOW}Checking for Podman...${NC}"
 
-    # Check if Nix podman exists (preferred version)
+    # Check if Nix podman exists
     if [ -x "/nix/var/nix/profiles/default/bin/podman" ]; then
         echo -e "${GREEN}✓ Nix Podman is available${NC}"
         export PATH=/nix/var/nix/profiles/default/bin:$PATH
         TEMP_PODMAN_INSTALLED=false
         return 0
     # Check if system podman exists
-    elif command -v podman &> /dev/null || [ -x "/usr/local/bin/podman" ]; then
+    elif command -v podman &> /dev/null || [ -x "/usr/local/bin/podman" ] || [ -x "/usr/bin/podman" ]; then
         echo -e "${GREEN}✓ System Podman is available${NC}"
         TEMP_PODMAN_INSTALLED=false
         return 0
@@ -97,11 +97,12 @@ check_podman() {
         TEMP_PODMAN_INSTALLED=true
 
         # Check again after installation
-        if command -v podman &> /dev/null || [ -x "/usr/local/bin/podman" ]; then
+        if command -v podman &> /dev/null || [ -x "/usr/local/bin/podman" ] || [ -x "/usr/bin/podman" ]; then
             echo -e "${GREEN}✓ Podman installed successfully${NC}"
             return 0
         else
             echo -e "${RED}✗ Failed to install Podman${NC}"
+            echo -e "${YELLOW}Please install Podman manually and run this script again${NC}"
             exit 1
         fi
     fi
