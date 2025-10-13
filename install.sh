@@ -784,8 +784,31 @@ run_playbook
 if [ "$OFFLINE_MODE" = "true" ]; then
     echo -e "${YELLOW}Loading container images for offline installation...${NC}"
 
-    # Ensure proper PATH for Nix binaries
-    export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+    # Detect OS for podman path handling
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_ID="$ID"
+    else
+        OS_ID="unknown"
+    fi
+
+    # Set PATH based on OS and installation method
+    if [[ "$OS_ID" =~ ^(rhel|centos|rocky|almalinux|fedora)$ ]]; then
+        # RHEL offline uses system podman
+        echo -e "${GREEN}Using system podman (RHEL offline mode)${NC}"
+        PODMAN_CHECK_CMD="command -v podman"
+        PODMAN_VERSION_CMD="podman --version"
+        PODMAN_WHICH_CMD="which podman"
+        PODMAN_IMAGES_CMD="podman images --format '{{.Repository}}'"
+    else
+        # Ubuntu/Debian offline uses Nix podman
+        export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+        echo -e "${GREEN}Using Nix podman (Ubuntu/Debian offline mode)${NC}"
+        PODMAN_CHECK_CMD="export PATH=/nix/var/nix/profiles/default/bin:\$PATH; command -v podman"
+        PODMAN_VERSION_CMD="export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman --version"
+        PODMAN_WHICH_CMD="export PATH=/nix/var/nix/profiles/default/bin:\$PATH; which podman"
+        PODMAN_IMAGES_CMD="export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman images --format '{{.Repository}}'"
+    fi
 
     # Debug: Show current PATH and environment
     if [ "$DEBUG_MODE" = "true" ]; then
@@ -798,14 +821,14 @@ if [ "$OFFLINE_MODE" = "true" ]; then
 
     # Verify podman is now available
     echo -e "${YELLOW}Verifying podman installation...${NC}"
-    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; command -v podman" >/dev/null 2>&1; then
-        PODMAN_VERSION=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman --version")
-        PODMAN_LOCATION=$(sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; which podman")
+    if sudo bash -c "$PODMAN_CHECK_CMD" >/dev/null 2>&1; then
+        PODMAN_VERSION=$(sudo bash -c "$PODMAN_VERSION_CMD")
+        PODMAN_LOCATION=$(sudo bash -c "$PODMAN_WHICH_CMD")
         echo -e "${GREEN}✓ Podman is available: $PODMAN_VERSION${NC}"
         echo -e "${GREEN}✓ Podman location: $PODMAN_LOCATION${NC}"
 
         # Check if containers are already loaded
-        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman images --format '{{.Repository}}'" | grep -q "localhost\|docker\." > /dev/null 2>&1; then
+        if sudo bash -c "$PODMAN_IMAGES_CMD" | grep -q "localhost\|docker\." > /dev/null 2>&1; then
             echo -e "${GREEN}✓ Container images already loaded, skipping container loading${NC}"
         else
             # Load containers
@@ -827,9 +850,16 @@ if [ "$OFFLINE_MODE" = "true" ]; then
     else
         echo -e "${RED}✗ Podman is not available after Ansible installation${NC}"
         echo -e "${YELLOW}Troubleshooting steps:${NC}"
-        echo -e "${YELLOW}1. Check if Nix is installed: ls -la /nix/var/nix/profiles/default/bin/podman${NC}"
-        echo -e "${YELLOW}2. Try running: sudo -i podman --version${NC}"
-        echo -e "${YELLOW}3. Check Ansible logs for Nix/podman installation errors${NC}"
+        if [[ "$OS_ID" =~ ^(rhel|centos|rocky|almalinux|fedora)$ ]]; then
+            echo -e "${YELLOW}1. Check if podman RPM is installed: rpm -qa | grep podman${NC}"
+            echo -e "${YELLOW}2. Try running: sudo podman --version${NC}"
+            echo -e "${YELLOW}3. Check if podman binary exists: ls -la /usr/bin/podman${NC}"
+            echo -e "${YELLOW}4. Reinstall podman: sudo dnf reinstall podman${NC}"
+        else
+            echo -e "${YELLOW}1. Check if Nix is installed: ls -la /nix/var/nix/profiles/default/bin/podman${NC}"
+            echo -e "${YELLOW}2. Try running: sudo -i podman --version${NC}"
+            echo -e "${YELLOW}3. Check Ansible logs for Nix/podman installation errors${NC}"
+        fi
         echo -e "${YELLOW}4. Verify offline resources: $SCRIPT_DIR/scripts/validate_offline_archive.sh -d $SCRIPT_DIR/offline_resources${NC}"
 
         # Additional debugging information
@@ -839,6 +869,7 @@ if [ "$OFFLINE_MODE" = "true" ]; then
         echo -e "${YELLOW}  Nix profiles directory: $(test -d /nix/var/nix/profiles && echo 'Yes' || echo 'No')${NC}"
         echo -e "${YELLOW}  Default profile: $(test -d /nix/var/nix/profiles/default && echo 'Yes' || echo 'No')${NC}"
         echo -e "${YELLOW}  Offline resources: $(test -d $SCRIPT_DIR/offline_resources && echo 'Yes' || echo 'No')${NC}"
+        echo -e "${YELLOW}  System podman: $(test -x /usr/bin/podman && echo 'Yes' || echo 'No')${NC}"
 
         exit 1
     fi

@@ -31,6 +31,12 @@
   become: yes
   when: not (offline_mode | default(false))
 
+- name: Ensure nix-users group exists
+  group:
+    name: nix-users
+    state: present
+  become: yes
+
 - name: Add user to nix-users group
   user:
     name: "{{ install_user }}"
@@ -38,7 +44,14 @@
     append: yes
   become: yes
 
-- name: Install required packages
+- name: Install required packages (online mode)
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
   become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
   when: not (offline_mode | default(false))
+
+- name: Skip Nix package installation in offline mode (using pre-imported podman)
+  debug:
+    msg: "Offline mode - using podman from imported .nar file"
+  when: offline_mode | default(false)

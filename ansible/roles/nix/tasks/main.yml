@@ -19,29 +19,33 @@
         - "common.yml"
       skip: true
 
-# These tasks are common to all distributions
+# These tasks are common to all distributions (skip for RHEL offline - uses system podman)
 - name: Update PATH for Ansible execution
   set_fact:
     ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in user's profile
   lineinfile:
     path: "~/.profile"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
-- name: Update PATH in root's profile 
+- name: Update PATH in root's profile
   lineinfile:
     path: "/root/.profile"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in user's bashrc
   lineinfile:
     path: "~/.bashrc"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in root's bashrc
   lineinfile:
@@ -49,6 +53,7 @@
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Create podman symlink for sudo access
   file:
@@ -58,6 +63,7 @@
     force: yes
   become: yes
   ignore_errors: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Create podman symlink in /usr/bin for systemd generators
   file:
@@ -66,6 +72,7 @@
     state: link
     force: yes
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Ensure correct podman systemd generator is linked in the nix profile
   file:
@@ -74,6 +81,7 @@
     state: link
     force: yes
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 # Apply contexts to podman symlinks after they're created
 - name: Apply SELinux contexts to podman symlinks (post-symlink)
@@ -84,19 +92,23 @@
   when:
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Source updated PATH
   shell: source ~/.profile
   args:
-    executable: /bin/bash 
+    executable: /bin/bash
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 # ---------------------------------------------------------------------------
 # Final SELinux context restoration (post-install cleanup)
+# Skip entirely for RHEL offline mode (no Nix installed)
 # ---------------------------------------------------------------------------
 - name: Check if nix profile exists
   stat:
     path: "{{ nix_profile_symlink_path }}"
   register: nix_profile_exists
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 # Final restorecon: Ensure all contexts are correct after all operations
 - name: Final SELinux context restoration for nix profile (post-install #3)
@@ -105,6 +117,7 @@
   changed_when: false
   failed_when: false
   when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
     - nix_profile_exists.stat.exists
@@ -115,5 +128,6 @@
   changed_when: false
   failed_when: false
   when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'

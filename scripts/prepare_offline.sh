@@ -338,13 +338,8 @@ download_dnf_packages() {
     fi
 
     for package in "${PACKAGES[@]}"; do
-        echo -e "${YELLOW}  Downloading $package...${NC}"
-        dnf download $REPO_FLAGS "$package" 2>/dev/null || echo -e "${RED}  ✗ Failed to download $package${NC}"
-    done
-
-    echo -e "${YELLOW}Downloading package dependencies...${NC}"
-    for package in "${PACKAGES[@]}"; do
-        dnf download --resolve $REPO_FLAGS "$package" 2>/dev/null || true
+        echo -e "${YELLOW}  Downloading $package and dependencies...${NC}"
+        sudo dnf download --resolve --alldeps $REPO_FLAGS "$package" 2>&1 | grep -v "already downloaded" || echo -e "${RED}  ✗ Failed to download $package${NC}"
     done
 
     cd "$SCRIPT_DIR"
@@ -451,6 +446,7 @@ download_packages() {
             "fuse3-libs"
             "xz"
             "bzip2"
+            "podman"
         )
     fi
 
@@ -464,25 +460,7 @@ download_packages() {
     # Return to original directory
     cd "$SCRIPT_DIR"
 
-    # Download Nix binary tarball for RHEL offline installation
-    if [ "$PACKAGE_MANAGER" = "dnf" ]; then
-        echo -e "${YELLOW}Downloading Nix binary tarball for RHEL offline installation...${NC}"
-        mkdir -p "$OUTPUT_DIR/nix"
-
-        # Download the official Nix binary tarball
-        NIX_VERSION="2.24.10"
-        NIX_TARBALL_URL="https://releases.nixos.org/nix/nix-${NIX_VERSION}/nix-${NIX_VERSION}-x86_64-linux.tar.xz"
-
-        if curl -L "$NIX_TARBALL_URL" -o "$OUTPUT_DIR/nix/nix-${NIX_VERSION}-x86_64-linux.tar.xz"; then
-            echo -e "${GREEN}✓ Nix binary tarball downloaded successfully${NC}"
-        else
-            echo -e "${RED}✗ Failed to download Nix binary tarball${NC}"
-            echo -e "${RED}This is required for offline RHEL installations${NC}"
-            exit 1
-        fi
-    fi
-
-    # Download Nix packages for offline installation
+    # Download Nix packages for offline installation (Ubuntu only - RHEL uses system podman)
     echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
 
     # Check if Nix is available on the prepare system and install if needed

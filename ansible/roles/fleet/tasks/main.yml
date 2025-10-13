@@ -170,7 +170,7 @@
     msg: "Fleet setup response: {{ fleet_setup }}"
   when: debug_mode | bool
 
-- name: Get CA fingerprint
+- name: Get CA fingerprint (Nix podman)
   ansible.builtin.shell: |
     set -a
     . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
@@ -182,6 +182,21 @@
   changed_when: false
   become: yes
   no_log: "{{ not debug_mode }}"
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Get CA fingerprint (System podman - RHEL offline)
+  ansible.builtin.shell: |
+    set -a
+    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+    set +a
+    podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
+  args:
+    executable: /bin/bash
+  register: ca_fingerprint
+  changed_when: false
+  become: yes
+  no_log: "{{ not debug_mode }}"
+  when: offline_mode | default(false) and ansible_os_family == "RedHat"
 
 - name: Debug CA fingerprint
   debug:
