@@ -417,37 +417,26 @@ download_packages() {
         )
     else
         # RHEL/CentOS/AlmaLinux/Rocky packages
+        # NOTE: Only include packages NOT already in RHEL 9 base installation
+        # Removed packages that are pre-installed: curl, wget, sudo, openssh-clients,
+        # ca-certificates, shadow-utils, glibc-langpack-en, xz, bzip2, policycoreutils,
+        # selinux-policy, selinux-policy-targeted, libselinux-utils
+        # Also removed development tools (gcc, gcc-c++, make) - only add if compiling from source
         PACKAGES=(
-            "curl"
-            "wget"
-            "gnupg2"
-            "sudo"
-            "git"
-            "openssh-clients"
-            "expect"
-            "ca-certificates"
-            "gnupg"
-            "fuse-overlayfs"
-            "gcc"
-            "gcc-c++"
-            "make"
-            "python3-pip"
-            "python3-pexpect"
-            "glibc-langpack-en"
-            "shadow-utils"
-            "ansible"
-            "policycoreutils"
-            "policycoreutils-python-utils"
-            "checkpolicy"
-            "selinux-policy"
-            "selinux-policy-targeted"
-            "libselinux-utils"
-            "container-selinux"
-            "dnf-plugins-core"
-            "fuse3-libs"
-            "xz"
-            "bzip2"
-            "podman"
+            "git"                              # Version control - not in minimal
+            "expect"                           # Automation tool - not in minimal
+            "gnupg2"                          # GPG tools - may not be in minimal
+            "gnupg"                           # GPG tools - may not be in minimal
+            "fuse-overlayfs"                  # Container filesystem - not in minimal
+            "python3-pip"                     # Python package manager - not in minimal
+            "python3-pexpect"                 # Python automation - not in minimal
+            "ansible"                         # Configuration management - not in minimal
+            "policycoreutils-python-utils"   # SELinux Python tools - not in minimal
+            "checkpolicy"                     # SELinux policy compiler - not in minimal
+            "container-selinux"               # Container SELinux policies - not in minimal
+            "dnf-plugins-core"                # DNF plugins - may not be in minimal
+            "fuse3-libs"                      # FUSE libraries - not in minimal
+            "podman"                          # Container runtime - not in minimal
         )
     fi
 
