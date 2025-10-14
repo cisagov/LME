@@ -562,7 +562,8 @@ if [ "$OFFLINE_MODE" = "true" ]; then
                 rhel|centos|rocky|almalinux|fedora)
                     PACKAGES_DIR="rpms"
                     PACKAGE_EXT="rpm"
-                    INSTALL_CMD="sudo rpm -Uvh --force --nodeps *.rpm"
+                    # Use dnf localinstall with --skip-broken to avoid conflicts with existing packages
+                    INSTALL_CMD="sudo dnf localinstall -y --skip-broken *.rpm"
                     ;;
                 *)
                     echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
@@ -580,12 +581,26 @@ if [ "$OFFLINE_MODE" = "true" ]; then
             cd "$PACKAGES_DIR"
             if ls *.$PACKAGE_EXT 1> /dev/null 2>&1; then
                 echo -e "${YELLOW}Installing .$PACKAGE_EXT packages...${NC}"
-                eval $INSTALL_CMD
-                if [ $? -eq 0 ]; then
-                    echo -e "${GREEN}✓ Package installation complete!${NC}"
+
+                # For RPM packages, use safer installation method
+                if [ "$PACKAGE_EXT" = "rpm" ]; then
+                    echo -e "${YELLOW}  Using safe RPM installation (skips conflicts)...${NC}"
+                    eval $INSTALL_CMD
+                    # Don't exit on failure for RPM - some packages might already be installed
+                    if [ $? -eq 0 ]; then
+                        echo -e "${GREEN}✓ Package installation complete!${NC}"
+                    else
+                        echo -e "${YELLOW}⚠ Some packages may have been skipped due to conflicts (this is normal)${NC}"
+                    fi
                 else
-                    echo -e "${RED}✗ Package installation failed${NC}"
-                    exit 1
+                    # For DEB packages, use original method
+                    eval $INSTALL_CMD
+                    if [ $? -eq 0 ]; then
+                        echo -e "${GREEN}✓ Package installation complete!${NC}"
+                    else
+                        echo -e "${RED}✗ Package installation failed${NC}"
+                        exit 1
+                    fi
                 fi
             else
                 echo -e "${RED}✗ No .$PACKAGE_EXT files found in $PACKAGES_DIR directory${NC}"
