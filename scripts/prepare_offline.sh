@@ -451,147 +451,159 @@ download_packages() {
     cd "$SCRIPT_DIR"
 
     # Download Nix packages for offline installation (Ubuntu only - RHEL uses system podman)
-    echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        echo -e "${YELLOW}Preparing Nix packages for offline installation...${NC}"
 
-    # Check if Nix is available on the prepare system and install if needed
-    if ! command -v nix-build >/dev/null 2>&1; then
-        echo -e "${YELLOW}Nix not found, installing automatically for package preparation...${NC}"
-        install_nix_for_preparation
-
-        # Source Nix profile to make commands available
-        if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
-            source "$HOME/.nix-profile/etc/profile.d/nix.sh"
-        fi
-
-        # Also try sourcing from /etc/profile.d/nix.sh (multi-user install)
-        if [ -f "/etc/profile.d/nix.sh" ]; then
-            source "/etc/profile.d/nix.sh"
-        fi
-
-        # Start Nix daemon if it's not running (for multi-user installs)
-        if [ -f "/etc/systemd/system/nix-daemon.service" ] && command -v systemctl >/dev/null 2>&1; then
-            echo -e "${YELLOW}Starting Nix daemon...${NC}"
-            sudo systemctl start nix-daemon || true
-        fi
-
-        # Check again after installation
+        # Check if Nix is available on the prepare system and install if needed
         if ! command -v nix-build >/dev/null 2>&1; then
-            echo -e "${RED}✗ Failed to install Nix${NC}"
-            exit 1
-        fi
+            echo -e "${YELLOW}Nix not found, installing automatically for package preparation...${NC}"
+            install_nix_for_preparation
 
-        echo -e "${GREEN}✓ Nix installed successfully${NC}"
-        TEMP_NIX_INSTALLED=true
+            # Source Nix profile to make commands available
+            if [ -f "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+                source "$HOME/.nix-profile/etc/profile.d/nix.sh"
+            fi
+
+            # Also try sourcing from /etc/profile.d/nix.sh (multi-user install)
+            if [ -f "/etc/profile.d/nix.sh" ]; then
+                source "/etc/profile.d/nix.sh"
+            fi
+
+            # Start Nix daemon if it's not running (for multi-user installs)
+            if [ -f "/etc/systemd/system/nix-daemon.service" ] && command -v systemctl >/dev/null 2>&1; then
+                echo -e "${YELLOW}Starting Nix daemon...${NC}"
+                sudo systemctl start nix-daemon || true
+            fi
+
+            # Check again after installation
+            if ! command -v nix-build >/dev/null 2>&1; then
+                echo -e "${RED}✗ Failed to install Nix${NC}"
+                exit 1
+            fi
+
+            echo -e "${GREEN}✓ Nix installed successfully${NC}"
+            TEMP_NIX_INSTALLED=true
+        else
+            echo -e "${GREEN}✓ Nix is already available${NC}"
+            TEMP_NIX_INSTALLED=false
+        fi
     else
-        echo -e "${GREEN}✓ Nix is already available${NC}"
+        echo -e "${GREEN}✓ RHEL system detected - using system podman, skipping Nix installation${NC}"
         TEMP_NIX_INSTALLED=false
     fi
 
-    # Set up Nix channels if not already configured
-    echo -e "${YELLOW}Checking Nix channels configuration...${NC}"
-    if ! nix-channel --list | grep -q "nixpkgs"; then
-        echo -e "${YELLOW}Adding nixpkgs channel...${NC}"
-        nix-channel --add https://nixos.org/channels/nixos-unstable nixpkgs
-        nix-channel --update
-        echo -e "${GREEN}✓ Nixpkgs channel added and updated${NC}"
-    else
-        echo -e "${GREEN}✓ Nixpkgs channel already configured${NC}"
-        # Update channels to ensure we have latest packages
-        echo -e "${YELLOW}Updating Nix channels...${NC}"
-        nix-channel --update
+    # Set up Nix channels if not already configured (Ubuntu only)
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        echo -e "${YELLOW}Checking Nix channels configuration...${NC}"
+        if ! nix-channel --list | grep -q "nixpkgs"; then
+            echo -e "${YELLOW}Adding nixpkgs channel...${NC}"
+            nix-channel --add https://nixos.org/channels/nixos-unstable nixpkgs
+            nix-channel --update
+            echo -e "${GREEN}✓ Nixpkgs channel added and updated${NC}"
+        else
+            echo -e "${GREEN}✓ Nixpkgs channel already configured${NC}"
+            # Update channels to ensure we have latest packages
+            echo -e "${YELLOW}Updating Nix channels...${NC}"
+            nix-channel --update
+        fi
     fi
 
-    echo -e "${YELLOW}Building podman package with Nix (this may take several minutes)...${NC}"
+    # Build and export podman with Nix (Ubuntu only - RHEL uses system podman)
+    if [ "$PACKAGE_MANAGER" = "apt" ]; then
+        echo -e "${YELLOW}Building podman package with Nix (this may take several minutes)...${NC}"
 
-    # Build podman without installing it locally
-    echo -e "${YELLOW}Running nix-build '<nixpkgs>' -A podman --no-out-link${NC}"
+        # Build podman without installing it locally
+        echo -e "${YELLOW}Running nix-build '<nixpkgs>' -A podman --no-out-link${NC}"
 
-    # Capture both stdout and stderr separately
-    BUILD_OUTPUT=$(mktemp)
-    BUILD_ERROR=$(mktemp)
+        # Capture both stdout and stderr separately
+        BUILD_OUTPUT=$(mktemp)
+        BUILD_ERROR=$(mktemp)
 
-    if nix-build '<nixpkgs>' -A podman --no-out-link > "$BUILD_OUTPUT" 2> "$BUILD_ERROR"; then
-        PODMAN_STORE_PATH=$(cat "$BUILD_OUTPUT")
-        echo -e "${GREEN}✓ Successfully built podman${NC}"
-    else
-        echo -e "${RED}✗ Failed to build podman with nix-build${NC}"
-        echo -e "${RED}Build output:${NC}"
-        cat "$BUILD_OUTPUT"
-        echo -e "${RED}Error output:${NC}"
-        cat "$BUILD_ERROR"
+        if nix-build '<nixpkgs>' -A podman --no-out-link > "$BUILD_OUTPUT" 2> "$BUILD_ERROR"; then
+            PODMAN_STORE_PATH=$(cat "$BUILD_OUTPUT")
+            echo -e "${GREEN}✓ Successfully built podman${NC}"
+        else
+            echo -e "${RED}✗ Failed to build podman with nix-build${NC}"
+            echo -e "${RED}Build output:${NC}"
+            cat "$BUILD_OUTPUT"
+            echo -e "${RED}Error output:${NC}"
+            cat "$BUILD_ERROR"
+
+            # Clean up temp files
+            rm -f "$BUILD_OUTPUT" "$BUILD_ERROR"
+
+            echo -e "${YELLOW}This could be due to:${NC}"
+            echo -e "${YELLOW}  - Nix daemon not running properly${NC}"
+            echo -e "${YELLOW}  - Permission issues with Nix store${NC}"
+            echo -e "${YELLOW}  - Network issues downloading packages${NC}"
+            echo -e "${YELLOW}Try running: sudo systemctl start nix-daemon${NC}"
+            exit 1
+        fi
 
         # Clean up temp files
         rm -f "$BUILD_OUTPUT" "$BUILD_ERROR"
 
-        echo -e "${YELLOW}This could be due to:${NC}"
-        echo -e "${YELLOW}  - Nix daemon not running properly${NC}"
-        echo -e "${YELLOW}  - Permission issues with Nix store${NC}"
-        echo -e "${YELLOW}  - Network issues downloading packages${NC}"
-        echo -e "${YELLOW}Try running: sudo systemctl start nix-daemon${NC}"
-        exit 1
-    fi
-
-    # Clean up temp files
-    rm -f "$BUILD_OUTPUT" "$BUILD_ERROR"
-
-    # Verify the store path exists
-    if [ -z "$PODMAN_STORE_PATH" ] || [ ! -d "$PODMAN_STORE_PATH" ]; then
-        echo -e "${RED}✗ Invalid podman store path: $PODMAN_STORE_PATH${NC}"
-        exit 1
-    fi
-
-    echo -e "${GREEN}✓ Successfully built podman at: $PODMAN_STORE_PATH${NC}"
-
-    # Get all runtime dependencies
-    echo -e "${YELLOW}Calculating runtime dependencies...${NC}"
-    PODMAN_PATHS=$(nix-store -qR "$PODMAN_STORE_PATH" 2>&1)
-    DEPS_EXIT_CODE=$?
-
-    if [ $DEPS_EXIT_CODE -ne 0 ] || [ -z "$PODMAN_PATHS" ]; then
-        echo -e "${RED}✗ Failed to get podman dependencies${NC}"
-        echo -e "${RED}Error: $PODMAN_PATHS${NC}"
-        exit 1
-    fi
-
-    DEPS_COUNT=$(echo "$PODMAN_PATHS" | wc -l)
-    echo -e "${GREEN}✓ Found $DEPS_COUNT dependencies${NC}"
-
-    # Export podman and all its dependencies
-    echo -e "${YELLOW}Exporting podman closure (this may take a few minutes)...${NC}"
-
-    # Determine if we need sudo for nix-store export
-    # Multi-user Nix installations require root access to export
-    NIX_EXPORT_CMD="nix-store --export $PODMAN_PATHS"
-    if [ -d "/nix/var/nix/db" ] && [ "$(stat -c %U /nix/var/nix/db 2>/dev/null)" = "root" ]; then
-        # Multi-user installation - need sudo
-        echo -e "${YELLOW}Detected multi-user Nix installation, using sudo for export...${NC}"
-        NIX_EXPORT_CMD="sudo nix-store --export $PODMAN_PATHS"
-    fi
-
-    if $NIX_EXPORT_CMD > "$OUTPUT_DIR/packages/nix/podman-closure.nar" 2>/dev/null; then
-        echo -e "${GREEN}✓ Successfully exported podman closure${NC}"
-
-        # Fix ownership if we used sudo
-        if [[ "$NIX_EXPORT_CMD" == sudo* ]]; then
-            sudo chown $USER:$USER "$OUTPUT_DIR/packages/nix/podman-closure.nar"
+        # Verify the store path exists
+        if [ -z "$PODMAN_STORE_PATH" ] || [ ! -d "$PODMAN_STORE_PATH" ]; then
+            echo -e "${RED}✗ Invalid podman store path: $PODMAN_STORE_PATH${NC}"
+            exit 1
         fi
 
-        # Save the store path for reference
-        echo "$PODMAN_STORE_PATH" > "$OUTPUT_DIR/packages/nix/podman-store-path.txt"
-        echo -e "${GREEN}✓ Store path saved to podman-store-path.txt${NC}"
+        echo -e "${GREEN}✓ Successfully built podman at: $PODMAN_STORE_PATH${NC}"
 
-        # Get size of the export
-        NAR_SIZE=$(du -h "$OUTPUT_DIR/packages/nix/podman-closure.nar" | cut -f1)
-        echo -e "${GREEN}✓ Exported closure size: $NAR_SIZE${NC}"
+        # Get all runtime dependencies
+        echo -e "${YELLOW}Calculating runtime dependencies...${NC}"
+        PODMAN_PATHS=$(nix-store -qR "$PODMAN_STORE_PATH" 2>&1)
+        DEPS_EXIT_CODE=$?
 
-        # Verify the file was created and has content
-        if [ ! -s "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
-            echo -e "${RED}✗ Exported file is empty or missing${NC}"
+        if [ $DEPS_EXIT_CODE -ne 0 ] || [ -z "$PODMAN_PATHS" ]; then
+            echo -e "${RED}✗ Failed to get podman dependencies${NC}"
+            echo -e "${RED}Error: $PODMAN_PATHS${NC}"
+            exit 1
+        fi
+
+        DEPS_COUNT=$(echo "$PODMAN_PATHS" | wc -l)
+        echo -e "${GREEN}✓ Found $DEPS_COUNT dependencies${NC}"
+
+        # Export podman and all its dependencies
+        echo -e "${YELLOW}Exporting podman closure (this may take a few minutes)...${NC}"
+
+        # Determine if we need sudo for nix-store export
+        # Multi-user Nix installations require root access to export
+        NIX_EXPORT_CMD="nix-store --export $PODMAN_PATHS"
+        if [ -d "/nix/var/nix/db" ] && [ "$(stat -c %U /nix/var/nix/db 2>/dev/null)" = "root" ]; then
+            # Multi-user installation - need sudo
+            echo -e "${YELLOW}Detected multi-user Nix installation, using sudo for export...${NC}"
+            NIX_EXPORT_CMD="sudo nix-store --export $PODMAN_PATHS"
+        fi
+
+        if $NIX_EXPORT_CMD > "$OUTPUT_DIR/packages/nix/podman-closure.nar" 2>/dev/null; then
+            echo -e "${GREEN}✓ Successfully exported podman closure${NC}"
+
+            # Fix ownership if we used sudo
+            if [[ "$NIX_EXPORT_CMD" == sudo* ]]; then
+                sudo chown $USER:$USER "$OUTPUT_DIR/packages/nix/podman-closure.nar"
+            fi
+
+            # Save the store path for reference
+            echo "$PODMAN_STORE_PATH" > "$OUTPUT_DIR/packages/nix/podman-store-path.txt"
+            echo -e "${GREEN}✓ Store path saved to podman-store-path.txt${NC}"
+
+            # Get size of the export
+            NAR_SIZE=$(du -h "$OUTPUT_DIR/packages/nix/podman-closure.nar" | cut -f1)
+            echo -e "${GREEN}✓ Exported closure size: $NAR_SIZE${NC}"
+
+            # Verify the file was created and has content
+            if [ ! -s "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
+                echo -e "${RED}✗ Exported file is empty or missing${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}✗ Failed to export podman closure${NC}"
             exit 1
         fi
     else
-        echo -e "${RED}✗ Failed to export podman closure${NC}"
-        exit 1
+        echo -e "${GREEN}✓ RHEL system detected - skipping Nix podman build (will use system podman)${NC}"
     fi
 
     # Generate universal offline installation script that detects OS at runtime
@@ -689,15 +701,20 @@ EOF
 
     chmod +x "$OUTPUT_DIR/packages/install_packages_offline.sh"
 
-# Nix packages successfully prepared for offline installation
-if [ -f "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
-    echo -e "${GREEN}✓ Nix packages prepared successfully${NC}"
-    echo -e "${GREEN}✓ Podman closure exported: $OUTPUT_DIR/packages/nix/podman-closure.nar${NC}"
-
+# Check Nix packages preparation results
+if [ "$PACKAGE_MANAGER" = "apt" ]; then
+    # Ubuntu systems should have Nix packages
+    if [ -f "$OUTPUT_DIR/packages/nix/podman-closure.nar" ]; then
+        echo -e "${GREEN}✓ Nix packages prepared successfully${NC}"
+        echo -e "${GREEN}✓ Podman closure exported: $OUTPUT_DIR/packages/nix/podman-closure.nar${NC}"
+    else
+        echo -e "${RED}✗ No Nix packages found - podman-closure.nar is missing${NC}"
+        echo -e "${RED}The prepare script failed to create the Nix packages${NC}"
+        exit 1
+    fi
 else
-    echo -e "${RED}✗ No Nix packages found - podman-closure.nar is missing${NC}"
-    echo -e "${RED}The prepare script failed to create the Nix packages${NC}"
-    exit 1
+    # RHEL systems don't need Nix packages
+    echo -e "${GREEN}✓ RHEL system - Nix packages not required (using system podman)${NC}"
 fi
 
 # Verify podman installation for both regular user and root
