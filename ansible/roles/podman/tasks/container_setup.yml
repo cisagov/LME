@@ -91,53 +91,27 @@
 - name: Tag containers (online mode only)
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    SOURCE_IMAGE="{{ item }}"
-    TARGET_TAG="localhost/{{ item.split('/')[-1].split(':')[0] }}:LME_LATEST"
-
-    echo "=== Tagging Image ==="
-    echo "Source: $SOURCE_IMAGE"
-    echo "Target: $TARGET_TAG"
-
-    # Check if source image exists
-    if ! podman image exists "$SOURCE_IMAGE"; then
-      echo "ERROR: Source image does not exist: $SOURCE_IMAGE"
-      exit 1
-    fi
-
-    # Get source image ID
-    SOURCE_ID=$(podman images --format "{{.ID}}" "$SOURCE_IMAGE" | head -1)
-    echo "Source Image ID: $SOURCE_ID"
-
-    # Tag the image
-    podman image tag "$SOURCE_IMAGE" "$TARGET_TAG"
-
-    # Verify the tag was created
-    if ! podman image exists "$TARGET_TAG"; then
-      echo "ERROR: Failed to create tag: $TARGET_TAG"
-      exit 1
-    fi
-
-    # Get target image ID
-    TARGET_ID=$(podman images --format "{{.ID}}" "$TARGET_TAG" | head -1)
-    echo "Target Image ID: $TARGET_ID"
-
-    # Verify IDs match
-    if [ "$SOURCE_ID" != "$TARGET_ID" ]; then
-      echo "ERROR: Image ID mismatch! Source=$SOURCE_ID Target=$TARGET_ID"
-      exit 1
-    fi
-
-    echo "✓ Successfully tagged and verified"
+    podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
   args:
     executable: /bin/bash
-  loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() | select('match', '^[^#].*') | reject('match', '^\\s*$') | list }}"
+  loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
   register: tag_result
   become: yes
-  retries: 1
-  delay: 2
+  retries: 3
+  delay: 5
   until: tag_result is not failed
-  ignore_errors: no
+  ignore_errors: yes
   when: not (offline_mode | default(false))
+
+- name: Display container tag errors (online mode only)
+  debug:
+    msg: "Failed to tag container: {{ item.item }}"
+  loop: "{{ tag_result.results }}"
+  when:
+    - not (offline_mode | default(false))
+    - item is failed
+  loop_control:
+    label: "{{ item.item }}"
 
 - name: Display container tag errors
   debug:
