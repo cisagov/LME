@@ -109,6 +109,52 @@
   no_log: "{{ not debug_mode }}"
   become: yes
 
+# Set default index template for single-node cluster replica settings (non-data-stream indices)
+- name: Set default index template for replica settings
+  uri:
+    url: "{{ local_es_url }}/_index_template/lme_single_node_replica_template"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      index_patterns: ["*"]
+      priority: 100
+      template:
+        settings:
+          index:
+            number_of_replicas: 0
+    status_code: [200, 201]
+  register: template_result
+  when: result.status is defined and result.status == 200
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+# Set data stream template specifically for data streams
+- name: Set data stream template for replica settings
+  uri:
+    url: "{{ local_es_url }}/_index_template/lme_datastream_replica_template"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      index_patterns: ["metrics-*", "logs-*"]
+      data_stream: {}
+      priority: 10001
+      template:
+        settings:
+          index:
+            number_of_replicas: 0
+    status_code: [200, 201]
+  register: datastream_template_result
+  when: result.status is defined and result.status == 200
+  no_log: "{{ not debug_mode }}"
+
 
 # Set cluster-wide default for new indices (Elasticsearch 7.0+)
 - name: Set cluster-wide default number of replicas
