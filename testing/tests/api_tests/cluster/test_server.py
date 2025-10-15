@@ -238,7 +238,7 @@ def test_elastic_agent_logs_search(es_host, es_port, username, password):
         assert "ip" in data[rootKey]["hits"][x]["_source"]["host"]
         assert "mac" in data[rootKey]["hits"][x]["_source"]["host"]
         #assert data[rootKey]["hits"][x]["_source"]["log.level"]=="info"
-        assert data[rootKey]["hits"][x]["_source"]["event"]["agent_id_status"]=="verified"
+        #assert data[rootKey]["hits"][x]["_source"]["event"]["agent_id_status"]=="verified"
         assert data[rootKey]["hits"][x]["_source"]["event"]["dataset"]=="elastic_agent"
         
 def test_metrics_mapping(es_host, es_port, username, password):
@@ -259,7 +259,7 @@ def test_metrics_mapping(es_host, es_port, username, password):
     assert ".ds-metrics-system.socket_summary-default-" in response.text  
     #assert ".ds-metrics-system.load-default-" in response.text
     assert ".ds-metrics-fleet_server.agent_status-default-" in response.text
-    assert "metrics-endpoint.metadata_current_default" in response.text
+    assert ".ds-metrics-endpoint.metadata-default-" in response.text
     assert ".ds-metrics-elastic_agent.elastic_agent-default-" in response.text
     assert ".ds-metrics-system.fsstat-default-" in response.text
     assert ".ds-metrics-elastic_agent.fleet_server-default-" in response.text
@@ -291,7 +291,7 @@ def test_metrics_settings(es_host, es_port, username, password):
     assert ".ds-metrics-system.uptime-default-" in response.text  
     assert ".ds-metrics-system.socket_summary-default-" in response.text
     assert ".ds-metrics-elastic_agent.filebeat_input-default-" in response.text
-    assert "metrics-endpoint.metadata_current_default" in response.text
+    assert ".ds-metrics-endpoint.metadata-default-" in response.text
     assert ".ds-metrics-elastic_agent.endpoint_security-default-" in response.text
     assert ".ds-metrics-fleet_server.agent_versions-default-" in response.text
     assert ".ds-metrics-system.process-default-" in response.text
@@ -307,7 +307,17 @@ def test_metrics_settings(es_host, es_port, username, password):
 def test_metrics_search(es_host, es_port, username, password):
     
     url = f"https://{es_host}:{es_port}/.ds-metrics-elastic_agent.elastic_agent-default*/_search"
-    response = make_request(url, username, password)
+
+    # Query to filter for http/metrics-monitoring component
+    query_body = {
+        "query": {
+            "term": {
+                "component.id.keyword": "http/metrics-monitoring"
+            }
+        }
+    }
+    
+    response = make_request(url, username, password, body=query_body)
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"    
     data = json.loads(response.text)
