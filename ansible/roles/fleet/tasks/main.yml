@@ -178,7 +178,7 @@
     /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
   args:
     executable: /bin/bash
-  register: ca_fingerprint
+  register: ca_fingerprint_nix
   changed_when: false
   become: yes
   no_log: "{{ not debug_mode }}"
@@ -192,15 +192,19 @@
     podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
   args:
     executable: /bin/bash
-  register: ca_fingerprint
+  register: ca_fingerprint_system
   changed_when: false
   become: yes
   no_log: "{{ not debug_mode }}"
   when: offline_mode | default(false) and ansible_os_family == "RedHat"
 
+- name: Set CA fingerprint fact
+  set_fact:
+    ca_fingerprint: "{{ ca_fingerprint_nix.stdout if ca_fingerprint_nix is not skipped else ca_fingerprint_system.stdout }}"
+
 - name: Debug CA fingerprint
   debug:
-    var: ca_fingerprint.stdout
+    var: ca_fingerprint
   when: debug_mode | bool
 
 - name: Set Fleet server hosts
@@ -271,7 +275,7 @@
       Content-Type: "application/json"
     body_format: json
     body:
-      ca_trusted_fingerprint: "{{ ca_fingerprint.stdout }}"
+      ca_trusted_fingerprint: "{{ ca_fingerprint }}"
   register: fleet_output_fingerprint_result
   until: fleet_output_fingerprint_result.status == 200
   retries: 12
