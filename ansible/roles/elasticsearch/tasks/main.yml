@@ -121,7 +121,7 @@
     body_format: json
     body:
       index_patterns: ["*"]
-      priority: 100
+      priority: 1
       template:
         settings:
           index:
@@ -145,7 +145,7 @@
     body:
       index_patterns: ["metrics-*", "logs-*"]
       data_stream: {}
-      priority: 10001
+      priority: 1
       template:
         settings:
           index:
