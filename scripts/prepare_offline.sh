@@ -76,72 +76,71 @@ check_internet() {
     fi
 }
 
-# Check if podman is available and install if needed
-check_podman() {
-    echo -e "${YELLOW}Checking for Podman...${NC}"
-
-    # Check if Nix podman exists
-    if [ -x "/nix/var/nix/profiles/default/bin/podman" ]; then
-        echo -e "${GREEN}✓ Nix Podman is available${NC}"
-        export PATH=/nix/var/nix/profiles/default/bin:$PATH
-        TEMP_PODMAN_INSTALLED=false
-        return 0
-    # Check if system podman exists
-    elif command -v podman &> /dev/null || [ -x "/usr/local/bin/podman" ] || [ -x "/usr/bin/podman" ]; then
-        echo -e "${GREEN}✓ System Podman is available${NC}"
-        TEMP_PODMAN_INSTALLED=false
-        return 0
-    else
-        echo -e "${YELLOW}Podman not found, installing temporarily...${NC}"
-        install_podman
-        TEMP_PODMAN_INSTALLED=true
-
-        # Check again after installation
-        if command -v podman &> /dev/null || [ -x "/usr/local/bin/podman" ] || [ -x "/usr/bin/podman" ]; then
-            echo -e "${GREEN}✓ Podman installed successfully${NC}"
-            return 0
-        else
-            echo -e "${RED}✗ Failed to install Podman${NC}"
-            echo -e "${YELLOW}Please install Podman manually and run this script again${NC}"
-            exit 1
-        fi
-    fi
-}
-
-# Install podman automatically
+# Force install podman - REQUIRED for this script
 install_podman() {
-    echo -e "${YELLOW}Installing Podman...${NC}"
+    echo -e "${YELLOW}Installing Podman (REQUIRED)...${NC}"
 
     # Detect OS and install accordingly
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS
         if command -v brew &> /dev/null; then
             echo -e "${YELLOW}Installing Podman via Homebrew...${NC}"
-            brew install podman
+            brew install podman || brew reinstall podman
         else
-            echo -e "${RED}Homebrew not found. Please install Homebrew first or install Podman manually${NC}"
-            exit 1
+            echo -e "${RED}Homebrew not found${NC}"
+            echo -e "${YELLOW}Installing Homebrew...${NC}"
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            brew install podman
         fi
     elif [[ -f /etc/debian_version ]]; then
         # Debian/Ubuntu
         echo -e "${YELLOW}Installing Podman on Debian/Ubuntu...${NC}"
         sudo apt-get update
-        sudo apt-get install -y podman
+        sudo apt-get install -y --reinstall podman
     elif [[ -f /etc/redhat-release ]]; then
-        # RHEL/CentOS/Fedora
+        # RHEL/CentOS/Fedora - FORCE reinstall to ensure binary exists
         echo -e "${YELLOW}Installing Podman on RHEL/CentOS/Fedora...${NC}"
         if command -v dnf &> /dev/null; then
-            sudo dnf install -y podman
+            sudo dnf reinstall -y podman || sudo dnf install -y podman
         elif command -v yum &> /dev/null; then
-            sudo yum install -y podman
+            sudo yum reinstall -y podman || sudo yum install -y podman
         else
-            echo -e "${RED}Neither dnf nor yum found${NC}"
+            echo -e "${RED}Neither dnf nor yum found - cannot install podman${NC}"
             exit 1
         fi
     else
-        echo -e "${RED}Unsupported operating system for automatic Podman installation${NC}"
-        echo -e "${YELLOW}Please install Podman manually and run this script again${NC}"
+        echo -e "${RED}Unsupported operating system${NC}"
         exit 1
+    fi
+
+    # Refresh PATH and command hash
+    export PATH="/usr/bin:/usr/local/bin:/nix/var/nix/profiles/default/bin:$PATH"
+    hash -r 2>/dev/null || true
+
+    # Verify installation succeeded
+    if ! command -v podman &> /dev/null && [ ! -x "/usr/bin/podman" ] && [ ! -x "/usr/local/bin/podman" ] && [ ! -x "/nix/var/nix/profiles/default/bin/podman" ]; then
+        echo -e "${RED}✗ Podman installation failed - binary not found after installation${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Podman installed successfully${NC}"
+}
+
+# Check if podman is available and force install if not
+check_podman() {
+    echo -e "${YELLOW}Checking for Podman...${NC}"
+
+    # Ensure common podman paths are in PATH
+    export PATH="/usr/bin:/usr/local/bin:/nix/var/nix/profiles/default/bin:$PATH"
+
+    # Check if podman binary exists anywhere
+    if command -v podman &> /dev/null || [ -x "/nix/var/nix/profiles/default/bin/podman" ] || [ -x "/usr/local/bin/podman" ] || [ -x "/usr/bin/podman" ]; then
+        echo -e "${GREEN}✓ Podman is available${NC}"
+        TEMP_PODMAN_INSTALLED=false
+    else
+        echo -e "${YELLOW}Podman not found - installing now...${NC}"
+        install_podman
+        TEMP_PODMAN_INSTALLED=true
     fi
 }
 
