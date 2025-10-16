@@ -13,6 +13,7 @@ import hashlib
 import yaml
 
 import minimega
+import getpass
 
 async def create_disk_snapshot(base_disk_path, output_disk_path):
     """Asynchronously copy the base disk image to the specified output location.
@@ -259,7 +260,7 @@ def _write_inventory_file_content(f, hosts_data, _format_host):
     f.write("ansible_winrm_server_cert_validation=ignore\n")
     f.write("\n")
     f.write("[lme_servers:vars]\n")
-    f.write("ansible_ssh_common_args='-o StrictHostKeyChecking=no'\n")
+    f.write("ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'\n")
 
 def _write_inventory_file(inventory_path, hosts_data, format_host):
     """Write the inventory.ini file based on hosts_data."""
@@ -275,12 +276,12 @@ def _format_host(entry_ip: str, entry_data: dict) -> str:
     """
     hostname = entry_data.get("hostname") or entry_data.get("desired_hostname") or entry_ip
     parts = [f"{hostname}", f"ansible_host={entry_ip}"]
-    if "ansible_ssh_private_key_file" in entry_data:
-        parts.append("ansible_user=localuser")
-        parts.append(f"ansible_ssh_private_key_file={entry_data['ansible_ssh_private_key_file']}")
-    else:
-        parts.append("ansible_user=localuser")
-        parts.append("ansible_password=password")
+    #TODO: integrate this
+    #if "ansible_ssh_private_key_file" in entry_data:
+    #    parts.append("ansible_user=localuser")
+    #    parts.append(f"ansible_ssh_private_key_file={entry_data['ansible_ssh_private_key_file']}")
+    parts.append("ansible_user=localuser")
+    parts.append("ansible_password=password")
     return " ".join(parts)
 
 # -----------------------------------------------------------------
@@ -309,19 +310,6 @@ def _generate_dnsmasq_mm(hosts_data: dict, params: dict) -> None:
     if mm_dir is None:
         raise ValueError("Parameter 'mm_dir' is required to generate dnsmasq.mm")
 
-    # If a dnsmasq process is already running, attempt to stop it via minimega.
-    # TODO: start here, and get the correct dnsmasq id from minimega
-    #try:
-    #    result = subprocess.run(["pgrep", "-f", "dnsmasq"], capture_output=True, text=True)
-    #    if result.returncode == 0 and result.stdout.strip():
-    #        # Use minimega's Python API to stop the existing dnsmasq instance (ID 0 assumed).
-    #        stop_cmd = "dnsmasq stop 0"
-    #        subprocess.run(
-    #            ["sudo", "python3", "-c", f"import minimega; minimega.run('{stop_cmd}')"],
-    #            check=False,
-    #        )
-    #except Exception as exc:
-    #    logging.warning(f"Failed to manage existing dnsmasq process: {exc}")
 
     dnsmasq_path = os.path.join(mm_dir, "dnsmasq.mm")
 
@@ -532,8 +520,82 @@ Generate state_{experiment_id}:
     print(f"To Deploy your Experiment:\n\tSTATE=\"{experiment_dir}\" python3 generate.py --deploy")
     # Print default credentials for the VMs
     print(f"Default VM credentials: username='{windows_user}', password='{windows_password}'")
-    print(f"Linux VM credentials: username='{linux_user}', password='{linux_password}'") 
+    print(f"Linux VM credentials: username='{linux_user}', password='{linux_password}'")
 
+def deploy():
+    """
+    Deploy the generated .mm files to minimega and start all VMs.
+
+    The function reads the ``STATE`` environment variable to locate the
+    ``mm`` directory (``$PWD/$STATE/mm``), prompts the user for the sudo
+    password, and then uses the ``minimega`` binary via ``subprocess`` to
+    load each ``.mm`` file and finally start all VMs.
+    """
+    import os
+
+    state = os.getenv("STATE")
+    if not state:
+        raise RuntimeError("Environment variable STATE is not set")
+
+    mm_dir = os.path.join(os.getcwd(), state, "mm")
+    if not os.path.isdir(mm_dir):
+        raise RuntimeError(f"Directory {mm_dir} does not exist")
+
+    sudo_password = getpass.getpass("Enter sudo password: ")
+
+    # Load each .mm file
+    error_list = []
+    for entry in os.listdir(mm_dir):
+        full_path = os.path.join(mm_dir, entry)
+        if not os.path.isfile(full_path):
+            continue
+        print(full_path)
+        # Use sudo to run minimega read command
+        read_cmd = f'sudo -S /opt/minimega/bin/minimega -e read \"{full_path}\"'
+        # Execute the read command with sudo, passing the password via stdin
+        result = subprocess.run(
+            read_cmd,
+            shell=True,
+            input=(sudo_password + "\n").encode(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        # Collect any errors but defer raising until after all .mm files have been processed.
+        # Errors are identified by the presence of the word "Error" in stdout or stderr.
+        print(result.stderr.decode().strip())
+        print(result.stdout.decode().strip())
+        if b"Error" in result.stdout or b"Error" in result.stderr:
+            # Log a warning for dnsmasq.mm but continue processing other files.
+            if "dnsmasq.mm" in full_path:
+                logging.warning(
+                    "dnsmasq.mm contains a placeholder id.\n"
+                    "You may need to adjust the id if dnsmasq was already launched. Check this  minimega output:\n"
+                    "\tsudo /opt/bin/minimega -e help dnsmasq"
+                )
+            # Store the error details for later reporting.
+            error_list.append(
+                f"Failed to read {full_path}: {result.stderr.decode().strip()}"
+            )
+        else:
+            # Optionally output stdout for successful reads (useful for troubleshooting)
+            logging.debug(f"Successfully read {full_path}")
+
+    # After processing all .mm files, raise any accumulated errors.
+    for err in error_list:  # type: ignore[attr-defined]
+        logging.error(err)
+    # Clear the stored errors for potential future calls.
+    if len(error_list) > 0:
+        raise RuntimeError("One or more .mm files failed to load; see logged errors above.")
+
+    # Start all VMs
+    start_cmd = "sudo -S /opt/minimega/bin/minimega -e vm start all"
+    subprocess.run(
+        start_cmd,
+        shell=True,
+        input=(sudo_password + "\n").encode(),
+        #stdout=subprocess.PIPE,
+        #stderr=subprocess.PIPE,
+    )
 
 def main():
     """

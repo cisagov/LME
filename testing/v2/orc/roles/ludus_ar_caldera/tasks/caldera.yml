@@ -1,68 +1,68 @@
 ---
 - name: Clone from GitHub [Caldera]
   ansible.builtin.shell: |
-      if [ ! -d "$HOME/caldera" ]; then
-          git clone https://github.com/mitre/caldera.git --recursive -b {{ caldera_server.caldera_version }} "$HOME/caldera"
-      else
-          cd "$HOME/caldera"
-          git fetch --all
-          git checkout {{ caldera_server.caldera_version }}
-      fi
+    if [ ! -d "$HOME/caldera" ]; then
+        git clone https://github.com/mitre/caldera.git --recursive -b {{ caldera_server.caldera_version }} "$HOME/caldera"
+    else
+        cd "$HOME/caldera"
+        git fetch --all
+        git checkout {{ caldera_server.caldera_version }}
+    fi
 
 - name: Update Password [Caldera]
   ansible.builtin.replace:
-      path: "/home/{{ ansible_user }}/caldera/conf/default.yml"
-      regexp: "admin$"
-      replace: "{{ general.attack_range_password }}"
+    path: "/home/{{ ansible_user }}/caldera/conf/default.yml"
+    regexp: "admin$"
+    replace: "{{ general.attack_range_password }}"
 
 - name: Update Agents [Caldera]
   ansible.builtin.lineinfile:
-      path: "/home/{{ ansible_user }}/caldera/conf/agents.yml"
-      regexp: "{{ item.regexp }}"
-      line: "{{ item.line }}"
+    path: "/home/{{ ansible_user }}/caldera/conf/agents.yml"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
   loop:
-      - { regexp: "sleep_max", line: "sleep_max: 5" }
-      - { regexp: "sleep_min", line: "sleep_min: 2" }
+    - { regexp: "sleep_max", line: "sleep_max: 5" }
+    - { regexp: "sleep_min", line: "sleep_min: 2" }
 
 - name: Setup Server [Caldera]
   ansible.builtin.shell: |
-      export ansible_user="{{ ansible_user }}"
-      cd ~/caldera
-      reqs='/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin'
-      upx=$(find /usr/local/upx-* -type d)
-      nvm=$(find /home/${ansible_user}/.nvm/versions/node/*/bin -type d)
-      export PATH=$PATH:$reqs:$upx:$nvm
-      echo $PATH > calder.env
-      if [ -f Pipfile ]; then rm Pipfile; fi
-      if [ -f Pipfile.lock ]; then rm Pipfile.lock; fi
-      pipenv install
-      pipenv run python3 -m pip install -r requirements.txt
-      pipenv run python3 server.py --build
+    export ansible_user="{{ ansible_user }}"
+    cd ~/caldera
+    reqs='/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin'
+    upx=$(find /usr/local/upx-* -type d)
+    nvm=$(find /home/${ansible_user}/.nvm/versions/node/*/bin -type d)
+    export PATH=$PATH:$reqs:$upx:$nvm
+    echo $PATH > calder.env
+    if [ -f Pipfile ]; then rm Pipfile; fi
+    if [ -f Pipfile.lock ]; then rm Pipfile.lock; fi
+    pipenv install
+    pipenv run python3 -m pip install -r requirements.txt
+    pipenv run python3 server.py --build
   async: 600
   poll: 0
   register: caldera_server_async
 
 - name: Wait for Caldera UI port 8888
   ansible.builtin.wait_for:
-      host: "{{ ansible_host | default('127.0.0.1') }}"
-      port: 8888
-      state: started
-      timeout: 180
+    host: "{{ ansible_host | default('127.0.0.1') }}"
+    port: 8888
+    state: started
+    timeout: 180
   register: ui_port_check
 
 - name: Wait for Caldera SSH port 2222
   ansible.builtin.wait_for:
-      host: "{{ ansible_host | default('127.0.0.1') }}"
-      port: 2222
-      state: started
-      timeout: 180
+    host: "{{ ansible_host | default('127.0.0.1') }}"
+    port: 2222
+    state: started
+    timeout: 180
   register: ssh_port_check
 
 - name: Verify Caldera UI serves index.html with title
   ansible.builtin.uri:
-      url: "http://{{ ansible_host | default('127.0.0.1') }}:8888"
-      return_content: yes
-      validate_certs: no
+    url: "http://{{ ansible_host | default('127.0.0.1') }}:8888"
+    return_content: yes
+    validate_certs: no
   register: caldera_ui_page
   retries: 5
   delay: 5
@@ -70,54 +70,64 @@
 
 - name: Assert UI page contains expected title
   ansible.builtin.assert:
-      that:
-          - "'Caldera' in caldera_ui_page.content"
-      fail_msg: "Caldera UI does not contain expected title 'Caldera'"
+    that:
+      - "'Caldera' in caldera_ui_page.content"
+    fail_msg: "Caldera UI does not contain expected title 'Caldera'"
 
 - name: Cancel Caldera server async setup if UI title is present
   ansible.builtin.async_status:
-      jid: "{{ caldera_server_async.ansible_job_id }}"
-      async_cancel: true
+    jid: "{{ caldera_server_async.ansible_job_id }}"
+    mode: cleanup
   when: "'Caldera' in caldera_ui_page.content"
   register: cancel_caldera_server
 
 - name: Set Caldera service PATH
   become: true
   ansible.builtin.shell: |
-      reqs='/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin'
-      upx=$(find /usr/local/upx-* -type d | paste -sd ':' -)
-      nvm=$(find /home/{{ ansible_user }}/.nvm/versions/node/*/bin -type d | paste -sd ':' -)
-      echo "$PATH:$reqs:${upx}:${nvm}"
+    reqs='/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin'
+    upx=$(find /usr/local/upx-* -type d | paste -sd ':' -)
+    nvm=$(find /home/{{ ansible_user }}/.nvm/versions/node/*/bin -type d | paste -sd ':' -)
+    echo "$PATH:$reqs:${upx}:${nvm}"
   register: caldera_service_path
   changed_when: false
+
+- name: Update Caldera local.yml user passwords
+  ansible.builtin.shell: |
+    # Replace blue user password
+    sed -i -E 's/^(\s*blue:\s*)\S+$/\1{{ general.attack_range_password }}/' "/home/{{ ansible_user }}/caldera/conf/local.yml"
+    # Replace red user password
+    sed -i -E 's/^(\s*red:\s*)\S+$/\1{{ general.attack_range_password }}/' "/home/{{ ansible_user }}/caldera/conf/local.yml"
+  args:
+    executable: /bin/bash
+  become: true
 
 - name: Create Systemd service [Caldera]
   become: true
   ansible.builtin.copy:
-      dest: /etc/systemd/system/caldera.service
-      owner: root
-      group: root
-      mode: "0644"
-      content: |
-          [Unit]
-          Description=Caldera Server
-          After=network.target
+    dest: /etc/systemd/system/caldera.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Caldera Server
+      After=network.target
 
-          [Service]
-          Type=simple
-          User={{ ansible_user }}
-          WorkingDirectory=/home/{{ ansible_user }}/caldera
-          Environment="PATH={{ caldera_service_path.stdout }}"
-          ExecStart=pipenv run python3 server.py --build
-          Restart=on-failure
+      [Service]
+      Type=simple
+      User={{ ansible_user }}
+      WorkingDirectory=/home/{{ ansible_user }}/caldera
+      Environment="PATH={{ caldera_service_path.stdout }}"
+      ExecStart=pipenv run python3 server.py --build
+      Restart=on-failure
 
-          [Install]
-          WantedBy=multi-user.target
+      [Install]
+      WantedBy=multi-user.target
 
 - name: Reload systemd daemon and enable/start Caldera service
   become: true
   ansible.builtin.systemd:
-      name: caldera.service
-      daemon_reload: true
-      enabled: true
-      state: started
+    name: caldera.service
+    daemon_reload: true
+    enabled: true
+    state: started
