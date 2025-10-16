@@ -12,7 +12,6 @@ import hashlib
 
 import yaml
 
-import minimega
 import getpass
 
 async def create_disk_snapshot(base_disk_path, output_disk_path):
