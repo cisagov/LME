@@ -4,3 +4,4 @@ vars.yml
 Pipfile
 state_*
 minimega.py
+ludus
