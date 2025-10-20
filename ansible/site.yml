@@ -29,6 +29,7 @@
     es_port: 9200
     kibana_port: 5601
     fleet_port: 8220
+    elasticsearch_number_of_replicas: 0
     
     # Kibana version
     kibana_version: "8.18.3"

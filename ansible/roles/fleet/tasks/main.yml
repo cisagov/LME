@@ -142,6 +142,48 @@
     msg: "Fleet setup response: {{ fleet_setup }}"
   when: debug_mode | bool
 
+# Ensure Fleet component templates use zero replicas for single-node setup
+# Do this after Fleet setup but before indices are created
+# Note: logs@settings and logs-settings are managed system templates and cannot be modified
+# We use logs@custom which is specifically for user customizations
+- name: Update logs@custom component template for zero replicas
+  uri:
+    url: "{{ local_es_url }}/_component_template/logs@custom"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      template:
+        settings:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: logs_custom_update
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+- name: Update metrics@custom component template for zero replicas
+  uri:
+    url: "{{ local_es_url }}/_component_template/metrics@custom"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      template:
+        settings:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: metrics_settings_update
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
 - name: Get CA fingerprint
   ansible.builtin.shell: |
     set -a
@@ -575,6 +617,29 @@
       - "Logs-elastic_agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*logs-elastic_agent.*') | list }}"
   when: debug_mode | bool and metrics_indices_result.status == 200
 
+# Update replica settings on all data stream backing indices
+- name: Update data stream backing indices replica settings
+  uri:
+    url: "{{ local_es_url }}/.ds-*/_settings"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      index:
+        number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: replica_update_result
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+- name: Debug replica update result
+  debug:
+    msg: "Replica update result: {{ replica_update_result }}"
+  when: debug_mode | bool
+
 - name: Debug - Display secret variables
   debug:
     msg:
@@ -584,5 +649,3 @@
       - "wazuh_api={{ wazuh_api_password }}"
   when: debug_mode | bool
   no_log: "{{ not debug_mode }}"
-
-# Password display moved to cleanup role to show at the end 

@@ -101,7 +101,6 @@
   register: user_creation_result
   when: result.status is defined and result.status == 200
 
-# Password display moved to cleanup role to show at the end
 
 # Change elastic user password
 - name: Change elastic user password
@@ -109,68 +108,41 @@
   no_log: "{{ not debug_mode }}"
   become: yes
 
-## Set default index template for single-node cluster replica settings (non-data-stream indices)
-#- name: Set default index template for replica settings
-#  uri:
-#    url: "{{ local_es_url }}/_index_template/lme_single_node_replica_template"
-#    method: PUT
-#    user: "{{ elastic_username }}"
-#    password: "{{ elastic_password }}"
-#    validate_certs: no
-#    force_basic_auth: yes
-#    body_format: json
-#    body:
-#      index_patterns: ["*"]
-#      priority: 1
-#      template:
-#        settings:
-#          index:
-#            number_of_replicas: 0
-#    status_code: [200, 201]
-#  register: template_result
-#  when: result.status is defined and result.status == 200
-#  no_log: "{{ not debug_mode }}"
-#  ignore_errors: yes
-#
-## Set data stream template specifically for data streams
-#- name: Set data stream template for replica settings
-#  uri:
-#    url: "{{ local_es_url }}/_index_template/lme_datastream_replica_template"
-#    method: PUT
-#    user: "{{ elastic_username }}"
-#    password: "{{ elastic_password }}"
-#    validate_certs: no
-#    force_basic_auth: yes
-#    body_format: json
-#    body:
-#      index_patterns: ["metrics-*", "logs-*"]
-#      data_stream: {}
-#      priority: 1
-#      template:
-#        settings:
-#          index:
-#            number_of_replicas: 0
-#    status_code: [200, 201]
-#  register: datastream_template_result
-#  when: result.status is defined and result.status == 200
-#  no_log: "{{ not debug_mode }}"
-#
-#
-## Set cluster-wide default for new indices (Elasticsearch 7.0+)
-#- name: Set cluster-wide default number of replicas
-#  uri:
-#    url: "{{ local_es_url }}/_cluster/settings"
-#    method: PUT
-#    user: "{{ elastic_username }}"
-#    password: "{{ elastic_password }}"
-#    validate_certs: no
-#    force_basic_auth: yes
-#    body_format: json
-#    body:
-#      persistent:
-#        cluster.routing.allocation.require._tier_preference: "data_content"
-#        cluster.routing.allocation.total_shards_per_node: 1000
-#    status_code: [200, 201]
-#  register: cluster_settings_result
-#  when: result.status is defined and result.status == 200
-#  no_log: "{{ not debug_mode }}" 
+
+# Check what templates exist for debugging
+- name: Get all index templates
+  uri:
+    url: "{{ local_es_url }}/_index_template"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    status_code: [200]
+  register: all_templates_result
+  when: result.status is defined and result.status == 200 and debug_mode | bool
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug all templates
+  debug:
+    msg: "Templates: {{ all_templates_result.json.index_templates | map(attribute='name') | list }}"
+  when: debug_mode | bool and all_templates_result is defined
+
+# Update existing data streams to have 0 replicas
+- name: Update existing data stream backing indices to have 0 replicas
+  uri:
+    url: "{{ local_es_url }}/.ds-*/_settings"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      index:
+        number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: replica_update_result
+  when: result.status is defined and result.status == 200
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
