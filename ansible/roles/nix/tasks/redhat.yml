@@ -136,7 +136,7 @@
     - not (offline_mode | default(false))
     - not nix_installed.stat.exists
 
-- name: Install Nix package manager (online mode)
+- name: Install Nix package manager
   shell: sh /opt/nix-install/install-nix.sh --daemon --yes
   become: yes
   environment:
@@ -251,14 +251,14 @@
     msg: "Offline mode enabled - skipping Nix channel updates"
   when: offline_mode | default(false)
 
-- name: Check if nix-users group exists (online mode only)
+- name: Check if nix-users group exists
   group:
     name: nix-users
     state: present
   become: yes
   when: not (offline_mode | default(false))
 
-- name: Add user to nix-users group (online mode only)
+- name: Add user to nix-users group
   user:
     name: "{{ install_user }}"
     groups: nix-users
