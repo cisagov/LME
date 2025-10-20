@@ -74,6 +74,12 @@
   become: yes
   when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
+- name: Check if podman quadlet exists in nix profile
+  stat:
+    path: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
+  register: nix_podman_quadlet_stat
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
 - name: Ensure correct podman systemd generator is linked in the nix profile
   file:
     src: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
@@ -81,7 +87,9 @@
     state: link
     force: yes
   become: yes
-  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - nix_podman_quadlet_stat.stat.exists | default(false)
 
 # Apply contexts to podman symlinks after they're created
 - name: Apply SELinux contexts to podman symlinks (post-symlink)

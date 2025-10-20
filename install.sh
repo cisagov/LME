@@ -671,14 +671,35 @@ if [ "$OFFLINE_MODE" = "true" ]; then
                         exit 1
                     fi
                 else
-                    # For DEB packages, use original method
-                    eval $INSTALL_CMD
-                    if [ $? -eq 0 ]; then
-                        echo -e "${GREEN}✓ Package installation complete!${NC}"
-                    else
-                        echo -e "${RED}✗ Package installation failed${NC}"
-                        exit 1
-                    fi
+                    # For DEB packages, install one by one and skip conflicts
+                    for deb_file in *.deb; do
+                        PACKAGE_NAME=$(dpkg-deb -f "$deb_file" Package 2>/dev/null)
+
+                        # Try to install the package
+                        if ! sudo dpkg -i "$deb_file" 2>&1 | tee /tmp/dpkg_install.log; then
+                            # Check if it failed due to conflict with already-installed package
+                            if grep -q "conflicting packages" /tmp/dpkg_install.log; then
+                                CONFLICTING_WITH=$(grep "conflicts with" /tmp/dpkg_install.log | head -1 | sed 's/.*conflicts with //' | awk '{print $1}')
+
+                                # Check if the conflicting package is already installed
+                                if dpkg -l "$CONFLICTING_WITH" 2>/dev/null | grep -q "^ii"; then
+                                    # Skip this package - the system already has an equivalent installed
+                                    continue
+                                fi
+                            fi
+
+                            # Check if package is already installed
+                            if dpkg -l "$PACKAGE_NAME" 2>/dev/null | grep -q "^ii"; then
+                                # Already installed, continue
+                                continue
+                            fi
+                        fi
+                    done
+
+                    # Fix any dependency issues
+                    sudo apt-get install -f -y
+
+                    echo -e "${GREEN}✓ Package installation complete!${NC}"
                 fi
             else
                 echo -e "${RED}✗ No .$PACKAGE_EXT files found in $PACKAGES_DIR directory${NC}"
@@ -869,6 +890,58 @@ fi
 
 # Check if playbook exists and run it
 check_playbook
+
+# Import podman from .nar file BEFORE running Ansible (Ubuntu offline only)
+if [ "$OFFLINE_MODE" = "true" ]; then
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS_ID="$ID"
+    else
+        OS_ID="unknown"
+    fi
+
+    # Only for Ubuntu/Debian offline - import podman from .nar file
+    if [[ ! "$OS_ID" =~ ^(rhel|centos|rocky|almalinux|fedora)$ ]]; then
+        NIX_PODMAN_NAR="$SCRIPT_DIR/offline_resources/packages/nix/podman-closure.nar"
+        if [ -f "$NIX_PODMAN_NAR" ]; then
+            echo -e "${YELLOW}Importing podman into Nix store from offline archive...${NC}"
+            export PATH=$PATH:/nix/var/nix/profiles/default/bin
+
+            # Import the podman closure
+            if sudo nix-store --import < "$NIX_PODMAN_NAR"; then
+                echo -e "${GREEN}✓ Podman imported into Nix store${NC}"
+
+                # Get the podman store path
+                PODMAN_STORE_PATH=$(cat "$SCRIPT_DIR/offline_resources/packages/nix/podman-store-path.txt")
+
+                # Install podman into the default profile
+                echo -e "${YELLOW}Installing podman into Nix profile...${NC}"
+                if sudo nix-env -i "$PODMAN_STORE_PATH"; then
+                    echo -e "${GREEN}✓ Podman installed into Nix profile${NC}"
+
+                    # Verify podman is accessible
+                    if [ -x /nix/var/nix/profiles/default/bin/podman ]; then
+                        PODMAN_VERSION=$(/nix/var/nix/profiles/default/bin/podman --version)
+                        echo -e "${GREEN}✓ Podman is accessible: $PODMAN_VERSION${NC}"
+                    else
+                        echo -e "${RED}✗ Podman installed but not found in Nix profile${NC}"
+                        exit 1
+                    fi
+                else
+                    echo -e "${RED}✗ Failed to install podman into Nix profile${NC}"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}✗ Failed to import podman from .nar file${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}✗ Podman .nar file not found: $NIX_PODMAN_NAR${NC}"
+            echo -e "${YELLOW}Please run prepare_offline.sh to generate offline resources${NC}"
+            exit 1
+        fi
+    fi
+fi
 
 # Run the Ansible playbook FIRST (installs Nix and podman)
 run_playbook

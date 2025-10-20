@@ -163,7 +163,7 @@
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
 
-- name: Install Podman using Nix (online mode or Ubuntu offline)
+- name: Install Podman using Nix (online mode only)
   command: nix-env -iA nixpkgs.podman
   become: yes
   environment:
@@ -173,7 +173,7 @@
   delay: 5
   until: podman_install is not failed
   changed_when: "'installing' in podman_install.stdout | default('')"
-  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+  when: not (offline_mode | default(false))
 
 - name: Skip Podman Nix installation (RHEL offline - using system podman)
   debug:
