@@ -1,9 +1,12 @@
 name: Cluster RedHat
 
 on:
-  pull_request:
+  # pull_request:
+  #   branches:
+  #     - '*'
+  push:
     branches:
-      - '*'
+      - develop
   workflow_dispatch:
     inputs:
       azure_region:
