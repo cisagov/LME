@@ -128,21 +128,3 @@
     msg: "Templates: {{ all_templates_result.json.index_templates | map(attribute='name') | list }}"
   when: debug_mode | bool and all_templates_result is defined
 
-# Update existing data streams to have 0 replicas
-- name: Update existing data stream backing indices to have 0 replicas
-  uri:
-    url: "{{ local_es_url }}/.ds-*/_settings"
-    method: PUT
-    user: "{{ elastic_username }}"
-    password: "{{ elastic_password }}"
-    validate_certs: no
-    force_basic_auth: yes
-    body_format: json
-    body:
-      index:
-        number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
-    status_code: [200, 201]
-  register: replica_update_result
-  when: result.status is defined and result.status == 200
-  no_log: "{{ not debug_mode }}"
-  ignore_errors: yes
