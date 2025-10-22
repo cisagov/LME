@@ -53,12 +53,21 @@ echo "Test 1: Simple Write-Host command"
 test_command='Write-Host "Hello from Azure Windows VM"'
 
 echo "Running: $test_command"
+tmp_script=$(mktemp /tmp/azure-ps-XXXXXXXX.ps1)
+printf "%s" "$test_command" > "$tmp_script"
+if [[ "$DEBUG_MODE" == "true" ]]; then
+    echo "DEBUG: PowerShell script content to execute (Test 1):"
+    echo "----- BEGIN script.ps1 -----"
+    cat "$tmp_script"
+    echo "----- END script.ps1 -----"
+fi
 result=$(az vm run-command invoke \
     --command-id RunPowerShellScript \
     --resource-group "$RESOURCE_GROUP" \
     --name "$VM_NAME" \
-    --scripts "$test_command" \
-    --output json 2>/dev/null)
+    --scripts @"$tmp_script" \
+    --output json)
+rm -f "$tmp_script"
 
 if [[ $? -ne 0 ]]; then
     echo "Error: Failed to run test command"
@@ -74,12 +83,21 @@ echo "Test 2: Command that should produce error output"
 test_command='Write-Error "This is a test error message"'
 
 echo "Running: $test_command"
+tmp_script=$(mktemp /tmp/azure-ps-XXXXXXXX.ps1)
+printf "%s" "$test_command" > "$tmp_script"
+if [[ "$DEBUG_MODE" == "true" ]]; then
+    echo "DEBUG: PowerShell script content to execute (Test 2):"
+    echo "----- BEGIN script.ps1 -----"
+    cat "$tmp_script"
+    echo "----- END script.ps1 -----"
+fi
 result=$(az vm run-command invoke \
     --command-id RunPowerShellScript \
     --resource-group "$RESOURCE_GROUP" \
     --name "$VM_NAME" \
-    --scripts "$test_command" \
-    --output json 2>/dev/null)
+    --scripts @"$tmp_script" \
+    --output json)
+rm -f "$tmp_script"
 
 if [[ $? -ne 0 ]]; then
     echo "Error: Failed to run test command"
@@ -95,12 +113,21 @@ echo "Test 3: Command that should produce both stdout and stderr"
 test_command='Write-Host "This is stdout"; Write-Error "This is stderr"'
 
 echo "Running: $test_command"
+tmp_script=$(mktemp /tmp/azure-ps-XXXXXXXX.ps1)
+printf "%s" "$test_command" > "$tmp_script"
+if [[ "$DEBUG_MODE" == "true" ]]; then
+    echo "DEBUG: PowerShell script content to execute (Test 3):"
+    echo "----- BEGIN script.ps1 -----"
+    cat "$tmp_script"
+    echo "----- END script.ps1 -----"
+fi
 result=$(az vm run-command invoke \
     --command-id RunPowerShellScript \
     --resource-group "$RESOURCE_GROUP" \
     --name "$VM_NAME" \
-    --scripts "$test_command" \
-    --output json 2>/dev/null)
+    --scripts @"$tmp_script" \
+    --output json)
+rm -f "$tmp_script"
 
 if [[ $? -ne 0 ]]; then
     echo "Error: Failed to run test command"
@@ -115,12 +142,21 @@ echo "Test 4: Parsing output using improved logic"
 test_command='Write-Host "Test output for parsing"; Write-Error "Test error for parsing"'
 
 echo "Running: $test_command"
+tmp_script=$(mktemp /tmp/azure-ps-XXXXXXXX.ps1)
+printf "%s" "$test_command" > "$tmp_script"
+if [[ "$DEBUG_MODE" == "true" ]]; then
+    echo "DEBUG: PowerShell script content to execute (Test 4):"
+    echo "----- BEGIN script.ps1 -----"
+    cat "$tmp_script"
+    echo "----- END script.ps1 -----"
+fi
 result=$(az vm run-command invoke \
     --command-id RunPowerShellScript \
     --resource-group "$RESOURCE_GROUP" \
     --name "$VM_NAME" \
-    --scripts "$test_command" \
-    --output json 2>/dev/null)
+    --scripts @"$tmp_script" \
+    --output json)
+rm -f "$tmp_script"
 
 if [[ $? -ne 0 ]]; then
     echo "Error: Failed to run test command"
