@@ -60,9 +60,10 @@
 
 - name: Wait for Fleet distribution server to be ready
   uri:
-    url: "http://localhost:8080/health"
+    url: "https://{{ ipvar }}:8080/health"
     method: GET
-    status_code: 200
+    validate_certs: no
+    status_code: [200]
   register: distribution_health
   until: distribution_health.status is defined and distribution_health.status == 200
   retries: 60

@@ -17,7 +17,7 @@
     path: /opt/lme/config/kibana.yml
     marker: "# {mark} ANSIBLE MANAGED BLOCK - OFFLINE MODE"
     block: |
-      xpack.fleet.registryUrl: "http://lme-fleet-distribution:8080"
+      xpack.fleet.registryUrl: "https://lme-fleet-distribution:8080"
       xpack.fleet.isAirGapped: true
   become: yes
   when: offline_mode | default(false)
