@@ -1,9 +1,6 @@
 name: Cluster RedHat
 
 on:
-  pull_request:
-    branches:
-      - '*'
   push:
     branches:
       - develop
@@ -29,6 +26,9 @@ on:
           - ukwest
           - northeurope
           - westeurope
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   build-and-test-cluster-redhat:
