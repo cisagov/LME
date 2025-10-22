@@ -90,35 +90,18 @@ run_azure_powershell() {
     
     echo "Running: $description"
     
-    # Write the PowerShell script to a temporary file and pass via @file to avoid
-    # Azure CLI swallowing/altering inline multi-line scripts
-    local tmp_script
-    tmp_script=$(mktemp /tmp/azure-ps-XXXXXXXX.ps1)
-    # Ensure the exact content is written without shell interpolation
-    printf "%s" "$command" > "$tmp_script"
-
-    if [[ "$DEBUG_MODE" == "true" ]]; then
-        echo "DEBUG: PowerShell script content to execute:" 
-        echo "----- BEGIN script.ps1 -----"
-        cat "$tmp_script"
-        echo "----- END script.ps1 -----"
-    fi
-
     # Use az vm run-command to execute PowerShell on the Windows VM
     local result=$(az vm run-command invoke \
         --command-id RunPowerShellScript \
         --resource-group "$RESOURCE_GROUP" \
         --name "$VM_NAME" \
-        --scripts @"$tmp_script" \
-        --output json)
+        --scripts "$command" \
+        --output json 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to run command on Windows VM: $description"
         return 1
     fi
-    
-    # Clean up temporary script file
-    rm -f "$tmp_script"
     
     # Debug: Show raw JSON response if debug mode is enabled
     if [[ "$DEBUG_MODE" == "true" ]]; then
