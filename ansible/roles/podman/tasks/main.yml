@@ -175,10 +175,10 @@
   changed_when: "'installing' in podman_install.stdout | default('')"
   when: not (offline_mode | default(false))
 
-- name: Skip Podman Nix installation (RHEL offline - using system podman)
+- name: Skip Podman Nix installation (offline mode - pre-imported from .nar or using system podman)
   debug:
-    msg: "Offline mode on RHEL - using system podman from RPMs, not Nix"
-  when: offline_mode | default(false) and ansible_os_family == "RedHat"
+    msg: "Offline mode - podman already imported from .nar file by install.sh (Ubuntu/Debian) or using system podman from RPMs (RHEL)"
+  when: offline_mode | default(false)
 
 - name: Set sysctl limits 
   command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
