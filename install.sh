@@ -671,32 +671,88 @@ if [ "$OFFLINE_MODE" = "true" ]; then
                         exit 1
                     fi
                 else
-                    # For DEB packages, install one by one and skip conflicts
+                    # For DEB packages on Ubuntu, use smart installation with proper ordering
+                    echo -e "${YELLOW}Installing DEB packages with dependency-aware ordering...${NC}"
+
+                    # CRITICAL: Create nix-users group BEFORE installing nix packages
+                    # This prevents systemd errors during package installation
+                    echo -e "${YELLOW}Pre-creating nix-users group...${NC}"
+                    if ! getent group nix-users >/dev/null 2>&1; then
+                        sudo groupadd -r nix-users
+                        echo -e "${GREEN}✓ Created nix-users group${NC}"
+                    else
+                        echo -e "${GREEN}✓ nix-users group already exists${NC}"
+                    fi
+
+                    # Install packages in phases to handle dependencies properly
+                    # Phase 1: Install base system packages (skip conflicts with system packages)
+                    echo -e "${YELLOW}Phase 1: Installing base system packages...${NC}"
                     for deb_file in *.deb; do
                         PACKAGE_NAME=$(dpkg-deb -f "$deb_file" Package 2>/dev/null)
 
+                        # Skip nix packages in this phase
+                        if [[ "$PACKAGE_NAME" == "nix-bin" ]] || [[ "$PACKAGE_NAME" == "nix-setup-systemd" ]]; then
+                            continue
+                        fi
+
+                        # Skip packages that conflict with Ubuntu 24.04 system packages
+                        # These are typically already installed or have newer versions
+                        if [[ "$PACKAGE_NAME" =~ ^(libqt5|opensysusers|systemd-standalone) ]]; then
+                            echo -e "${YELLOW}  Skipping $PACKAGE_NAME (conflicts with system package)${NC}"
+                            continue
+                        fi
+
+                        # Check if package is already installed
+                        if dpkg -l "$PACKAGE_NAME" 2>/dev/null | grep -q "^ii"; then
+                            echo -e "${GREEN}  ✓ $PACKAGE_NAME already installed${NC}"
+                            continue
+                        fi
+
                         # Try to install the package
-                        if ! sudo dpkg -i "$deb_file" 2>&1 | tee /tmp/dpkg_install.log; then
-                            # Check if it failed due to conflict with already-installed package
-                            if grep -q "conflicting packages" /tmp/dpkg_install.log; then
-                                CONFLICTING_WITH=$(grep "conflicts with" /tmp/dpkg_install.log | head -1 | sed 's/.*conflicts with //' | awk '{print $1}')
-
-                                # Check if the conflicting package is already installed
-                                if dpkg -l "$CONFLICTING_WITH" 2>/dev/null | grep -q "^ii"; then
-                                    # Skip this package - the system already has an equivalent installed
-                                    continue
-                                fi
-                            fi
-
-                            # Check if package is already installed
-                            if dpkg -l "$PACKAGE_NAME" 2>/dev/null | grep -q "^ii"; then
-                                # Already installed, continue
+                        echo -e "${YELLOW}  Installing $PACKAGE_NAME...${NC}"
+                        if sudo dpkg -i "$deb_file" 2>&1 | tee /tmp/dpkg_install.log; then
+                            echo -e "${GREEN}  ✓ Installed $PACKAGE_NAME${NC}"
+                        else
+                            # Check if it failed due to conflict
+                            if grep -q "conflicting packages\|conflicts with" /tmp/dpkg_install.log; then
+                                echo -e "${YELLOW}  ⚠ Skipping $PACKAGE_NAME (conflicts with existing package)${NC}"
                                 continue
                             fi
+
+                            # For other errors, continue but note them
+                            echo -e "${YELLOW}  ⚠ Warning installing $PACKAGE_NAME, will fix dependencies later${NC}"
                         fi
                     done
 
-                    # Fix any dependency issues
+                    # Fix any dependency issues from phase 1
+                    echo -e "${YELLOW}Fixing dependencies from phase 1...${NC}"
+                    sudo apt-get install -f -y 2>&1 | grep -v "0 upgraded, 0 newly installed" || true
+
+                    # Phase 2: Install nix packages (now that nix-users group exists)
+                    echo -e "${YELLOW}Phase 2: Installing Nix packages...${NC}"
+                    for deb_file in nix-bin*.deb nix-setup-systemd*.deb; do
+                        if [ ! -f "$deb_file" ]; then
+                            continue
+                        fi
+
+                        PACKAGE_NAME=$(dpkg-deb -f "$deb_file" Package 2>/dev/null)
+
+                        # Check if package is already installed
+                        if dpkg -l "$PACKAGE_NAME" 2>/dev/null | grep -q "^ii"; then
+                            echo -e "${GREEN}  ✓ $PACKAGE_NAME already installed${NC}"
+                            continue
+                        fi
+
+                        echo -e "${YELLOW}  Installing $PACKAGE_NAME...${NC}"
+                        if sudo dpkg -i "$deb_file" 2>&1; then
+                            echo -e "${GREEN}  ✓ Installed $PACKAGE_NAME${NC}"
+                        else
+                            echo -e "${YELLOW}  ⚠ Warning installing $PACKAGE_NAME, will fix dependencies${NC}"
+                        fi
+                    done
+
+                    # Final dependency fix
+                    echo -e "${YELLOW}Final dependency resolution...${NC}"
                     sudo apt-get install -f -y
 
                     echo -e "${GREEN}✓ Package installation complete!${NC}"
