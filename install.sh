@@ -518,6 +518,21 @@ if [ "$OFFLINE_MODE" = "true" ]; then
     echo -e "${YELLOW}⚠ Internet-dependent operations will be skipped${NC}"
     echo
 
+    # Validate offline resources exist
+    if [ ! -d "$SCRIPT_DIR/offline_resources" ]; then
+        echo -e "${RED}✗ Offline resources directory not found: $SCRIPT_DIR/offline_resources${NC}"
+        echo -e "${YELLOW}This means prepare_offline.sh was not run successfully or the offline archive was not extracted properly.${NC}"
+        echo -e "${YELLOW}Please ensure you:${NC}"
+        echo -e "${YELLOW}  1. Ran prepare_offline.sh on an internet-connected machine${NC}"
+        echo -e "${YELLOW}  2. Transferred the resulting lme-offline-*.tar.gz to this offline machine${NC}"
+        echo -e "${YELLOW}  3. Extracted the tar.gz: tar -xzf lme-offline-*.tar.gz${NC}"
+        echo -e "${YELLOW}  4. Changed into the LME directory: cd LME${NC}"
+        echo -e "${YELLOW}  5. Then run: ./install.sh --offline${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Offline resources directory found${NC}"
+
     # Validate offline archive if validation script exists
     if [ -f "$SCRIPT_DIR/scripts/validate_offline_archive.sh" ]; then
         echo -e "${YELLOW}Validating offline resources...${NC}"
@@ -530,38 +545,7 @@ if [ "$OFFLINE_MODE" = "true" ]; then
         echo
     fi
 
-    # Look for offline archive and extract it
-    echo -e "${YELLOW}Looking for offline installation archive...${NC}"
-    OFFLINE_ARCHIVE=$(find "$SCRIPT_DIR" -name "lme-offline-*.tar.gz" | head -1)
-
-    if [ -n "$OFFLINE_ARCHIVE" ]; then
-        echo -e "${GREEN}✓ Found offline archive: $(basename "$OFFLINE_ARCHIVE")${NC}"
-
-        # Check if already extracted
-        if [ -d "$SCRIPT_DIR/offline_resources" ]; then
-            echo -e "${GREEN}✓ Offline resources already extracted, skipping extraction${NC}"
-        else
-            echo -e "${YELLOW}Extracting offline resources...${NC}"
-            # Extract archive to parent directory (archive contains full LME directory)
-            tar -xzf "$OFFLINE_ARCHIVE" -C "$(dirname "$SCRIPT_DIR")"
-
-            # The archive contains the LME directory with offline_resources inside it
-            # If we're running from a different LME directory, we need to copy the offline_resources AND config
-            EXTRACTED_LME_DIR=$(tar -tzf "$OFFLINE_ARCHIVE" | head -1 | cut -d'/' -f1)
-            if [ "$EXTRACTED_LME_DIR" != "$(basename "$SCRIPT_DIR")" ]; then
-                echo -e "${YELLOW}Copying offline resources from extracted archive...${NC}"
-                cp -r "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/offline_resources" "$SCRIPT_DIR/"
-
-                # Also copy config directory if it doesn't exist or is incomplete
-                if [ ! -f "$SCRIPT_DIR/config/example.env" ] && [ -f "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/config/example.env" ]; then
-                    echo -e "${YELLOW}Copying config directory from extracted archive...${NC}"
-                    cp -r "$(dirname "$SCRIPT_DIR")/$EXTRACTED_LME_DIR/config" "$SCRIPT_DIR/"
-                    echo -e "${GREEN}✓ Config directory copied${NC}"
-                fi
-            fi
-        fi
-
-        # Install packages
+    # Install packages
         if [ "$SKIP_PACKAGES" = "true" ]; then
             echo -e "${YELLOW}Skipping package installation (--skip-packages flag enabled)${NC}"
         else
@@ -850,11 +834,6 @@ if [ "$OFFLINE_MODE" = "true" ]; then
         sudo touch /opt/lme/FLEET_SETUP_FINISHED
 
         echo -e "${GREEN}✓ Offline resources prepared successfully${NC}"
-    else
-        echo -e "${RED}✗ No offline archive found (lme-offline-*.tar.gz)${NC}"
-        echo -e "${YELLOW}Please ensure the offline archive is in the same directory as install.sh${NC}"
-        exit 1
-    fi
 fi
 
 # Check sudo access first
@@ -962,6 +941,24 @@ if [ "$OFFLINE_MODE" = "true" ]; then
         if [ -f "$NIX_PODMAN_NAR" ]; then
             echo -e "${YELLOW}Importing podman into Nix store from offline archive...${NC}"
             export PATH=$PATH:/nix/var/nix/profiles/default/bin
+
+            # CRITICAL: Create nixbld group and build users for multi-user Nix
+            # The nix-bin and nix-setup-systemd packages don't create these automatically
+            echo -e "${YELLOW}Setting up Nix build users and group...${NC}"
+            if ! getent group nixbld >/dev/null 2>&1; then
+                sudo groupadd -r nixbld
+                echo -e "${GREEN}✓ Created nixbld group${NC}"
+            else
+                echo -e "${GREEN}✓ nixbld group already exists${NC}"
+            fi
+
+            # Create nixbld users (nixbld1 through nixbld32)
+            for i in $(seq 1 32); do
+                if ! id -u nixbld$i >/dev/null 2>&1; then
+                    sudo useradd -r -g nixbld -G nixbld -d /var/empty -s /sbin/nologin -c "Nix build user $i" nixbld$i 2>/dev/null || true
+                fi
+            done
+            echo -e "${GREEN}✓ Nix build users configured${NC}"
 
             # Import the podman closure
             if sudo nix-store --import < "$NIX_PODMAN_NAR"; then
