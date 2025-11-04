@@ -320,8 +320,8 @@ download_dnf_packages() {
 
     echo -e "${YELLOW}Installing EPEL repository...${NC}"
     if [ "$OS_ID" = "rhel" ]; then
-        # For RHEL, install EPEL from Fedora URL and disable RHUI repos
-        sudo dnf install --disablerepo="*rhui*" -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+        # For RHEL, install EPEL from Fedora URL - RHUI repos are working, so use them
+        sudo dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm 2>/dev/null || true
     else
         # For other distributions, use standard package
         sudo dnf install -y epel-release
@@ -330,17 +330,129 @@ download_dnf_packages() {
     echo -e "${YELLOW}Downloading packages...${NC}"
     cd "$OUTPUT_DIR/packages/rpms"
 
-    # For RHEL on Azure, disable broken RHUI repos to use working subscription manager repos
-    if [ "$OS_ID" = "rhel" ]; then
-        REPO_FLAGS="--disablerepo=*rhui*"
+    REPO_FLAGS=""
+
+    # Check for repotrack availability (RHEL 9+ doesn't include it by default)
+    # Test if repotrack actually works before trying to use it
+    REPOTRACK_AVAILABLE=false
+    if command -v repotrack &>/dev/null; then
+        # Test if repotrack supports the options we need
+        if repotrack --help 2>&1 | grep -q "\-\-download-path"; then
+            REPOTRACK_AVAILABLE=true
+            echo -e "${GREEN}✓ repotrack is available and functional${NC}"
+        else
+            echo -e "${YELLOW}Note: repotrack found but doesn't support required flags, will use dnf download${NC}"
+        fi
     else
-        REPO_FLAGS=""
+        echo -e "${YELLOW}Note: repotrack not available, will use dnf download (this is normal for RHEL 9)${NC}"
     fi
 
     for package in "${PACKAGES[@]}"; do
         echo -e "${YELLOW}  Downloading $package and dependencies...${NC}"
-        sudo dnf download --resolve --alldeps $REPO_FLAGS "$package" 2>&1 | grep -v "already downloaded" || echo -e "${RED}  ✗ Failed to download $package${NC}"
+        DOWNLOAD_SUCCESS=false
+        
+        # Use repotrack for more complete dependency resolution (if available and functional)
+        if [ "$REPOTRACK_AVAILABLE" = true ]; then
+            echo -e "${YELLOW}    Using repotrack for complete dependency resolution...${NC}"
+            # Use correct flag: --download-path (not -p)
+            if sudo repotrack --download-path="$OUTPUT_DIR/packages/rpms" "$package" 2>&1 | tee /tmp/repotrack_output.log | grep -v "already downloaded"; then
+                # Check if repotrack actually succeeded (exit code 0 and downloaded files)
+                if [ ${PIPESTATUS[0]} -eq 0 ] && ls "$OUTPUT_DIR/packages/rpms/${package}"-*.rpm 2>/dev/null | grep -q .; then
+                    DOWNLOAD_SUCCESS=true
+                    echo -e "${GREEN}    ✓ Downloaded with repotrack${NC}"
+                else
+                    echo -e "${YELLOW}  ⚠ repotrack reported success but no files found, trying dnf...${NC}"
+                fi
+            else
+                echo -e "${YELLOW}  ⚠ Could not download $package with repotrack, trying dnf...${NC}"
+            fi
+        fi
+        
+        # Use dnf download if repotrack not available or failed
+        if [ "$DOWNLOAD_SUCCESS" = false ]; then
+            echo -e "${YELLOW}    Using dnf download for $package...${NC}"
+            
+            # Try to download with dependencies - use multiple strategies
+            # First try: standard download with all deps
+            DNF_OUTPUT=$(sudo dnf download --destdir="$OUTPUT_DIR/packages/rpms" --resolve --alldeps "$package" 2>&1)
+            DNF_EXIT=$?
+            
+            if [ $DNF_EXIT -eq 0 ]; then
+                DOWNLOAD_SUCCESS=true
+                echo -e "${GREEN}    ✓ Downloaded with dnf download${NC}"
+            else
+                echo -e "${YELLOW}    First dnf method failed, trying install --downloadonly...${NC}"
+                
+                # Second try: Use downloadonly plugin with install simulation
+                DNF_OUTPUT=$(sudo dnf install --downloadonly --downloaddir="$OUTPUT_DIR/packages/rpms" -y "$package" 2>&1)
+                DNF_EXIT=$?
+                
+                if [ $DNF_EXIT -eq 0 ]; then
+                    DOWNLOAD_SUCCESS=true
+                    echo -e "${GREEN}    ✓ Downloaded with dnf install --downloadonly${NC}"
+                else
+                    echo -e "${RED}  ✗ Failed to download $package${NC}"
+                    echo -e "${RED}    Error: $DNF_OUTPUT${NC}" | head -5
+                fi
+            fi
+        fi
+        
+        if [ "$DOWNLOAD_SUCCESS" = true ]; then
+            echo -e "${GREEN}  ✓ Successfully downloaded $package${NC}"
+        fi
     done
+    
+    echo -e "${YELLOW}Downloading additional container dependencies...${NC}"
+    # Explicitly download critical podman dependencies that might be missed
+    CONTAINER_DEPS=(
+        "conmon"
+        "containers-common"
+        "netavark"
+        "aardvark-dns"
+        "passt"
+        "passt-selinux"
+        "slirp4netns"
+        "shadow-utils"
+        "iptables"
+        "nftables"
+        "crun"
+        "runc"
+    )
+    
+    for dep in "${CONTAINER_DEPS[@]}"; do
+        echo -e "${YELLOW}  Ensuring $dep is downloaded...${NC}"
+        sudo dnf download --destdir="$OUTPUT_DIR/packages/rpms" --resolve --alldeps "$dep" 2>&1 | grep -v -e "already downloaded" -e "No package.*available" || true
+    done
+
+    # Verify critical packages were successfully downloaded
+    echo -e "${YELLOW}Verifying critical packages were downloaded...${NC}"
+    CRITICAL_PACKAGES=("podman" "ansible" "git" "passt-selinux" "container-selinux")
+    MISSING_PACKAGES=()
+
+    for pkg in "${CRITICAL_PACKAGES[@]}"; do
+        if ! ls "$OUTPUT_DIR/packages/rpms/${pkg}"-*.rpm 1> /dev/null 2>&1; then
+            MISSING_PACKAGES+=("$pkg")
+            echo -e "${RED}✗ Critical package missing: $pkg${NC}"
+        else
+            PKG_COUNT=$(ls "$OUTPUT_DIR/packages/rpms/${pkg}"-*.rpm 2>/dev/null | wc -l)
+            echo -e "${GREEN}✓ Found $pkg ($PKG_COUNT RPM(s))${NC}"
+        fi
+    done
+
+    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
+        echo -e "${RED}✗ Failed to download critical packages: ${MISSING_PACKAGES[*]}${NC}"
+        echo -e "${YELLOW}The following packages are required but were not downloaded:${NC}"
+        for missing in "${MISSING_PACKAGES[@]}"; do
+            echo -e "${YELLOW}  - $missing${NC}"
+        done
+        echo -e "${YELLOW}Please check:${NC}"
+        echo -e "${YELLOW}  1. Repository configuration is correct${NC}"
+        echo -e "${YELLOW}  2. Package names are valid for your RHEL version${NC}"
+        echo -e "${YELLOW}  3. Network connectivity to repositories${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ All critical packages verified${NC}"
 
     cd "$SCRIPT_DIR"
 }
@@ -679,8 +791,28 @@ else
     # Install .rpm packages
     if ls *.rpm 1> /dev/null 2>&1; then
         echo -e "${YELLOW}Installing .rpm packages...${NC}"
-        sudo dnf localinstall -y *.rpm
-        echo -e "${GREEN}✓ Package installation complete!${NC}"
+        
+        # Count total packages
+        TOTAL_RPMS=$(ls -1 *.rpm | wc -l)
+        echo -e "${YELLOW}Found $TOTAL_RPMS RPM packages to install${NC}"
+        
+        # Try to install all at once with dnf (best dependency resolution)
+        echo -e "${YELLOW}  Attempting batch installation with dnf localinstall...${NC}"
+        if sudo dnf localinstall -y *.rpm 2>&1 | tee /tmp/dnf_install.log; then
+            echo -e "${GREEN}✓ Package installation complete!${NC}"
+        else
+            echo -e "${YELLOW}⚠ dnf localinstall had issues, trying rpm directly...${NC}"
+            
+            # If dnf fails, try rpm with --nodeps for already-installed system packages
+            # then use dnf to fix dependencies
+            echo -e "${YELLOW}  Installing with rpm and fixing dependencies...${NC}"
+            sudo rpm -Uvh --replacepkgs *.rpm 2>&1 | tee /tmp/rpm_install.log || true
+            
+            echo -e "${YELLOW}  Fixing dependencies with dnf...${NC}"
+            sudo dnf install -y --allowerasing --skip-broken 2>&1 | tee -a /tmp/dnf_install.log || true
+            
+            echo -e "${GREEN}✓ Package installation attempted (check logs if issues occur)${NC}"
+        fi
     else
         echo -e "${RED}✗ No .rpm files found in rpms directory${NC}"
         exit 1
@@ -742,7 +874,6 @@ fi
 
 echo -e "${GREEN}✓ All packages installed successfully!${NC}"
 echo -e "${YELLOW}Next: Run ../load_containers.sh to load container images${NC}"
-EOF
 
     chmod +x "$OUTPUT_DIR/packages/install_packages_offline.sh"
 
