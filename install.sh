@@ -568,13 +568,10 @@ if [ "$OFFLINE_MODE" = "true" ]; then
                 ubuntu|debian|linuxmint|pop)
                     PACKAGES_DIR="debs"
                     PACKAGE_EXT="deb"
-                    INSTALL_CMD="sudo dpkg -i *.deb && sudo apt-get install -f -y"
                     ;;
                 rhel|centos|rocky|almalinux|fedora)
                     PACKAGES_DIR="rpms"
                     PACKAGE_EXT="rpm"
-                    # Use dnf localinstall with --skip-broken to avoid conflicts with existing packages
-                    INSTALL_CMD="sudo dnf localinstall -y --skip-broken *.rpm"
                     ;;
                 *)
                     echo -e "${RED}✗ Unsupported operating system: $OS_ID${NC}"
@@ -593,67 +590,54 @@ if [ "$OFFLINE_MODE" = "true" ]; then
             if ls *.$PACKAGE_EXT 1> /dev/null 2>&1; then
                 echo -e "${YELLOW}Installing .$PACKAGE_EXT packages...${NC}"
 
-                # For RPM packages, use hybrid installation method
+                # For RPM packages, install all at once for proper dependency resolution
                 if [ "$PACKAGE_EXT" = "rpm" ]; then
-                    echo -e "${YELLOW}  Using hybrid RPM installation (safe first, then force critical packages)...${NC}"
-
-                    # Try safe installation first
-                    eval $INSTALL_CMD
-                    INSTALL_RESULT=$?
-
-                    if [ $INSTALL_RESULT -eq 0 ]; then
+                    echo -e "${YELLOW}  Installing all RPM packages together...${NC}"
+                    
+                    # Count packages
+                    TOTAL_RPMS=$(ls -1 *.rpm | wc -l)
+                    echo -e "${YELLOW}Found $TOTAL_RPMS RPM packages to install${NC}"
+                    
+                    # CRITICAL: Install all RPMs at once - this is essential for dependency resolution
+                    # Use rpm directly to avoid any repository access (we're always in offline mode here)
+                    echo -e "${YELLOW}  Using rpm to install from local packages only${NC}"
+                    
+                    if sudo rpm -Uvh --replacepkgs *.rpm 2>&1 | tee /tmp/rpm_install.log; then
                         echo -e "${GREEN}✓ All packages installed successfully${NC}"
                     else
-                        echo -e "${YELLOW}⚠️  Some packages had conflicts, checking critical packages...${NC}"
-                    fi
-
-                    # Define critical packages that MUST be installed for LME to function
-                    CRITICAL_PACKAGES="podman containers-common conmon crun"
-
-                    # ALWAYS force reinstall critical packages to ensure binaries are present
-                    # Even if RPM database says they're installed, the files might be missing
-                    echo -e "${YELLOW}Force reinstalling critical packages to ensure binaries are present...${NC}"
-
-                    for pkg in $CRITICAL_PACKAGES; do
-                        echo -e "${YELLOW}Force reinstalling: $pkg${NC}"
-                        if ls $pkg*.rpm >/dev/null 2>&1; then
-                            if sudo rpm -Uvh --force $pkg*.rpm; then
-                                echo -e "${GREEN}✓ Successfully force installed: $pkg${NC}"
-                            else
-                                echo -e "${RED}✗ Failed to install critical package: $pkg${NC}"
-                                exit 1
-                            fi
+                        # Check the error - might be that packages are already installed
+                        if grep -q "already installed" /tmp/rpm_install.log; then
+                            echo -e "${GREEN}✓ Packages are already installed${NC}"
                         else
-                            echo -e "${RED}✗ Critical package not found in offline archive: $pkg${NC}"
+                            echo -e "${RED}✗ Package installation failed${NC}"
+                            echo -e "${YELLOW}This usually means the offline archive is missing dependencies.${NC}"
+                            echo -e "${YELLOW}Please run prepare_offline.sh again to capture all dependencies.${NC}"
+                            
+                            # Show which dependencies are missing
+                            echo -e "${YELLOW}Missing dependencies:${NC}"
+                            grep -E "is needed by|Failed dependencies" /tmp/rpm_install.log | head -20 || true
+                            
+                            exit 1
+                        fi
+                    fi
+                    
+                    # Verify critical packages are actually installed and functional
+                    echo -e "${YELLOW}Verifying critical packages...${NC}"
+                    CRITICAL_VERIFY=("podman" "ansible" "git")
+                    
+                    for cmd in "${CRITICAL_VERIFY[@]}"; do
+                        if command -v "$cmd" >/dev/null 2>&1; then
+                            VERSION=$($cmd --version 2>&1 | head -1)
+                            echo -e "${GREEN}✓ $cmd is accessible: $VERSION${NC}"
+                        else
+                            echo -e "${RED}✗ CRITICAL: $cmd is not accessible after installation${NC}"
+                            echo -e "${YELLOW}Checking if RPM is installed...${NC}"
+                            rpm -qa | grep -i "$cmd" || echo "Not found in RPM database"
                             exit 1
                         fi
                     done
-
-                    # CRITICAL: Verify podman is actually accessible before continuing
-                    echo -e "${YELLOW}Verifying podman installation...${NC}"
-                    if command -v podman >/dev/null 2>&1; then
-                        PODMAN_VERSION=$(podman --version)
-                        echo -e "${GREEN}✓ Podman is accessible: $PODMAN_VERSION${NC}"
-                    elif [ -x /usr/bin/podman ]; then
-                        echo -e "${YELLOW}⚠️  Podman installed but not in PATH, adding to environment...${NC}"
-                        export PATH="/usr/bin:$PATH"
-                        if command -v podman >/dev/null 2>&1; then
-                            PODMAN_VERSION=$(podman --version)
-                            echo -e "${GREEN}✓ Podman is now accessible: $PODMAN_VERSION${NC}"
-                        else
-                            echo -e "${RED}✗ Podman installed but cannot be executed${NC}"
-                            echo -e "${YELLOW}Debug: ls -la /usr/bin/podman${NC}"
-                            ls -la /usr/bin/podman
-                            exit 1
-                        fi
-                    else
-                        echo -e "${RED}✗ CRITICAL: Podman is not installed or not accessible${NC}"
-                        echo -e "${YELLOW}Installed packages:${NC}"
-                        rpm -qa | grep -E "podman|containers-common|conmon|crun"
-                        echo -e "${YELLOW}Checking podman locations:${NC}"
-                        find /usr -name "podman" 2>/dev/null || echo "Not found"
-                        exit 1
-                    fi
+                    
+                    echo -e "${GREEN}✓ Package installation and verification complete!${NC}"
                 else
                     # For DEB packages on Ubuntu, use smart installation with proper ordering
                     echo -e "${YELLOW}Installing DEB packages with dependency-aware ordering...${NC}"

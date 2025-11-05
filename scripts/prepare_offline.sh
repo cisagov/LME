@@ -330,80 +330,7 @@ download_dnf_packages() {
     echo -e "${YELLOW}Downloading packages...${NC}"
     cd "$OUTPUT_DIR/packages/rpms"
 
-    REPO_FLAGS=""
-
-    # Check for repotrack availability (RHEL 9+ doesn't include it by default)
-    # Test if repotrack actually works before trying to use it
-    REPOTRACK_AVAILABLE=false
-    if command -v repotrack &>/dev/null; then
-        # Test if repotrack supports the options we need
-        if repotrack --help 2>&1 | grep -q "\-\-download-path"; then
-            REPOTRACK_AVAILABLE=true
-            echo -e "${GREEN}✓ repotrack is available and functional${NC}"
-        else
-            echo -e "${YELLOW}Note: repotrack found but doesn't support required flags, will use dnf download${NC}"
-        fi
-    else
-        echo -e "${YELLOW}Note: repotrack not available, will use dnf download (this is normal for RHEL 9)${NC}"
-    fi
-
-    for package in "${PACKAGES[@]}"; do
-        echo -e "${YELLOW}  Downloading $package and dependencies...${NC}"
-        DOWNLOAD_SUCCESS=false
-        
-        # Use repotrack for more complete dependency resolution (if available and functional)
-        if [ "$REPOTRACK_AVAILABLE" = true ]; then
-            echo -e "${YELLOW}    Using repotrack for complete dependency resolution...${NC}"
-            # Use correct flag: --download-path (not -p)
-            if sudo repotrack --download-path="$OUTPUT_DIR/packages/rpms" "$package" 2>&1 | tee /tmp/repotrack_output.log | grep -v "already downloaded"; then
-                # Check if repotrack actually succeeded (exit code 0 and downloaded files)
-                if [ ${PIPESTATUS[0]} -eq 0 ] && ls "$OUTPUT_DIR/packages/rpms/${package}"-*.rpm 2>/dev/null | grep -q .; then
-                    DOWNLOAD_SUCCESS=true
-                    echo -e "${GREEN}    ✓ Downloaded with repotrack${NC}"
-                else
-                    echo -e "${YELLOW}  ⚠ repotrack reported success but no files found, trying dnf...${NC}"
-                fi
-            else
-                echo -e "${YELLOW}  ⚠ Could not download $package with repotrack, trying dnf...${NC}"
-            fi
-        fi
-        
-        # Use dnf download if repotrack not available or failed
-        if [ "$DOWNLOAD_SUCCESS" = false ]; then
-            echo -e "${YELLOW}    Using dnf download for $package...${NC}"
-            
-            # Try to download with dependencies - use multiple strategies
-            # First try: standard download with all deps
-            DNF_OUTPUT=$(sudo dnf download --destdir="$OUTPUT_DIR/packages/rpms" --resolve --alldeps "$package" 2>&1)
-            DNF_EXIT=$?
-            
-            if [ $DNF_EXIT -eq 0 ]; then
-                DOWNLOAD_SUCCESS=true
-                echo -e "${GREEN}    ✓ Downloaded with dnf download${NC}"
-            else
-                echo -e "${YELLOW}    First dnf method failed, trying install --downloadonly...${NC}"
-                
-                # Second try: Use downloadonly plugin with install simulation
-                DNF_OUTPUT=$(sudo dnf install --downloadonly --downloaddir="$OUTPUT_DIR/packages/rpms" -y "$package" 2>&1)
-                DNF_EXIT=$?
-                
-                if [ $DNF_EXIT -eq 0 ]; then
-                    DOWNLOAD_SUCCESS=true
-                    echo -e "${GREEN}    ✓ Downloaded with dnf install --downloadonly${NC}"
-                else
-                    echo -e "${RED}  ✗ Failed to download $package${NC}"
-                    echo -e "${RED}    Error: $DNF_OUTPUT${NC}" | head -5
-                fi
-            fi
-        fi
-        
-        if [ "$DOWNLOAD_SUCCESS" = true ]; then
-            echo -e "${GREEN}  ✓ Successfully downloaded $package${NC}"
-        fi
-    done
-    
-    echo -e "${YELLOW}Downloading additional container dependencies...${NC}"
-    # Explicitly download critical podman dependencies that might be missed
+    # Define additional container dependencies that must be included
     CONTAINER_DEPS=(
         "conmon"
         "containers-common"
@@ -417,16 +344,35 @@ download_dnf_packages() {
         "nftables"
         "crun"
         "runc"
+        "fuse-overlayfs"
+        "container-selinux"
     )
+
+    # Combine main packages with container dependencies
+    ALL_PACKAGES=("${PACKAGES[@]}" "${CONTAINER_DEPS[@]}")
     
-    for dep in "${CONTAINER_DEPS[@]}"; do
-        echo -e "${YELLOW}  Ensuring $dep is downloaded...${NC}"
-        sudo dnf download --destdir="$OUTPUT_DIR/packages/rpms" --resolve --alldeps "$dep" 2>&1 | grep -v -e "already downloaded" -e "No package.*available" || true
-    done
+    echo -e "${GREEN}Downloading ${#ALL_PACKAGES[@]} packages with all dependencies...${NC}"
+    
+    # CRITICAL: Use 'dnf download' NOT 'dnf install --downloadonly' because:
+    # - 'dnf install --downloadonly' skips packages already installed on this system
+    # - 'dnf download --resolve' downloads packages regardless of installation status
+    # We need ALL packages for offline installation, even if they're already installed here!
+    echo -e "${YELLOW}Using dnf download --resolve for complete dependency resolution...${NC}"
+    
+    # Try to download all packages with their dependencies
+    if sudo dnf download --destdir="$OUTPUT_DIR/packages/rpms" --resolve --alldeps "${ALL_PACKAGES[@]}" 2>&1 | tee /tmp/dnf_download.log; then
+        echo -e "${GREEN}✓ Download command completed${NC}"
+    else
+        echo -e "${YELLOW}⚠ Some packages may have had issues, checking results...${NC}"
+    fi
+
+    # List what was downloaded
+    RPM_COUNT=$(ls -1 *.rpm 2>/dev/null | wc -l)
+    echo -e "${GREEN}✓ Downloaded $RPM_COUNT RPM files total${NC}"
 
     # Verify critical packages were successfully downloaded
     echo -e "${YELLOW}Verifying critical packages were downloaded...${NC}"
-    CRITICAL_PACKAGES=("podman" "ansible" "git" "passt-selinux" "container-selinux")
+    CRITICAL_PACKAGES=("podman" "ansible" "git" "container-selinux" "conmon" "containers-common" "netavark" "passt" "slirp4netns" "fuse-overlayfs")
     MISSING_PACKAGES=()
 
     for pkg in "${CRITICAL_PACKAGES[@]}"; do
@@ -441,15 +387,32 @@ download_dnf_packages() {
 
     if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
         echo -e "${RED}✗ Failed to download critical packages: ${MISSING_PACKAGES[*]}${NC}"
-        echo -e "${YELLOW}The following packages are required but were not downloaded:${NC}"
-        for missing in "${MISSING_PACKAGES[@]}"; do
-            echo -e "${YELLOW}  - $missing${NC}"
+        echo -e "${YELLOW}Attempting to download missing packages individually with full dependency tree...${NC}"
+        
+        for missing_pkg in "${MISSING_PACKAGES[@]}"; do
+            echo -e "${YELLOW}  Downloading $missing_pkg with all dependencies...${NC}"
+            # Use 'dnf download' not 'dnf install --downloadonly' to get packages even if installed
+            sudo dnf download --destdir="$OUTPUT_DIR/packages/rpms" --resolve --alldeps "$missing_pkg" 2>&1 || true
         done
-        echo -e "${YELLOW}Please check:${NC}"
-        echo -e "${YELLOW}  1. Repository configuration is correct${NC}"
-        echo -e "${YELLOW}  2. Package names are valid for your RHEL version${NC}"
-        echo -e "${YELLOW}  3. Network connectivity to repositories${NC}"
-        exit 1
+        
+        # Re-verify
+        STILL_MISSING=()
+        for pkg in "${MISSING_PACKAGES[@]}"; do
+            if ! ls "$OUTPUT_DIR/packages/rpms/${pkg}"-*.rpm 1> /dev/null 2>&1; then
+                STILL_MISSING+=("$pkg")
+            else
+                echo -e "${GREEN}✓ Successfully downloaded missing package: $pkg${NC}"
+            fi
+        done
+        
+        if [ ${#STILL_MISSING[@]} -gt 0 ]; then
+            echo -e "${RED}✗ Still missing critical packages: ${STILL_MISSING[*]}${NC}"
+            echo -e "${YELLOW}Please check:${NC}"
+            echo -e "${YELLOW}  1. Repository configuration is correct${NC}"
+            echo -e "${YELLOW}  2. Package names are valid for your RHEL version${NC}"
+            echo -e "${YELLOW}  3. Network connectivity to repositories${NC}"
+            exit 1
+        fi
     fi
 
     echo -e "${GREEN}✓ All critical packages verified${NC}"
