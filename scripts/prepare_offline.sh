@@ -24,7 +24,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 # Set default versions if not found in env file
-STACK_VERSION=${STACK_VERSION:-"8.18.0"}
+STACK_VERSION=${STACK_VERSION:-"8.18.3"}
 WAZUH_VERSION=${WAZUH_VERSION:-"4.9.1"}
 
 # Print usage information
