@@ -211,12 +211,14 @@ Then, setup the agents:
 cd ~/LME/testing/v2/orc
 export STATE_FILE=./state_y
 source $TLD/.venv/bin/activate
+cd $TLD/ansible
 
 #add your elastic password below:
 export $ELASTIC_PASS='bpb91J8!sCAOUlv!3!ibLZJ1fDPYyk'
 ansible-playbook -i ${STATE_FILE}/inventory.ini ./playbooks/intall_agents.yml -e
-#TODO: add wazuh here
+ansible-playbook -i ${STATE_FILE}/inventory.ini ./playbooks/intall_wazuh.yml -e
 ```
+
 
 
 # DEBUG / FAQ / HELP
@@ -259,6 +261,13 @@ Ssh should now work
 ssh into the linux vm manually to add it to known_hosts file
 ```bash
 ssh localuser@10.0.1.7
+```
+
+## dnsmasq issues:
+Command to run dnsmasq manually if needed
+```bash
+sudo dnsmasq --no-daemon --bind-interfaces --listen-address=192.168.1.1 --dhcp-range=192.168.1.2,192.168.1.255,255.255.255.0 --dhcp-host=6a:64:ed:f2:60:b1,192.168.1.2 --dhcp-host=5a:ef:ed:36:72:97,192.168.1.3 --dhcp-host=56:92:f9:0b:a3:08,192.168.1.5 --dhcp-host=ee:4e:a3:81:68:7b,192.168.1.4 --server=1.1.1.1 --interface=tap1 --except-interface=lo
+sudo /opt/minimega/bin/minimega -e tap create EXP ip 192.168.1.1/24 tap1
 ```
 
 ## Endpoint Setup

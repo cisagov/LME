@@ -1,0 +1,106 @@
+- name: Install and Verify Wazuh Agent
+  hosts: win*,lin*
+  gather_facts: true
+  vars:
+    wazuh_manager: lme
+
+  pre_tasks:
+    - name: Set Wazuh manager IP from inventory
+      set_fact:
+        wazuh_manager_ip: "{{ hostvars[wazuh_manager]['ansible_host'] | default(hostvars[wazuh_manager]['ansible_default_ipv4']['address']) }}"
+
+    - name: Get Wazuh manager version
+      delegate_to: "{{ wazuh_manager }}"
+      become: true
+      shell: |
+        sudo -i podman exec lme-wazuh-manager /var/ossec/bin/wazuh-control -j info | jq -r '.data[]?.WAZUH_VERSION | select(. != null)'
+      register: manager_version_raw
+      #run_once: true
+      #changed_when: false
+
+    - name: Set manager and agent versions
+      set_fact:
+        manager_version: "{{ manager_version_raw.stdout | regex_replace('^v', '') }}"
+        agent_version: "{{ manager_version_raw.stdout | regex_replace('^v', '') }}-1"
+      run_once: true
+
+    - name: Print manager and agent versions
+      debug:
+        msg: "Manager version: {{ manager_version }}, Agent version: {{ agent_version }}"
+
+  tasks:
+    - name: Install Wazuh Agent on Debian-based Linux
+      when: ansible_system == 'Linux'
+      become: true # For Linux; ignored on Windows
+      become_method: sudo
+      block:
+        - name: Add Wazuh GPG key
+          shell: |
+            curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+          args:
+            creates: /usr/share/keyrings/wazuh.gpg
+
+        - name: Add Wazuh repository
+          copy:
+            content: "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main"
+            dest: /etc/apt/sources.list.d/wazuh.list
+
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+
+        - name: Install Wazuh agent
+          environment:
+            WAZUH_MANAGER: "{{ wazuh_manager_ip }}"
+          apt:
+            name: "wazuh-agent={{ agent_version }}"
+            state: present
+
+        - name: Configure manager IP in ossec.conf
+          replace:
+            path: /var/ossec/etc/ossec.conf
+            regexp: "MANAGER_IP"
+            replace: "{{ wazuh_manager_ip }}"
+
+        - name: Enable and start Wazuh agent service
+          systemd:
+            name: wazuh-agent
+            enabled: yes
+            state: started
+
+    - name: Install Wazuh Agent on Windows
+      when: ansible_os_family == 'Windows'
+      become: true
+      become_method: runas
+      become_user: "localuser"
+      block:
+        - name: Ensure Temp directory exists
+          win_file:
+            path: C:\Temp
+            state: directory
+
+        - name: Download Wazuh agent MSI
+          win_get_url:
+            url: "https://packages.wazuh.com/4.x/windows/wazuh-agent-{{ agent_version }}.msi"
+            dest: "C:\\Temp\\wazuh-agent-{{ agent_version }}.msi"
+
+        - name: Install Wazuh agent MSI
+          win_package:
+            path: "C:\\Temp\\wazuh-agent-{{ agent_version }}.msi"
+            arguments: '/q WAZUH_MANAGER="{{ wazuh_manager_ip }}"'
+            state: present
+
+        - name: Start Wazuh service
+          win_service:
+            name: WazuhSvc
+            state: started
+
+    - name: Wait for agent to register and become active on manager
+      delegate_to: "{{ wazuh_manager }}"
+      become: yes
+      command: sudo -i podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
+      register: agents_list
+      until: agents_list.stdout is search(ansible_hostname + '.*Active')
+      retries: 30
+      delay: 10
+      changed_when: false
