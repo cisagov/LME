@@ -47,7 +47,7 @@
 - name: Debug - Show common packages install result
   debug:
     var: dnf_install
-  when: debug_mode | default(false)
+  when: debug_mode | default(false) | bool
 
 - name: Debug - Show Red Hat packages to be installed
   debug:
@@ -69,7 +69,7 @@
 - name: Debug - Show Red Hat packages install result
   debug:
     var: dnf_install_redhat
-  when: debug_mode | default(false)
+  when: debug_mode | default(false) | bool
 
 # SELinux setup - run early before any Nix/Podman installation
 - name: Detect if SELinux tooling is available (base role)
@@ -120,7 +120,7 @@
 - name: Debug - Show firewalld disable result
   debug:
     msg: "Firewalld service {{ 'successfully disabled' if firewalld_disable.changed else 'was already disabled or not installed' }}"
-  when: debug_mode | default(false)
+  when: debug_mode | default(false) | bool
 
 - name: Set timezone
   timezone:

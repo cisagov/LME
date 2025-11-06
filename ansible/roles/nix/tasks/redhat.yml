@@ -151,7 +151,7 @@
     var: nix_install_result
   when:
     - not (offline_mode | default(false))
-    - debug_mode | default(false)
+    - debug_mode | default(false) | bool
     - not nix_installed.stat.exists
 
 # Offline installation - skip Nix entirely, use system podman
