@@ -142,6 +142,48 @@
     msg: "Fleet setup response: {{ fleet_setup }}"
   when: debug_mode | bool
 
+# Ensure Fleet component templates use zero replicas for single-node setup
+# Do this after Fleet setup but before indices are created
+# Note: logs@settings and logs-settings are managed system templates and cannot be modified
+# We use logs@custom which is specifically for user customizations
+- name: Update logs@custom component template for zero replicas
+  uri:
+    url: "{{ local_es_url }}/_component_template/logs@custom"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      template:
+        settings:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: logs_custom_update
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+- name: Update metrics@custom component template for zero replicas
+  uri:
+    url: "{{ local_es_url }}/_component_template/metrics@custom"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      template:
+        settings:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: metrics_settings_update
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
 - name: Get CA fingerprint
   ansible.builtin.shell: |
     set -a
@@ -545,10 +587,10 @@
     state: present
   become: yes
 
-# Wait for metrics indices to be created
-- name: Wait for all required metrics indices to be created
+# Wait for metrics indices to be created (reduced timeout for single-node setup)
+- name: Wait for metrics indices to be created
   uri:
-    url: "{{ local_es_url }}/_cat/indices/.ds-metrics-elastic_agent.*?h=index&format=json"
+    url: "{{ local_es_url }}/_cat/indices/metrics-elastic_agent.*,logs-elastic_agent*?h=index&format=json"
     method: GET
     user: "{{ elastic_username }}"
     password: "{{ elastic_password }}"
@@ -559,22 +601,22 @@
   until: >
     metrics_indices_result.status == 200 and 
     metrics_indices_result.json | length > 0 and
-    metrics_indices_result.json | map(attribute='index') | select('match', '.*metricbeat-default.*') | list | length > 0 and
-    metrics_indices_result.json | map(attribute='index') | select('match', '.*filebeat-default.*') | list | length > 0 and
-    metrics_indices_result.json | map(attribute='index') | select('match', '.*elastic_agent-default.*') | list | length > 0
-  retries: 90
+    metrics_indices_result.json | map(attribute='index') | select('match', '.*metrics-elastic_agent.*') | list | length > 0 and
+    metrics_indices_result.json | map(attribute='index') | select('match', '.*logs-elastic_agent.*') | list | length > 0
+  retries: 30
   delay: 20
   no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
 
 - name: Debug metrics indices result
   debug:
     msg: 
       - "Total indices found: {{ metrics_indices_result.json | length }}"
-      - "Metrics indices found: {{ metrics_indices_result.json | map(attribute='index') | list }}"
-      - "Metricbeat indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*metricbeat-default.*') | list }}"
-      - "Filebeat indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*filebeat-default.*') | list }}"
-      - "Agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*elastic_agent-default.*') | list }}"
+      - "All indices found: {{ metrics_indices_result.json | map(attribute='index') | list }}"
+      - "Metrics-elastic_agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*metrics-elastic_agent.*') | list }}"
+      - "Logs-elastic_agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*logs-elastic_agent.*') | list }}"
   when: debug_mode | bool and metrics_indices_result.status == 200
+
 
 - name: Debug - Display secret variables
   debug:
@@ -585,8 +627,3 @@
       - "wazuh_api={{ wazuh_api_password }}"
   when: debug_mode | bool
   no_log: "{{ not debug_mode }}"
-
-- name: Display read-only user credentials
-  debug:
-    msg: "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: {{ read_only_password.stdout }}"
-  when: read_only_password is defined and read_only_password.stdout is defined 
