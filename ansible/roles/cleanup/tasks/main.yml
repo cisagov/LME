@@ -1,0 +1,125 @@
+---
+# Final cleanup tasks for LME installation
+# This role runs after all other components to ensure proper configuration
+
+- name: Set cleanup variables
+  ansible.builtin.set_fact:
+    local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    elastic_password: "{{ global_secrets.elastic | default('') }}"
+
+- name: Wait for Elasticsearch to be ready for cleanup
+  uri:
+    url: "{{ local_es_url }}"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    status_code: 200
+  register: es_cleanup_result
+  until: es_cleanup_result.status is defined and es_cleanup_result.status == 200
+  retries: 30
+  delay: 10
+  ignore_errors: yes
+
+- name: Check if any indices exist for cleanup
+  uri:
+    url: "{{ local_es_url }}/_cat/indices?format=json"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    status_code: [200, 404]
+  register: indices_cleanup_check
+  when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
+  no_log: "{{ not debug_mode }}"
+
+- name: Ensure existing indices and data streams have desired replicas
+  block:
+    - name: Update all existing indices to have 0 replicas
+      uri:
+        url: "{{ local_es_url }}/_settings"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+        status_code: [200, 201]
+      register: indices_cleanup_result
+      when:
+        - indices_cleanup_check.status == 200
+        - indices_cleanup_check.json | length > 0
+      no_log: "{{ not debug_mode }}"
+
+    - name: Update any remaining data streams to have 0 replicas
+      uri:
+        url: "{{ local_es_url }}/.ds-*/_settings"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+        status_code: [200, 201]
+      register: datastream_cleanup_result
+      no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
+  when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
+
+- name: Display cleanup results
+  debug:
+    msg: |
+      Index cleanup completed:
+      - All indices updated to have 0 replicas: {{ 'Yes' if indices_cleanup_result is defined and indices_cleanup_result.status == 200 else 'No' }}
+      - Data streams updated to have 0 replicas: {{ 'Yes' if datastream_cleanup_result is defined and datastream_cleanup_result.status == 200 else 'No' }}
+      - All indices now have 0 replicas for single-node cluster
+  when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
+
+- name: Display LME installation summary and credentials
+  debug:
+    msg:
+      - "========================================"
+      - "LME INSTALLATION COMPLETED SUCCESSFULLY"
+      - "========================================"
+      - ""
+      - "Your LME instance is now ready to use!"
+      - ""
+      - "Access URLs:"
+      - "- Kibana: https://localhost:5601"
+      - "- Elasticsearch: https://localhost:9200"
+      - "- Wazuh: https://localhost:443"
+      - ""
+      - "Default Credentials:"
+      - "- Elasticsearch/Kibana: elastic /" 
+      - " run this script as root and use the elastic password: source ~/LME/scripts/extract_secrets.sh -p "
+      - "- Read-only user: readonly_user / {{ readonly_user_password | default('password not available') }}"
+      - ""
+      - "Next Steps:"
+      - "1. Access Kibana at https://localhost:5601"
+      - "2. Log in with the elastic user credentials"
+      - "3. Start adding your data sources"
+      - "4. Explore the pre-configured dashboards"
+      - ""
+      - "For more information, visit: https://github.com/cisagov/LME"
+      - "========================================"
+  when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
+
+
+- name: Debug - Display secret variables
+  debug:
+    msg:
+      - "elastic={{ elastic_password }}"
+      - "wazuh={{ wazuh_password }}"
+      - "kibana_system={{ kibana_system_password }}"
+      - "wazuh_api={{ wazuh_api_password }}"
+  when: debug_mode | bool
+  no_log: "{{ not debug_mode }}"
