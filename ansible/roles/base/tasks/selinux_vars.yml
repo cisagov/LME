@@ -37,6 +37,6 @@
       - "Active (not disabled): {{ selinux_active }}"
       - "Context supported:     {{ selinux_context_supported }}"
       - "cp preserve cmd:       {{ cp_preserve_cmd }}"
-  when: debug_mode | default(false)
+  when: debug_mode | default(false) | bool
 
 

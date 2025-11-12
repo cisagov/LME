@@ -34,7 +34,7 @@
       - Available: {{ selinux_available | default(false) }}
       - Current mode: {{ getenforce_out.stdout | default('N/A') }}
       - Was enforcing: {{ selinux_was_enforcing | default(false) }}
-  when: debug_mode | default(false)
+  when: debug_mode | default(false) | bool
 
 # Install SELinux policy tools early
 - name: Ensure SELinux policy tools are present
@@ -49,7 +49,16 @@
       - container-selinux
     state: present
   become: yes
-  when: selinux_available | default(false)
+  when:
+    - selinux_available | default(false)
+    - not (offline_mode | default(false))
+
+- name: Skip SELinux policy tools installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping SELinux policy tools installation (should be pre-installed)"
+  when:
+    - selinux_available | default(false)
+    - offline_mode | default(false)
 
 - name: Ensure SELinux policy directory exists
   file:
@@ -106,7 +115,7 @@
 - name: Debug SELinux compile result
   debug:
     var: selinux_compile
-  when: debug_mode | default(false) and selinux_compile is defined
+  when: debug_mode | default(false) | bool and selinux_compile is defined
 
 - name: Check if SELinux module already present (pre-load)
   shell: semodule -l | grep -E "^lme_policy(\\s|$)" || true
@@ -178,5 +187,5 @@
       - LME policy loaded: {{ 'Yes' if lme_policy_present.rc == 0 else 'No' }}
       - Ready for Nix/Podman installation with proper contexts
   when: 
-    - debug_mode | default(false)
+    - debug_mode | default(false) | bool
     - selinux_available | default(false)

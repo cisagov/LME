@@ -10,6 +10,18 @@
     mode: '0644'
   become: yes
 
+# Configure Kibana for offline/air-gapped mode BEFORE starting services
+# This must happen after config files are copied but before LME service starts
+- name: Configure Kibana for offline mode
+  blockinfile:
+    path: /opt/lme/config/kibana.yml
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OFFLINE MODE"
+    block: |
+      xpack.fleet.registryUrl: "https://lme-fleet-distribution:8080"
+      xpack.fleet.isAirGapped: true
+  become: yes
+  when: offline_mode | default(false)
+
 - name: Create /etc/containers/systemd
   file:
     path: /etc/containers/systemd
@@ -38,6 +50,7 @@
   become: yes
 
 # Ensure quadlet helper and systemd generator are available from standard paths
+# Skip for RHEL offline mode - system podman already has these in place
 - name: Ensure /usr/libexec/podman exists
   file:
     path: /usr/libexec/podman
@@ -46,6 +59,7 @@
     group: root
     mode: '0755'
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Link quadlet helper into /usr/libexec/podman
   file:
@@ -54,6 +68,7 @@
     state: link
     force: true
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Ensure podman systemd generator is linked
   file:
@@ -62,12 +77,28 @@
     state: link
     force: true
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Restore contexts on quadlet/generator paths (best-effort)
   command: restorecon -v /usr/libexec/podman/quadlet /usr/lib/systemd/system-generators/podman-system-generator
   changed_when: false
   failed_when: false
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+# For RHEL offline mode - verify system podman quadlet is available
+- name: Verify system podman quadlet exists (RHEL offline)
+  stat:
+    path: /usr/libexec/podman/quadlet
+  register: system_podman_quadlet
+  when: offline_mode | default(false) and ansible_os_family == "RedHat"
+
+- name: Fail if system podman quadlet not found (RHEL offline)
+  fail:
+    msg: "System podman quadlet not found. Please ensure podman RPM is properly installed."
+  when:
+    - offline_mode | default(false) and ansible_os_family == "RedHat"
+    - not system_podman_quadlet.stat.exists
 
 # ---------------------------------------------------------------------------
 # Apply SELinux contexts after podman installation and symlink creation
@@ -100,6 +131,7 @@
   when:
     - selinux_available | default(false)
     - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Reload systemd daemon
   systemd:
