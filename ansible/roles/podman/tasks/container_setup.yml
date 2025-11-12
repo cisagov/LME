@@ -67,23 +67,28 @@
     podman pull {{ item }}
   args:
     executable: /bin/bash
-  loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() }}"
+  loop: "{{ lookup('file', clone_directory + '/config/containers.txt').splitlines() | select('match', '^[^#].*') | reject('match', '^\\s*$') | list }}"
   register: pull_result
   become: yes
   retries: 3
   delay: 5
   until: pull_result is not failed
   ignore_errors: yes
+  when: not (offline_mode | default(false))
 
 - name: Display container pull errors
   debug:
     msg: "Failed to pull container: {{ item.item }}"
   loop: "{{ pull_result.results }}"
-  when: item is failed
+  when: item is failed and not (offline_mode | default(false))
   loop_control:
     label: "{{ item.item }}"
 
-- name: Tag containers
+- name: Load and tag containers from offline resources
+  include_tasks: load_offline_containers.yml
+  when: offline_mode | default(false)
+
+- name: Tag containers (online mode only)
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     podman image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
@@ -96,6 +101,17 @@
   delay: 5
   until: tag_result is not failed
   ignore_errors: yes
+  when: not (offline_mode | default(false))
+
+- name: Display container tag errors (online mode only)
+  debug:
+    msg: "Failed to tag container: {{ item.item }}"
+  loop: "{{ tag_result.results }}"
+  when:
+    - not (offline_mode | default(false))
+    - item is failed
+  loop_control:
+    label: "{{ item.item }}"
 
 - name: Display container tag errors
   debug:
@@ -103,4 +119,4 @@
   loop: "{{ tag_result.results }}"
   when: item is failed
   loop_control:
-    label: "{{ item.item }}" 
+    label: "{{ item.item }}"

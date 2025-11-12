@@ -1,0 +1,25 @@
+---
+# Load and tag container images from offline resources by running load_containers.sh
+
+- name: Run load_containers.sh script to load and tag all container images (Nix podman)
+  shell: |
+    export PATH=/nix/var/nix/profiles/default/bin:$PATH
+    {{ clone_directory }}/offline_resources/load_containers.sh
+  args:
+    executable: /bin/bash
+  register: load_containers_result
+  become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Run load_containers.sh script to load and tag all container images (System podman - RHEL offline)
+  shell: |
+    {{ clone_directory }}/offline_resources/load_containers.sh
+  args:
+    executable: /bin/bash
+  register: load_containers_result
+  become: yes
+  when: offline_mode | default(false) and ansible_os_family == "RedHat"
+
+- name: Display container loading output
+  debug:
+    var: load_containers_result.stdout_lines

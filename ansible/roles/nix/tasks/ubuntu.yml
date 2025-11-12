@@ -5,6 +5,7 @@
   apt:
     update_cache: yes
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Install nix packages
   apt:
@@ -13,13 +14,27 @@
       - nix-setup-systemd
     state: present
   become: yes
+  when: not (offline_mode | default(false))
+
+- name: Skip Nix installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping Nix installation (should be pre-installed)"
+  when: offline_mode | default(false)
 
 - name: Add Nix channel
   command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Update Nix channel
   command: nix-channel --update
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Ensure nix-users group exists
+  group:
+    name: nix-users
+    state: present
   become: yes
 
 - name: Add user to nix-users group
@@ -29,6 +44,14 @@
     append: yes
   become: yes
 
-- name: Install required packages
+- name: Install required packages (online mode)
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
-  become: yes 
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
+
+- name: Skip Nix package installation in offline mode (using pre-imported podman)
+  debug:
+    msg: "Offline mode - using podman from imported .nar file"
+  when: offline_mode | default(false)
