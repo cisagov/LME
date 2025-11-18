@@ -126,7 +126,7 @@ cat /opt/lme/lme-environment.env | grep LME_VERSION
 ```
 
 ### Supported Upgrade Paths
-- **From 2.0.x to 2.1.0**: Supported
+- **From 2.0.x to 2.2.0**: Supported
 - **From 1.x to 2.x**: Not supported (requires manual migration)
 - **Downgrades**: Not supported (use rollback instead)
 
@@ -337,7 +337,7 @@ ansible-playbook rollback_lme.yml
 ping docker.io
 
 # Manually pull images
-sudo podman pull docker.elastic.co/elasticsearch/elasticsearch:8.18.3
+sudo podman pull docker.elastic.co/elasticsearch/elasticsearch:8.18.8
 
 # Check container registry access
 sudo podman login docker.elastic.co

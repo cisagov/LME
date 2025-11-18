@@ -4,7 +4,7 @@
 # Uses Azure CLI 'az vm run-command' instead of SSH/minimega for remote Windows management
 
 # Default values
-VERSION="8.18.3"
+VERSION="8.18.8"
 ARCHITECTURE="windows-x86_64"
 HOST_IP="10.1.0.5"
 CLIENT_IP=""

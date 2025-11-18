@@ -24,7 +24,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 # Set default versions if not found in env file
-STACK_VERSION=${STACK_VERSION:-"8.18.3"}
+STACK_VERSION=${STACK_VERSION:-"8.18.8"}
 WAZUH_VERSION=${WAZUH_VERSION:-"4.9.1"}
 
 # Print usage information
@@ -1070,12 +1070,12 @@ export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
 # Simple mapping of tar files to target names
 declare -A IMAGE_MAP
-IMAGE_MAP["elasticsearch_8.18.3.tar"]="localhost/elasticsearch:LME_LATEST"
-IMAGE_MAP["kibana_8.18.3.tar"]="localhost/kibana:LME_LATEST"
-IMAGE_MAP["elastic-agent_8.18.3.tar"]="localhost/elastic-agent:LME_LATEST"
+IMAGE_MAP["elasticsearch_8.18.8.tar"]="localhost/elasticsearch:LME_LATEST"
+IMAGE_MAP["kibana_8.18.8.tar"]="localhost/kibana:LME_LATEST"
+IMAGE_MAP["elastic-agent_8.18.8.tar"]="localhost/elastic-agent:LME_LATEST"
 IMAGE_MAP["wazuh-manager_4.9.1.tar"]="localhost/wazuh-manager:LME_LATEST"
 IMAGE_MAP["elastalert2_2.20.0.tar"]="localhost/elastalert2:LME_LATEST"
-IMAGE_MAP["distribution_lite-8.18.3.tar"]="localhost/distribution:LME_LATEST"
+IMAGE_MAP["distribution_lite-8.18.8.tar"]="localhost/distribution:LME_LATEST"
 
 LOADED_COUNT=0
 FAILED_COUNT=0
@@ -1106,14 +1106,14 @@ for tar_file in "$IMAGES_DIR"/*.tar; do
 
             # Find the loaded image and tag it
             case "$filename" in
-                "elasticsearch_8.18.3.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/elasticsearch/elasticsearch:8.18.3 $target_name"
+                "elasticsearch_8.18.8.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/elasticsearch/elasticsearch:8.18.8 $target_name"
                     ;;
-                "kibana_8.18.3.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/kibana/kibana:8.18.3 $target_name"
+                "kibana_8.18.8.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/kibana/kibana:8.18.8 $target_name"
                     ;;
-                "elastic-agent_8.18.3.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/beats/elastic-agent:8.18.3 $target_name"
+                "elastic-agent_8.18.8.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/beats/elastic-agent:8.18.8 $target_name"
                     ;;
                 "wazuh-manager_4.9.1.tar")
                     sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.io/wazuh/wazuh-manager:4.9.1 $target_name"
@@ -1121,8 +1121,8 @@ for tar_file in "$IMAGES_DIR"/*.tar; do
                 "elastalert2_2.20.0.tar")
                     sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.io/jertel/elastalert2:2.20.0 $target_name"
                     ;;
-                "distribution_lite-8.18.3.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/package-registry/distribution:lite-8.18.3 $target_name"
+                "distribution_lite-8.18.8.tar")
+                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/package-registry/distribution:lite-8.18.8 $target_name"
                     ;;
             esac
 

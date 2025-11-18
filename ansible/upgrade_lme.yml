@@ -7,7 +7,7 @@
     # Common variables
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
-    new_lme_version: "2.1.1"
+    new_lme_version: "2.2.0"
     
     # Backup timestamp - set once and used throughout
     backup_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
