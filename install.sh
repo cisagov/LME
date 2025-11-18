@@ -16,6 +16,7 @@ DEBUG_MODE="false"
 OFFLINE_MODE="false"
 SKIP_PACKAGES="false"
 GRAPH_ROOT="/var/lib/containers/storage"
+INSTALL_LLM="false"
 
 # Cluster mode settings
 CLUSTER_MODE=${LME_CLUSTER:-false}
@@ -37,6 +38,7 @@ usage() {
     echo "  -d, --debug                   Enable debug mode for verbose output"
     echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
     echo "  --skip-packages               Skip package installation (for development)"
+    echo "  --llm                         Install llama.cpp server for AI/LLM functionality"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
     echo "  -g, --graph-root GRAPH_ROOT   Change the graphroot directory (where volumes are stored)"
     echo "  -h, --help                    Show this help message"
@@ -75,6 +77,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-packages)
             SKIP_PACKAGES="true"
+            shift
+            ;;
+        --llm)
+            INSTALL_LLM="true"
             shift
             ;;
         -p|--playbook)
@@ -542,9 +548,9 @@ run_playbook() {
     mkdir -p /tmp/ansible-tmp
 
     if [ -f "$SCRIPT_DIR/inventory" ]; then
-        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"', "storage_graphroot": '"${GRAPH_ROOT}"'}' $ANSIBLE_OPTS
+        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"', "storage_graphroot": '"${GRAPH_ROOT}"',"install_llm":'"${INSTALL_LLM}"'}' $ANSIBLE_OPTS
     else
-        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"', "storage_graphroot": '"${GRAPH_ROOT}"'}' $ANSIBLE_OPTS
+        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"', "storage_graphroot": '"${GRAPH_ROOT}"',"install_llm":'"${INSTALL_LLM}"'}' $ANSIBLE_OPTS
     fi
     
     if [ $? -eq 0 ]; then

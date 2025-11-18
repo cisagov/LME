@@ -1,0 +1,25 @@
+# lme-llama-cpp.container
+[Unit]
+Description=Llama.cpp Server Container Service
+Requires=lme-network.service
+After=lme-network.service
+PartOf=lme.service
+
+[Install]
+WantedBy=default.target lme.service
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Container]
+ContainerName=lme-llama-cpp
+Image=ghcr.io/ggerganov/llama.cpp:server
+Network=lme
+PodmanArgs=--network-alias lme-llama-cpp
+PublishPort=11434:8080
+Volume=/opt/lme/llama-models:/models:Z
+Environment=HOST=0.0.0.0
+Environment=PORT=8080
+Exec=--host 0.0.0.0 --port 8080 --model /models/gemma-3-1b-it-Q4_K_M.gguf
+
