@@ -1,0 +1,80 @@
+---
+# Llama.cpp setup tasks for podman role
+
+- name: Pull llama.cpp container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull ghcr.io/ggerganov/llama.cpp:server
+  args:
+    executable: /bin/bash
+  register: pull_llama_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_llama_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Create llama models directory
+  file:
+    path: /opt/lme/llama-models
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0755'
+  become: yes
+
+- name: Download Gemma 3 1B model (Q4_K_M quantization)
+  get_url:
+    url: https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf
+    dest: /opt/lme/llama-models/gemma-3-1b-it-Q4_K_M.gguf
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+    timeout: 600
+  become: yes
+  when: not (offline_mode | default(false))
+  register: model_download
+  retries: 3
+  delay: 10
+  until: model_download is not failed
+
+- name: Copy llama.cpp quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-llama-cpp.container"
+    dest: /etc/containers/systemd/lme-llama-cpp.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Reload systemd daemon for llama.cpp
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Enable and start llama.cpp service
+  systemd:
+    name: lme-llama-cpp.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+
+- name: Display llama.cpp setup success message
+  debug:
+    msg: |
+      Llama.cpp server with Gemma 3 1B model has been installed and started!
+      Access the API at: http://{{ ansible_default_ipv4.address }}:11434
+      Model file: /opt/lme/llama-models/gemma-3-1b-it-Q4_K_M.gguf
+  when: model_download is succeeded
+
+- name: Display llama.cpp offline mode message
+  debug:
+    msg: |
+      Llama.cpp server has been configured but model was not downloaded (offline mode).
+      To use it:
+      1. Manually download a GGUF model file to /opt/lme/llama-models/
+      2. Update the Exec line in /etc/containers/systemd/lme-llama-cpp.container to point to your model
+      3. Start the service: sudo systemctl daemon-reload && sudo systemctl start lme-llama-cpp.service
+  when: offline_mode | default(false)
+

@@ -209,3 +209,8 @@
 # Include quadlet setup tasks
 - name: Setup quadlets for podman
   include_tasks: quadlet_setup.yml
+
+# Include llama.cpp setup tasks (conditional)
+- name: Setup llama.cpp for podman
+  include_tasks: llama_cpp_setup.yml
+  when: install_llm | default(false)
