@@ -33,7 +33,7 @@
     elasticsearch_number_of_replicas: 0
     
     # Kibana version
-    kibana_version: "8.18.3"
+    kibana_version: "8.18.8"
     
     # Default timezone settings
     timezone_area: "Etc"  # Change to your area: America, Europe, Asia, etc.

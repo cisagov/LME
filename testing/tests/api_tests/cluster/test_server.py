@@ -109,7 +109,7 @@ def test_cluster_node(es_host, es_port, username, password):
     cluster_name = get_value_from_json_path(data, name_path)
     assert cluster_name == "lme-elasticsearch"
     cluster_version = get_value_from_json_path(data, version_path)
-    assert cluster_version == "8.18.3"
+    assert cluster_version == "8.18.8"
     
 def test_logging_policy(es_host, es_port, username, password):
     
@@ -219,12 +219,12 @@ def test_elastic_agent_logs_search(es_host, es_port, username, password):
         assert "type" in data[rootKey]["hits"][x]["_source"]["agent"]
         assert "ephemeral_id" in data[rootKey]["hits"][x]["_source"]["agent"]
         assert "version" in data[rootKey]["hits"][x]["_source"]["agent"]
-        #assert data[rootKey]["hits"][x]["_source"]["agent"]["version"]=="8.18.3"
+        #assert data[rootKey]["hits"][x]["_source"]["agent"]["version"]=="8.18.8"
         assert "log" in data[rootKey]["hits"][x]["_source"]
         assert "offset" in data[rootKey]["hits"][x]["_source"]["log"]
         assert "id" in data[rootKey]["hits"][x]["_source"]["elastic_agent"]
         assert "version" in data[rootKey]["hits"][x]["_source"]["elastic_agent"]
-        #assert data[rootKey]["hits"][x]["_source"]["elastic_agent"]["version"]=="8.18.3"
+        #assert data[rootKey]["hits"][x]["_source"]["elastic_agent"]["version"]=="8.18.8"
         assert "snapshot" in data[rootKey]["hits"][x]["_source"]["elastic_agent"]
         assert "message" in data[rootKey]["hits"][x]["_source"]
         assert "file.line" in data[rootKey]["hits"][x]["_source"]["log.origin"]
@@ -451,6 +451,6 @@ def test_fleet_server(es_host, es_port, username, password):
 
     assert rootKey=="hits"
     assert (data[rootKey]["hits"][0]["_source"]["agent"]["name"] == "lme-fleet-server") 
-    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.18.3") 
+    assert (data[rootKey]["hits"][0]["_source"]["agent"]["version"] == "8.18.8") 
     assert (data[rootKey]["hits"][0]["_source"]["ecs"]["version"] == "8.0.0") 
     assert (data[rootKey]["hits"][0]["_source"]["state"] == "HEALTHY") 
