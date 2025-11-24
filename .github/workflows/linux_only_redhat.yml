@@ -26,9 +26,10 @@ on:
   push:
     branches:
       - develop
-  pull_request:
-    branches:
-      - '*'
+  # COMMENTED OUT FOR TESTING - pull_request trigger temporarily disabled
+  # pull_request:
+  #   branches:
+  #     - '*'
   
 
 jobs:
