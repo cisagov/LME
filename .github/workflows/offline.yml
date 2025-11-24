@@ -121,15 +121,6 @@ jobs:
           ./lib/copy_ssh_key.sh lme-user ${{ env.U1_IP }} pipe-${{ env.UNIQUE_ID }}-u1.password.txt
         "
 
-    - name: Find offline tarball on u1
-      run: |
-        cd testing/v2/development
-        TARBALL_NAME=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ls -t ~/lme-offline-*.tar.gz 2>/dev/null | head -1 | xargs basename'
-        ")
-        echo "TARBALL_NAME=$TARBALL_NAME" >> $GITHUB_ENV
-        echo "Found tarball: $TARBALL_NAME"
-
     - name: Build u2 Azure instance (target machine)
       env:
         AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -201,6 +192,15 @@ jobs:
           ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~ && git clone https://github.com/cisagov/LME.git && cd LME && git checkout ${{ env.BRANCH_NAME }}' && \
           ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~/LME && ./scripts/prepare_offline.sh'
         "
+
+    - name: Find offline tarball on u1
+      run: |
+        cd testing/v2/development
+        TARBALL_NAME=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ls -t ~/lme-offline-*.tar.gz 2>/dev/null | head -1 | xargs basename'
+        ")
+        echo "TARBALL_NAME=$TARBALL_NAME" >> $GITHUB_ENV
+        echo "Found tarball: $TARBALL_NAME"
 
     - name: Copy offline tarball from u1 to u2
       run: |
