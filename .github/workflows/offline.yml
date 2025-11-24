@@ -1,0 +1,42 @@
+name: Offline
+
+on:
+  workflow_dispatch:
+    inputs:
+      azure_region:
+        description: 'Azure region to deploy resources'
+        required: true
+        default: 'centralus'
+        type: choice
+        options:
+          - centralus
+          - eastus
+          - eastus2
+          - westus
+          - westus2
+          - westus3
+          - northcentralus
+          - southcentralus
+          - canadacentral
+          - canadaeast
+          - uksouth
+          - ukwest
+          - northeurope
+          - westeurope
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  offline:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.1
+      
+    - name: Placeholder step
+      run: |
+        echo "Offline workflow - ready for implementation"
+        echo "Azure region: ${{ inputs.azure_region || 'centralus' }}"
+
