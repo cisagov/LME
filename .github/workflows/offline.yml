@@ -121,15 +121,6 @@ jobs:
           ./lib/copy_ssh_key.sh lme-user ${{ env.U1_IP }} pipe-${{ env.UNIQUE_ID }}-u1.password.txt
         "
 
-    - name: Prepare offline resources on u1
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sudo apt-get update && sudo apt-get install -y git' && \
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~ && git clone https://github.com/cisagov/LME.git && cd LME && git checkout ${{ env.BRANCH_NAME }}' && \
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~/LME && ./scripts/prepare_offline.sh'
-        "
-
     - name: Find offline tarball on u1
       run: |
         cd testing/v2/development
@@ -202,6 +193,15 @@ jobs:
           ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sshpass -f ~/pipe-${{ env.UNIQUE_ID }}-u2.password.txt ssh-copy-id -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }}'
         "
 
+    - name: Prepare offline resources on u1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sudo apt-get update && sudo apt-get install -y git' && \
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~ && git clone https://github.com/cisagov/LME.git && cd LME && git checkout ${{ env.BRANCH_NAME }}' && \
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~/LME && ./scripts/prepare_offline.sh'
+        "
+
     - name: Copy offline tarball from u1 to u2
       run: |
         cd testing/v2/development
@@ -250,7 +250,7 @@ jobs:
               --resource-group pipe-${{ env.UNIQUE_ID }}-u2 \
               --nsg-name NSG1 \
               --name deny-all-outbound \
-              --priority 4000 \
+              --priority 1010 \
               --direction Outbound \
               --access Deny \
               --protocol '*' \
