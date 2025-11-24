@@ -104,23 +104,6 @@ jobs:
               -y
           "
 
-    - name: Get u1 IP and password
-      run: |
-        cd testing/v2/development
-        U1_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}-u1.ip.txt")
-        echo "U1_IP=$U1_IP" >> $GITHUB_ENV
-        U1_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}-u1.password.txt")
-        echo "U1_PASSWORD=$U1_PASSWORD" >> $GITHUB_ENV
-        echo "U1 IP: $U1_IP"
-
-    - name: Setup SSH keys for u1
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          cd /home/lme-user/LME/testing/v2/installers && \
-          ./lib/copy_ssh_key.sh lme-user ${{ env.U1_IP }} pipe-${{ env.UNIQUE_ID }}-u1.password.txt
-        "
-
     - name: Build u2 Azure instance (target machine)
       env:
         AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -149,6 +132,23 @@ jobs:
               --no-prompt \
               -y
           "
+
+    - name: Get u1 IP and password
+      run: |
+        cd testing/v2/development
+        U1_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}-u1.ip.txt")
+        echo "U1_IP=$U1_IP" >> $GITHUB_ENV
+        U1_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}-u1.password.txt")
+        echo "U1_PASSWORD=$U1_PASSWORD" >> $GITHUB_ENV
+        echo "U1 IP: $U1_IP"
+
+    - name: Setup SSH keys for u1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          ./lib/copy_ssh_key.sh lme-user ${{ env.U1_IP }} pipe-${{ env.UNIQUE_ID }}-u1.password.txt
+        "
 
     - name: Get u2 IP and password
       run: |
