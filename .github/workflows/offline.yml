@@ -219,7 +219,7 @@ jobs:
             cd ~/LME'
         "
 
-    - name: Add NSG outbound rule for u2
+    - name: Add NSG outbound rules for u2
       env:
         AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
@@ -245,7 +245,19 @@ jobs:
               --source-address-prefix '*' \
               --source-port-range '*' \
               --destination-address-prefix '*' \
-              --destination-port-range 22
+              --destination-port-range 22 && \
+            az network nsg rule create \
+              --resource-group pipe-${{ env.UNIQUE_ID }}-u2 \
+              --nsg-name NSG1 \
+              --name deny-all-outbound \
+              --priority 4000 \
+              --direction Outbound \
+              --access Deny \
+              --protocol '*' \
+              --source-address-prefix '*' \
+              --source-port-range '*' \
+              --destination-address-prefix '*' \
+              --destination-port-ranges '*'
           "
 
     - name: Cleanup Azure resources
