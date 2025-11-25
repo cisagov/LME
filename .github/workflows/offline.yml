@@ -316,7 +316,7 @@ jobs:
       run: |
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'cd ~/LME && ./install.sh -o -d'
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'cd ~/LME && NON_INTERACTIVE=true AUTO_CREATE_ENV=true ./install.sh -o -d'
         "
 
     #- name: Cleanup Azure resources
