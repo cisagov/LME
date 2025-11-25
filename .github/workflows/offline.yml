@@ -293,6 +293,25 @@ jobs:
               --destination-port-ranges '*'
           "
 
+    - name: Verify u2 outbound connectivity is blocked
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          echo 'Verifying that outbound connectivity from u2 is blocked...'
+          for i in {1..30}; do
+            # SSH to u2 and test HTTP connectivity (should fail when blocked)
+            if ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'timeout 5 curl -s --connect-timeout 3 https://www.google.com > /dev/null 2>&1'; then
+              echo \"Attempt \$i/30: HTTP still reachable, waiting 5 seconds...\"
+              sleep 5
+            else
+              echo '✓ Outbound connectivity confirmed blocked (HTTP test failed)'
+              exit 0
+            fi
+          done
+          echo '✗ Outbound connectivity was not blocked within timeout'
+          exit 1
+        "
+
     #- name: Cleanup Azure resources
     #  if: always()
     #  env:
