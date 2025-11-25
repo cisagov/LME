@@ -142,6 +142,23 @@ jobs:
         echo "U1_PASSWORD=$U1_PASSWORD" >> $GITHUB_ENV
         echo "U1 IP: $U1_IP"
 
+    - name: Wait for u1 SSH to be ready
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          echo 'Waiting for SSH to be available on ${{ env.U1_IP }}...'
+          for i in {1..60}; do
+            if timeout 5 bash -c 'cat < /dev/null > /dev/tcp/${{ env.U1_IP }}/22' 2>/dev/null; then
+              echo 'SSH is ready!'
+              exit 0
+            fi
+            echo \"Attempt \$i/60: SSH not ready yet, waiting 5 seconds...\"
+            sleep 5
+          done
+          echo 'SSH did not become available within timeout'
+          exit 1
+        "
+
     - name: Setup SSH keys for u1
       run: |
         cd testing/v2/development
@@ -159,6 +176,22 @@ jobs:
         echo "U2_PASSWORD=$U2_PASSWORD" >> $GITHUB_ENV
         echo "U2 IP: $U2_IP"
 
+    - name: Wait for u2 SSH to be ready
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          echo 'Waiting for SSH to be available on ${{ env.U2_IP }}...'
+          for i in {1..60}; do
+            if timeout 5 bash -c 'cat < /dev/null > /dev/tcp/${{ env.U2_IP }}/22' 2>/dev/null; then
+              echo 'SSH is ready!'
+              exit 0
+            fi
+            echo \"Attempt \$i/60: SSH not ready yet, waiting 5 seconds...\"
+            sleep 5
+          done
+          echo 'SSH did not become available within timeout'
+          exit 1
+        "
 
     - name: Setup SSH keys for u2
       run: |
