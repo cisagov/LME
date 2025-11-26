@@ -39,6 +39,8 @@ jobs:
       U2_IP: ""
       U1_PASSWORD: ""
       U2_PASSWORD: ""
+      ES_PASSWORD: ""
+      KIBANA_PASSWORD: ""
 
     steps:
     - name: Checkout repository
@@ -317,6 +319,96 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'cd ~/LME && NON_INTERACTIVE=true AUTO_CREATE_ENV=true ./install.sh -o -d'
+        "
+
+    - name: Remove NSG outbound rules for u2
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+            az network nsg rule delete \
+              --resource-group pipe-${{ env.UNIQUE_ID }}-u2 \
+              --nsg-name NSG1 \
+              --name deny-all-outbound && \
+            az network nsg rule delete \
+              --resource-group pipe-${{ env.UNIQUE_ID }}-u2 \
+              --nsg-name NSG1 \
+              --name ssh-outbound
+          "
+
+    - name: Verify u2 outbound connectivity is restored
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          echo 'Verifying that outbound connectivity from u2 is restored...'
+          for i in {1..30}; do
+            # SSH to u2 and test HTTP connectivity (should succeed when restored)
+            if ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'timeout 5 curl -s --connect-timeout 3 https://www.google.com > /dev/null 2>&1'; then
+              echo '✓ Outbound connectivity confirmed restored (HTTP test succeeded)'
+              exit 0
+            fi
+            echo \"Attempt \$i/30: HTTP not reachable yet, waiting 5 seconds...\"
+            sleep 5
+          done
+          echo '✗ Outbound connectivity was not restored within timeout'
+          exit 1
+        "
+
+    - name: Retrieve Elastic password 
+      run: |
+        cd testing/v2/development
+        echo "U2 IP:${{ env.U2_IP }}"
+        echo "U2 IP retrieved successfully"
+
+        ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
+        echo "::add-mask::$ES_PASSWORD"
+        echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
+        KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
+        echo "::add-mask::$KIBANA_PASSWORD"
+        echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
+        echo "Kibana password retrieved successfully."
+
+        
+    - name: Install test requirements on u2
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'whoami && hostname && \
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+          cd /home/lme-user/LME/testing/tests && \
+          python3 -m venv venv && \
+          source venv/bin/activate && \
+          pip install -r requirements.txt '
+        "
+
+    - name: Run tests on u2
+      env:
+        ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        elastic: ${{ env.ES_PASSWORD }}
+        KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
+        U2_IP: ${{ env.U2_IP }}
+      run: |
+        sleep 360
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'cd /home/lme-user/LME/testing/tests && \
+          echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+          echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+          echo elastic=\"$ES_PASSWORD\" >> .env && \
+          cat .env && \
+          source venv/bin/activate && \
+          pytest -v api_tests/linux_only/ selenium_tests/linux_only/ api_tests/connectivity/'
         "
 
     #- name: Cleanup Azure resources
