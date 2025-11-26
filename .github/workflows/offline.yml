@@ -384,7 +384,7 @@ jobs:
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_IP }} 'whoami && hostname && sudo apt-get update &&  \
-          sudo apt-get install -y python3.10-venv wget && \
+          sudo apt-get install -y python3-venv wget && \
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
           sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
           cd /home/lme-user/LME/testing/tests && \
