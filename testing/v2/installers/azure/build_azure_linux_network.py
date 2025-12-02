@@ -21,15 +21,15 @@ def generate_password(length=12):
     digits = string.digits
     # special_chars = string.punctuation
 
-    # Generate the password
+    # Generate the password with required character types
     password = []
     password.append(random.choice(uppercase_letters))
     password.append(random.choice(lowercase_letters))
     password.append(random.choice(digits))
     #password.append(random.choice(special_chars))
 
-    # Generate the remaining characters
-    remaining_length = length - 4
+    # Generate the remaining characters (3 chars added above, so subtract 3)
+    remaining_length = length - 3
     remaining_chars = uppercase_letters + lowercase_letters + digits 
     password.extend(random.choices(remaining_chars, k=remaining_length))
 
