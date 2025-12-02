@@ -4,7 +4,7 @@
 - name: Pull llama.cpp container image
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    podman pull ghcr.io/ggerganov/llama.cpp:server
+    podman pull ghcr.io/ggml-org/llama.cpp:server
   args:
     executable: /bin/bash
   register: pull_llama_result
@@ -12,6 +12,45 @@
   retries: 3
   delay: 5
   until: pull_llama_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Tag llama.cpp container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag ghcr.io/ggml-org/llama.cpp:server localhost/llama-cpp:LME_LATEST
+  args:
+    executable: /bin/bash
+  register: tag_llama_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: tag_llama_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Pull LiteLLM container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull ghcr.io/berriai/litellm:main-latest
+  args:
+    executable: /bin/bash
+  register: pull_litellm_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_litellm_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Tag LiteLLM container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag ghcr.io/berriai/litellm:main-latest localhost/litellm:LME_LATEST
+  args:
+    executable: /bin/bash
+  register: tag_litellm_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: tag_litellm_result is not failed
   when: not (offline_mode | default(false))
 
 - name: Create llama models directory
@@ -47,7 +86,25 @@
     mode: '0644'
   become: yes
 
-- name: Reload systemd daemon for llama.cpp
+- name: Copy LiteLLM config file to /opt/lme/config
+  copy:
+    src: "{{ clone_directory }}/config/litellm_config.yaml"
+    dest: /opt/lme/config/litellm_config.yaml
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+
+- name: Copy LiteLLM quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-litellm.container"
+    dest: /etc/containers/systemd/lme-litellm.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Reload systemd daemon for llama.cpp and LiteLLM
   systemd:
     daemon_reload: yes
   become: yes
@@ -60,12 +117,39 @@
   become: yes
   when: model_download is succeeded
 
+- name: Wait for llama.cpp to be ready
+  wait_for:
+    host: localhost
+    port: 11434
+    delay: 5
+    timeout: 60
+  when: model_download is succeeded
+
+- name: Enable and start LiteLLM service
+  systemd:
+    name: lme-litellm.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+
 - name: Display llama.cpp setup success message
   debug:
     msg: |
       Llama.cpp server with Gemma 3 1B model has been installed and started!
-      Access the API at: http://{{ ansible_default_ipv4.address }}:11434
+
+      LiteLLM Proxy (with HTTPS) is available at: https://{{ ansible_default_ipv4.address }}:11435
+      Direct llama.cpp access (HTTP only) at: http://{{ ansible_default_ipv4.address }}:11434
+
+      API Key for LiteLLM: sk-lme-llama-proxy
+      Model name: gemma-3-1b
       Model file: /opt/lme/llama-models/gemma-3-1b-it-Q4_K_M.gguf
+
+      Example usage:
+        curl -k https://localhost:11435/v1/chat/completions \
+          -H "Authorization: Bearer sk-lme-llama-proxy" \
+          -H "Content-Type: application/json" \
+          -d '{"model": "gemma-3-1b", "messages": [{"role": "user", "content": "Hello!"}]}'
   when: model_download is succeeded
 
 - name: Display llama.cpp offline mode message
