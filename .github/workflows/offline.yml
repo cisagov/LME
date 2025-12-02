@@ -348,37 +348,40 @@ jobs:
         echo "Kibana password retrieved successfully."
 
         
-    #- name: Install test requirements on u2 (via bastion)
-    #  run: |
-    #    cd testing/v2/development
-    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-    #      ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }} \"whoami && hostname && sudo apt-get update && \
-    #      sudo apt-get install -y python3-venv wget && \
-    #      wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
-    #      sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
-    #      cd /home/lme-user/LME/testing/tests && \
-    #      python3 -m venv venv && \
-    #      source venv/bin/activate && \
-    #      pip install -r requirements.txt\"'
-    #    "
+    - name: Install test requirements on u1 (has internet access)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'whoami && hostname && sudo apt-get update && \
+          sudo apt-get install -y python3-venv wget && \
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+          cd ~/LME/testing/tests && \
+          python3 -m venv venv && \
+          source venv/bin/activate && \
+          pip install -r requirements.txt'
+        "
 
-    #- name: Run tests on u2 (via bastion)
-    #  env:
-    #    ES_PASSWORD: ${{ env.ES_PASSWORD }}
-    #    elastic: ${{ env.ES_PASSWORD }}
-    #    KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
-    #  run: |
-    #    sleep 360
-    #    cd testing/v2/development
-    #    docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-    #      ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }} \"cd /home/lme-user/LME/testing/tests && \
-    #      echo ELASTIC_PASSWORD=\\\"$ES_PASSWORD\\\" >> .env && \
-    #      echo KIBANA_PASSWORD=\\\"$KIBANA_PASSWORD\\\" >> .env && \
-    #      echo elastic=\\\"$ES_PASSWORD\\\" >> .env && \
-    #      cat .env && \
-    #      source venv/bin/activate && \
-    #      pytest -v api_tests/linux_only/ selenium_tests/linux_only/ api_tests/connectivity/\"'
-    #    "
+    - name: Run tests on u1 (pointing to u2 services)
+      run: |
+        sleep 360
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~/LME/testing/tests && \
+          echo \"# Test environment pointing to u2 (offline VM)\" > .env && \
+          echo \"ES_HOST=${{ env.U2_PRIVATE_IP }}\" >> .env && \
+          echo \"KIBANA_HOST=${{ env.U2_PRIVATE_IP }}\" >> .env && \
+          echo \"KIBANA_PORT=5601\" >> .env && \
+          echo \"KIBANA_USER=elastic\" >> .env && \
+          echo \"SELENIUM_TIMEOUT=60\" >> .env && \
+          echo \"SELENIUM_MODE=headless\" >> .env && \
+          echo \"elastic=${{ env.ES_PASSWORD }}\" >> .env && \
+          echo \"ELASTIC_PASSWORD=${{ env.ES_PASSWORD }}\" >> .env && \
+          echo \"KIBANA_PASSWORD=${{ env.KIBANA_PASSWORD }}\" >> .env && \
+          cat .env && \
+          source venv/bin/activate && \
+          pytest -v api_tests/linux_only/ selenium_tests/linux_only/ api_tests/connectivity/'
+        "
 
     #- name: Cleanup Azure resources
     #  if: always()
