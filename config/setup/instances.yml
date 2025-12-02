@@ -49,3 +49,10 @@ instances:
       - "localhost"
     ip:
       - "127.0.0.1"
+
+  - name: "litellm"
+    dns:
+      - "lme-litellm"
+      - "localhost"
+    ip:
+      - "127.0.0.1"

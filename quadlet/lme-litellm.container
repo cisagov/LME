@@ -1,0 +1,25 @@
+# lme-litellm.container
+[Unit]
+Description=LiteLLM Proxy Server Container Service
+Requires=lme-network.service lme-llama-cpp.service
+After=lme.service lme-network.service lme-llama-cpp.service
+PartOf=lme.service
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target lme.service
+
+[Container]
+ContainerName=lme-litellm
+Image=localhost/litellm:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-litellm
+PublishPort=11435:4000
+Volume=/opt/lme/config/litellm_config.yaml:/app/config.yaml:ro
+Volume=lme_certs:/certs:ro
+Environment=SSL_KEYFILE=/certs/litellm/litellm.key
+Environment=SSL_CERTFILE=/certs/litellm/litellm.crt
+Exec=--config /app/config.yaml --port 4000 --ssl_keyfile_path /certs/litellm/litellm.key --ssl_certfile_path /certs/litellm/litellm.crt
+

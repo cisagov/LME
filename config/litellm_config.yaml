@@ -1,0 +1,106 @@
+# LiteLLM Proxy Configuration for LME
+# This proxy sits in front of llama.cpp and provides:
+# - HTTPS/TLS termination
+# - API key authentication
+# - OpenAI-compatible API interface
+# - Easy switching between different LLM providers
+
+model_list:
+  # ============================================================================
+  # LOCAL MODEL - llama.cpp (running on lme network)
+  # ============================================================================
+  - model_name: gemma-3-1b
+    litellm_params:
+      # "openai/" prefix = use OpenAI-compatible API format (llama.cpp supports this)
+      # This does NOT mean we're using OpenAI's service - it's just the API format
+      model: openai/gemma-3-1b-it-Q4_K_M
+
+      # Internal HTTP connection to llama.cpp (no SSL needed on private network)
+      # External clients connect to LiteLLM via HTTPS, LiteLLM connects to llama.cpp via HTTP
+      api_base: http://lme-llama-cpp:8080/v1
+
+      # Dummy key - llama.cpp doesn't require authentication
+      api_key: dummy
+
+  # ============================================================================
+  # CLOUD-BASED MODELS (Examples - uncomment and configure to use)
+  # ============================================================================
+  # To add cloud models, uncomment the sections below and add your API keys.
+  # Then in your code, just change the "model" parameter to use the cloud model.
+  # No other code changes needed!
+  #
+  # Example usage:
+  #   curl -k https://localhost:11435/v1/chat/completions \
+  #     -H "Authorization: Bearer sk-lme-llama-proxy" \
+  #     -H "Content-Type: application/json" \
+  #     -d '{"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]}'
+  # ============================================================================
+
+  # --- OpenAI (GPT-4, GPT-3.5, etc.) ---
+  # Get API key from: https://platform.openai.com/api-keys
+  # - model_name: gpt-4
+  #   litellm_params:
+  #     model: gpt-4
+  #     api_key: sk-your-openai-api-key-here
+  #
+  # - model_name: gpt-3.5-turbo
+  #   litellm_params:
+  #     model: gpt-3.5-turbo
+  #     api_key: sk-your-openai-api-key-here
+
+  # --- Anthropic Claude ---
+  # Get API key from: https://console.anthropic.com/
+  # - model_name: claude-3-sonnet
+  #   litellm_params:
+  #     model: claude-3-sonnet-20240229
+  #     api_key: sk-ant-your-anthropic-api-key-here
+  #
+  # - model_name: claude-3-opus
+  #   litellm_params:
+  #     model: claude-3-opus-20240229
+  #     api_key: sk-ant-your-anthropic-api-key-here
+
+  # --- Azure OpenAI ---
+  # Requires: api_key, api_base, api_version, and deployment name
+  # - model_name: azure-gpt-4
+  #   litellm_params:
+  #     model: azure/gpt-4
+  #     api_key: your-azure-api-key-here
+  #     api_base: https://your-resource-name.openai.azure.com/
+  #     api_version: "2024-02-15-preview"
+
+  # --- Google Vertex AI (Gemini) ---
+  # Requires: service account JSON file
+  # - model_name: gemini-pro
+  #   litellm_params:
+  #     model: vertex_ai/gemini-pro
+  #     vertex_project: your-gcp-project-id
+  #     vertex_location: us-central1
+  #     # Set GOOGLE_APPLICATION_CREDENTIALS env var to path of service account JSON
+
+  # --- AWS Bedrock (Claude, Llama, etc.) ---
+  # Requires: AWS credentials configured
+  # - model_name: bedrock-claude
+  #   litellm_params:
+  #     model: bedrock/anthropic.claude-v2
+  #     aws_region_name: us-east-1
+  #     # Uses AWS credentials from environment or IAM role
+
+  # --- Ollama (Alternative local model server) ---
+  # If you're running Ollama instead of llama.cpp
+  # - model_name: ollama-llama2
+  #   litellm_params:
+  #     model: ollama/llama2
+  #     api_base: http://lme-ollama:11434  # If running Ollama in a container
+
+general_settings:
+  # This is the REAL API key that external clients must use to access LiteLLM
+  # Example: curl -H "Authorization: Bearer sk-lme-llama-proxy" https://localhost:11435/v1/chat/completions
+  master_key: sk-lme-llama-proxy
+
+litellm_settings:
+  # Drop unsupported parameters instead of returning errors
+  drop_params: true
+  success_callback: []
+  failure_callback: []
+
