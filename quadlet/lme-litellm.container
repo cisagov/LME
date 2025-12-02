@@ -16,7 +16,7 @@ ContainerName=lme-litellm
 Image=localhost/litellm:LME_LATEST
 Network=lme
 PodmanArgs=--network-alias lme-litellm
-PublishPort=11435:4000
+PublishPort=4000:4000
 Volume=/opt/lme/config/litellm_config.yaml:/app/config.yaml:ro
 Volume=lme_certs:/certs:ro
 Environment=SSL_KEYFILE=/certs/litellm/litellm.key
