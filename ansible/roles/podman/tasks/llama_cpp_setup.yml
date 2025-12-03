@@ -104,6 +104,26 @@
     mode: '0644'
   become: yes
 
+- name: Build LME Log Analyzer container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    cd {{ clone_directory }}/lme-log-analyzer
+    podman build -t localhost/lme-log-analyzer:LME_LATEST .
+  args:
+    executable: /bin/bash
+  register: build_log_analyzer_result
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Copy Log Analyzer quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-log-analyzer.container"
+    dest: /etc/containers/systemd/lme-log-analyzer.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
 - name: Reload systemd daemon for llama.cpp and LiteLLM
   systemd:
     daemon_reload: yes
@@ -117,13 +137,7 @@
   become: yes
   when: model_download is succeeded
 
-- name: Wait for llama.cpp to be ready
-  wait_for:
-    host: localhost
-    port: 11434
-    delay: 5
-    timeout: 60
-  when: model_download is succeeded
+# Removed wait for llama.cpp - not needed
 
 - name: Enable and start LiteLLM service
   systemd:
