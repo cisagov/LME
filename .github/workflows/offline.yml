@@ -513,7 +513,7 @@ jobs:
               --name w1-offline \
               --scripts "
                 Write-Host \"Copying tarball from u1 (${{ env.U1_PRIVATE_IP }})...\"
-                scp -o StrictHostKeyChecking=no lme-user@${{ env.U1_PRIVATE_IP }}:~/lme-offline-*.tar.gz C:\\Users\\lme-user\\
+                scp -i C:\\Users\\lme-user\\.ssh\\id_rsa -o StrictHostKeyChecking=no lme-user@${{ env.U1_PRIVATE_IP }}:~/lme-offline-*.tar.gz C:\\Users\\lme-user\\
                 Write-Host \"Copy complete. Files:\"
                 Get-ChildItem C:\\Users\\lme-user\\lme-offline-*.tar.gz
               "
