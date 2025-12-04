@@ -446,27 +446,54 @@ jobs:
             cd ~/LME\"'
         "
 
-    - name: Start HTTP server on u1 to serve files to w1
+    - name: Generate SSH key on w1 and get public key
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
       run: |
         cd testing/v2/development
-        echo "Starting HTTP server on u1..."
+        # Generate SSH key on w1 and output the public key
+        W1_PUBKEY=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID > /dev/null
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$sshDir = \"C:\\Users\\lme-user\\.ssh\"
+                \$keyPath = \"\$sshDir\\id_rsa\"
+                
+                # Create .ssh directory if it does not exist
+                if (-not (Test-Path \$sshDir)) {
+                  New-Item -ItemType Directory -Path \$sshDir -Force | Out-Null
+                }
+                
+                # Generate SSH key if it does not exist
+                if (-not (Test-Path \$keyPath)) {
+                  ssh-keygen -t rsa -b 4096 -f \$keyPath -N \"\"\"\" -q
+                }
+                
+                # Output the public key (this is what we need)
+                Get-Content \"\$keyPath.pub\"
+              " \
+              --query "value[0].message" -o tsv
+          ')
+        
+        # Extract just the ssh-rsa line from the output
+        W1_PUBKEY=$(echo "$W1_PUBKEY" | grep "^ssh-rsa" | head -1)
+        echo "W1 public key: $W1_PUBKEY"
+        
+        # Add the public key to u1's authorized_keys
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh -o StrictHostKeyChecking=no -f lme-user@${{ env.U1_IP }} 'cd ~ && python3 -m http.server 8080 --bind 0.0.0.0 > /tmp/http_server.log 2>&1'
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'echo \"$W1_PUBKEY\" >> ~/.ssh/authorized_keys && echo \"Added w1 public key to u1 authorized_keys\"'
         "
-        echo "HTTP server start command completed."
 
-    - name: Verify HTTP server is running on u1
-      run: |
-        echo "Waiting 5 seconds for HTTP server to initialize..."
-        sleep 5
-        cd testing/v2/development
-        echo "Checking if HTTP server is responding..."
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'curl -s http://localhost:8080/ > /dev/null && echo \"HTTP server is running on port 8080\"'
-        "
-        echo "HTTP server verification completed."
-
-    - name: Copy offline tarball to w1 (via HTTP from u1)
+    - name: Copy offline tarball to w1 (w1 pulls from u1 via SCP)
       env:
         AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
@@ -484,18 +511,10 @@ jobs:
               --resource-group pipe-${{ env.UNIQUE_ID }} \
               --name w1-offline \
               --scripts "
-                \$url = \"http://${{ env.U1_PRIVATE_IP }}:8080/${{ env.TARBALL_NAME }}\"
-                \$output = \"C:\\${{ env.TARBALL_NAME }}\"
-                Write-Host \"Downloading from: \$url\"
-                Write-Host \"Saving to: \$output\"
-                Invoke-WebRequest -Uri \$url -OutFile \$output -UseBasicParsing
-                if (Test-Path \$output) {
-                  \$size = (Get-Item \$output).Length / 1MB
-                  Write-Host \"Download complete: \$size MB\"
-                } else {
-                  Write-Host \"ERROR: Download failed\"
-                  exit 1
-                }
+                Write-Host \"Copying tarball from u1 (${{ env.U1_PRIVATE_IP }})...\"
+                scp -o StrictHostKeyChecking=no lme-user@${{ env.U1_PRIVATE_IP }}:~/lme-offline-*.tar.gz C:\\Users\\lme-user\\
+                Write-Host \"Copy complete. Files:\"
+                Get-ChildItem C:\\Users\\lme-user\\lme-offline-*.tar.gz
               "
           '
 
@@ -517,7 +536,7 @@ jobs:
               --resource-group pipe-${{ env.UNIQUE_ID }} \
               --name w1-offline \
               --scripts "
-                \$tarball = \"C:\\${{ env.TARBALL_NAME }}\"
+                \$tarball = (Get-ChildItem -Path C:\\Users\\lme-user\\lme-offline-*.tar.gz | Select-Object -First 1).FullName
                 \$extractPath = \"C:\\lme-offline\"
                 Write-Host \"Extracting \$tarball to \$extractPath\"
                 
