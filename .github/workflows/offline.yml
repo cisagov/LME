@@ -473,9 +473,10 @@ jobs:
                   New-Item -ItemType Directory -Path \$sshDir -Force | Out-Null
                 }
                 
-                # Generate SSH key if it does not exist
+                # Generate SSH key if it does not exist (no passphrase)
                 if (-not (Test-Path \$keyPath)) {
-                  ssh-keygen -t rsa -b 4096 -f \$keyPath -N \"\"\"\" -q
+                  \$emptyPass = [string]::Empty
+                  ssh-keygen -t rsa -b 4096 -f \$keyPath -N \$emptyPass -q
                 }
                 
                 # Output the public key (this is what we need)
