@@ -412,9 +412,11 @@ jobs:
       run: |
         cd testing/v2/development
         docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~ && nohup python3 -m http.server 8080 --bind 0.0.0.0 > /tmp/http_server.log 2>&1 &'
-          sleep 3
-          # Verify server is running
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~ && nohup python3 -m http.server 8080 --bind 0.0.0.0 > /tmp/http_server.log 2>&1 < /dev/null & disown'
+        "
+        echo "Waiting for 3 seconds..."
+        sleep 3
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
           ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'curl -s http://localhost:8080/ > /dev/null && echo \"HTTP server is running on port 8080\"'
         "
 
