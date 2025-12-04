@@ -36,7 +36,9 @@ jobs:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       IP_ADDRESS: ""
       U1_IP: ""
+      U1_PRIVATE_IP: "10.1.0.5"
       U2_PRIVATE_IP: "10.1.0.6"
+      W1_PRIVATE_IP: "10.1.0.7"
       U1_PASSWORD: ""
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
@@ -222,6 +224,36 @@ jobs:
               --os-disk-size-gb 256
           "
 
+    - name: Create w1 VM (offline Windows machine - no public IP, same VNet)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+            az vm create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --image MicrosoftWindowsServer:WindowsServer:2019-Datacenter:latest \
+              --size Standard_D4s_v3 \
+              --admin-username lme-user \
+              --admin-password '${{ env.U1_PASSWORD }}' \
+              --vnet-name VNet1 \
+              --subnet SNet1 \
+              --nsg NSG-offline \
+              --public-ip-address '' \
+              --private-ip-address ${{ env.W1_PRIVATE_IP }} \
+              --os-disk-size-gb 128
+          "
+
     - name: Wait for u1 SSH to be ready
       run: |
         cd testing/v2/development
@@ -277,6 +309,56 @@ jobs:
           ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sshpass -f ~/u2.password.txt ssh-copy-id -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }}'
         "
 
+    - name: Install Azure CLI on u1 (for az vm run-command)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sudo apt-get update && \
+            sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg && \
+            sudo mkdir -p /etc/apt/keyrings && \
+            curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/microsoft.gpg > /dev/null && \
+            sudo chmod go+r /etc/apt/keyrings/microsoft.gpg && \
+            echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ \$(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/azure-cli.list && \
+            sudo apt-get update && \
+            sudo apt-get install -y azure-cli=2.77.0-1~\$(lsb_release -cs) && \
+            sudo apt-mark hold azure-cli && \
+            az --version'
+        "
+
+    - name: Login to Azure on u1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'az login --service-principal \
+            -u ${{ secrets.AZURE_CLIENT_ID }} \
+            -p ${{ secrets.AZURE_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT }}'
+        "
+
+    - name: Wait for w1 Windows VM to be ready (via az vm run-command from u1)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} '
+            echo \"Waiting for Windows VM to be ready...\"
+            for i in {1..30}; do
+              if az vm run-command invoke \
+                --command-id RunPowerShellScript \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --name w1-offline \
+                --scripts \"Write-Host Windows_VM_is_ready\" \
+                --output json 2>/dev/null; then
+                echo \"Windows VM is responding to commands!\"
+                exit 0
+              fi
+              echo \"Attempt \$i/30: Windows VM not ready yet, waiting 30 seconds...\"
+              sleep 30
+            done
+            echo \"Windows VM did not become available within timeout\"
+            exit 1
+          '
+        "
+
     - name: Verify u2 outbound connectivity is blocked
       run: |
         cd testing/v2/development
@@ -324,6 +406,67 @@ jobs:
             sudo mv lme-offline-*.tar.gz /var/ && \
             tar -xzf /var/lme-offline-*.tar.gz -C ~/ && \
             cd ~/LME\"'
+        "
+
+    - name: Start HTTP server on u1 to serve files to w1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~ && nohup python3 -m http.server 8080 --bind 0.0.0.0 > /tmp/http_server.log 2>&1 &'
+          sleep 3
+          # Verify server is running
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'curl -s http://localhost:8080/ > /dev/null && echo \"HTTP server is running on port 8080\"'
+        "
+
+    - name: Copy offline tarball to w1 (via HTTP from u1)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'az vm run-command invoke \
+            --command-id RunPowerShellScript \
+            --resource-group pipe-${{ env.UNIQUE_ID }} \
+            --name w1-offline \
+            --scripts \"
+              \\\$url = \\\"http://${{ env.U1_PRIVATE_IP }}:8080/${{ env.TARBALL_NAME }}\\\"
+              \\\$output = \\\"C:\\\\${{ env.TARBALL_NAME }}\\\"
+              Write-Host \\\"Downloading from: \\\$url\\\"
+              Write-Host \\\"Saving to: \\\$output\\\"
+              Invoke-WebRequest -Uri \\\$url -OutFile \\\$output -UseBasicParsing
+              if (Test-Path \\\$output) {
+                \\\$size = (Get-Item \\\$output).Length / 1MB
+                Write-Host \\\"Download complete: \\\$size MB\\\"
+              } else {
+                Write-Host \\\"ERROR: Download failed\\\"
+                exit 1
+              }
+            \"'
+        "
+
+    - name: Extract offline tarball on w1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'az vm run-command invoke \
+            --command-id RunPowerShellScript \
+            --resource-group pipe-${{ env.UNIQUE_ID }} \
+            --name w1-offline \
+            --scripts \"
+              \\\$tarball = \\\"C:\\\\${{ env.TARBALL_NAME }}\\\"
+              \\\$extractPath = \\\"C:\\\\lme-offline\\\"
+              Write-Host \\\"Extracting \\\$tarball to \\\$extractPath\\\"
+              
+              # Create extraction directory
+              if (Test-Path \\\$extractPath) {
+                Remove-Item -Path \\\$extractPath -Recurse -Force
+              }
+              New-Item -ItemType Directory -Path \\\$extractPath -Force
+              
+              # Extract using tar (available in Windows 10/Server 2019+)
+              tar -xzf \\\$tarball -C \\\$extractPath
+              
+              Write-Host \\\"Extraction complete. Contents:\\\"
+              Get-ChildItem -Path \\\$extractPath | ForEach-Object { Write-Host \\\$_.Name }
+            \"'
         "
 
     - name: Run LME installer on u2 (via bastion)
