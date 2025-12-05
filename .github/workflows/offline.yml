@@ -310,6 +310,85 @@ jobs:
           ./lib/copy_ssh_key.sh lme-user ${{ env.U1_IP }} pipe-${{ env.UNIQUE_ID }}.password.txt
         "
 
+    - name: Wait for w1 Windows VM to be ready (via az vm run-command)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            echo "Waiting for Windows VM to be ready..."
+            for i in {1..30}; do
+              if az vm run-command invoke \
+                --command-id RunPowerShellScript \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --name w1-offline \
+                --scripts "Write-Host Windows_VM_is_ready" \
+                --output json 2>/dev/null; then
+                echo "Windows VM is responding to commands!"
+                exit 0
+              fi
+              echo "Attempt $i/30: Windows VM not ready yet, waiting 30 seconds..."
+              sleep 30
+            done
+            echo "Windows VM did not become available within timeout"
+            exit 1
+          '
+
+    - name: Generate SSH key on w1 and get public key
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        # Generate SSH key on w1 and output the public key
+        W1_PUBKEY=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID > /dev/null
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$sshDir = \"C:\\Users\\lme-user\\.ssh\"
+                \$keyPath = \"\$sshDir\\id_rsa\"
+                
+                # Create .ssh directory if it does not exist
+                if (-not (Test-Path \$sshDir)) {
+                  New-Item -ItemType Directory -Path \$sshDir -Force | Out-Null
+                }
+                
+                # Generate SSH key if it does not exist (no passphrase)
+                if (-not (Test-Path \$keyPath)) {
+                  \$sshArgs = @('-t', 'rsa', '-b', '4096', '-f', \$keyPath, '-N', '')
+                  Start-Process ssh-keygen -ArgumentList \$sshArgs -NoNewWindow -Wait
+                }
+                
+                # Output the public key (this is what we need)
+                Get-Content \"\$keyPath.pub\"
+              " \
+              --query "value[0].message" -o tsv
+          ')
+        
+        # Extract just the ssh-rsa line from the output
+        W1_PUBKEY=$(echo "$W1_PUBKEY" | grep "^ssh-rsa" | head -1)
+        echo "W1 public key: $W1_PUBKEY"
+        
+        # Add the public key to u1's authorized_keys
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'echo \"$W1_PUBKEY\" >> ~/.ssh/authorized_keys && echo \"Added w1 public key to u1 authorized_keys\"'
+        "
+
     - name: Setup SSH keys from u1 to u2 (via bastion)
       run: |
         cd testing/v2/development
@@ -366,37 +445,6 @@ jobs:
             --tenant ${{ secrets.AZURE_TENANT }}'
         "
 
-    - name: Wait for w1 Windows VM to be ready (via az vm run-command)
-      env:
-        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
-        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
-      run: |
-        cd testing/v2/development
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
-          -e AZURE_CLIENT_ID \
-          -e AZURE_CLIENT_SECRET \
-          -e AZURE_TENANT_ID \
-          pipeline bash -c '
-            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-            echo "Waiting for Windows VM to be ready..."
-            for i in {1..30}; do
-              if az vm run-command invoke \
-                --command-id RunPowerShellScript \
-                --resource-group pipe-${{ env.UNIQUE_ID }} \
-                --name w1-offline \
-                --scripts "Write-Host Windows_VM_is_ready" \
-                --output json 2>/dev/null; then
-                echo "Windows VM is responding to commands!"
-                exit 0
-              fi
-              echo "Attempt $i/30: Windows VM not ready yet, waiting 30 seconds..."
-              sleep 30
-            done
-            echo "Windows VM did not become available within timeout"
-            exit 1
-          '
-
     - name: Verify u2 outbound connectivity is blocked
       run: |
         cd testing/v2/development
@@ -444,53 +492,6 @@ jobs:
             sudo mv lme-offline-*.tar.gz /var/ && \
             tar -xzf /var/lme-offline-*.tar.gz -C ~/ && \
             cd ~/LME\"'
-        "
-
-    - name: Generate SSH key on w1 and get public key
-      env:
-        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
-        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
-      run: |
-        cd testing/v2/development
-        # Generate SSH key on w1 and output the public key
-        W1_PUBKEY=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T \
-          -e AZURE_CLIENT_ID \
-          -e AZURE_CLIENT_SECRET \
-          -e AZURE_TENANT_ID \
-          pipeline bash -c '
-            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID > /dev/null
-            az vm run-command invoke \
-              --command-id RunPowerShellScript \
-              --resource-group pipe-${{ env.UNIQUE_ID }} \
-              --name w1-offline \
-              --scripts "
-                \$sshDir = \"C:\\Users\\lme-user\\.ssh\"
-                \$keyPath = \"\$sshDir\\id_rsa\"
-                
-                # Create .ssh directory if it does not exist
-                if (-not (Test-Path \$sshDir)) {
-                  New-Item -ItemType Directory -Path \$sshDir -Force | Out-Null
-                }
-                
-                # Generate SSH key if it does not exist (no passphrase)
-                if (-not (Test-Path \$keyPath)) {
-                  Start-Process ssh-keygen -ArgumentList \"-t rsa -b 4096 -f \$keyPath -N `\"`\"\" -NoNewWindow -Wait
-                }
-                
-                # Output the public key (this is what we need)
-                Get-Content \"\$keyPath.pub\"
-              " \
-              --query "value[0].message" -o tsv
-          ')
-        
-        # Extract just the ssh-rsa line from the output
-        W1_PUBKEY=$(echo "$W1_PUBKEY" | grep "^ssh-rsa" | head -1)
-        echo "W1 public key: $W1_PUBKEY"
-        
-        # Add the public key to u1's authorized_keys
-        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'echo \"$W1_PUBKEY\" >> ~/.ssh/authorized_keys && echo \"Added w1 public key to u1 authorized_keys\"'
         "
 
     - name: Copy offline tarball to w1 (w1 pulls from u1 via SCP)
