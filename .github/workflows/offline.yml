@@ -704,7 +704,7 @@ jobs:
           echo \"KIBANA_PASSWORD=${{ env.KIBANA_PASSWORD }}\" >> .env && \
           cat .env && \
           source venv/bin/activate && \
-          pytest -v api_tests/linux_only/ selenium_tests/linux_only/ api_tests/connectivity/'
+          pytest -v api_tests/ selenium_tests/'
         "
 
     #- name: Cleanup Azure resources
