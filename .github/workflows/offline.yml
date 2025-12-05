@@ -475,8 +475,7 @@ jobs:
                 
                 # Generate SSH key if it does not exist (no passphrase)
                 if (-not (Test-Path \$keyPath)) {
-                  \$emptyPass = [string]::Empty
-                  ssh-keygen -t rsa -b 4096 -f \$keyPath -N \$emptyPass -q
+                  Start-Process ssh-keygen -ArgumentList \"-t rsa -b 4096 -f \$keyPath -N `\"`\"\" -NoNewWindow -Wait
                 }
                 
                 # Output the public key (this is what we need)
