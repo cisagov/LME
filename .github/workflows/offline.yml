@@ -554,6 +554,35 @@ jobs:
               "
           '
 
+    - name: Extract Elastic Agent on w1
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$agentPath = \"C:\\lme-offline\\LME\\offline_resources\\agents\"
+                Set-Location \$agentPath
+                Write-Host \"Extracting Elastic Agent in \$agentPath\"
+                
+                Expand-Archive -Path .\\elastic-agent-8.18.8-windows-x86_64.zip -DestinationPath . -Force
+                
+                Write-Host \"Extraction complete. Contents:\"
+                Get-ChildItem | ForEach-Object { Write-Host \$_.Name }
+              "
+          '
+
     - name: Run LME installer on u2 (via bastion)
       run: |
         cd testing/v2/development
@@ -574,6 +603,73 @@ jobs:
         #echo "::add-mask::$KIBANA_PASSWORD"
         echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
         echo "Kibana password retrieved successfully."
+
+    - name: Retrieve Elastic policy ID and enrollment token (via bastion)
+      env:
+        ES_PASSWORD: ${{ env.ES_PASSWORD }}
+      run: |
+        cd testing/v2/development
+        
+        # Retrieve policy ID from u2's Kibana (curl from u1 to u2)
+        POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} '
+            curl -kL -s -u \"elastic:$ES_PASSWORD\" -X GET \"https://${{ env.U2_PRIVATE_IP }}:5601/api/fleet/agent_policies\" \
+              -H \"kbn-xsrf: true\" \
+              -H \"Content-Type: application/json\" |
+            jq -r '.items[0].id'
+          '
+        ")
+        echo "Retrieved Policy ID: $POLICY_ID"
+        
+        # Retrieve enrollment token using the policy ID (curl from u1 to u2)
+        ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} '
+            curl -kL -s -u \"elastic:$ES_PASSWORD\" -X POST \"https://${{ env.U2_PRIVATE_IP }}:5601/api/fleet/enrollment-api-keys\" \
+              -H \"kbn-xsrf: true\" \
+              -H \"Content-Type: application/json\" \
+              -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
+            jq -r '.item.api_key'
+          '
+        ")
+        echo "Retrieved Enrollment Token: $ENROLLMENT_TOKEN"
+        
+        # Set as environment variables
+        echo "POLICY_ID=$POLICY_ID" >> $GITHUB_ENV
+        echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
+        echo "Policy ID and Enrollment Token retrieved successfully."
+
+    - name: Install Elastic Agent on w1
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        ENROLLMENT_TOKEN: ${{ env.ENROLLMENT_TOKEN }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$agentPath = \"C:\\lme-offline\\LME\\offline_resources\\agents\\elastic-agent-8.18.8-windows-x86_64\"
+                Set-Location \$agentPath
+                Write-Host \"Installing Elastic Agent from \$agentPath\"
+                
+                .\\elastic-agent.exe install --non-interactive --force --url=https://${{ env.U2_PRIVATE_IP }}:8220 --insecure --enrollment-token=${{ env.ENROLLMENT_TOKEN }}
+                
+                Write-Host \"Waiting for service to start...\"
+                Start-Sleep -Seconds 60
+                
+                Write-Host \"Checking agent service status:\"
+                Get-Service \"Elastic Agent\"
+              "
+          '
 
         
     - name: Install test requirements on u1 (has internet access)
