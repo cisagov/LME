@@ -370,7 +370,7 @@ jobs:
                 
                 # Generate SSH key if it does not exist (no passphrase)
                 if (-not (Test-Path \$keyPath)) {
-                  cmd /c ('ssh-keygen -t rsa -b 4096 -f \"' + \$keyPath + '\" -N \"\" -q')
+                  cmd /c \"ssh-keygen -t rsa -b 4096 -f C:\\Users\\lme-user\\.ssh\\id_rsa -N \"\"\"\" -q\"
                 }
                 
                 # Output the public key (this is what we need)
