@@ -26,10 +26,10 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  # COMMENTED OUT FOR TESTING - pull_request trigger temporarily disabled
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - 'develop'
+      - 'main'
 
 jobs:
   build-and-test-cluster-redhat:

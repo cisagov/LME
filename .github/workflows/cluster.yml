@@ -1,9 +1,10 @@
 name: Cluster Run - Minimega
 
 on:
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - 'develop'
+      - 'main'
   workflow_dispatch:
     inputs:
       azure_region:
@@ -306,7 +307,7 @@ jobs:
                 -H \"kbn-xsrf: true\" \
                 -H \"Content-Type: application/json\" \
                 -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
-              jq -r .item.api_key
+              jq -r '.item.api_key'
             '
           ")
           echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"

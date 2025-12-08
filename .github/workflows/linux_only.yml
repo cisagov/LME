@@ -23,10 +23,9 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  # COMMENTED OUT FOR TESTING - pull_request trigger temporarily disabled
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   build-and-test-linux-only:
