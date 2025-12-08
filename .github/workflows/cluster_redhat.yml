@@ -28,7 +28,8 @@ on:
           - westeurope
   pull_request:
     branches:
-      - '*'
+      - 'develop'
+      - 'main'
 
 jobs:
   build-and-test-cluster-redhat:
