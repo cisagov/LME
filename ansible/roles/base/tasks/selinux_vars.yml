@@ -1,0 +1,42 @@
+---
+# Minimal SELinux variable detection - sets facts only, no configuration changes
+
+- name: Ensure SELinux facts are present (subset)
+  setup:
+    gather_subset:
+      - '!all'
+      - '!min'
+      - selinux
+
+- name: Set SELinux facts using built-in Ansible facts
+  set_fact:
+    selinux_enabled: "{{ ansible_selinux.status is defined and ansible_selinux.status == 'enabled' }}"
+    selinux_enforcing: "{{ ansible_selinux.mode is defined and ansible_selinux.mode == 'enforcing' }}"
+    selinux_permissive: "{{ ansible_selinux.mode is defined and ansible_selinux.mode == 'permissive' }}"
+    selinux_disabled: "{{ ansible_selinux.status is not defined or ansible_selinux.status == 'disabled' }}"
+
+    # Convenience variables
+    selinux_context_supported: "{{ ansible_selinux.status is defined and ansible_selinux.status == 'enabled' }}"
+    selinux_active: "{{ ansible_selinux.status is defined and ansible_selinux.status == 'enabled' and ansible_selinux.mode != 'disabled' }}"
+
+    # For backup/rollback - whether cp can preserve contexts
+    selinux_preserve_contexts: "{{ ansible_selinux.status is defined and ansible_selinux.status == 'enabled' }}"
+
+    # Precomputed command for cp
+    cp_preserve_cmd: "{{ 'cp -a --preserve=context' if (ansible_selinux.status is defined and ansible_selinux.status == 'enabled') else 'cp -a' }}"
+
+- name: Display SELinux status (list format)
+  debug:
+    msg:
+      - "SELinux status:        {{ ansible_selinux.status | default('unknown') }}"
+      - "SELinux mode:          {{ ansible_selinux.mode | default('unknown') }}"
+      - "Enabled:               {{ selinux_enabled }}"
+      - "Enforcing:             {{ selinux_enforcing }}"
+      - "Permissive:            {{ selinux_permissive }}"
+      - "Disabled:              {{ selinux_disabled }}"
+      - "Active (not disabled): {{ selinux_active }}"
+      - "Context supported:     {{ selinux_context_supported }}"
+      - "cp preserve cmd:       {{ cp_preserve_cmd }}"
+  when: debug_mode | default(false) | bool
+
+

@@ -1,0 +1,327 @@
+---
+# Red Hat-specific Nix setup
+# Skip ALL Nix tasks in offline mode (RHEL has podman 5.4+ via RPM)
+
+- name: Skip all Nix installation tasks (RHEL offline mode)
+  debug:
+    msg: "Skipping all Nix installation - RHEL offline mode uses system podman from RPMs"
+  when: offline_mode | default(false)
+
+- name: Detect if SELinux tooling is available
+  command: which getenforce
+  register: selinux_tooling
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Set SELinux availability fact
+  set_fact:
+    selinux_available: "{{ selinux_tooling.rc == 0 }}"
+  when: not (offline_mode | default(false))
+
+- name: Get current SELinux mode
+  command: getenforce
+  register: getenforce_out
+  changed_when: false
+  failed_when: false
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+
+- name: Remember if SELinux was enforcing
+  set_fact:
+    selinux_was_enforcing: "{{ selinux_available | default(false) and (getenforce_out.stdout | default('') | trim) == 'Enforcing' }}"
+  when: not (offline_mode | default(false))
+
+- name: Set SELinux to permissive for Nix install
+  command: setenforce 0
+  when:
+    - not (offline_mode | default(false))
+    - selinux_was_enforcing
+  become: yes
+
+# ---------------------------------------------------------------------------
+# Deploy and load Nix SELinux policy BEFORE installation
+# ---------------------------------------------------------------------------
+- name: Deploy Nix SELinux policy files (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/nix_policy.te"
+    dest: /etc/selinux/lme/nix_policy.te
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+
+- name: Deploy Nix SELinux file contexts (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/nix_policy.fc"
+    dest: /etc/selinux/lme/nix_policy.fc
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+
+- name: Compile Nix SELinux module (pre-install)
+  shell: |
+    set -e
+    cd /etc/selinux/lme
+    checkmodule -M -m -o nix_policy.mod nix_policy.te
+    semodule_package -o nix_policy.pp -m nix_policy.mod -f nix_policy.fc
+  args:
+    executable: /bin/bash
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Load Nix SELinux module (pre-install)
+  command: semodule -i /etc/selinux/lme/nix_policy.pp
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Ensure Nix SELinux module enabled (pre-install)
+  command: semodule -e nix_policy
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Check if Nix is already installed
+  stat:
+    path: /nix/var/nix/profiles/default/bin/nix
+  register: nix_installed
+  when: not (offline_mode | default(false))
+
+# Online installation using official installer script
+- name: Create nix installation directory
+  file:
+    path: /opt/nix-install
+    state: directory
+    mode: '0755'
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+
+- name: Create temporary directory for Nix install
+  file:
+    path: /opt/nix-install/tmp
+    state: directory
+    mode: '0755'
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+
+- name: Download Nix installer
+  get_url:
+    url: https://nixos.org/nix/install
+    dest: /opt/nix-install/install-nix.sh
+    mode: '0755'
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+
+- name: Install Nix package manager
+  shell: sh /opt/nix-install/install-nix.sh --daemon --yes
+  become: yes
+  environment:
+    TMPDIR: /opt/nix-install/tmp
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+  register: nix_install_result
+
+- name: Debug Nix installation result
+  debug:
+    var: nix_install_result
+  when:
+    - not (offline_mode | default(false))
+    - debug_mode | default(false) | bool
+    - not nix_installed.stat.exists
+
+# Offline installation - skip Nix entirely, use system podman
+- name: Skip Nix installation in offline mode (RHEL has podman 5.4+)
+  debug:
+    msg: "Offline mode - skipping Nix installation. Using system podman from RPMs."
+  when: offline_mode | default(false)
+
+
+# First restorecon: Apply contexts to basic Nix structure immediately after install
+- name: Apply SELinux contexts to core Nix paths (post-install #1)
+  command: restorecon -Rv "{{ item }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  loop:
+    - "/nix/var/nix/profiles/"
+    - "/nix/var/nix/daemon-socket/"
+    - "/nix/store/"
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+# Apply contexts to systemd service files before starting services
+- name: Apply SELinux contexts to systemd service files
+  command: restorecon -Rv "{{ item }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  loop:
+    - "/nix/var/nix/profiles/default/lib/systemd/system/"
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+# TODO: We may or may not need this.
+# - name: Fix nix-daemon service file documentation reference (prevents 'bad' status)
+#   lineinfile:
+#     path: "/nix/var/nix/profiles/default/lib/systemd/system/nix-daemon.service"
+#     regexp: '^Documentation=man:nix-daemon'
+#     line: 'Documentation=https://nixos.org/manual'
+#     backup: no
+#   become: yes
+#   when: not nix_installed.stat.exists
+#   failed_when: false
+
+- name: Reload systemd units after Nix installation
+  systemd:
+    daemon_reload: yes
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+
+- name: Ensure nix-daemon service is started
+  systemd:
+    name: nix-daemon
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+
+- name: Ensure nix-daemon socket is enabled and started (for socket activation)
+  systemd:
+    name: nix-daemon.socket
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  become: yes
+  when:
+    - not (offline_mode | default(false))
+    - not nix_installed.stat.exists
+
+- name: Add Nix channel
+  command: nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
+
+- name: Update Nix channel
+  command: nix-channel --update
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
+
+- name: Skip Nix channel updates in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping Nix channel updates"
+  when: offline_mode | default(false)
+
+- name: Check if nix-users group exists
+  group:
+    name: nix-users
+    state: present
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Add user to nix-users group
+  user:
+    name: "{{ install_user }}"
+    groups: nix-users
+    append: yes
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Install required packages
+  command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
+  become: yes
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
+
+- name: Skip Nix package installation in offline mode (using system podman)
+  debug:
+    msg: "Offline mode - using system podman from RPMs, not Nix"
+  when: offline_mode | default(false)
+
+# Second restorecon: Apply contexts to newly installed packages
+- name: Apply SELinux contexts after package installation (post-install #2)
+  command: restorecon -Rv "{{ item }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  loop:
+    - "/nix/var/nix/profiles/"
+    - "/nix/store/"
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: After Podman installation, apply SELinux booleans
+  seboolean:
+    name: "{{ item }}"
+    state: yes
+    persistent: yes
+  become: yes
+  loop:
+    - container_manage_cgroup
+    - container_use_devices
+    - container_read_certs
+    - domain_can_mmap_files
+  when:
+    - not (offline_mode | default(false))
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+  ignore_errors: yes  # Some booleans might not exist on all systems
+
+- name: Restore SELinux enforcing mode
+  command: setenforce 1
+  when:
+    - not (offline_mode | default(false))
+    - selinux_was_enforcing
+  become: yes
+
+# It may not be a good thing to persist SELinux enforcement across reboots
+# - name: Persist SELinux enforcement across reboots
+#   lineinfile:
+#     path: /etc/selinux/config
+#     regexp: '^SELINUX='
+#     line: 'SELINUX=enforcing'
+#     create: no
+#   when: selinux_was_enforcing
+#   become: yes

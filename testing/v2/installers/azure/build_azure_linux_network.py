@@ -21,15 +21,15 @@ def generate_password(length=12):
     digits = string.digits
     # special_chars = string.punctuation
 
-    # Generate the password
+    # Generate the password with required character types
     password = []
     password.append(random.choice(uppercase_letters))
     password.append(random.choice(lowercase_letters))
     password.append(random.choice(digits))
     #password.append(random.choice(special_chars))
 
-    # Generate the remaining characters
-    remaining_length = length - 4
+    # Generate the remaining characters (3 chars added above, so subtract 3)
+    remaining_length = length - 3
     remaining_chars = uppercase_letters + lowercase_letters + digits 
     password.extend(random.choices(remaining_chars, k=remaining_length))
 
@@ -715,8 +715,34 @@ if __name__ == "__main__":
         action="store_true",
         help="Add a Windows server with default settings",
     )
+    parser.add_argument(
+        "--use-rhel",
+        action="store_true",
+        help="Use Red Hat Enterprise Linux 9 instead of Ubuntu 22.04",
+    )
 
     args = parser.parse_args()
+    
+    # Override image parameters if RHEL is requested
+    if args.use_rhel:
+        # Only override if user didn't specify custom values
+        if args.image_publisher == "Canonical":
+            args.image_publisher = "RedHat"
+        if args.image_offer == "0001-com-ubuntu-server-jammy":
+            args.image_offer = "RHEL"
+        if args.image_sku == "22_04-lts-gen2":
+            args.image_sku = "9-lvm-gen2"
+        args.machine_name = "rhel" if args.machine_name == "ubuntu" else args.machine_name
+        print(f"Using Red Hat Enterprise Linux image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
+    else:
+        # Detect Ubuntu version based on image parameters
+        if args.image_offer == "ubuntu-24_04-lts" or "24" in args.image_sku:
+            print(f"Using Ubuntu 24.04 image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
+        elif args.image_offer == "0001-com-ubuntu-server-jammy" or "22" in args.image_sku:
+            print(f"Using Ubuntu 22.04 image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
+        else:
+            print(f"Using Ubuntu image: {args.image_publisher}:{args.image_offer}:{args.image_sku}")
+    
     check_ports_protocals_and_priorities(
             args.ports, args.priorities, args.protocols
         )

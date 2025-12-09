@@ -1,0 +1,89 @@
+---
+# Red Hat 9-specific tasks for base role
+
+- name: Import EPEL GPG key
+  rpm_key:
+    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+    state: present
+  become: yes
+  register: epel_key_import
+  retries: 3
+  delay: 5
+  until: epel_key_import is success
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Install EPEL repository
+  dnf:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+    state: present
+  become: yes
+  register: epel_install
+  retries: 3
+  delay: 5
+  until: epel_install is success
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Skip EPEL installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping EPEL GPG key and repository installation (should be pre-installed from offline packages)"
+  when: offline_mode | default(false)
+
+- name: Install dnf-plugins-core
+  dnf:
+    name: dnf-plugins-core
+    state: present
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Check available repositories
+  command: dnf repolist --all
+  register: available_repos
+  changed_when: false
+  become: yes
+
+- name: Enable CRB repository (Rocky/AlmaLinux)
+  command: dnf config-manager --set-enabled crb
+  become: yes
+  changed_when: true
+  when:
+    - "'crb' in available_repos.stdout"
+    - not (offline_mode | default(false))
+  ignore_errors: true
+
+- name: Enable PowerTools repository (CentOS)
+  command: dnf config-manager --set-enabled powertools
+  become: yes
+  changed_when: true
+  when:
+    - "'powertools' in available_repos.stdout"
+    - not (offline_mode | default(false))
+  ignore_errors: true
+
+- name: Enable CodeReady Builder for RHEL (if registered)
+  command: subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms
+  become: yes
+  changed_when: true
+  when:
+    - "'codeready-builder' in available_repos.stdout"
+    - ansible_distribution == "RedHat"
+    - not (offline_mode | default(false))
+  ignore_errors: true
+
+- name: Install Red Hat 9-specific packages
+  dnf:
+    name: "{{ redhat_9_packages }}"
+    state: present
+  become: yes
+  register: dnf_install_rh9
+  retries: 60
+  delay: 10
+  until: dnf_install_rh9 is success
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Skip Red Hat 9-specific packages installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping Red Hat 9-specific packages installation (should be pre-installed)"
+  when: offline_mode | default(false)

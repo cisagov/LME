@@ -4,3 +4,5 @@ azure-mgmt-network>=20.0.0
 azure-mgmt-compute>=27.0.0
 azure-mgmt-subscription>=3.0.0
 azure-mgmt-devtestlabs==9.0.0
+six>=1.17.0
+

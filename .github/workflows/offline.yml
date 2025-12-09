@@ -1,0 +1,736 @@
+name: Offline
+
+on:
+  workflow_dispatch:
+    inputs:
+      azure_region:
+        description: 'Azure region to deploy resources'
+        required: true
+        default: 'centralus'
+        type: choice
+        options:
+          - centralus
+          - eastus
+          - eastus2
+          - westus
+          - westus2
+          - westus3
+          - northcentralus
+          - southcentralus
+          - canadacentral
+          - canadaeast
+          - uksouth
+          - ukwest
+          - northeurope
+          - westeurope
+  pull_request:
+    branches:
+      - 'cbaxley-offline-github-workflow'
+      - 'develop'
+      - 'main'
+
+jobs:
+  offline:
+    runs-on: self-hosted
+    
+    env:
+      UNIQUE_ID: 
+      BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+      IP_ADDRESS: ""
+      U1_IP: ""
+      U1_PRIVATE_IP: "10.1.0.5"
+      U2_PRIVATE_IP: "10.1.0.6"
+      W1_PRIVATE_IP: "10.1.0.7"
+      U1_PASSWORD: ""
+      ES_PASSWORD: ""
+      KIBANA_PASSWORD: ""
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.1.1
+      
+    - name: Set the environment for docker compose
+      run: |
+        cd testing/v2/development
+        echo "HOST_UID=$(id -u)" > .env
+        echo "HOST_GID=$(id -g)" >> .env
+        PUBLIC_IP=$(curl -s https://api.ipify.org)
+        echo "IP_ADDRESS=$PUBLIC_IP" >> $GITHUB_ENV
+        echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)-${{ github.run_number }}" >> $GITHUB_ENV
+
+    - name: Get branch name
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+        else
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        fi
+        
+    - name: Start pipeline container
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
+        
+    - name: Install Python requirements
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers/azure && \
+          pip install -r requirements.txt
+        "
+        
+    - name: Build u1 Azure instance (bastion/build machine with internet)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            python3 ./azure/build_azure_linux_network.py \
+              -g pipe-${{ env.UNIQUE_ID }} \
+              -s ${{ env.IP_ADDRESS }}/32 \
+              -vs Standard_D8_v4 \
+              -l ${{ inputs.azure_region || 'centralus' }} \
+              -ast 23:00 \
+              -pub Canonical \
+              -io ubuntu-24_04-lts \
+              -is server \
+              -os 256 \
+              --no-prompt \
+              -y
+          "
+
+    - name: Get u1 IP and password
+      run: |
+        cd testing/v2/development
+        U1_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
+        echo "U1_IP=$U1_IP" >> $GITHUB_ENV
+        U1_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt")
+        echo "U1_PASSWORD=$U1_PASSWORD" >> $GITHUB_ENV
+        echo "U1 IP: $U1_IP"
+
+    - name: Create restrictive NSG for u2 (offline VM)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+            
+            # Create NSG for offline VM
+            az network nsg create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name NSG-offline && \
+            
+            # Allow inbound traffic from VNet only (so U1 can SSH to U2)
+            az network nsg rule create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --nsg-name NSG-offline \
+              --name allow-vnet-inbound \
+              --priority 1000 \
+              --direction Inbound \
+              --access Allow \
+              --protocol '*' \
+              --source-address-prefix 'VirtualNetwork' \
+              --destination-address-prefix 'VirtualNetwork' \
+              --source-port-range '*' \
+              --destination-port-ranges '*' && \
+            
+            # Deny all other inbound traffic (blocks public access)
+            az network nsg rule create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --nsg-name NSG-offline \
+              --name deny-public-inbound \
+              --priority 4000 \
+              --direction Inbound \
+              --access Deny \
+              --protocol '*' \
+              --source-address-prefix '*' \
+              --destination-address-prefix '*' \
+              --source-port-range '*' \
+              --destination-port-ranges '*' && \
+            
+            # Allow outbound traffic to VNet only (local network communication)
+            az network nsg rule create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --nsg-name NSG-offline \
+              --name allow-vnet-outbound \
+              --priority 1000 \
+              --direction Outbound \
+              --access Allow \
+              --protocol '*' \
+              --source-address-prefix 'VirtualNetwork' \
+              --destination-address-prefix 'VirtualNetwork' \
+              --source-port-range '*' \
+              --destination-port-ranges '*' && \
+            
+            # Deny all internet outbound traffic
+            az network nsg rule create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --nsg-name NSG-offline \
+              --name deny-internet-outbound \
+              --priority 4000 \
+              --direction Outbound \
+              --access Deny \
+              --protocol '*' \
+              --source-address-prefix '*' \
+              --destination-address-prefix 'Internet' \
+              --source-port-range '*' \
+              --destination-port-ranges '*'
+          "
+
+    - name: Allow VNet inbound traffic to u1 (NSG1)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+            
+            # Allow inbound traffic from VNet to u1 (for HTTP server on port 8080)
+            az network nsg rule create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --nsg-name NSG1 \
+              --name allow-vnet-inbound \
+              --priority 500 \
+              --direction Inbound \
+              --access Allow \
+              --protocol '*' \
+              --source-address-prefix 'VirtualNetwork' \
+              --destination-address-prefix 'VirtualNetwork' \
+              --source-port-range '*' \
+              --destination-port-ranges '*'
+          "
+
+    - name: Create u2 VM (offline target machine - no public IP, same VNet)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+            az vm create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name u2-offline \
+              --image Canonical:ubuntu-24_04-lts:server:latest \
+              --size Standard_D8_v4 \
+              --admin-username lme-user \
+              --admin-password '${{ env.U1_PASSWORD }}' \
+              --vnet-name VNet1 \
+              --subnet SNet1 \
+              --nsg NSG-offline \
+              --public-ip-address '' \
+              --private-ip-address ${{ env.U2_PRIVATE_IP }} \
+              --os-disk-size-gb 256
+          "
+
+    - name: Create w1 VM (offline Windows machine - no public IP, same VNet)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+            az vm create \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --image MicrosoftWindowsServer:WindowsServer:2019-Datacenter:latest \
+              --size Standard_D4s_v3 \
+              --admin-username lme-user \
+              --admin-password '${{ env.U1_PASSWORD }}' \
+              --vnet-name VNet1 \
+              --subnet SNet1 \
+              --nsg NSG-offline \
+              --public-ip-address '' \
+              --private-ip-address ${{ env.W1_PRIVATE_IP }} \
+              --os-disk-size-gb 128
+          "
+
+    - name: Wait for u1 SSH to be ready
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          echo 'Waiting for SSH to be available on ${{ env.U1_IP }}...'
+          for i in {1..60}; do
+            if timeout 5 bash -c 'cat < /dev/null > /dev/tcp/${{ env.U1_IP }}/22' 2>/dev/null; then
+              echo 'SSH is ready!'
+              exit 0
+            fi
+            echo \"Attempt \$i/60: SSH not ready yet, waiting 5 seconds...\"
+            sleep 5
+          done
+          echo 'SSH did not become available within timeout'
+          exit 1
+        "
+
+    - name: Setup SSH keys for u1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          cd /home/lme-user/LME/testing/v2/installers && \
+          ./lib/copy_ssh_key.sh lme-user ${{ env.U1_IP }} pipe-${{ env.UNIQUE_ID }}.password.txt
+        "
+
+    - name: Wait for w1 Windows VM to be ready (via az vm run-command)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            echo "Waiting for Windows VM to be ready..."
+            for i in {1..30}; do
+              if az vm run-command invoke \
+                --command-id RunPowerShellScript \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --name w1-offline \
+                --scripts "Write-Host Windows_VM_is_ready" \
+                --output json 2>/dev/null; then
+                echo "Windows VM is responding to commands!"
+                exit 0
+              fi
+              echo "Attempt $i/30: Windows VM not ready yet, waiting 30 seconds..."
+              sleep 30
+            done
+            echo "Windows VM did not become available within timeout"
+            exit 1
+          '
+
+    - name: Generate SSH key on w1 and get public key
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        # Generate SSH key on w1 and output the public key
+        W1_PUBKEY=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID > /dev/null
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$sshDir = \"C:\\Users\\lme-user\\.ssh\"
+                \$keyPath = \"\$sshDir\\id_rsa\"
+                
+                # Create .ssh directory if it does not exist
+                if (-not (Test-Path \$sshDir)) {
+                  New-Item -ItemType Directory -Path \$sshDir -Force | Out-Null
+                }
+                
+                # Generate SSH key if it does not exist (no passphrase)
+                if (-not (Test-Path \$keyPath)) {
+                  cmd /c \"ssh-keygen -t rsa -b 4096 -f C:\\Users\\lme-user\\.ssh\\id_rsa -N \"\"\"\" -q\"
+                }
+                
+                # Output the public key (this is what we need)
+                Get-Content \"\$keyPath.pub\"
+              " \
+              --query "value[0].message" -o tsv
+          ')
+        
+        # Extract just the ssh-rsa line from the output
+        W1_PUBKEY=$(echo "$W1_PUBKEY" | grep "^ssh-rsa" | head -1)
+        echo "W1 public key: $W1_PUBKEY"
+        
+        # Add the public key to u1's authorized_keys
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'echo \"$W1_PUBKEY\" >> ~/.ssh/authorized_keys && echo \"Added w1 public key to u1 authorized_keys\"'
+        "
+
+    - name: Setup SSH keys from u1 to u2 (via bastion)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          # Install sshpass on u1 and generate SSH key
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sudo apt-get update && sudo apt-get install -y sshpass' && \
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh-keygen -t rsa -f ~/.ssh/id_rsa -N \"\" -q || true' && \
+          
+          # Copy password to u1 for SSH key setup
+          scp -o StrictHostKeyChecking=no /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt lme-user@${{ env.U1_IP }}:~/u2.password.txt && \
+          
+          # Wait for u2 SSH to be ready (checking from u1)
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} '
+            echo \"Waiting for SSH on ${{ env.U2_PRIVATE_IP }}...\"
+            for i in {1..60}; do
+              if timeout 5 bash -c \"cat < /dev/null > /dev/tcp/${{ env.U2_PRIVATE_IP }}/22\" 2>/dev/null; then
+                echo \"SSH is ready on u2!\"
+                exit 0
+              fi
+              echo \"Attempt \$i/60: u2 SSH not ready yet, waiting 5 seconds...\"
+              sleep 5
+            done
+            echo \"u2 SSH did not become available within timeout\"
+            exit 1
+          ' && \
+          
+          # Copy SSH key from u1 to u2
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sshpass -f ~/u2.password.txt ssh-copy-id -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }}'
+        "
+
+    - name: Install Azure CLI on u1 (for az vm run-command)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sudo apt-get update && \
+            sudo apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg && \
+            sudo mkdir -p /etc/apt/keyrings && \
+            curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/microsoft.gpg > /dev/null && \
+            sudo chmod go+r /etc/apt/keyrings/microsoft.gpg && \
+            echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ \$(lsb_release -cs) main\" | sudo tee /etc/apt/sources.list.d/azure-cli.list && \
+            sudo apt-get update && \
+            sudo apt-get install -y azure-cli=2.77.0-1~\$(lsb_release -cs) && \
+            sudo apt-mark hold azure-cli && \
+            az --version'
+        "
+
+    - name: Login to Azure on u1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'az login --service-principal \
+            -u ${{ secrets.AZURE_CLIENT_ID }} \
+            -p ${{ secrets.AZURE_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT }}'
+        "
+
+    - name: Verify u2 outbound connectivity is blocked
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          echo 'Verifying that outbound connectivity from u2 is blocked...'
+          # SSH to u1, then to u2, and test HTTP connectivity (should fail)
+          if ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }} \"timeout 10 curl -s --connect-timeout 5 https://www.google.com > /dev/null 2>&1\"'; then
+            echo '✗ ERROR: Outbound connectivity is NOT blocked on u2!'
+            exit 1
+          else
+            echo '✓ Outbound connectivity confirmed blocked on u2 (HTTP test failed as expected)'
+          fi
+        "
+
+    - name: Prepare offline resources on u1
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'sudo apt-get update && sudo apt-get install -y git' && \
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~ && git clone https://github.com/cisagov/LME.git && cd LME && git checkout ${{ env.BRANCH_NAME }}' && \
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~/LME && ./scripts/prepare_offline.sh'
+        "
+
+    - name: Find offline tarball on u1
+      run: |
+        cd testing/v2/development
+        TARBALL_NAME=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ls -t ~/lme-offline-*.tar.gz 2>/dev/null | head -1 | xargs basename'
+        ")
+        echo "TARBALL_NAME=$TARBALL_NAME" >> $GITHUB_ENV
+        echo "Found tarball: $TARBALL_NAME"
+
+    - name: Copy offline tarball from u1 to u2 (via bastion)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'scp -o StrictHostKeyChecking=no ~/lme-offline-*.tar.gz lme-user@${{ env.U2_PRIVATE_IP }}:~/'
+        "
+
+    - name: Extract offline tarball on u2 (via bastion)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }} \"cd ~ && \
+            sudo mv lme-offline-*.tar.gz /var/ && \
+            tar -xzf /var/lme-offline-*.tar.gz -C ~/ && \
+            cd ~/LME\"'
+        "
+
+    - name: Copy offline tarball to w1 (w1 pulls from u1 via SCP)
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                Write-Host \"Copying tarball from u1 (${{ env.U1_PRIVATE_IP }})...\"
+                scp -i C:\\Users\\lme-user\\.ssh\\id_rsa -o StrictHostKeyChecking=no lme-user@${{ env.U1_PRIVATE_IP }}:~/lme-offline-*.tar.gz C:\\Users\\lme-user\\
+                Write-Host \"Copy complete. Files:\"
+                Get-ChildItem C:\\Users\\lme-user\\lme-offline-*.tar.gz
+              "
+          '
+
+    - name: Extract offline tarball on w1
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$tarball = (Get-ChildItem -Path C:\\Users\\lme-user\\lme-offline-*.tar.gz | Select-Object -First 1).FullName
+                \$extractPath = \"C:\\lme-offline\"
+                Write-Host \"Extracting \$tarball to \$extractPath\"
+                
+                # Create extraction directory
+                if (Test-Path \$extractPath) {
+                  Remove-Item -Path \$extractPath -Recurse -Force
+                }
+                New-Item -ItemType Directory -Path \$extractPath -Force
+                
+                # Extract using tar (available in Windows 10/Server 2019+)
+                tar -xzf \$tarball -C \$extractPath
+                
+                Write-Host \"Extraction complete. Contents:\"
+                Get-ChildItem -Path \$extractPath | ForEach-Object { Write-Host \$_.Name }
+              "
+          '
+
+    - name: Extract Elastic Agent on w1
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$agentPath = \"C:\\lme-offline\\LME\\offline_resources\\agents\"
+                Set-Location \$agentPath
+                Write-Host \"Extracting Elastic Agent in \$agentPath\"
+                
+                Expand-Archive -Path .\\elastic-agent-8.18.8-windows-x86_64.zip -DestinationPath . -Force
+                
+                Write-Host \"Extraction complete. Contents:\"
+                Get-ChildItem | ForEach-Object { Write-Host \$_.Name }
+              "
+          '
+
+    - name: Run LME installer on u2 (via bastion)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }} \"cd ~/LME && NON_INTERACTIVE=true AUTO_CREATE_ENV=true ./install.sh -o -d\"'
+        "
+
+
+    - name: Retrieve Elastic password (via bastion)
+      run: |
+        cd testing/v2/development
+        echo "U2 Private IP: ${{ env.U2_PRIVATE_IP }}"
+
+        ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }} \". /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \\\$elastic\"'" | tail -n 1 | tr -d '\n')
+        #echo "::add-mask::$ES_PASSWORD"
+        echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
+        KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'ssh -o StrictHostKeyChecking=no lme-user@${{ env.U2_PRIVATE_IP }} \". /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \\\$kibana_system\"'" | tail -n 1 | tr -d '\n')
+        #echo "::add-mask::$KIBANA_PASSWORD"
+        echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
+        echo "Kibana password retrieved successfully."
+
+    - name: Retrieve Elastic policy ID and enrollment token (via bastion)
+      env:
+        ES_PASSWORD: ${{ env.ES_PASSWORD }}
+      run: |
+        cd testing/v2/development
+        
+        # Retrieve policy ID from u2's Kibana (curl from u1 to u2)
+        POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} '
+            curl -kL -s -u \"elastic:$ES_PASSWORD\" -X GET \"https://${{ env.U2_PRIVATE_IP }}:5601/api/fleet/agent_policies\" \
+              -H \"kbn-xsrf: true\" \
+              -H \"Content-Type: application/json\" |
+            jq -r '.items[0].id'
+          '
+        ")
+        echo "Retrieved Policy ID: $POLICY_ID"
+        
+        # Retrieve enrollment token using the policy ID (curl from u1 to u2)
+        ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} '
+            curl -kL -s -u \"elastic:$ES_PASSWORD\" -X POST \"https://${{ env.U2_PRIVATE_IP }}:5601/api/fleet/enrollment-api-keys\" \
+              -H \"kbn-xsrf: true\" \
+              -H \"Content-Type: application/json\" \
+              -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
+            jq -r '.item.api_key'
+          '
+        ")
+        echo "Retrieved Enrollment Token: $ENROLLMENT_TOKEN"
+        
+        # Set as environment variables
+        echo "POLICY_ID=$POLICY_ID" >> $GITHUB_ENV
+        echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
+        echo "Policy ID and Enrollment Token retrieved successfully."
+
+    - name: Install Elastic Agent on w1
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        ENROLLMENT_TOKEN: ${{ env.ENROLLMENT_TOKEN }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          pipeline bash -c '
+            az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+            az vm run-command invoke \
+              --command-id RunPowerShellScript \
+              --resource-group pipe-${{ env.UNIQUE_ID }} \
+              --name w1-offline \
+              --scripts "
+                \$agentPath = \"C:\\lme-offline\\LME\\offline_resources\\agents\\elastic-agent-8.18.8-windows-x86_64\"
+                Set-Location \$agentPath
+                Write-Host \"Installing Elastic Agent from \$agentPath\"
+                
+                .\\elastic-agent.exe install --non-interactive --force --url=https://${{ env.U2_PRIVATE_IP }}:8220 --insecure --enrollment-token=${{ env.ENROLLMENT_TOKEN }}
+                
+                Write-Host \"Waiting for service to start...\"
+                Start-Sleep -Seconds 60
+                
+                Write-Host \"Checking agent service status:\"
+                Get-Service \"Elastic Agent\"
+              "
+          '
+
+        
+    - name: Install test requirements on u1 (has internet access)
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'whoami && hostname && sudo apt-get update && \
+          sudo apt-get install -y python3-venv wget && \
+          wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+          cd ~/LME/testing/tests && \
+          python3 -m venv venv && \
+          source venv/bin/activate && \
+          pip install -r requirements.txt'
+        "
+
+    - name: Run tests on u1 (pointing to u2 services)
+      run: |
+        sleep 360
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+          ssh -o StrictHostKeyChecking=no lme-user@${{ env.U1_IP }} 'cd ~/LME/testing/tests && \
+          echo \"# Test environment pointing to u2 (offline VM)\" > .env && \
+          echo \"ES_HOST=${{ env.U2_PRIVATE_IP }}\" >> .env && \
+          echo \"KIBANA_HOST=${{ env.U2_PRIVATE_IP }}\" >> .env && \
+          echo \"KIBANA_PORT=5601\" >> .env && \
+          echo \"KIBANA_USER=elastic\" >> .env && \
+          echo \"SELENIUM_TIMEOUT=60\" >> .env && \
+          echo \"SELENIUM_MODE=headless\" >> .env && \
+          echo \"elastic=${{ env.ES_PASSWORD }}\" >> .env && \
+          echo \"ELASTIC_PASSWORD=${{ env.ES_PASSWORD }}\" >> .env && \
+          echo \"KIBANA_PASSWORD=${{ env.KIBANA_PASSWORD }}\" >> .env && \
+          cat .env && \
+          source venv/bin/activate && \
+          pytest -v api_tests/ selenium_tests/'
+        "
+
+    - name: Cleanup Azure resources
+      if: always()
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+          -e AZURE_CLIENT_ID \
+          -e AZURE_CLIENT_SECRET \
+          -e AZURE_TENANT_ID \
+          -e AZURE_SUBSCRIPTION_ID \
+          pipeline bash -c "
+            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+            az group delete --name pipe-${{ env.UNIQUE_ID }} --yes --no-wait
+          "
+          
+    - name: Stop and remove containers
+      if: always()
+      run: |
+        cd testing/v2/development
+        docker compose -p ${{ env.UNIQUE_ID }} down
+        docker system prune -af

@@ -12,34 +12,40 @@
 - name: Include OS-specific tasks
   include_tasks: "{{ item }}"
   with_first_found:
-    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}.yml"
-    - "{{ ansible_distribution | lower }}.yml"
-    - "{{ ansible_os_family | lower }}.yml"
-    - "common.yml"
+    - files:
+        - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version }}.yml"
+        - "{{ ansible_distribution | lower }}.yml"
+        - "{{ ansible_os_family | lower }}.yml"
+        - "common.yml"
+      skip: true
 
-# These tasks are common to all distributions
+# These tasks are common to all distributions (skip for RHEL offline - uses system podman)
 - name: Update PATH for Ansible execution
   set_fact:
     ansible_env: "{{ ansible_env | combine({'PATH': ansible_env.PATH ~ ':/nix/var/nix/profiles/default/bin'}) }}"
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in user's profile
   lineinfile:
     path: "~/.profile"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
-- name: Update PATH in root's profile 
+- name: Update PATH in root's profile
   lineinfile:
     path: "/root/.profile"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in user's bashrc
   lineinfile:
     path: "~/.bashrc"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in root's bashrc
   lineinfile:
@@ -47,6 +53,7 @@
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
   become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Create podman symlink for sudo access
   file:
@@ -56,8 +63,79 @@
     force: yes
   become: yes
   ignore_errors: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Create podman symlink in /usr/bin for systemd generators
+  file:
+    src: "{{ nix_profile_symlink_path }}/bin/podman"
+    dest: /usr/bin/podman
+    state: link
+    force: yes
+  become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Check if podman quadlet exists in nix profile
+  stat:
+    path: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
+  register: nix_podman_quadlet_stat
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Ensure correct podman systemd generator is linked in the nix profile
+  file:
+    src: "{{ nix_profile_symlink_path }}/libexec/podman/quadlet"
+    dest: "{{ nix_profile_symlink_path }}/lib/systemd/system-generators/podman-system-generator"
+    state: link
+    force: yes
+  become: yes
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - nix_podman_quadlet_stat.stat.exists | default(false)
+
+# Apply contexts to podman symlinks after they're created
+- name: Apply SELinux contexts to podman symlinks (post-symlink)
+  command: restorecon -v /usr/local/bin/podman /usr/bin/podman
+  changed_when: false
+  failed_when: false
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Source updated PATH
   shell: source ~/.profile
   args:
-    executable: /bin/bash 
+    executable: /bin/bash
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+# ---------------------------------------------------------------------------
+# Final SELinux context restoration (post-install cleanup)
+# Skip entirely for RHEL offline mode (no Nix installed)
+# ---------------------------------------------------------------------------
+- name: Check if nix profile exists
+  stat:
+    path: "{{ nix_profile_symlink_path }}"
+  register: nix_profile_exists
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+# Final restorecon: Ensure all contexts are correct after all operations
+- name: Final SELinux context restoration for nix profile (post-install #3)
+  command: restorecon -Rv "{{ nix_profile_symlink_path }}"
+  become: yes
+  changed_when: false
+  failed_when: false
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+    - nix_profile_exists.stat.exists
+
+- name: Final SELinux context restoration for daemon socket (post-install #3)
+  command: restorecon -Rv /nix/var/nix/daemon-socket
+  become: yes
+  changed_when: false
+  failed_when: false
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'

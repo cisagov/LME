@@ -1,23 +1,32 @@
 ---
 # Include OS-specific variables
-- name: Include OS-specific variables
+- name: Set OS-specific variables
   include_vars: "{{ item }}"
   with_first_found:
-    - "{{ ansible_distribution | lower }}_{{ ansible_distribution_version | replace('.', '_') }}.yml"
-    - "{{ ansible_distribution | lower }}.yml"
+    - "redhat_{{ ansible_distribution_major_version }}_{{ ansible_distribution_minor_version }}.yml"
     - "{{ ansible_os_family | lower }}.yml"
-    - "default.yml"
-  tags: always
+    - main.yml
+
+- name: Include SELinux setup tasks
+  include_tasks: selinux_setup.yml
+  when: lme_install_selinux | default(true)
 
 # Include common OS tasks first
 - name: Include common OS tasks
-  include_tasks: "{{ ansible_distribution | lower }}.yml"
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
   when: ansible_distribution is defined
 
-# Include version-specific tasks
+# Include version-specific tasks with fallback
 - name: Include version-specific tasks
-  include_tasks: "{{ ansible_distribution | lower }}_{{ ansible_distribution_version | replace('.', '_') }}.yml"
-  when: ansible_distribution is defined and ansible_distribution_version is defined
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}_{{ ansible_distribution_version | replace('.', '_') }}.yml"
+    - "{{ ansible_distribution | lower }}_{{ ansible_distribution_major_version }}.yml"
+    - "common.yml"
+  when: ansible_distribution is defined
 
 # Include common setup tasks that apply to all distributions
 - name: Include common directory setup tasks

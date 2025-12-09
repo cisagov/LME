@@ -152,7 +152,7 @@ jobs:
           echo elastic=\"$ES_PASSWORD\" >> .env && \
           cat .env && \
           source venv/bin/activate && \
-          pytest -v api_tests/linux_only/ selenium_tests/linux_only/'
+          pytest -v api_tests/linux_only/ selenium_tests/linux_only/ api_tests/connectivity/'
         "
         
     - name: Cleanup Azure resources

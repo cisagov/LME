@@ -1,0 +1,191 @@
+---
+# SELinux setup tasks for LME - run early to ensure proper file labeling
+
+- name: Load SELinux facts
+  import_tasks: selinux_vars.yml
+
+- name: Detect if SELinux tooling is available
+  command: which getenforce
+  register: selinux_tooling
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Set SELinux availability fact
+  set_fact:
+    selinux_available: "{{ selinux_tooling.rc == 0 }}"
+
+- name: Get current SELinux mode
+  command: getenforce
+  register: getenforce_out
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: selinux_available | default(false)
+
+- name: Remember if SELinux was enforcing
+  set_fact:
+    selinux_was_enforcing: "{{ selinux_available | default(false) and (getenforce_out.stdout | default('') | trim) == 'Enforcing' }}"
+
+- name: Display SELinux status
+  debug:
+    msg: |
+      SELinux Status:
+      - Available: {{ selinux_available | default(false) }}
+      - Current mode: {{ getenforce_out.stdout | default('N/A') }}
+      - Was enforcing: {{ selinux_was_enforcing | default(false) }}
+  when: debug_mode | default(false) | bool
+
+# Install SELinux policy tools early
+- name: Ensure SELinux policy tools are present
+  package:
+    name:
+      - policycoreutils
+      - policycoreutils-python-utils
+      - checkpolicy
+      - selinux-policy
+      - selinux-policy-targeted
+      - libselinux-utils
+      - container-selinux
+    state: present
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - not (offline_mode | default(false))
+
+- name: Skip SELinux policy tools installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping SELinux policy tools installation (should be pre-installed)"
+  when:
+    - selinux_available | default(false)
+    - offline_mode | default(false)
+
+- name: Ensure SELinux policy directory exists
+  file:
+    path: /etc/selinux/lme
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+  when: selinux_available | default(false)
+
+# Deploy unified LME SELinux policy (container + nix/podman contexts)
+- name: Deploy LME unified SELinux policy
+  copy:
+    src: selinux/lme_policy.te
+    dest: /etc/selinux/lme/lme_policy.te
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when: selinux_available | default(false)
+  register: selinux_policy_deployed
+
+- name: Deploy LME SELinux file contexts
+  copy:
+    src: selinux/lme_policy.fc
+    dest: /etc/selinux/lme/lme_policy.fc
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when: selinux_available | default(false)
+  register: selinux_fc_deployed
+
+- name: Compile SELinux module (lme_policy)
+  shell: |
+    set -e
+    cd /etc/selinux/lme
+    checkmodule -M -m -o lme_policy.mod lme_policy.te
+    # Try to include file contexts; if that fails, build a package without them
+    if ! semodule_package -o lme_policy.pp -m lme_policy.mod -f lme_policy.fc; then
+      echo "Warning: building SELinux module without file contexts" >&2
+      semodule_package -o lme_policy_no_fc.pp -m lme_policy.mod
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+  register: selinux_compile
+  when:
+    - selinux_available | default(false)
+    - selinux_active | default(false)
+    - selinux_policy_deployed.changed or selinux_fc_deployed.changed
+
+- name: Debug SELinux compile result
+  debug:
+    var: selinux_compile
+  when: debug_mode | default(false) | bool and selinux_compile is defined
+
+- name: Check if SELinux module already present (pre-load)
+  shell: semodule -l | grep -E "^lme_policy(\\s|$)" || true
+  args:
+    executable: /bin/bash
+  register: lme_policy_present_pre
+  changed_when: false
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - selinux_active | default(false)
+
+- name: Load SELinux module (lme_policy)
+  shell: |
+    set -e
+    cd /etc/selinux/lme
+    if [ -f lme_policy.pp ]; then
+      if semodule -i lme_policy.pp; then
+        exit 0
+      fi
+    fi
+    if [ -f lme_policy_no_fc.pp ]; then
+      semodule -i lme_policy_no_fc.pp
+    else
+      echo "No module package found to install" >&2
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+  register: semodule_load
+  changed_when: semodule_load.rc == 0
+  when:
+    - selinux_available | default(false)
+    - selinux_active | default(false)
+    - selinux_compile.changed | default(false) or (lme_policy_present_pre.rc | default(1)) != 0
+
+- name: Ensure SELinux module enabled (lme_policy)
+  command: semodule -e lme_policy
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - selinux_active | default(false)
+
+- name: Verify SELinux module loaded
+  shell: semodule -l | grep -E "^lme_policy(\\s|$)" || true
+  args:
+    executable: /bin/bash
+  register: lme_policy_present
+  changed_when: false
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - selinux_active | default(false)
+
+- name: Assert LME policy module present
+  assert:
+    that:
+      - lme_policy_present.rc == 0
+    fail_msg: "lme_policy module not loaded"
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Display SELinux module status
+  debug:
+    msg: |
+      SELinux Module Status:
+      - LME policy loaded: {{ 'Yes' if lme_policy_present.rc == 0 else 'No' }}
+      - Ready for Nix/Podman installation with proper contexts
+  when: 
+    - debug_mode | default(false) | bool
+    - selinux_available | default(false)

@@ -48,6 +48,35 @@
       - "wazuh_api password is set: {{ wazuh_api_password | length > 0 }}"
   when: debug_mode | bool
 
+# Start Fleet distribution server FIRST in offline mode (before any package queries)
+- name: Enable and start Fleet distribution service
+  systemd:
+    name: lme-fleet-distribution
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes
+  when: offline_mode | default(false)
+
+- name: Wait for Fleet distribution server to be ready
+  uri:
+    url: "https://{{ ipvar }}:8080/health"
+    method: GET
+    validate_certs: no
+    status_code: [200]
+  register: distribution_health
+  until: distribution_health.status is defined and distribution_health.status == 200
+  retries: 60
+  delay: 5
+  when: offline_mode | default(false)
+
+- name: Check if Fleet distribution server is ready
+  fail:
+    msg: "Fleet distribution server failed to start after 5 minutes"
+  when:
+    - offline_mode | default(false)
+    - distribution_health.status is not defined or distribution_health.status != 200
+
 # Wait for Kibana to be fully ready
 - name: Wait for Kibana to be fully ready
   uri:
@@ -142,7 +171,49 @@
     msg: "Fleet setup response: {{ fleet_setup }}"
   when: debug_mode | bool
 
-- name: Get CA fingerprint
+# Ensure Fleet component templates use zero replicas for single-node setup
+# Do this after Fleet setup but before indices are created
+# Note: logs@settings and logs-settings are managed system templates and cannot be modified
+# We use logs@custom which is specifically for user customizations
+- name: Update logs@custom component template for zero replicas
+  uri:
+    url: "{{ local_es_url }}/_component_template/logs@custom"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      template:
+        settings:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: logs_custom_update
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+- name: Update metrics@custom component template for zero replicas
+  uri:
+    url: "{{ local_es_url }}/_component_template/metrics@custom"
+    method: PUT
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    body_format: json
+    body:
+      template:
+        settings:
+          index:
+            number_of_replicas: "{{ elasticsearch_number_of_replicas }}"
+    status_code: [200, 201]
+  register: metrics_settings_update
+  no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
+
+- name: Get CA fingerprint (Nix podman)
   ansible.builtin.shell: |
     set -a
     . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
@@ -150,14 +221,33 @@
     /nix/var/nix/profiles/default/bin/podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
   args:
     executable: /bin/bash
-  register: ca_fingerprint
+  register: ca_fingerprint_nix
   changed_when: false
   become: yes
   no_log: "{{ not debug_mode }}"
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Get CA fingerprint (System podman - RHEL offline)
+  ansible.builtin.shell: |
+    set -a
+    . {{ playbook_dir }}/../scripts/extract_secrets.sh -q
+    set +a
+    podman exec -w /usr/share/elasticsearch/config/certs/ca lme-elasticsearch cat ca.crt | openssl x509 -noout -fingerprint -sha256 | cut -d "=" -f 2 | tr -d : | head -n1
+  args:
+    executable: /bin/bash
+  register: ca_fingerprint_system
+  changed_when: false
+  become: yes
+  no_log: "{{ not debug_mode }}"
+  when: offline_mode | default(false) and ansible_os_family == "RedHat"
+
+- name: Set CA fingerprint fact
+  set_fact:
+    ca_fingerprint: "{{ ca_fingerprint_nix.stdout if ca_fingerprint_nix is not skipped else ca_fingerprint_system.stdout }}"
 
 - name: Debug CA fingerprint
   debug:
-    var: ca_fingerprint.stdout
+    var: ca_fingerprint
   when: debug_mode | bool
 
 - name: Set Fleet server hosts
@@ -228,7 +318,7 @@
       Content-Type: "application/json"
     body_format: json
     body:
-      ca_trusted_fingerprint: "{{ ca_fingerprint.stdout }}"
+      ca_trusted_fingerprint: "{{ ca_fingerprint }}"
   register: fleet_output_fingerprint_result
   until: fleet_output_fingerprint_result.status == 200
   retries: 12
@@ -545,10 +635,10 @@
     state: present
   become: yes
 
-# Wait for metrics indices to be created
-- name: Wait for all required metrics indices to be created
+# Wait for metrics indices to be created (reduced timeout for single-node setup)
+- name: Wait for metrics indices to be created
   uri:
-    url: "{{ local_es_url }}/_cat/indices/.ds-metrics-elastic_agent.*?h=index&format=json"
+    url: "{{ local_es_url }}/_cat/indices/metrics-elastic_agent.*,logs-elastic_agent*?h=index&format=json"
     method: GET
     user: "{{ elastic_username }}"
     password: "{{ elastic_password }}"
@@ -559,22 +649,22 @@
   until: >
     metrics_indices_result.status == 200 and 
     metrics_indices_result.json | length > 0 and
-    metrics_indices_result.json | map(attribute='index') | select('match', '.*metricbeat-default.*') | list | length > 0 and
-    metrics_indices_result.json | map(attribute='index') | select('match', '.*filebeat-default.*') | list | length > 0 and
-    metrics_indices_result.json | map(attribute='index') | select('match', '.*elastic_agent-default.*') | list | length > 0
-  retries: 90
+    metrics_indices_result.json | map(attribute='index') | select('match', '.*metrics-elastic_agent.*') | list | length > 0 and
+    metrics_indices_result.json | map(attribute='index') | select('match', '.*logs-elastic_agent.*') | list | length > 0
+  retries: 30
   delay: 20
   no_log: "{{ not debug_mode }}"
+  ignore_errors: yes
 
 - name: Debug metrics indices result
   debug:
     msg: 
       - "Total indices found: {{ metrics_indices_result.json | length }}"
-      - "Metrics indices found: {{ metrics_indices_result.json | map(attribute='index') | list }}"
-      - "Metricbeat indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*metricbeat-default.*') | list }}"
-      - "Filebeat indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*filebeat-default.*') | list }}"
-      - "Agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*elastic_agent-default.*') | list }}"
+      - "All indices found: {{ metrics_indices_result.json | map(attribute='index') | list }}"
+      - "Metrics-elastic_agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*metrics-elastic_agent.*') | list }}"
+      - "Logs-elastic_agent indices: {{ metrics_indices_result.json | map(attribute='index') | select('match', '.*logs-elastic_agent.*') | list }}"
   when: debug_mode | bool and metrics_indices_result.status == 200
+
 
 - name: Debug - Display secret variables
   debug:
@@ -586,7 +676,6 @@
   when: debug_mode | bool
   no_log: "{{ not debug_mode }}"
 
-- name: Display read-only user credentials
-  debug:
-    msg: "LOGIN WITH readonly_user via:\n USER: readonlyuser\nPassword: {{ read_only_password.stdout }}"
-  when: read_only_password is defined and read_only_password.stdout is defined 
+# Note: Kibana offline mode configuration now happens in podman role
+# (before Kibana starts) instead of here
+

@@ -1,0 +1,128 @@
+---
+# Red Hat-specific tasks for base role
+
+- name: Update dnf cache
+  dnf:
+    update_cache: yes
+  become: yes
+  register: dnf_update
+  retries: 60
+  delay: 10
+  until: dnf_update is success
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Skip package installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping package installation (packages should be pre-installed)"
+  when: offline_mode | default(false)
+
+- name: Check if curl-minimal is installed
+  command: rpm -q curl-minimal
+  register: curl_minimal_check
+  failed_when: false
+  changed_when: false
+
+- name: Debug - curl-minimal status
+  debug:
+    msg: "curl-minimal is {{ 'installed' if curl_minimal_check.rc == 0 else 'not installed' }}. Using curl-minimal instead of full curl to avoid conflicts."
+
+- name: Debug - Show common packages to be installed
+  debug:
+    msg: "Installing common packages: {{ common_packages | join(', ') }}"
+  when: not (offline_mode | default(false))
+
+- name: Install common packages
+  dnf:
+    name: "{{ common_packages }}"
+    state: present
+  become: yes
+  register: dnf_install
+  retries: 60
+  delay: 10
+  until: dnf_install is success
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Debug - Show common packages install result
+  debug:
+    var: dnf_install
+  when: debug_mode | default(false) | bool
+
+- name: Debug - Show Red Hat packages to be installed
+  debug:
+    msg: "Installing Red Hat packages: {{ redhat_packages | join(', ') }}"
+  when: not (offline_mode | default(false))
+
+- name: Install required Red Hat packages
+  dnf:
+    name: "{{ redhat_packages }}"
+    state: present
+  become: yes
+  register: dnf_install_redhat
+  retries: 60
+  delay: 10
+  until: dnf_install_redhat is success
+  ignore_errors: "{{ ansible_check_mode }}"
+  when: not (offline_mode | default(false))
+
+- name: Debug - Show Red Hat packages install result
+  debug:
+    var: dnf_install_redhat
+  when: debug_mode | default(false) | bool
+
+# SELinux setup - run early before any Nix/Podman installation
+- name: Detect if SELinux tooling is available (base role)
+  command: which getenforce
+  register: base_selinux_tooling
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Set SELinux availability fact (base role)
+  set_fact:
+    base_selinux_available: "{{ base_selinux_tooling.rc == 0 }}"
+
+- name: Get current SELinux mode (base role)
+  command: getenforce
+  register: base_getenforce_out
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: base_selinux_available | default(false)
+
+- name: Setup SELinux policies for LME
+  include_tasks: selinux_setup.yml
+  when:
+    - ansible_os_family == 'RedHat'
+    - base_selinux_available | default(false)
+    - (base_getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Create CA certificates symlink for compatibility (Red Hat systems)
+  file:
+    src: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+    dest: /etc/ssl/certs/ca-certificates.crt
+    state: link
+    force: yes
+  become: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Disable and stop firewalld service
+  systemd:
+    name: firewalld
+    enabled: no
+    state: stopped
+  become: yes
+  ignore_errors: yes
+  register: firewalld_disable
+  tags: ['firewall']
+
+- name: Debug - Show firewalld disable result
+  debug:
+    msg: "Firewalld service {{ 'successfully disabled' if firewalld_disable.changed else 'was already disabled or not installed' }}"
+  when: debug_mode | default(false) | bool
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone_area | default('Etc') }}/{{ timezone_zone | default('UTC') }}"
+  become: yes

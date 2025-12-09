@@ -12,7 +12,9 @@
     state: directory
     mode: '0755'
   become: yes
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
 
 - name: Create temporary directory for Nix install
   file:
@@ -20,7 +22,9 @@
     state: directory
     mode: '0755'
   become: yes
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
 
 - name: Download Nix installer
   get_url:
@@ -28,14 +32,23 @@
     dest: /opt/nix-install/install-nix.sh
     mode: '0755'
   become: yes
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
 
 - name: Install Nix package manager
   shell: sh /opt/nix-install/install-nix.sh --daemon --yes
   become: yes
   environment:
     TMPDIR: /opt/nix-install/tmp
-  when: not nix_installed.stat.exists
+  when:
+    - not nix_installed.stat.exists
+    - not (offline_mode | default(false))
+
+- name: Skip Nix installation in offline mode
+  debug:
+    msg: "Offline mode enabled - skipping Nix installation (should be pre-installed)"
+  when: offline_mode | default(false)
 
 - name: Ensure nix-daemon service is started
   systemd:
@@ -43,6 +56,7 @@
     state: started
     enabled: yes
   become: yes
+  when: not (offline_mode | default(false))
 
 - name: Ensure nix-users group exists
   group:
@@ -62,17 +76,25 @@
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
 
 - name: Update Nix channel
   command: nix-channel --update
   become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
 
-- name: Install required packages
+- name: Install required packages (online mode)
   command: nix-env -iA nixpkgs.podman nixpkgs.docker-compose
-  become: yes 
+  become: yes
   environment:
     PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+  when: not (offline_mode | default(false))
+
+- name: Skip Nix package installation in offline mode (using pre-imported podman)
+  debug:
+    msg: "Offline mode - using podman from imported .nar file"
+  when: offline_mode | default(false)
 
 

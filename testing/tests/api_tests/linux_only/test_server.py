@@ -39,8 +39,8 @@ def test_elastic_root(es_host, es_port, username, password):
             body["cluster_name"] == "LME"
     ), f"Expected 'LME', got {body['cluster_name']}"
     assert (
-            body["version"]["number"] == "8.18.3"
-    ), f"Expected '8.18.3', got {body['version']['number']}"
+            body["version"]["number"] == "8.18.8"
+    ), f"Expected '8.18.8', got {body['version']['number']}"
     assert (
             body["version"]["build_flavor"] == "default"
     ), f"Expected 'default', got {body['version']['build_flavor']}"
@@ -82,7 +82,7 @@ def test_elastic_indices(es_host, es_port, username, password):
     assert ("open elastalert_status_status" in response.text)                                          
     assert ("open elastalert_status_past" in response.text)                                            
     assert ("open wazuh-states-vulnerabilities-wazuh-manager" in response.text)                        
-    assert ("open metrics-endpoint.metadata_current_default" in response.text)                                 
+    assert ("open metrics-endpoint.metadata_current_default" in response.text)  # Endpoint metrics may not exist yet                                
     assert ("open .ds-logs-elastic_agent-default" in response.text)                 
     assert ("open wazuh-alerts-4.x" in response.text)                                     
     assert ("open .ds-metrics-elastic_agent.elastic_agent-default" in response.text)

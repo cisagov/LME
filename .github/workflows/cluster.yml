@@ -1,9 +1,10 @@
 name: Cluster Run - Minimega
 
 on:
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - 'develop'
+      - 'main'
   workflow_dispatch:
     inputs:
       azure_region:
@@ -26,6 +27,13 @@ on:
           - ukwest
           - northeurope
           - westeurope
+      operating_system:
+        description: 'Operating system for Azure VM'
+        required: true
+        default: 'ubuntu'
+        type: choice
+        options:
+          - ubuntu
 
 jobs:
   build-and-test-cluster:
@@ -42,7 +50,7 @@ jobs:
       ENROLLMENT_TOKEN: ""
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
-      ELASTIC_AGENT_VERSION: "8.18.3"
+      ELASTIC_AGENT_VERSION: "8.18.8"
       MINIMEGA_PASSWORD: ${{ secrets.MINIMEGA_PASSWORD }}
 
     steps:
@@ -299,7 +307,7 @@ jobs:
                 -H \"kbn-xsrf: true\" \
                 -H \"Content-Type: application/json\" \
                 -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
-              jq -r .item.api_key
+              jq -r '.item.api_key'
             '
           ")
           echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"

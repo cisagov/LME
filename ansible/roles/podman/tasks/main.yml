@@ -15,30 +15,170 @@
     - "{{ ansible_os_family | lower }}.yml"
     - "common.yml"
 
-# These tasks are common for all distributions
-- name: Ensure Nix daemon is running
-  systemd:
-    name: "{{ nix_daemon_service }}"
-    state: started
-    enabled: yes
+# Set up SELinux detection variables (needed for pre-install module loading)
+- name: Detect if SELinux tooling is available
+  command: which getenforce
+  register: selinux_tooling
+  changed_when: false
+  failed_when: false
   become: yes
-  notify: restart nix-daemon
+
+- name: Set SELinux availability fact
+  set_fact:
+    selinux_available: "{{ selinux_tooling.rc == 0 }}"
+
+- name: Get current SELinux mode
+  command: getenforce
+  register: getenforce_out
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: selinux_available | default(false)
+
+# These tasks are common for all distributions (skip for RHEL offline - no Nix installed)
+- name: Check if Nix daemon unit exists
+  shell: systemctl cat "{{ nix_daemon_service }}" >/dev/null 2>&1 || systemctl list-unit-files | grep -E "^{{ nix_daemon_service }}(\\.service)?\\s" >/dev/null 2>&1
+  args:
+    executable: /bin/bash
+  register: nix_daemon_unit_check
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Check if Nix appears installed (nix binary)
+  stat:
+    path: /nix/var/nix/profiles/default/bin/nix
+  register: nix_binary_stat
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Ensure Nix daemon is running
+  block:
+    - name: Start/enable nix-daemon via systemd module
+      systemd:
+        name: "{{ nix_daemon_service }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      become: yes
+      notify: restart nix-daemon
+    - name: Ensure nix-daemon.socket is enabled (socket activation)
+      systemd:
+        name: "{{ nix_daemon_service }}.socket"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      become: yes
+  rescue:
+    - name: Fallback start of nix-daemon via systemctl
+      shell: |
+        set -e
+        systemctl daemon-reload
+        systemctl enable --now {{ nix_daemon_service }}.socket || true
+        systemctl enable --now {{ nix_daemon_service }}
+      args:
+        executable: /bin/bash
+      become: yes
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - nix_daemon_unit_check.rc == 0
+    - nix_binary_stat.stat.exists
+
+- name: Skip Nix daemon management (unit not present)
+  debug:
+    msg: "Skipping nix-daemon management because the unit is not present. Run with tags 'nix' first or full play to install Nix."
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - nix_daemon_unit_check.rc != 0
+
+- name: Skip Nix daemon management (Nix not installed yet)
+  debug:
+    msg: "Skipping nix-daemon management because Nix is not installed. Run with tags 'nix' first or full play to install Nix."
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - nix_daemon_unit_check.rc == 0
+    - not nix_binary_stat.stat.exists
+
+- name: Skip all Nix daemon management (RHEL offline mode)
+  debug:
+    msg: "Skipping all Nix daemon management - RHEL offline mode uses system podman from RPMs"
+  when: offline_mode | default(false) and ansible_os_family == "RedHat"
 
 - name: Wait for Nix daemon to be ready
   wait_for:
     timeout: 10
-  when: ansible_play_hosts_all.index(inventory_hostname) == 0
+  when:
+    - not (offline_mode | default(false) and ansible_os_family == "RedHat")
+    - ansible_play_hosts_all.index(inventory_hostname) == 0
 
-- name: Install Podman using Nix
+# ---------------------------------------------------------------------------
+# Deploy and load Podman SELinux policy BEFORE installation
+# ---------------------------------------------------------------------------
+- name: Deploy Podman SELinux policy files (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/podman_policy.te"
+    dest: /etc/selinux/lme/podman_policy.te
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - selinux_available | default(false)
+
+- name: Deploy Podman SELinux file contexts (pre-install)
+  copy:
+    src: "{{ clone_directory | default(playbook_dir + '/../..') }}/ansible/roles/base/files/selinux/podman_policy.fc"
+    dest: /etc/selinux/lme/podman_policy.fc
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  when:
+    - selinux_available | default(false)
+
+- name: Compile Podman SELinux module (pre-install)
+  shell: |
+    set -e
+    cd /etc/selinux/lme
+    checkmodule -M -m -o podman_policy.mod podman_policy.te
+    semodule_package -o podman_policy.pp -m podman_policy.mod -f podman_policy.fc
+  args:
+    executable: /bin/bash
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Load Podman SELinux module (pre-install)
+  command: semodule -i /etc/selinux/lme/podman_policy.pp
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Ensure Podman SELinux module enabled (pre-install)
+  command: semodule -e podman_policy
+  become: yes
+  when:
+    - selinux_available | default(false)
+    - (getenforce_out.stdout | default('') | trim) != 'Disabled'
+
+- name: Install Podman using Nix (online mode only)
   command: nix-env -iA nixpkgs.podman
   become: yes
   environment:
-    PATH: "{{ ansible_env.PATH }}"
+    PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
   register: podman_install
   retries: 3
   delay: 5
   until: podman_install is not failed
   changed_when: "'installing' in podman_install.stdout | default('')"
+  when: not (offline_mode | default(false))
+
+- name: Skip Podman Nix installation (offline mode - pre-imported from .nar or using system podman)
+  debug:
+    msg: "Offline mode - podman already imported from .nar file by install.sh (Ubuntu/Debian) or using system podman from RPMs (RHEL)"
+  when: offline_mode | default(false)
 
 - name: Set sysctl limits 
   command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
@@ -47,10 +187,16 @@
   become: yes
   changed_when: true
 
-- name: Link latest podman quadlet
+- name: Link latest podman quadlet (Nix podman)
   command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
   become: yes
   changed_when: true
+  when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
+
+- name: Skip podman quadlet linking (RHEL offline - using system podman)
+  debug:
+    msg: "Skipping podman quadlet linking - RHEL offline mode uses system podman from RPMs"
+  when: offline_mode | default(false) and ansible_os_family == "RedHat"
 
 # Include container setup tasks
 - name: Setup containers for podman

@@ -24,12 +24,20 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-dev \
     distro-info \
     libgirepository1.0-dev \
+    ca-certificates \
+    gnupg \
     && wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb" \
     && dpkg -i packages-microsoft-prod.deb \
     && apt-get update \
     && apt-get install -y powershell \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
+    && chmod go+r /etc/apt/keyrings/microsoft.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" > /etc/apt/sources.list.d/azure-cli.list \
+    && apt-get update \
+    && apt-get install -y azure-cli=2.77.0-1~$(lsb_release -cs) \
+    && apt-mark hold azure-cli \
     && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt install -y ./google-chrome-stable_current_amd64.deb \
     && rm -rf google-chrome-stable_current_amd64.deb \

@@ -1,11 +1,19 @@
 ---
 # Elasticsearch setup tasks
 
+- name: Debug - Show what global_secrets contains
+  debug:
+    msg: "global_secrets variable: {{ global_secrets | default('UNDEFINED') }}"
+
 - name: Set playbook variables
   ansible.builtin.set_fact:
     local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
     elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
     elastic_password: "{{ global_secrets.elastic | default('') }}"
+
+- name: Debug - Show extracted values
+  debug:
+    msg: "Elasticsearch config - URL: {{ local_es_url }}, Username: {{ elastic_username }}, Password length: {{ elastic_password | length }}"
 
 # Create Read-Only User
 - name: Wait for Elasticsearch to be ready
@@ -71,6 +79,11 @@
     executable: /bin/bash
   ignore_errors: true
 
+- name: Set readonly password as fact for other roles
+  set_fact:
+    readonly_user_password: "{{ read_only_password.stdout }}"
+  when: read_only_password.stdout is defined
+
 - name: Create readonly user using uri module
   uri:
     url: "{{ local_es_url }}/_security/user/readonly_user"
@@ -88,13 +101,30 @@
   register: user_creation_result
   when: result.status is defined and result.status == 200
 
-- name: Display readonly user credentials
-  debug:
-    msg: "Read-only user created. Username: readonly_user, Password: {{ read_only_password.stdout }}"
-  no_log: "{{ not debug_mode }}"
 
 # Change elastic user password
 - name: Change elastic user password
   shell: 'curl -X POST -kL --user "{{ elastic_username }}":"{{ elastic_password }}" -H "Content-Type: application/json" -d "{\"password\":\"{{ elastic_password }}\"}" "https://127.0.0.1:9200/_security/user/elastic/_password"'
   no_log: "{{ not debug_mode }}"
-  become: yes 
+  become: yes
+
+
+# Check what templates exist for debugging
+- name: Get all index templates
+  uri:
+    url: "{{ local_es_url }}/_index_template"
+    method: GET
+    user: "{{ elastic_username }}"
+    password: "{{ elastic_password }}"
+    validate_certs: no
+    force_basic_auth: yes
+    status_code: [200]
+  register: all_templates_result
+  when: result.status is defined and result.status == 200 and debug_mode | bool
+  no_log: "{{ not debug_mode }}"
+
+- name: Debug all templates
+  debug:
+    msg: "Templates: {{ all_templates_result.json.index_templates | map(attribute='name') | list }}"
+  when: debug_mode | bool and all_templates_result is defined
+

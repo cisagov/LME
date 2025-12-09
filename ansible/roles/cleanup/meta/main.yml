@@ -1,0 +1,4 @@
+---
+dependencies:
+  - role: elasticsearch
+    tags: ['system', 'all']

@@ -43,9 +43,9 @@ instances:
     ip:
       - "127.0.0.1"
 
-  - name: "caddy"
+  - name: "fleet-distribution"
     dns:
-      - "lme-caddy"
+      - "lme-fleet-distribution"
       - "localhost"
     ip:
       - "127.0.0.1"
