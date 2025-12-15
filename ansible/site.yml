@@ -1,8 +1,7 @@
 ---
 - name: Setup LME
-  hosts: localhost
-  connection: local
-  become: no  # Default to no privilege escalation
+  hosts: "{{ target_hosts | default('localhost') }}"
+  become: yes
   vars:
     # Common variables
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"

@@ -5,7 +5,8 @@
   stat:
     path: "{{ clone_directory }}/config/containers.txt"
   register: containers_file
-  become: yes
+  delegate_to: localhost
+  run_once: true
 
 - name: Fail if containers.txt doesn't exist
   fail:
