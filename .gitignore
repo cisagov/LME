@@ -57,3 +57,4 @@ lme-offline-*.tar.gz
 
 # Development scripts (not for production)
 scripts/dev_uninstall_lme.sh
+testing/v2/installers/**/*.machines.json
