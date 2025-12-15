@@ -1,0 +1,63 @@
+---
+# Distribute vault password + encrypted secrets to all nodes.
+#
+# This is required for Podman's shell secret driver to work consistently across
+# remote nodes.
+
+- name: Determine secrets source host (first elasticsearch host)
+  ansible.builtin.set_fact:
+    lme_secrets_source_host: "{{ groups['elasticsearch'][0] }}"
+  run_once: true
+
+- name: Create tarball of vault/secrets on source host
+  ansible.builtin.command: >-
+    tar -czf /tmp/lme_secrets.tgz
+    /etc/lme/pass.sh
+    /etc/lme/vault
+    /root/.config/containers/containers.conf
+  delegate_to: "{{ lme_secrets_source_host }}"
+  run_once: true
+  become: true
+
+- name: Ensure local temp directory exists for secrets bundle
+  ansible.builtin.file:
+    path: /tmp/lme-secrets
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  run_once: true
+
+- name: Fetch secrets bundle from source host to controller
+  ansible.builtin.fetch:
+    src: /tmp/lme_secrets.tgz
+    dest: /tmp/lme-secrets/lme_secrets.tgz
+    flat: true
+  delegate_to: "{{ lme_secrets_source_host }}"
+  run_once: true
+  become: true
+
+- name: Copy secrets bundle to target host
+  ansible.builtin.copy:
+    src: /tmp/lme-secrets/lme_secrets.tgz
+    dest: /tmp/lme_secrets.tgz
+    mode: '0600'
+  become: true
+
+- name: Extract secrets bundle into place
+  ansible.builtin.command: tar -xzf /tmp/lme_secrets.tgz -C /
+  become: true
+
+- name: Remove secrets bundle on target host
+  ansible.builtin.file:
+    path: /tmp/lme_secrets.tgz
+    state: absent
+  become: true
+
+- name: Remove secrets bundle on source host (best-effort)
+  ansible.builtin.file:
+    path: /tmp/lme_secrets.tgz
+    state: absent
+  delegate_to: "{{ lme_secrets_source_host }}"
+  run_once: true
+  become: true
+  failed_when: false

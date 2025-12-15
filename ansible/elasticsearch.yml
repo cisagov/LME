@@ -1,0 +1,38 @@
+---
+- name: Deploy Elasticsearch
+  hosts: elasticsearch
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+    # Prevent podman role from starting the full stack automatically.
+    # We explicitly start the Elasticsearch unit after certs/secrets distribution.
+    lme_autostart: false
+
+  roles:
+    - role: base
+      tags: ['base']
+    - role: nix
+      tags: ['system']
+    - role: podman
+      tags: ['system']
+    - role: secrets_distribution
+      tags: ['secrets']
+    - role: certs
+      tags: ['certs']
+
+  tasks:
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Start Elasticsearch unit
+      ansible.builtin.systemd:
+        name: lme-elasticsearch
+        state: started
+        enabled: true
+
+    - name: Run Elasticsearch post-install configuration
+      ansible.builtin.include_role:
+        name: elasticsearch
+      tags: ['elasticsearch']
