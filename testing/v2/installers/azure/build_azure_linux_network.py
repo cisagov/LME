@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import string
 import random
 import re
+import ipaddress
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.devtestlabs import DevTestLabsClient
@@ -221,6 +223,114 @@ def save_to_parent_directory(filename, content):
     print(f"File saved: {file_path}")
 
 
+def save_json_to_parent_directory(filename, obj):
+    save_to_parent_directory(filename, json.dumps(obj, indent=2) + "\n")
+
+
+def create_linux_vm(
+    *,
+    compute_client,
+    network_client,
+    devtestlabs_client,
+    subscription_id,
+    resource_group,
+    location,
+    vnet_name,
+    subnet_name,
+    nsg_id,
+    vm_name,
+    private_ip_address,
+    vm_admin,
+    vm_password,
+    vm_size,
+    image_publisher,
+    image_offer,
+    image_sku,
+    image_version,
+    os_disk_size_gb,
+    tags=None,
+    auto_shutdown_time=None,
+    auto_shutdown_email=None,
+):
+    subnet_id = (
+        f"/subscriptions/{subscription_id}/"
+        f"resourceGroups/{resource_group.name}/"
+        f"providers/Microsoft.Network/"
+        f"virtualNetworks/{vnet_name}/"
+        f"subnets/{subnet_name}"
+    )
+
+    public_ip = create_public_ip(
+        network_client, resource_group, location, vm_name
+    )
+
+    nic = create_network_interface(
+        network_client,
+        resource_group,
+        location,
+        vm_name,
+        subnet_id,
+        private_ip_address,
+        public_ip,
+        nsg_id,
+    )
+
+    print(f"\nCreating {vm_name}...")
+    vm_params = {
+        "location": location,
+        "hardware_profile": {"vm_size": vm_size},
+        "additional_capabilities": {
+            "nested_virtualization_enabled": True
+        },
+        "storage_profile": {
+            "image_reference": {
+                "publisher": image_publisher,
+                "offer": image_offer,
+                "sku": image_sku,
+                "version": image_version,
+            },
+            "os_disk": {
+                "create_option": "FromImage",
+                "disk_size_gb": os_disk_size_gb,
+            },
+        },
+        "os_profile": {
+            "computer_name": f"{vm_name}",
+            "admin_username": vm_admin,
+            "admin_password": f"{vm_password}",
+        },
+        "network_profile": {
+            "network_interfaces": [
+                {
+                    "id": nic.id,
+                }
+            ],
+        },
+        "tags": tags or {},
+    }
+
+    vm_poller = compute_client.virtual_machines.begin_create_or_update(
+        resource_group_name=resource_group.name,
+        vm_name=vm_name,
+        parameters=vm_params,
+    )
+    vm_result = vm_poller.result()
+    print(f"Virtual machine '{vm_result.name}' created successfully.")
+
+    if auto_shutdown_time:
+        set_auto_shutdown(
+            devtestlabs_client,
+            subscription_id,
+            resource_group.name,
+            location,
+            vm_name,
+            auto_shutdown_time,
+            auto_shutdown_email,
+        )
+
+    return public_ip
+
+
 def create_windows_server(
     compute_client,
     network_client,
@@ -241,6 +351,10 @@ def create_windows_server(
 
     # Create public IP address using the existing function
     public_ip = create_public_ip(network_client, resource_group, location, server_name)
+    save_to_parent_directory(
+        f"{resource_group.name}.{server_name}.ip.txt",
+        public_ip.ip_address
+    )
 
     # Create NIC using the existing function
     subnet_id = (
@@ -300,7 +414,7 @@ def create_windows_server(
             vm_params
         ).result()
         print(f"Windows Server {server_name} created successfully.")
-        return server_name
+        return {"vm_name": server_name, "public_ip": public_ip, "private_ip": "10.1.0.4"}
     except Exception as e:
         print(f"Error creating Windows Server: {str(e)}")
         return None
@@ -321,6 +435,7 @@ def main(
     ls_ip: str,
     vm_admin: str,
     machine_name: str,
+    linux_vm_count: int = 1,
     ports: list[int],
     priorities: list[int],
     protocols: list[str],
@@ -346,6 +461,11 @@ def main(
     current_user = os.getenv("USER", "unknown")
     today = datetime.now().strftime("%Y-%m-%d")
     project = "LME"
+    tags = {
+        "user": current_user,
+        "created_on": today,
+        "project": project,
+    }
 
     # Validation of Globals
     allowed_sources_list = allowed_sources.split(",")
@@ -445,98 +565,98 @@ def main(
             f"{resource_group.name}.password.txt", vm_password
     )
 
-    subnet_id = (
-            f"/subscriptions/{subscription_id}/"
-            f"resourceGroups/{resource_group.name}/"
-            f"providers/Microsoft.Network/"
-            f"virtualNetworks/{vnet_name}/"
-            f"subnets/{subnet_name}"
-            )
+    linux_vms = []
 
-    public_ip = create_public_ip(
-            network_client, resource_group, location, machine_name
-            )
+    linux_vm_count = max(int(linux_vm_count), 1)
+    base_vm_name = machine_name
+
+    # First Linux VM keeps the original behavior (name + IP file naming)
+    first_public_ip = create_linux_vm(
+        compute_client=compute_client,
+        network_client=network_client,
+        devtestlabs_client=devtestlabs_client,
+        subscription_id=subscription_id,
+        resource_group=resource_group,
+        location=location,
+        vnet_name=vnet_name,
+        subnet_name=subnet_name,
+        nsg_id=nsg.id,
+        vm_name=base_vm_name,
+        private_ip_address=ls_ip,
+        vm_admin=vm_admin,
+        vm_password=vm_password,
+        vm_size=vm_size,
+        image_publisher=image_publisher,
+        image_offer=image_offer,
+        image_sku=image_sku,
+        image_version=image_version,
+        os_disk_size_gb=os_disk_size_gb,
+        tags=tags,
+        auto_shutdown_time=auto_shutdown_time,
+        auto_shutdown_email=auto_shutdown_email,
+    )
 
     print(f"\nWriting public_ip to {resource_group.name}.ip.txt")
     save_to_parent_directory(
-            f"{resource_group.name}.ip.txt",
-            public_ip.ip_address
-        )
-
-    nic = create_network_interface(
-                network_client,
-                resource_group,
-                location,
-                machine_name,
-                subnet_id,
-                ls_ip,
-                public_ip,
-                nsg.id
-            )
-
-    print(f"\nCreating {machine_name}...")
-    ls1_params = {
-        "location": location,
-        "hardware_profile": {"vm_size": vm_size},
-        "additional_capabilities": {
-            "nested_virtualization_enabled": True
-        },
-        "storage_profile": {
-            "image_reference": {
-                "publisher": image_publisher,
-                "offer": image_offer,
-                "sku": image_sku,
-                "version": image_version,
-            },
-            "os_disk": {
-                "create_option": "FromImage",
-                "disk_size_gb": os_disk_size_gb,
-            },
-        },
-        "os_profile": {
-            "computer_name": f"{machine_name}",
-            "admin_username": vm_admin,
-            "admin_password": f"{vm_password}",
-        },
-        "network_profile": {
-            "network_interfaces": [
-                {
-                    "id": nic.id,
-                }
-            ],
-        },
-        "tags": {
-            "user": current_user,
-            "created_on": today,
-            "project": project,
-        },
-    }
-    ls1_poller = compute_client.virtual_machines.begin_create_or_update(
-        resource_group_name=resource_group.name,
-        vm_name=machine_name,
-        parameters=ls1_params,
+        f"{resource_group.name}.ip.txt",
+        first_public_ip.ip_address
     )
-    ls1 = ls1_poller.result()
-    print(f"Virtual machine '{ls1.name}' created successfully.")
+    linux_vms.append(
+        {
+            "vm_name": base_vm_name,
+            "ip_address": first_public_ip.ip_address,
+            "private_ip": ls_ip,
+            "username": vm_admin,
+            "password": vm_password,
+        }
+    )
 
-    # Configure Auto-Shutdown
-    if auto_shutdown_time:
-        set_auto_shutdown(
-            devtestlabs_client,
-            subscription_id,
-            resource_group.name,
-            location,
-            machine_name,
-            auto_shutdown_time,
-            auto_shutdown_email
+    # Additional Linux VMs start at 10.1.0.10, incrementing upward
+    next_private_ip = ipaddress.ip_address("10.1.0.10")
+    for i in range(2, linux_vm_count + 1):
+        vm_name_i = f"{base_vm_name}-{i}"
+        private_ip_i = str(next_private_ip)
+        next_private_ip += 1
+
+        public_ip_i = create_linux_vm(
+            compute_client=compute_client,
+            network_client=network_client,
+            devtestlabs_client=devtestlabs_client,
+            subscription_id=subscription_id,
+            resource_group=resource_group,
+            location=location,
+            vnet_name=vnet_name,
+            subnet_name=subnet_name,
+            nsg_id=nsg.id,
+            vm_name=vm_name_i,
+            private_ip_address=private_ip_i,
+            vm_admin=vm_admin,
+            vm_password=vm_password,
+            vm_size=vm_size,
+            image_publisher=image_publisher,
+            image_offer=image_offer,
+            image_sku=image_sku,
+            image_version=image_version,
+            os_disk_size_gb=os_disk_size_gb,
+            tags=tags,
+            auto_shutdown_time=auto_shutdown_time,
+            auto_shutdown_email=auto_shutdown_email,
         )
 
-    print("\nVM login info:")
-    print(f"ResourceGroup: {resource_group.name}")
-    print(f"PublicIP: {public_ip.ip_address}")
-    print(f"Username: {vm_admin}")
-    print(f"Password: {vm_password}")
-    print("SAVE THE ABOVE INFO\n")
+        linux_vms.append(
+            {
+                "vm_name": vm_name_i,
+                "ip_address": public_ip_i.ip_address,
+                "private_ip": private_ip_i,
+                "username": vm_admin,
+                "password": vm_password,
+            }
+        )
+
+    machines_json = {
+        "resource_group": resource_group.name,
+        "linux_vms": linux_vms,
+    }
 
     # Add Windows server if the flag is set
     if add_windows_server:
@@ -557,9 +677,38 @@ def main(
             subscription_id  
         )
         if windows_server:
-            print(f"Windows Server {windows_server} created successfully.")
+            machines_json["windows_server"] = {
+                "vm_name": windows_server["vm_name"],
+                "ip_address": windows_server["public_ip"].ip_address,
+                "private_ip": windows_server["private_ip"],
+                "username": vm_admin,
+                "password": vm_password,
+            }
+            print(f"Windows Server {windows_server['vm_name']} created successfully.")
         else:
             print("Failed to create Windows Server.")
+
+    save_json_to_parent_directory(
+        f"{resource_group.name}.machines.json",
+        machines_json
+    )
+
+    print("\nVM login info:")
+    print(f"ResourceGroup: {resource_group.name}")
+    for vm in machines_json["linux_vms"]:
+        print(f"LinuxVM: {vm['vm_name']}")
+        print(f"  PublicIP: {vm['ip_address']}")
+        print(f"  PrivateIP: {vm['private_ip']}")
+        print(f"  Username: {vm['username']}")
+        print(f"  Password: {vm['password']}")
+    if machines_json.get("windows_server"):
+        ws = machines_json["windows_server"]
+        print(f"WindowsVM: {ws['vm_name']}")
+        print(f"  PublicIP: {ws['ip_address']}")
+        print(f"  PrivateIP: {ws['private_ip']}")
+        print(f"  Username: {ws['username']}")
+        print(f"  Password: {ws['password']}")
+    print("SAVE THE ABOVE INFO\n")
 
     print("Done.")
 
@@ -635,6 +784,13 @@ if __name__ == "__main__":
         help="Name of the VM. Default: ubuntu"
     )
     parser.add_argument(
+        "-c",
+        "--linux-vm-count",
+        type=int,
+        default=1,
+        help="Total number of Linux VMs to create. Default: 1",
+    )
+    parser.add_argument(
         "-p",
         "--ports",
         type=int,
@@ -675,14 +831,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "-io",
         "--image-offer",
-        default="0001-com-ubuntu-server-jammy",
-        help="Offer of the VM image. Default: 0001-com-ubuntu-server-jammy",
+        default="ubuntu-24_04-lts",
+        help="Offer of the VM image. Default: ubuntu-24_04-lts",
     )
     parser.add_argument(
         "-is",
         "--image-sku",
-        default="22_04-lts-gen2",
-        help="SKU of the VM image. Default: 22_04-lts-gen2",
+        default="server",
+        help="SKU of the VM image. Default: server",
     )
     #  ubuntu-24_04-lts
     parser.add_argument(
@@ -760,6 +916,7 @@ if __name__ == "__main__":
         ls_ip=args.ls_ip,
         vm_admin=args.vm_admin,
         machine_name=args.machine_name,
+        linux_vm_count=args.linux_vm_count,
         ports=args.ports,
         priorities=args.priorities,
         protocols=args.protocols,
