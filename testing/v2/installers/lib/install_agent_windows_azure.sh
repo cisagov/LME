@@ -108,6 +108,20 @@ run_azure_powershell() {
         echo "DEBUG: Raw JSON response:"
         echo "$result" | jq '.' 2>/dev/null || echo "$result"
         echo "DEBUG: End raw JSON response"
+        
+        # Save full JSON to file for later inspection
+        local debug_file="/tmp/azure_run_command_$(date +%s)_${RANDOM}.json"
+        echo "$result" > "$debug_file"
+        echo "DEBUG: Full JSON saved to: $debug_file"
+        
+        # Also extract and save just the messages (may be multi-line)
+        if command -v jq >/dev/null 2>&1; then
+            local messages_file="${debug_file%.json}_messages.txt"
+            echo "$result" | jq -r '.value[] | .message' > "$messages_file" 2>/dev/null
+            echo "DEBUG: Extracted messages saved to: $messages_file"
+            echo "DEBUG: Full messages output:"
+            cat "$messages_file"
+        fi
     fi
     
     # Extract and display the output - handle both stdout and stderr properly
