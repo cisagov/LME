@@ -233,6 +233,11 @@ fi
 
 # Step 3: Install Elastic Agent
 echo "Step 3: Installing Elastic Agent..."
+
+# Properly escape the enrollment token for PowerShell
+# Base64 tokens contain characters like = + / that need careful handling
+ESCAPED_TOKEN=$(printf '%s' "$ENROLLMENT_TOKEN" | sed "s/'/\"/g")
+
 install_command='
 $extractPath = "C:\elastic-agent-extract"
 $agentPath = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
@@ -245,6 +250,9 @@ if (-not (Test-Path $agentExePath)) {
     exit 1
 }
 
+# Enrollment token passed safely
+$enrollmentToken = "'"${ESCAPED_TOKEN}"'"
+
 # Install the agent
 $installArgs = @(
     "install"
@@ -252,7 +260,7 @@ $installArgs = @(
     "--force"
     "--url=https://'"$HOST_IP"':'"$PORT"'"
     "--insecure"
-    "--enrollment-token='"$ENROLLMENT_TOKEN"'"
+    "--enrollment-token=$enrollmentToken"
 )
 
 Write-Host "Installing Elastic Agent with arguments: $($installArgs -join ([char]32))"

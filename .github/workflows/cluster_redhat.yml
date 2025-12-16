@@ -241,14 +241,15 @@ jobs:
             -e AZURE_CLIENT_SECRET \
             -e AZURE_TENANT_ID \
             -e AZURE_SUBSCRIPTION_ID \
+            -e ENROLLMENT_TOKEN="${{ env.ENROLLMENT_TOKEN }}" \
             pipeline bash -c "
-              az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID && \
+              az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
               cd /home/lme-user/LME/testing/v2/installers/lib/ && \
               chmod +x install_agent_windows_azure.sh && \
               ./install_agent_windows_azure.sh \
                 --resource-group pipe-${{ env.UNIQUE_ID }} \
                 --vm-name ws1 \
-                --token ${{ env.ENROLLMENT_TOKEN }} \
+                --token \"\$ENROLLMENT_TOKEN\" \
                 --version ${{ env.ELASTIC_AGENT_VERSION }} \
                 --debug
             "
