@@ -105,22 +105,36 @@ run_azure_powershell() {
     
     # Debug: Show raw JSON response if debug mode is enabled
     if [[ "$DEBUG_MODE" == "true" ]]; then
-        echo "DEBUG: Raw JSON response:"
+        echo "=========================================="
+        echo "DEBUG: Full JSON response (complete output):"
+        echo "=========================================="
         echo "$result" | jq '.' 2>/dev/null || echo "$result"
-        echo "DEBUG: End raw JSON response"
+        echo "=========================================="
+        echo "DEBUG: End JSON response"
+        echo "=========================================="
         
-        # Save full JSON to file for later inspection
-        local debug_file="/tmp/azure_run_command_$(date +%s)_${RANDOM}.json"
-        echo "$result" > "$debug_file"
-        echo "DEBUG: Full JSON saved to: $debug_file"
-        
-        # Also extract and save just the messages (may be multi-line)
+        # Extract and print all messages (stdout and stderr) separately
         if command -v jq >/dev/null 2>&1; then
-            local messages_file="${debug_file%.json}_messages.txt"
-            echo "$result" | jq -r '.value[] | .message' > "$messages_file" 2>/dev/null
-            echo "DEBUG: Extracted messages saved to: $messages_file"
-            echo "DEBUG: Full messages output:"
-            cat "$messages_file"
+            echo ""
+            echo "=========================================="
+            echo "DEBUG: Extracted STDOUT messages:"
+            echo "=========================================="
+            echo "$result" | jq -r '.value[] | select(.code | startswith("ComponentStatus/StdOut/")) | .message' 2>/dev/null || echo "Could not extract stdout messages"
+            echo "=========================================="
+            
+            echo ""
+            echo "=========================================="
+            echo "DEBUG: Extracted STDERR messages:"
+            echo "=========================================="
+            echo "$result" | jq -r '.value[] | select(.code | startswith("ComponentStatus/StdErr/")) | .message' 2>/dev/null || echo "Could not extract stderr messages"
+            echo "=========================================="
+            
+            echo ""
+            echo "=========================================="
+            echo "DEBUG: All messages combined (in order):"
+            echo "=========================================="
+            echo "$result" | jq -r '.value[] | .message' 2>/dev/null || echo "Could not extract messages"
+            echo "=========================================="
         fi
     fi
     
