@@ -1,6 +1,7 @@
 ---
 - name: Setup LME
   hosts: "{{ target_hosts | default('localhost') }}"
+  connection: "{{ ansible_connection | default('local') }}"
   become: yes
   vars:
     # Common variables
