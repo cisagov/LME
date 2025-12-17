@@ -182,7 +182,7 @@ jobs:
           ssh lme-user@\$IP_ADDRESS '
             cd LME/testing/tests && \
             sudo apt-get update && \
-            sudo apt-get install -y python3.10-venv && \
+            sudo apt-get install -y python3-venv && \
             wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
             sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             python3 -m venv venv && \
@@ -429,7 +429,7 @@ jobs:
           ssh lme-user@\$IP_ADDRESS '
             cd LME/testing/tests && \
             sudo apt-get update && \
-            sudo apt-get install -y python3.10-venv && \
+            sudo apt-get install -y python3-venv && \
             wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
             sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             python3 -m venv venv && \
@@ -676,7 +676,7 @@ jobs:
           ssh lme-user@\$IP_ADDRESS '
             cd LME/testing/tests && \
             sudo apt-get update && \
-            sudo apt-get install -y python3.10-venv && \
+            sudo apt-get install -y python3-venv && \
             wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
             sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             python3 -m venv venv && \
@@ -923,7 +923,7 @@ jobs:
           ssh lme-user@\$IP_ADDRESS '
             cd LME/testing/tests && \
             sudo apt-get update && \
-            sudo apt-get install -y python3.10-venv && \
+            sudo apt-get install -y python3-venv && \
             wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
             sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             python3 -m venv venv && \
