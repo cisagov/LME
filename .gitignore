@@ -62,3 +62,4 @@ scripts/dev_uninstall_lme.sh
 rsync*
 .rsync-filter
 claude-*
+.claude/
