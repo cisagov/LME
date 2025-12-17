@@ -59,3 +59,6 @@ lme-offline-*.tar.gz
 
 # Development scripts (not for production)
 scripts/dev_uninstall_lme.sh
+rsync*
+.rsync-filter
+claude-*
