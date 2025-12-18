@@ -1,0 +1,321 @@
+#!/bin/bash
+
+# Cluster Installer Setup Script
+# Run from: testing/v2/installers/cluster_installer
+# This script sets up a multi-node LME cluster for testing
+
+set -e
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Default options
+DEBUG_MODE="false"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -d|--debug)
+            DEBUG_MODE="true"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "OPTIONS:"
+            echo "  -d, --debug    Enable debug mode for verbose ansible output"
+            echo "  -h, --help     Show this help message"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown option: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+# Function to wait for SSH to be ready on a host
+wait_for_ssh() {
+    local host=$1
+    local user=$2
+    local password=$3
+    local max_attempts=30
+    local attempt=1
+
+    echo -n "    Waiting for SSH on $host "
+    while [ $attempt -le $max_attempts ]; do
+        if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=no "${user}@${host}" "echo ok" &>/dev/null; then
+            echo -e " ${GREEN}ready${NC}"
+            return 0
+        fi
+        echo -n "."
+        sleep 10
+        ((attempt++))
+    done
+    echo -e " ${RED}timeout${NC}"
+    return 1
+}
+
+# Function to wait for network connectivity on a remote host
+wait_for_network() {
+    local ssh_target=$1
+    local test_host=${2:-"github.com"}
+    local max_attempts=30
+    local attempt=1
+
+    echo -n "    Waiting for network connectivity to $test_host "
+    while [ $attempt -le $max_attempts ]; do
+        if ssh "$ssh_target" "curl -s --connect-timeout 5 https://${test_host} >/dev/null 2>&1"; then
+            echo -e " ${GREEN}ready${NC}"
+            return 0
+        fi
+        echo -n "."
+        sleep 10
+        ((attempt++))
+    done
+    echo -e " ${RED}timeout${NC}"
+    return 1
+}
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLERS_DIR="$(dirname "$SCRIPT_DIR")"
+
+echo -e "${GREEN}=== LME Cluster Installer ===${NC}"
+echo "Script directory: $SCRIPT_DIR"
+echo "Installers directory: $INSTALLERS_DIR"
+if [ "$DEBUG_MODE" = "true" ]; then
+    echo -e "${YELLOW}Debug mode: ENABLED${NC}"
+fi
+
+# Change to installers directory
+cd "$INSTALLERS_DIR"
+echo -e "${GREEN}Changed to: $(pwd)${NC}"
+
+# Check for exporter.txt
+if [ ! -f "exporter.txt" ]; then
+    echo -e "${RED}Error: exporter.txt not found in $INSTALLERS_DIR${NC}"
+    echo -e "${YELLOW}Create exporter.txt with the following variables:${NC}"
+    cat << 'EOF'
+export RESOURCE_GROUP="my-cluster-rg"
+export PUBLIC_IP="YOUR_IP/32"
+export VM_SIZE="Standard_E2d_v4"
+export LOCATION="westus"
+export AUTO_SHUTDOWN_TIME="00:00"
+export LME_USER="lme-user"
+export BRANCH="your-branch-name"
+EOF
+    exit 1
+fi
+
+# Source environment variables
+echo -e "${YELLOW}Sourcing exporter.txt...${NC}"
+source exporter.txt
+
+# Validate required variables
+REQUIRED_VARS=("RESOURCE_GROUP" "PUBLIC_IP" "LME_USER" "BRANCH")
+for var in "${REQUIRED_VARS[@]}"; do
+    if [ -z "${!var}" ]; then
+        echo -e "${RED}Error: $var is not set in exporter.txt${NC}"
+        exit 1
+    fi
+done
+
+echo -e "${GREEN}Environment variables loaded:${NC}"
+echo "  RESOURCE_GROUP: $RESOURCE_GROUP"
+echo "  PUBLIC_IP: $PUBLIC_IP"
+echo "  VM_SIZE: ${VM_SIZE:-Standard_E2d_v4}"
+echo "  LOCATION: ${LOCATION:-westus}"
+echo "  LME_USER: $LME_USER"
+echo "  BRANCH: $BRANCH"
+
+# Set defaults if not provided
+VM_SIZE="${VM_SIZE:-Standard_E2d_v4}"
+LOCATION="${LOCATION:-westus}"
+AUTO_SHUTDOWN_TIME="${AUTO_SHUTDOWN_TIME:-00:00}"
+CLUSTER_SIZE="${CLUSTER_SIZE:-3}"
+
+# Build ansible options based on debug mode
+ANSIBLE_OPTS=""
+if [ "$DEBUG_MODE" = "true" ]; then
+    ANSIBLE_OPTS="-e debug_mode=true -vvvv"
+    echo -e "${YELLOW}Ansible debug options: $ANSIBLE_OPTS${NC}"
+fi
+
+# Setup Python venv
+echo -e "${YELLOW}Setting up Python virtual environment...${NC}"
+if [ ! -d "venv" ]; then
+    echo "Creating new venv..."
+    python3 -m venv venv
+fi
+
+source venv/bin/activate
+echo -e "${GREEN}Activated venv: $(which python3)${NC}"
+
+# Install Azure requirements
+echo -e "${YELLOW}Installing Azure requirements...${NC}"
+pip install -q -r azure/requirements.txt
+echo -e "${GREEN}Requirements installed${NC}"
+
+# Check for required local tools
+echo -e "${YELLOW}Checking for required tools...${NC}"
+for tool in jq sshpass; do
+    if ! command -v $tool &> /dev/null; then
+        echo -e "${RED}Error: $tool is not installed${NC}"
+        echo -e "${YELLOW}Install with: sudo apt-get install -y $tool${NC}"
+        exit 1
+    fi
+done
+echo -e "${GREEN}All required tools found${NC}"
+
+# Build the cluster
+echo -e "${YELLOW}Building cluster with $CLUSTER_SIZE nodes...${NC}"
+./azure/build_azure_linux_network.py \
+    -g "$RESOURCE_GROUP" \
+    -s "$PUBLIC_IP" \
+    -vs "$VM_SIZE" \
+    -l "$LOCATION" \
+    -ast "$AUTO_SHUTDOWN_TIME" \
+    -c "$CLUSTER_SIZE" \
+    -y
+
+# Set variables from generated files
+echo -e "${YELLOW}Loading generated credentials...${NC}"
+PASSWORD=$(cat "${RESOURCE_GROUP}.password.txt")
+MASTER_IP=$(jq -r '.linux_vms[0].ip_address' "${RESOURCE_GROUP}.machines.json")
+
+echo -e "${GREEN}Cluster created:${NC}"
+echo "  Master IP: $MASTER_IP"
+echo "  Password: $PASSWORD"
+jq -r '.linux_vms[] | "  \(.vm_name): \(.ip_address) (private: \(.private_ip))"' "${RESOURCE_GROUP}.machines.json"
+
+# Wait for SSH to be ready on all machines
+echo -e "${YELLOW}Waiting for SSH to be ready on all machines...${NC}"
+for IP in $(jq -r '.linux_vms[].ip_address' "${RESOURCE_GROUP}.machines.json"); do
+    wait_for_ssh "$IP" "$LME_USER" "$PASSWORD"
+done
+
+# Copy SSH keys to all machines
+echo -e "${YELLOW}Copying SSH keys to all machines...${NC}"
+for IP in $(jq -r '.linux_vms[].ip_address' "${RESOURCE_GROUP}.machines.json"); do
+    echo "  Copying key to $IP..."
+    if sshpass -p "$PASSWORD" ssh-copy-id -o StrictHostKeyChecking=no "${LME_USER}@${IP}"; then
+        echo -e "    ${GREEN}Done${NC}"
+    else
+        echo -e "    ${RED}Failed${NC}"
+        exit 1
+    fi
+done
+echo -e "${GREEN}SSH keys copied to all machines${NC}"
+
+# Get list of private IPs for cluster nodes (excluding master)
+CLUSTER_PRIVATE_IPS=$(jq -r '.linux_vms[1:][].private_ip' "${RESOURCE_GROUP}.machines.json")
+
+echo ""
+echo -e "${GREEN}=== Local setup complete ===${NC}"
+echo ""
+
+# Generate SSH key on master
+echo -e "${YELLOW}Generating SSH key on master...${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa -q <<< y 2>/dev/null || true"
+echo -e "${GREEN}SSH key generated on master${NC}"
+
+# Install sshpass on master first (needed for copying keys)
+echo -e "${YELLOW}Installing sshpass on master...${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "sudo apt-get update && sudo apt-get install -y sshpass"
+echo -e "${GREEN}sshpass installed on master${NC}"
+
+# Copy master's key to cluster nodes using sshpass
+echo -e "${YELLOW}Copying master's SSH key to cluster nodes...${NC}"
+for ip in $CLUSTER_PRIVATE_IPS; do
+    echo "  Copying key to $ip..."
+    if ssh "${LME_USER}@${MASTER_IP}" "sshpass -p '$PASSWORD' ssh-copy-id -o StrictHostKeyChecking=no ${LME_USER}@${ip}"; then
+        echo -e "    ${GREEN}Done${NC}"
+    else
+        echo -e "    ${RED}Failed${NC}"
+        exit 1
+    fi
+done
+echo -e "${GREEN}Master SSH key copied to all cluster nodes${NC}"
+
+# Test SSH connectivity from master to cluster nodes
+echo -e "${YELLOW}Testing SSH connectivity from master to cluster nodes...${NC}"
+for ip in $CLUSTER_PRIVATE_IPS; do
+    HOSTNAME=$(ssh "${LME_USER}@${MASTER_IP}" "ssh -o StrictHostKeyChecking=no ${LME_USER}@${ip} hostname")
+    echo "  $ip -> $HOSTNAME"
+done
+echo -e "${GREEN}SSH connectivity verified${NC}"
+
+# Wait for network connectivity before cloning
+echo -e "${YELLOW}Checking network connectivity on master...${NC}"
+wait_for_network "${LME_USER}@${MASTER_IP}" "github.com"
+
+# Clone repo and checkout branch on master
+echo -e "${YELLOW}Cloning LME repo on master...${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "git clone https://github.com/cisagov/LME.git ~/LME"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && git checkout ${BRANCH}"
+echo -e "${GREEN}Repo cloned and checked out to ${BRANCH}${NC}"
+
+# Create lme-environment.env file with master's private IP
+echo -e "${YELLOW}Creating lme-environment.env on master...${NC}"
+MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "${RESOURCE_GROUP}.machines.json")
+ssh "${LME_USER}@${MASTER_IP}" "cp ~/LME/config/example.env ~/LME/config/lme-environment.env"
+ssh "${LME_USER}@${MASTER_IP}" "sed -i 's/IPVAR=.*/IPVAR=${MASTER_PRIVATE_IP}/' ~/LME/config/lme-environment.env"
+echo -e "${GREEN}Environment file created with IPVAR=${MASTER_PRIVATE_IP}${NC}"
+
+# Install dependencies on master
+echo -e "${YELLOW}Installing dependencies on master...${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "sudo apt-get install -y ansible jq"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME/ansible && ansible-galaxy install -r requirements.yml"
+echo -e "${GREEN}Dependencies installed on master${NC}"
+
+# Run main install on master (ansible elevates with become: yes)
+echo -e "${YELLOW}Running main install on master (this may take a while)...${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook ansible/site.yml ${ANSIBLE_OPTS}"
+echo -e "${GREEN}Main install complete on master${NC}"
+
+# Create cluster inventory file locally and scp to master
+echo -e "${YELLOW}Creating cluster inventory file...${NC}"
+INVENTORY_FILE=$(mktemp)
+cat > "$INVENTORY_FILE" << EOF
+all:
+  children:
+    elasticsearch:
+      hosts:
+EOF
+
+i=2
+for ip in $CLUSTER_PRIVATE_IPS; do
+    cat >> "$INVENTORY_FILE" << EOF
+        es${i}:
+          ansible_host: ${ip}
+          ansible_user: ${LME_USER}
+EOF
+    ((i++))
+done
+
+scp "$INVENTORY_FILE" "${LME_USER}@${MASTER_IP}:~/LME/ansible/inventory/cluster.yml"
+rm "$INVENTORY_FILE"
+echo -e "${GREEN}Cluster inventory created${NC}"
+
+# Show inventory file
+echo -e "${YELLOW}Inventory file contents:${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "cat ~/LME/ansible/inventory/cluster.yml"
+
+# Run cluster install (ansible elevates with become: yes)
+echo -e "${YELLOW}Running cluster install on nodes (this may take a while)...${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml ${ANSIBLE_OPTS}"
+echo -e "${GREEN}Cluster install complete${NC}"
+
+echo ""
+echo -e "${GREEN}=== Cluster setup complete ===${NC}"
+echo ""
+echo "Master: ${LME_USER}@${MASTER_IP}"
+echo ""
+echo -e "${YELLOW}To SSH to master:${NC}"
+echo -e "   ${GREEN}ssh ${LME_USER}@${MASTER_IP}${NC}"
+echo ""
+echo -e "${YELLOW}Cleanup when done:${NC}"
+echo -e "   ${GREEN}az group delete --name $RESOURCE_GROUP --yes --no-wait${NC}"
