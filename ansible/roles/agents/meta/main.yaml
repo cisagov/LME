@@ -1,0 +1,42 @@
+---
+dependencies: []
+
+galaxy_info:
+  role_name: lme.agents
+  author: mreeve
+  description: An Ansible Role that installs LME agents on linux and windows
+  company: CISA's LME team
+  min_ansible_version: "2.19"
+  platforms:
+    # Modify the platforms here as required
+    # This example includes a lot, see https://github.com/ansible/ansible-lint/blob/main/src/ansiblelint/schemas/meta.json for all possibilities
+    - name: Windows
+      versions:
+        - "2012R2"
+        - "2016"
+        - "2019"
+        - "2022"
+    - name: Debian
+      versions:
+        - buster
+        - bullseye
+        - bookworm
+    - name: Ubuntu
+      versions:
+        - bionic
+        - focal
+        - jammy
+  galaxy_tags:
+    - EDR
+
+collections:
+  [
+    "ansible.windows",
+    "ansible.posix",
+    "ansible.utils",
+    "community.general",
+    "community.windows",
+    "chocolatey.chocolatey",
+    "microsoft.ad",
+    "vladgh.samba",
+  ]

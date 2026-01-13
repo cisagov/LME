@@ -63,3 +63,4 @@ rsync*
 .rsync-filter
 claude-*
 .claude/
+.opencode/

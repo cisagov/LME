@@ -1,0 +1,260 @@
+---
+- name: Install Elastic Agent and Monitoring Tools
+  hosts: win*,lin*
+  gather_facts: no
+  vars:
+    elastic_user: "{{ lookup('env', 'ELASTIC_USER') | default('elastic') }}"
+    elastic_password: "{{ lookup('env', 'ELASTIC_PASSWORD') }}"
+    kibana_port: 5601
+    es_port: 9200
+    fleet_port: 8220
+    agent_arch: "x86_64"
+    temp_dir: "/tmp"
+    win_temp_dir: "C:\\Temp"
+    sysmon_url: "https://download.sysinternals.com/files/Sysmon.zip"
+    sysmon_config_url: "https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml"
+    audit_rules_url: "https://raw.githubusercontent.com/Neo23x0/auditd/master/audit.rules"
+
+  pre_tasks:
+    - name: Fail if elastic_password is not provided
+      fail:
+        msg: "elastic_password must be provided as an environment variable or extra var (e.g., -e elastic_password=yourpass)"
+      when: elastic_password | length == 0
+      run_once: true
+
+    - name: Set fleet server URL from lme inventory host
+      set_fact:
+        fleet_server: "https://{{ hostvars['lme']['ansible_host'] }}:{{ fleet_port }}"
+      when: fleet_server is not defined
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fetch Elastic version from Elasticsearch API on lme
+      when: elastic_version is not defined
+      block:
+        - uri:
+            url: "https://{{ hostvars['lme']['ansible_host'] }}:{{ es_port }}/"
+            method: GET
+            user: "{{ elastic_user }}"
+            password: "{{ elastic_password }}"
+            force_basic_auth: yes
+            validate_certs: no
+            return_content: yes
+          register: es_response
+          delegate_to: localhost
+          run_once: true
+
+        - set_fact:
+            elastic_version: "{{ es_response.json.version.number }}"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fetch Fleet enrollment token from Kibana API on lme
+      when: enrollment_token is not defined
+      block:
+        - uri:
+            url: "https://{{ hostvars['lme']['ansible_host'] }}:{{ kibana_port }}/api/fleet/enrollment_api_keys"
+            method: GET
+            user: "{{ elastic_user }}"
+            password: "{{ elastic_password }}"
+            force_basic_auth: yes
+            validate_certs: no
+            headers:
+              Content-Type: application/json
+              kbn-xsrf: true
+            return_content: yes
+          register: fleet_response
+          delegate_to: localhost
+          run_once: true
+
+        - set_fact:
+            enrollment_token: "{{ fleet_response.json['items'] | selectattr('active') | map(attribute='api_key') | list | first }}"
+          when: fleet_response.json['items'] | selectattr('active') | list | length > 0
+
+        - fail:
+            msg: "No active Fleet enrollment API keys found. Generate one in Kibana."
+          when: fleet_response.json['items'] | selectattr('active') | list | length == 0
+      delegate_to: localhost
+      run_once: true
+
+  tasks:
+    - name: Set hostname on Linux
+      when: ansible_system == 'Linux'
+      become: true
+      become_method: sudo
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Set hostname on Windows
+      when: ansible_os_family == 'Windows'
+      become: true
+      become_method: runas
+      become_user: "localuser"
+      win_hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Reboot Windows host
+      when: ansible_os_family == 'Windows'
+      win_reboot:
+        reboot_timeout: 600
+        post_reboot_delay: 30
+
+    - name: Install Elastic Agent on Linux
+      when: ansible_system == 'Linux'
+      become: true
+      become_method: sudo
+      block:
+        - name: Gather service facts
+          service_facts:
+
+        #- name: Debug service facts to verify elastic-agent.service presence
+        #  debug:
+        #    var: ansible_facts.services
+
+        - name: Skip Elastic Agent installation if already running
+          meta: end_host
+          when: "'elastic-agent.service' in ansible_facts.services and ansible_facts.services['elastic-agent.service'].status == 'enabled'"
+
+        - name: Download Elastic Agent tar.gz
+          get_url:
+            url: "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-{{ elastic_version }}-linux-{{ agent_arch }}.tar.gz"
+            dest: "{{ temp_dir }}/elastic-agent-{{ elastic_version }}-linux-{{ agent_arch }}.tar.gz"
+            validate_certs: yes
+
+        - name: Extract Elastic Agent
+          unarchive:
+            src: "{{ temp_dir }}/elastic-agent-{{ elastic_version }}-linux-{{ agent_arch }}.tar.gz"
+            dest: "{{ temp_dir }}"
+            remote_src: yes
+
+        - name: Install Elastic Agent
+          shell: |
+            cd {{ temp_dir }}/elastic-agent-{{ elastic_version }}-linux-{{ agent_arch }}
+            ./elastic-agent install --url={{ fleet_server }} --enrollment-token={{ enrollment_token }} --insecure -n
+          args:
+            creates: /opt/Elastic/Agent/elastic-agent
+
+    - name: Install Elastic Agent on Windows
+      when: ansible_os_family == 'Windows'
+      become: true
+      become_method: runas
+      become_user: "localuser"
+      block:
+        - name: Check if Elastic Agent service is running
+          win_service:
+            name: Elastic Agent
+          register: elastic_service_status
+
+        - name: Set fact for skipping installation
+          set_fact:
+            skip_elastic_install: "{{ elastic_service_status.exists and elastic_service_status.state == 'running' }}"
+
+        - name: Skip Elastic Agent installation if service is running
+          debug:
+            msg: "Elastic Agent service is already running, skipping installation."
+          when: skip_elastic_install
+
+        - name: Install Elastic Agent when service is not running
+          when: not skip_elastic_install
+          block:
+            - name: Create temp directory if not exists
+              win_file:
+                path: "{{ win_temp_dir }}"
+                state: directory
+
+            - name: Download Elastic Agent ZIP
+              win_get_url:
+                url: "https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-{{ elastic_version }}-windows-{{ agent_arch }}.zip"
+                dest: "{{ win_temp_dir }}\\elastic-agent-{{ elastic_version }}-windows-{{ agent_arch }}.zip"
+
+            - name: Extract Elastic Agent
+              win_unzip:
+                src: "{{ win_temp_dir }}\\elastic-agent-{{ elastic_version }}-windows-{{ agent_arch }}.zip"
+                dest: "{{ win_temp_dir }}"
+
+            - name: Install Elastic Agent
+              win_shell: |
+                cd {{ win_temp_dir }}\elastic-agent-{{ elastic_version }}-windows-{{ agent_arch }}
+                .\elastic-agent.exe install --url={{ fleet_server }} --enrollment-token={{ enrollment_token }} --insecure -n
+              args:
+                creates: 'C:\Program Files\Elastic\Agent\elastic-agent.exe'
+
+    - name: Install auditd on Linux
+      when: ansible_system == 'Linux'
+      become: true
+      become_method: sudo
+      block:
+        - name: Gather auditd service facts
+          service_facts:
+
+        - name: Skip auditd installation if already enabled
+          meta: end_host
+          when: "'auditd.service' in ansible_facts.services and ansible_facts.services['auditd.service'].status == 'enabled'"
+
+        - name: Install auditd package
+          package:
+            name:
+              - auditd
+              - "{{ 'audispd-plugins' if ansible_distribution in ['Ubuntu', 'Debian'] else omit }}"
+            state: present
+
+        - name: Download audit rules
+          get_url:
+            url: "{{ audit_rules_url }}"
+            dest: /etc/audit/rules.d/audit.rules
+            mode: "0644"
+
+        - name: Load audit rules
+          shell: augenrules --load
+          changed_when: false
+
+        - name: Restart auditd service
+          service:
+            name: auditd
+            state: restarted
+
+    - name: Install Sysmon on Windows
+      when: ansible_os_family == 'Windows'
+      become: true
+      become_method: runas
+      become_user: "localuser"
+      block:
+        - name: Check if Sysmon64 service is running
+          win_service:
+            name: Sysmon64
+          register: sysmon_service_status
+
+        - name: Set fact for skipping Sysmon installation
+          set_fact:
+            skip_sysmon_install: "{{ sysmon_service_status.exists and sysmon_service_status.state == 'running' }}"
+
+        - name: Skip Sysmon installation if service is running
+          debug:
+            msg: "Sysmon64 service is already running, skipping installation."
+          when: skip_sysmon_install
+
+        - name: Install Sysmon when service is not running
+          when: not skip_sysmon_install
+          block:
+            - name: Download Sysmon ZIP
+              win_get_url:
+                url: "{{ sysmon_url }}"
+                dest: "{{ win_temp_dir }}\\Sysmon.zip"
+
+            - name: Extract Sysmon
+              win_unzip:
+                src: "{{ win_temp_dir }}\\Sysmon.zip"
+                dest: "{{ win_temp_dir }}\\Sysmon"
+
+            - name: Download Sysmon config
+              win_get_url:
+                url: "{{ sysmon_config_url }}"
+                dest: "{{ win_temp_dir }}\\Sysmon\\sysmonconfig-export.xml"
+
+            - name: Install Sysmon
+              win_shell: |
+                cd {{ win_temp_dir }}\Sysmon
+                .\Sysmon64.exe -accepteula -i sysmonconfig-export.xml
+              args:
+                creates: 'HKLM:\SYSTEM\CurrentControlSet\Services\SysmonDrv'
+                # Restart the Windows host to apply Sysmon configuration

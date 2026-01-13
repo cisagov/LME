@@ -1,0 +1,10 @@
+---
+- name: Install Elastic Agent (elastic)
+  ansible.builtin.include_role:
+    name: agents
+    tasks_from: elastic
+
+- name: Install Wazuh (wazuh)
+  ansible.builtin.include_role:
+    name: agents
+    tasks_from: wazuh

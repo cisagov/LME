@@ -8,7 +8,7 @@ This directory contains the Ansible playbooks and roles used to deploy, manage, 
 ansible/
 ├── site.yml              # Main installation playbook
 ├── backup_lme.yml         # Backup operations playbook
-├── upgrade_lme.yml        # Upgrade operations playbook  
+├── upgrade_lme.yml        # Upgrade operations playbook
 ├── rollback_lme.yml       # Rollback operations playbook
 ├── requirements.yml       # Ansible collection dependencies
 ├── roles/                 # Ansible roles for different components
@@ -21,6 +21,7 @@ ansible/
 │   ├── nix/               # Nix package manager setup
 │   ├── podman/            # Podman container runtime setup
 │   └── wazuh/             # Wazuh server configuration
+│   └── agents/            # install LME agents onto your ansible client
 └── tasks/                 # Shared task files
     └── load_env.yml       # Environment variable loading
 ```
@@ -109,6 +110,11 @@ ansible/
 - Manages volume and configuration backups
 - Creates backup manifests and metadata
 - Supports incremental and full backups
+
+#### Agents Role (`roles/agents/`)
+- installs to both linux and windows hosts
+- installs elastic agnet and configures it to talk with LME server
+- installs wazuh agent and configure it to talk with LME server
 
 ## Shared Components
 
@@ -228,4 +234,4 @@ Override default values:
 ansible-playbook site.yml -e clone_directory=/custom/path
 ```
 
-For detailed information about backup, upgrade, and rollback operations, see the respective README files for each operation. 
+For detailed information about backup, upgrade, and rollback operations, see the respective README files for each operation.
