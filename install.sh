@@ -32,7 +32,7 @@ usage() {
     echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
     echo "  --skip-packages               Skip package installation (for development)"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
-    echo "  -g, --graph-root              Change the graphroot directory (where volumes are stored)"
+    echo "  -g, --graph-root GRAPH_ROOT   Change the graphroot directory (where volumes are stored)"
     echo "  -h, --help                    Show this help message"
     echo
     echo "Environment Variables:"
