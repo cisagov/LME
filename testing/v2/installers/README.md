@@ -142,7 +142,7 @@ Remember to activate venv first:
 source ~/LME/venv/bin/activate
 ```
 
-### Ubuntu 24.04 Setup
+### Ubuntu 22.04 Setup
 ```bash
 ./azure/build_azure_linux_network.py \
     -g $RESOURCE_GROUP \
@@ -151,8 +151,8 @@ source ~/LME/venv/bin/activate
     -l $LOCATION \
     -ast $AUTO_SHUTDOWN_TIME \
     -pub Canonical \
-    -io ubuntu-24_04-lts \
-    -is server \
+    -io 0001-com-ubuntu-server-jammy \
+    -is 22_04-lts-gen2 \
     --no-prompt
 ```
 
