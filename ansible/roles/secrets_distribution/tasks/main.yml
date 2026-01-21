@@ -42,6 +42,7 @@
     mode: '0755'
   delegate_to: localhost
   run_once: true
+  become: false  # Must be owned by ansible user so fetch module can write to it
 
 - name: Fetch secrets bundle from source host to controller
   ansible.builtin.fetch:
