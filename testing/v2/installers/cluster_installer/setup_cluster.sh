@@ -191,11 +191,23 @@ echo "  Master IP: $MASTER_IP"
 echo "  Password: $PASSWORD"
 jq -r '.linux_vms[] | "  \(.vm_name): \(.ip_address) (private: \(.private_ip))"' "${RESOURCE_GROUP}.machines.json"
 
+# Wait for VMs to fully boot before checking SSH
+echo -e "${YELLOW}Waiting 2 minutes for VMs to fully boot...${NC}"
+sleep 120
+
 # Wait for SSH to be ready on all machines
 echo -e "${YELLOW}Waiting for SSH to be ready on all machines...${NC}"
 for IP in $(jq -r '.linux_vms[].ip_address' "${RESOURCE_GROUP}.machines.json"); do
     wait_for_ssh "$IP" "$LME_USER" "$PASSWORD"
 done
+
+# Generate an SSH key non-interactively if it doesn't exist
+SSH_KEY_PATH="$HOME/.ssh/id_rsa"
+if [ ! -f "$SSH_KEY_PATH" ]; then
+    echo -e "${YELLOW}Generating SSH key...${NC}"
+    ssh-keygen -t rsa -N "" -f "$SSH_KEY_PATH" <<< y >/dev/null 2>&1
+    echo -e "${GREEN}SSH key generated${NC}"
+fi
 
 # Copy SSH keys to all machines
 echo -e "${YELLOW}Copying SSH keys to all machines...${NC}"
@@ -273,7 +285,7 @@ echo -e "${GREEN}Dependencies installed on master${NC}"
 
 # Run main install on master (ansible elevates with become: yes)
 echo -e "${YELLOW}Running main install on master (this may take a while)...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook ansible/site.yml ${ANSIBLE_OPTS}"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook ansible/site.yml${ANSIBLE_OPTS:+ }${ANSIBLE_OPTS}"
 echo -e "${GREEN}Main install complete on master${NC}"
 
 # Create cluster inventory file locally and scp to master
@@ -306,7 +318,7 @@ ssh "${LME_USER}@${MASTER_IP}" "cat ~/LME/ansible/inventory/cluster.yml"
 
 # Run cluster install (ansible elevates with become: yes)
 echo -e "${YELLOW}Running cluster install on nodes (this may take a while)...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml ${ANSIBLE_OPTS}"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml${ANSIBLE_OPTS:+ }${ANSIBLE_OPTS}"
 echo -e "${GREEN}Cluster install complete${NC}"
 
 echo ""

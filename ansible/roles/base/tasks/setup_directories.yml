@@ -88,9 +88,24 @@
     - env_file_config.stat.exists
 
 # REMOTE INSTALL: Copy file from controller's /opt/lme/ to remote /opt/lme/
-- name: Copy lme-environment.env from controller to remote (remote install only)
-  copy:
+# We use slurp+copy because the file may be owned by root with mode 0600,
+# which requires become to read. The copy module doesn't use become for
+# reading source files from the controller.
+- name: Read lme-environment.env from controller (for remote install)
+  ansible.builtin.slurp:
     src: "{{ '/opt/lme/lme-environment.env' if optenv_file_controller.stat.exists else (clone_directory + '/config/lme-environment.env') }}"
+  register: env_file_content
+  delegate_to: localhost
+  become: yes
+  run_once: true
+  when:
+    - inventory_hostname not in ['localhost', '127.0.0.1']
+    - not optenv_file_target.stat.exists
+    - (optenv_file_controller.stat.exists or env_file_config.stat.exists)
+
+- name: Copy lme-environment.env to remote host
+  ansible.builtin.copy:
+    content: "{{ env_file_content.content | b64decode }}"
     dest: /opt/lme/lme-environment.env
     owner: "{{ install_user }}"
     group: "{{ install_user }}"
@@ -100,6 +115,7 @@
     - inventory_hostname not in ['localhost', '127.0.0.1']
     - not optenv_file_target.stat.exists
     - (optenv_file_controller.stat.exists or env_file_config.stat.exists)
+    - env_file_content is defined and env_file_content.content is defined
 
 # Always set correct permissions on the final file
 - name: Set correct permissions for lme-environment.env

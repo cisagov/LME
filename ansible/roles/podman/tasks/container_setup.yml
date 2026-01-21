@@ -1,16 +1,27 @@
 ---
 # Container setup tasks for podman role
 
-- name: Check if containers.txt exists
+- name: Check if containers.txt exists on Ansible controller
   stat:
     path: "{{ clone_directory }}/config/containers.txt"
   register: containers_file
   delegate_to: localhost
   run_once: true
+  # Note: This check runs on localhost because lookup('file', ...) reads from the controller.
+  # The file must exist on the Ansible controller where the repository is cloned.
 
-- name: Fail if containers.txt doesn't exist
+- name: Fail if containers.txt doesn't exist on controller
   fail:
-    msg: "containers.txt file not found in {{ clone_directory }}/config/"
+    msg: |
+      containers.txt file not found on Ansible controller at {{ clone_directory }}/config/containers.txt
+      
+      This file must exist on the Ansible controller (localhost) because the playbook uses
+      lookup('file', ...) to read it. The file will be copied to target hosts later in the playbook.
+      
+      Please ensure:
+      1. The LME repository is cloned on the Ansible controller
+      2. The clone_directory variable points to the repository root on the controller
+      3. The config/containers.txt file exists in the repository
   when: not containers_file.stat.exists
 
 - name: set service user passwords
