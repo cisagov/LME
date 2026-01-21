@@ -36,6 +36,12 @@
     # We explicitly start the Elasticsearch unit after certs/secrets distribution.
     lme_autostart: false
 
+    # Skip secret creation on cluster nodes - secrets are copied from master via secrets_distribution.
+    # This prevents the podman role from trying to generate new passwords (which would fail
+    # because ansible-vault may not be fully set up yet, and would also create different
+    # passwords than the master, breaking the cluster).
+    lme_skip_secret_creation: true
+
   roles:
     - role: base
       tags: ['base']

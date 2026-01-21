@@ -9,6 +9,7 @@ common_packages:
   - sudo
   - git
   - expect
+  - ansible
 
 
 # Debian-specific packages
