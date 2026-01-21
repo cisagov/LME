@@ -26,11 +26,20 @@
   run_once: true
   become: true
 
+- name: Clean up any existing secrets bundle directory (may be owned by root from previous runs)
+  ansible.builtin.file:
+    path: /tmp/lme-secrets
+    state: absent
+  delegate_to: localhost
+  run_once: true
+  become: true
+  failed_when: false
+
 - name: Ensure local temp directory exists for secrets bundle
   ansible.builtin.file:
     path: /tmp/lme-secrets
     state: directory
-    mode: '0700'
+    mode: '0755'
   delegate_to: localhost
   run_once: true
 
@@ -67,4 +76,12 @@
   delegate_to: "{{ lme_secrets_source_host }}"
   run_once: true
   become: true
+  failed_when: false
+
+- name: Clean up local temp directory on controller
+  ansible.builtin.file:
+    path: /tmp/lme-secrets
+    state: absent
+  delegate_to: localhost
+  run_once: true
   failed_when: false
