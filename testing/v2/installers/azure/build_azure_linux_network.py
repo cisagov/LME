@@ -414,7 +414,7 @@ def create_windows_server(
             vm_params
         ).result()
         print(f"Windows Server {server_name} created successfully.")
-        return {"vm_name": server_name, "public_ip": public_ip, "private_ip": "10.1.0.4"}
+        return {"vm_name": server_name, "public_ip": public_ip.ip_address, "private_ip": "10.1.0.4"}
     except Exception as e:
         print(f"Error creating Windows Server: {str(e)}")
         return None
@@ -679,7 +679,7 @@ def main(
         if windows_server:
             machines_json["windows_server"] = {
                 "vm_name": windows_server["vm_name"],
-                "ip_address": windows_server["public_ip"].ip_address,
+                "ip_address": windows_server["public_ip"],
                 "private_ip": windows_server["private_ip"],
                 "username": vm_admin,
                 "password": vm_password,
@@ -884,7 +884,7 @@ if __name__ == "__main__":
         # Only override if user didn't specify custom values
         if args.image_publisher == "Canonical":
             args.image_publisher = "RedHat"
-        if args.image_offer == "ubuntu-24_04-lts":
+        if args.image_offer == "ubuntu-24_04-lts" or args.image_offer == "0001-com-ubuntu-server-jammy":
             args.image_offer = "RHEL"
         if args.image_sku == "server":
             args.image_sku = "9-lvm-gen2"
