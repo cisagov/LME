@@ -69,7 +69,7 @@ fi
 # Build ansible options based on debug mode
 ANSIBLE_OPTS=""
 if [ "$DEBUG_MODE" = "true" ]; then
-    ANSIBLE_OPTS="-e debug_mode=true -vvvv"
+    ANSIBLE_OPTS="-e debug_mode=true -v"
     echo -e "${YELLOW}Ansible debug options: $ANSIBLE_OPTS${NC}"
 fi
 

@@ -61,3 +61,4 @@ testing/v2/installers/**/*.machines.json
 scripts/get_container_bandwidth.sh
 scripts/measure_container_bandwidth.sh
 ansible/inventory/cluster.yml
+todo.txt

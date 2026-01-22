@@ -55,6 +55,73 @@
       tags: ['certs']
 
   tasks:
+    # Re-extract secrets after secrets_distribution has copied them to cluster nodes.
+    # The initial setup_secrets.yml run during podman role happens BEFORE secrets_distribution,
+    # so global_secrets will be empty on cluster nodes. This task re-extracts them.
+    - name: Re-extract secrets after distribution (cluster nodes)
+      ansible.builtin.shell: |
+        set -a
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+        
+        # Get secret IDs from podman secret ls
+        elastic_id=""
+        wazuh_id=""
+        kibana_system_id=""
+        wazuh_api_id=""
+        
+        while read -r line; do
+          id=$(echo "$line" | awk '{print $1}')
+          name=$(echo "$line" | awk '{print $2}')
+          case "$name" in
+            elastic) elastic_id="$id" ;;
+            wazuh) wazuh_id="$id" ;;
+            kibana_system) kibana_system_id="$id" ;;
+            wazuh_api) wazuh_api_id="$id" ;;
+          esac
+        done < <(podman secret ls --noheading 2>/dev/null)
+        
+        # Extract each secret from vault
+        elastic=""
+        wazuh=""
+        kibana_system=""
+        wazuh_api=""
+        
+        if [ -n "$elastic_id" ] && [ -f "/etc/lme/vault/$elastic_id" ]; then
+          elastic=$(ansible-vault view "/etc/lme/vault/$elastic_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$wazuh_id" ] && [ -f "/etc/lme/vault/$wazuh_id" ]; then
+          wazuh=$(ansible-vault view "/etc/lme/vault/$wazuh_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$kibana_system_id" ] && [ -f "/etc/lme/vault/$kibana_system_id" ]; then
+          kibana_system=$(ansible-vault view "/etc/lme/vault/$kibana_system_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$wazuh_api_id" ] && [ -f "/etc/lme/vault/$wazuh_api_id" ]; then
+          wazuh_api=$(ansible-vault view "/etc/lme/vault/$wazuh_api_id" 2>/dev/null | tr -d '\n')
+        fi
+        
+        echo "elastic=$elastic"
+        echo "wazuh=$wazuh"
+        echo "kibana_system=$kibana_system"
+        echo "wazuh_api=$wazuh_api"
+      args:
+        executable: /bin/bash
+      register: reextract_secrets_vars
+      no_log: "{{ not debug_mode }}"
+      become: yes
+
+    - name: Update global_secrets after re-extraction
+      ansible.builtin.set_fact:
+        global_secrets: "{{ global_secrets | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ reextract_secrets_vars.stdout_lines }}"
+      when: item != '' and '=' in item
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug - Verify secrets after re-extraction
+      debug:
+        msg: "Re-extracted secrets - elastic length: {{ global_secrets.elastic | default('') | length }}, kibana_system length: {{ global_secrets.kibana_system | default('') | length }}"
+      when: debug_mode | bool
+
     - name: Reload systemd daemon
       ansible.builtin.systemd:
         daemon_reload: true
