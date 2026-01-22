@@ -16,12 +16,22 @@
     lme_secrets_source_host: "{{ lme_secrets_source_host | default('localhost') }}"
   run_once: true
 
+- name: Ensure podman secrets storage directory exists on source host
+  ansible.builtin.file:
+    path: /var/lib/containers/storage/secrets
+    state: directory
+    mode: '0700'
+  delegate_to: "{{ lme_secrets_source_host }}"
+  run_once: true
+  become: true
+
 - name: Create tarball of vault/secrets on source host
   ansible.builtin.command: >-
     tar -czf /tmp/lme_secrets.tgz
     /etc/lme/pass.sh
     /etc/lme/vault
     /root/.config/containers/containers.conf
+    /var/lib/containers/storage/secrets/secrets.json
   delegate_to: "{{ lme_secrets_source_host }}"
   run_once: true
   become: true
@@ -60,8 +70,25 @@
     mode: '0600'
   become: true
 
+- name: Ensure podman secrets storage directory exists on target host
+  ansible.builtin.file:
+    path: /var/lib/containers/storage/secrets
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+  become: true
+
 - name: Extract secrets bundle into place
   ansible.builtin.command: tar -xzf /tmp/lme_secrets.tgz -C /
+  become: true
+
+- name: Set proper permissions on secrets.json
+  ansible.builtin.file:
+    path: /var/lib/containers/storage/secrets/secrets.json
+    mode: '0600'
+    owner: root
+    group: root
   become: true
 
 - name: Remove secrets bundle on target host
