@@ -146,13 +146,56 @@ fi
 
 # Setup Python venv
 echo -e "${YELLOW}Setting up Python virtual environment...${NC}"
-if [ ! -d "venv" ]; then
-    echo "Creating new venv..."
-    python3 -m venv venv
+VENV_NEEDS_RECREATE=false
+
+if [ -d "venv" ]; then
+    # Check if existing venv is valid
+    if [ -f "venv/bin/activate" ] && [ -f "venv/bin/python3" ]; then
+        # Try to activate and verify it works
+        source venv/bin/activate
+        VENV_PYTHON=$(which python3)
+        if [[ "$VENV_PYTHON" == *"venv"* ]]; then
+            echo -e "${GREEN}Using existing venv: $VENV_PYTHON${NC}"
+            VENV_NEEDS_RECREATE=false
+        else
+            echo -e "${YELLOW}Existing venv appears broken, will recreate...${NC}"
+            deactivate 2>/dev/null || true
+            VENV_NEEDS_RECREATE=true
+        fi
+    else
+        echo -e "${YELLOW}Existing venv is incomplete, will recreate...${NC}"
+        VENV_NEEDS_RECREATE=true
+    fi
+else
+    VENV_NEEDS_RECREATE=true
 fi
 
-source venv/bin/activate
-echo -e "${GREEN}Activated venv: $(which python3)${NC}"
+if [ "$VENV_NEEDS_RECREATE" = "true" ]; then
+    if [ -d "venv" ]; then
+        echo "Removing broken/incomplete venv..."
+        rm -rf venv
+    fi
+    echo "Creating new venv..."
+    python3 -m venv venv
+
+    # Verify venv was created correctly
+    if [ ! -f "venv/bin/activate" ]; then
+        echo -e "${RED}Error: Failed to create virtual environment${NC}"
+        exit 1
+    fi
+
+    source venv/bin/activate
+
+    # Verify activation worked
+    VENV_PYTHON=$(which python3)
+    if [[ "$VENV_PYTHON" != *"venv"* ]]; then
+        echo -e "${RED}Error: Virtual environment activation failed${NC}"
+        echo "Expected venv python, got: $VENV_PYTHON"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Created and activated venv: $VENV_PYTHON${NC}"
+fi
 
 # Install Azure requirements
 echo -e "${YELLOW}Installing Azure requirements...${NC}"

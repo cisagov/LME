@@ -73,11 +73,18 @@ if [ "$DEBUG_MODE" = "true" ]; then
     echo -e "${YELLOW}Ansible debug options: $ANSIBLE_OPTS${NC}"
 fi
 
-# Function to run command in a container
+# Function to run command in a container as root
 docker_exec() {
     local container=$1
     shift
     docker exec "$container" bash -c "$*"
+}
+
+# Function to run command in a container as lme-user
+docker_exec_as_lme_user() {
+    local container=$1
+    shift
+    docker exec -u lme-user "$container" bash -c "$*"
 }
 
 # Function to check if containers are running
@@ -102,23 +109,27 @@ install_ssh_server() {
     echo -e "${YELLOW}Installing SSH server on $container...${NC}"
     
     docker_exec "$container" "apt-get update && apt-get install -y openssh-server"
-    docker_exec "$container" "mkdir -p /root/.ssh && chmod 700 /root/.ssh"
-    docker_exec "$container" "sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config"
-    docker_exec "$container" "sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config"
+    # Set up SSH for lme-user (the user ansible will connect as)
+    docker_exec "$container" "mkdir -p /home/lme-user/.ssh && chmod 700 /home/lme-user/.ssh && chown lme-user:lme-user /home/lme-user/.ssh"
+    # Remove nologin file that blocks non-root users during boot
+    docker_exec "$container" "rm -f /run/nologin /var/run/nologin /etc/nologin"
     docker_exec "$container" "service ssh start || /usr/sbin/sshd"
     
     echo -e "  ${GREEN}✓${NC} SSH server installed and started on $container"
 }
 
-# Function to generate SSH key on master
+# Function to generate SSH key on master for lme-user
 generate_master_ssh_key() {
-    echo -e "${YELLOW}Generating SSH key on master node...${NC}"
+    echo -e "${YELLOW}Generating SSH key on master node for lme-user...${NC}"
+    
+    # Create .ssh directory for lme-user
+    docker_exec "$MASTER_CONTAINER" "mkdir -p /home/lme-user/.ssh && chmod 700 /home/lme-user/.ssh && chown lme-user:lme-user /home/lme-user/.ssh"
     
     # Check if key already exists
-    if docker_exec "$MASTER_CONTAINER" "test -f /root/.ssh/id_rsa"; then
+    if docker_exec_as_lme_user "$MASTER_CONTAINER" "test -f ~/.ssh/id_rsa"; then
         echo -e "  ${GREEN}✓${NC} SSH key already exists on master"
     else
-        docker_exec "$MASTER_CONTAINER" "ssh-keygen -t rsa -b 4096 -N '' -f /root/.ssh/id_rsa -q"
+        docker_exec_as_lme_user "$MASTER_CONTAINER" "ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa -q"
         echo -e "  ${GREEN}✓${NC} SSH key generated on master"
     fi
 }
@@ -130,16 +141,17 @@ copy_ssh_key_to_node() {
     
     echo -e "${YELLOW}Copying SSH key from master to $node_hostname...${NC}"
     
-    # Get master's public key
+    # Get master lme-user's public key
     local pubkey
-    pubkey=$(docker_exec "$MASTER_CONTAINER" "cat /root/.ssh/id_rsa.pub")
+    pubkey=$(docker_exec_as_lme_user "$MASTER_CONTAINER" "cat ~/.ssh/id_rsa.pub")
     
-    # Add to node's authorized_keys
-    docker_exec "$node_container" "echo '$pubkey' >> /root/.ssh/authorized_keys"
-    docker_exec "$node_container" "chmod 600 /root/.ssh/authorized_keys"
+    # Add to lme-user's authorized_keys on the node
+    docker_exec "$node_container" "echo '$pubkey' >> /home/lme-user/.ssh/authorized_keys"
+    docker_exec "$node_container" "chmod 600 /home/lme-user/.ssh/authorized_keys"
+    docker_exec "$node_container" "chown lme-user:lme-user /home/lme-user/.ssh/authorized_keys"
     
-    # Add node to master's known_hosts
-    docker_exec "$MASTER_CONTAINER" "ssh-keyscan -H $node_hostname >> /root/.ssh/known_hosts 2>/dev/null || true"
+    # Add node to master lme-user's known_hosts
+    docker_exec_as_lme_user "$MASTER_CONTAINER" "ssh-keyscan -H $node_hostname >> ~/.ssh/known_hosts 2>/dev/null || true"
     
     echo -e "  ${GREEN}✓${NC} SSH key copied to $node_hostname"
 }
@@ -150,7 +162,8 @@ test_ssh_connectivity() {
     
     echo -e "${YELLOW}Testing SSH connectivity to $node_hostname...${NC}"
     
-    if docker_exec "$MASTER_CONTAINER" "ssh -o StrictHostKeyChecking=no -o BatchMode=yes root@$node_hostname hostname"; then
+    # Test SSH from master as lme-user
+    if docker_exec_as_lme_user "$MASTER_CONTAINER" "ssh -o StrictHostKeyChecking=no -o BatchMode=yes lme-user@$node_hostname hostname"; then
         echo -e "  ${GREEN}✓${NC} SSH connection to $node_hostname successful"
         return 0
     else
@@ -169,13 +182,13 @@ create_environment_file() {
     
     echo -e "  Master IP: $master_ip"
     
-    # Check if env file already exists
-    if docker_exec "$MASTER_CONTAINER" "test -f /root/LME/config/lme-environment.env"; then
+    # Check if env file already exists (run as lme-user since LME is in their home dir)
+    if docker_exec_as_lme_user "$MASTER_CONTAINER" "test -f ~/LME/config/lme-environment.env"; then
         echo -e "  ${YELLOW}lme-environment.env already exists, updating IPVAR...${NC}"
-        docker_exec "$MASTER_CONTAINER" "sed -i 's/IPVAR=.*/IPVAR=${master_ip}/' /root/LME/config/lme-environment.env"
+        docker_exec_as_lme_user "$MASTER_CONTAINER" "sed -i 's/IPVAR=.*/IPVAR=${master_ip}/' ~/LME/config/lme-environment.env"
     else
-        docker_exec "$MASTER_CONTAINER" "cp /root/LME/config/example.env /root/LME/config/lme-environment.env"
-        docker_exec "$MASTER_CONTAINER" "sed -i 's/IPVAR=.*/IPVAR=${master_ip}/' /root/LME/config/lme-environment.env"
+        docker_exec_as_lme_user "$MASTER_CONTAINER" "cp ~/LME/config/example.env ~/LME/config/lme-environment.env"
+        docker_exec_as_lme_user "$MASTER_CONTAINER" "sed -i 's/IPVAR=.*/IPVAR=${master_ip}/' ~/LME/config/lme-environment.env"
     fi
     
     echo -e "  ${GREEN}✓${NC} Environment file created with IPVAR=${master_ip}"
@@ -185,25 +198,28 @@ create_environment_file() {
 install_ansible() {
     echo -e "${YELLOW}Installing ansible and requirements on master...${NC}"
     
+    # Install system packages as root
     docker_exec "$MASTER_CONTAINER" "apt-get update && apt-get install -y ansible jq"
-    docker_exec "$MASTER_CONTAINER" "cd /root/LME/ansible && ansible-galaxy install -r requirements.yml"
+    # Run galaxy install as lme-user
+    docker_exec_as_lme_user "$MASTER_CONTAINER" "cd ~/LME/ansible && ansible-galaxy install -r requirements.yml"
     
     echo -e "  ${GREEN}✓${NC} Ansible and requirements installed"
 }
 
 # Function to run site.yml on master
 run_master_install() {
-    echo -e "${YELLOW}Running main installation on master (this may take a while)...${NC}"
+    echo -e "${YELLOW}Running main installation on master as lme-user (this may take a while)...${NC}"
     
-    # Set Ansible temp directories to avoid I/O errors
-    docker_exec "$MASTER_CONTAINER" "mkdir -p /opt/ansible-tmp"
+    # Create Ansible temp directory (lme-user will use sudo for become operations)
+    docker_exec "$MASTER_CONTAINER" "mkdir -p /tmp/ansible-tmp && chmod 777 /tmp/ansible-tmp"
     
-    local cmd="cd /root/LME && ANSIBLE_LOCAL_TEMP=/opt/ansible-tmp ANSIBLE_REMOTE_TEMP=/opt/ansible-tmp ansible-playbook ansible/site.yml"
+    # Run ansible as lme-user - ansible will use become: yes to escalate to root
+    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook ansible/site.yml"
     if [ -n "$ANSIBLE_OPTS" ]; then
         cmd="$cmd $ANSIBLE_OPTS"
     fi
     
-    docker_exec "$MASTER_CONTAINER" "$cmd"
+    docker_exec_as_lme_user "$MASTER_CONTAINER" "$cmd"
     
     echo -e "  ${GREEN}✓${NC} Main installation complete on master"
 }
@@ -212,37 +228,41 @@ run_master_install() {
 create_cluster_inventory() {
     echo -e "${YELLOW}Creating cluster inventory file...${NC}"
     
-    # Create the inventory file
-    docker_exec "$MASTER_CONTAINER" "cat > /root/LME/ansible/inventory/cluster.yml << 'EOF'
+    # Create the inventory file - use sudo since ansible may have created root-owned files
+    docker_exec_as_lme_user "$MASTER_CONTAINER" "sudo tee ~/LME/ansible/inventory/cluster.yml > /dev/null << 'EOF'
 all:
   children:
     elasticsearch:
       hosts:
         es2:
           ansible_host: node2
-          ansible_user: root
+          ansible_user: lme-user
         es3:
           ansible_host: node3
-          ansible_user: root
+          ansible_user: lme-user
 EOF"
+    
+    # Fix ownership so lme-user can read it
+    docker_exec_as_lme_user "$MASTER_CONTAINER" "sudo chown lme-user:lme-user ~/LME/ansible/inventory/cluster.yml"
     
     echo -e "  ${GREEN}✓${NC} Cluster inventory created"
     
     # Show inventory file
     echo -e "${YELLOW}Inventory file contents:${NC}"
-    docker_exec "$MASTER_CONTAINER" "cat /root/LME/ansible/inventory/cluster.yml"
+    docker_exec_as_lme_user "$MASTER_CONTAINER" "cat ~/LME/ansible/inventory/cluster.yml"
 }
 
 # Function to run elasticsearch.yml on cluster nodes
 run_cluster_install() {
-    echo -e "${YELLOW}Running cluster installation on nodes (this may take a while)...${NC}"
+    echo -e "${YELLOW}Running cluster installation on nodes as lme-user (this may take a while)...${NC}"
     
-    local cmd="cd /root/LME && ANSIBLE_LOCAL_TEMP=/opt/ansible-tmp ANSIBLE_REMOTE_TEMP=/opt/ansible-tmp ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml"
+    # Use /tmp for temp dirs since lme-user may not have permissions to /opt before become takes effect
+    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml"
     if [ -n "$ANSIBLE_OPTS" ]; then
         cmd="$cmd $ANSIBLE_OPTS"
     fi
     
-    docker_exec "$MASTER_CONTAINER" "$cmd"
+    docker_exec_as_lme_user "$MASTER_CONTAINER" "$cmd"
     
     echo -e "  ${GREEN}✓${NC} Cluster installation complete"
 }
