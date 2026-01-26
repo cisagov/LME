@@ -55,11 +55,33 @@
   delegate_to: localhost
   run_once: true
 
-# Fail if no env file exists anywhere
-- name: Fail if lme-environment.env doesn't exist anywhere
+# For cluster nodes (remote hosts), create a minimal env file if none exists
+# This allows cluster nodes to work without requiring the master's env file
+- name: Create minimal lme-environment.env for cluster node
+  ansible.builtin.copy:
+    content: |
+      # LME Environment Configuration (cluster node)
+      IPVAR={{ ansible_host | default(ansible_default_ipv4.address | default('127.0.0.1')) }}
+      IPV4_ONLY=false
+      # Elasticsearch settings for cluster node
+      LOCAL_ES_URL=https://127.0.0.1:9200
+      elastic_username=elastic
+    dest: /opt/lme/lme-environment.env
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0600'
+  become: yes
+  when:
+    - inventory_hostname not in ['localhost', '127.0.0.1']
+    - ansible_connection | default('ssh') != 'local'
+    - not optenv_file_target.stat.exists
+
+# Fail if no env file exists anywhere (only for local installs)
+- name: Fail if lme-environment.env doesn't exist anywhere (local install)
   fail:
     msg: "lme-environment.env file not found in /opt/lme or {{ clone_directory }}/config/ on controller. Please copy example.env to lme-environment.env and edit it before running this playbook."
   when: 
+    - inventory_hostname in ['localhost', '127.0.0.1'] or ansible_connection | default('ssh') == 'local'
     - not optenv_file_target.stat.exists
     - not optenv_file_controller.stat.exists
     - not env_file_config.stat.exists
