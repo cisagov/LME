@@ -200,10 +200,15 @@ install_ansible() {
     
     # Install system packages as root
     docker_exec "$MASTER_CONTAINER" "apt-get update && apt-get install -y ansible jq"
-    # Run galaxy install as lme-user
-    docker_exec_as_lme_user "$MASTER_CONTAINER" "cd ~/LME/ansible && ansible-galaxy install -r requirements.yml"
+    # Run galaxy install as lme-user (non-fatal - continue if galaxy is unavailable)
+    echo -e "${YELLOW}Attempting ansible-galaxy install (may fail if Galaxy is unavailable)...${NC}"
+    if docker_exec_as_lme_user "$MASTER_CONTAINER" "cd ~/LME/ansible && ansible-galaxy collection install -r requirements.yml --timeout 30" 2>&1; then
+        echo -e "  ${GREEN}✓${NC} Galaxy collections installed"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Galaxy install failed (server may be unavailable), continuing with existing collections..."
+    fi
     
-    echo -e "  ${GREEN}✓${NC} Ansible and requirements installed"
+    echo -e "  ${GREEN}✓${NC} Ansible installed"
 }
 
 # Function to run site.yml on master
@@ -214,7 +219,9 @@ run_master_install() {
     docker_exec "$MASTER_CONTAINER" "mkdir -p /tmp/ansible-tmp && chmod 777 /tmp/ansible-tmp"
     
     # Run ansible as lme-user - ansible will use become: yes to escalate to root
-    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook ansible/site.yml"
+    # Enable cluster mode and set seed hosts for multi-node deployment
+    # Pass seed hosts as JSON array and set publish host for master
+    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook ansible/site.yml -e lme_cluster_mode=true -e '{\"es_cluster_seed_hosts\": [\"node1\", \"node2\", \"node3\"]}' -e es_master_publish_host=node1"
     if [ -n "$ANSIBLE_OPTS" ]; then
         cmd="$cmd $ANSIBLE_OPTS"
     fi
@@ -229,17 +236,40 @@ create_cluster_inventory() {
     echo -e "${YELLOW}Creating cluster inventory file...${NC}"
     
     # Create the inventory file - use sudo since ansible may have created root-owned files
+    # Include cluster configuration variables for each node
+    # IMPORTANT: Node1 (master) must be FIRST in the elasticsearch group so that
+    # the certs role generates certs on node1 and distributes to all cluster nodes.
+    # This ensures all nodes use the same CA and certificates.
     docker_exec_as_lme_user "$MASTER_CONTAINER" "sudo tee ~/LME/ansible/inventory/cluster.yml > /dev/null << 'EOF'
 all:
+  vars:
+    # Master node hostname for cluster discovery
+    es_master_host: node1
+    # All seed hosts for cluster discovery
+    es_cluster_seed_hosts:
+      - node1
+      - node2
+      - node3
   children:
     elasticsearch:
       hosts:
+        # es1 (node1) is the master and must be first for cert generation
+        es1:
+          ansible_host: node1
+          ansible_connection: local
+          es_node_name: lme-elasticsearch
+          es_is_initial_master: true
+          es_publish_host: node1
         es2:
           ansible_host: node2
           ansible_user: lme-user
+          es_node_name: es2
+          es_publish_host: node2
         es3:
           ansible_host: node3
           ansible_user: lme-user
+          es_node_name: es3
+          es_publish_host: node3
 EOF"
     
     # Fix ownership so lme-user can read it

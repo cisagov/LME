@@ -79,9 +79,9 @@
   debug:
     msg: |
       Index cleanup completed:
-      - All indices updated to have 0 replicas: {{ 'Yes' if indices_cleanup_result is defined and indices_cleanup_result.status == 200 else 'No' }}
-      - Data streams updated to have 0 replicas: {{ 'Yes' if datastream_cleanup_result is defined and datastream_cleanup_result.status == 200 else 'No' }}
-      - All indices now have 0 replicas for single-node cluster
+      - All indices updated to have {{ elasticsearch_number_of_replicas }} replicas: {{ 'Yes' if indices_cleanup_result is defined and indices_cleanup_result.status == 200 else 'No' }}
+      - Data streams updated to have {{ elasticsearch_number_of_replicas }} replicas: {{ 'Yes' if datastream_cleanup_result is defined and datastream_cleanup_result.status == 200 else 'No' }}
+      - Cluster mode: {{ 'Multi-node cluster' if lme_cluster_mode | default(false) else 'Single-node' }}
   when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
 
 - name: Display LME installation summary and credentials

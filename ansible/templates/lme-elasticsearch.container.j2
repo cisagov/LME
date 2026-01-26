@@ -37,10 +37,20 @@ Environment=bootstrap.memory_lock=true
 # Standalone mode
 Environment=discovery.type=single-node
 {% else %}
-# Cluster mode
-Environment=discovery.seed_hosts={{ es_seed_hosts | default([]) | join(',') }}
+# Cluster mode - discovery settings
+{% set seed_hosts_list = es_seed_hosts | default([]) %}
+{% if seed_hosts_list | length > 0 %}
+Environment=discovery.seed_hosts={{ seed_hosts_list | join(',') }}
+{% endif %}
 {% if es_is_initial_master | default(false) %}
 Environment=cluster.initial_master_nodes={{ es_initial_masters | default([]) | join(',') }}
+{% endif %}
+# Network publish settings for cluster communication
+# Tell ES to advertise the external hostname/IP so other nodes can reach it
+{% if es_publish_host is defined and es_publish_host and '__omit_place_holder__' not in (es_publish_host | string) %}
+Environment=network.publish_host={{ es_publish_host }}
+{% elif ansible_host is defined and ansible_host not in ['localhost', '127.0.0.1'] %}
+Environment=network.publish_host={{ ansible_host }}
 {% endif %}
 {% endif %}
 
@@ -72,6 +82,10 @@ Image=localhost/elasticsearch:LME_LATEST
 Network=lme
 PodmanArgs= --network-alias lme-elasticsearch --health-interval=2s
 PublishPort={{ es_http_publish_port | default('9200:9200') }}
+{% if es_discovery_type | default('single-node') != 'single-node' %}
+# Transport port for cluster communication
+PublishPort={{ es_transport_publish_port | default('9300:9300') }}
+{% endif %}
 Ulimit=memlock=-1:-1
 
 Volume=lme_certs:/usr/share/elasticsearch/config/certs

@@ -4,6 +4,9 @@
 # This uses the existing `lme-setup-certs` quadlet/unit on the *source* node to
 # generate certs into the `lme_certs` volume, then copies the volume contents
 # to other nodes.
+#
+# This role uses a "push" pattern: the bundle is read from the source host via slurp
+# and pushed directly to targets with become: true, ensuring files arrive root-owned.
 
 - name: Determine certificate source host (first elasticsearch host)
   ansible.builtin.set_fact:
@@ -60,32 +63,14 @@
   run_once: true
   become: true
 
-- name: Clean up any existing cert bundle directory (may be owned by root from previous runs)
-  ansible.builtin.file:
-    path: /tmp/lme-certs
-    state: absent
-  delegate_to: localhost
-  run_once: true
-  become: true
-  failed_when: false
-
-- name: Ensure local temp directory exists for cert bundle
-  ansible.builtin.file:
-    path: /tmp/lme-certs
-    state: directory
-    mode: '0700'
-  delegate_to: localhost
-  run_once: true
-  become: false  # Must be owned by ansible user so fetch module can write to it
-
-- name: Fetch cert bundle from source host to controller
-  ansible.builtin.fetch:
+- name: Read cert bundle from source host
+  ansible.builtin.slurp:
     src: /tmp/lme_certs.tgz
-    dest: /tmp/lme-certs/lme_certs.tgz
-    flat: true
+  register: certs_bundle
   delegate_to: "{{ lme_certs_source_host }}"
   run_once: true
   become: true
+  no_log: true
 
 - name: Ensure lme_certs volume exists (all hosts)
   ansible.builtin.command: podman volume inspect lme_certs
@@ -105,12 +90,13 @@
   register: lme_certs_mountpoint
   changed_when: false
 
-- name: Copy cert bundle to target host
+- name: Push cert bundle to target host
   ansible.builtin.copy:
-    src: /tmp/lme-certs/lme_certs.tgz
     dest: /tmp/lme_certs.tgz
+    content: "{{ certs_bundle.content | b64decode }}"
     mode: '0600'
   become: true
+  no_log: true
 
 - name: Extract cert bundle into lme_certs mountpoint
   ansible.builtin.command: "tar -C {{ lme_certs_mountpoint.stdout | quote }} -xzf /tmp/lme_certs.tgz"
@@ -129,12 +115,4 @@
   delegate_to: "{{ lme_certs_source_host }}"
   run_once: true
   become: true
-  failed_when: false
-
-- name: Clean up local temp directory on controller
-  ansible.builtin.file:
-    path: /tmp/lme-certs
-    state: absent
-  delegate_to: localhost
-  run_once: true
   failed_when: false

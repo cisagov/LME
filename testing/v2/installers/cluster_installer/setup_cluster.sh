@@ -229,6 +229,17 @@ echo -e "${YELLOW}Loading generated credentials...${NC}"
 PASSWORD=$(cat "${RESOURCE_GROUP}.password.txt")
 MASTER_IP=$(jq -r '.linux_vms[0].ip_address' "${RESOURCE_GROUP}.machines.json")
 
+# Copy generated files to output directory for persistence
+# When running in Docker, only the output directory is mounted from the host
+OUTPUT_DIR="${SCRIPT_DIR}/output"
+if [ -d "$OUTPUT_DIR" ] || mkdir -p "$OUTPUT_DIR" 2>/dev/null; then
+    cp "${RESOURCE_GROUP}.password.txt" "$OUTPUT_DIR/"
+    cp "${RESOURCE_GROUP}.machines.json" "$OUTPUT_DIR/"
+    echo -e "${GREEN}Saved credentials to output directory:${NC}"
+    echo "  - $OUTPUT_DIR/${RESOURCE_GROUP}.password.txt"
+    echo "  - $OUTPUT_DIR/${RESOURCE_GROUP}.machines.json"
+fi
+
 echo -e "${GREEN}Cluster created:${NC}"
 echo "  Master IP: $MASTER_IP"
 echo "  Password: $PASSWORD"
@@ -323,22 +334,54 @@ echo -e "${GREEN}Environment file created with IPVAR=${MASTER_PRIVATE_IP}${NC}"
 # Install dependencies on master
 echo -e "${YELLOW}Installing dependencies on master...${NC}"
 ssh "${LME_USER}@${MASTER_IP}" "sudo apt-get install -y ansible jq"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME/ansible && ansible-galaxy install -r requirements.yml"
+echo -e "${YELLOW}Attempting ansible-galaxy install (may fail if Galaxy is unavailable)...${NC}"
+if ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME/ansible && ansible-galaxy collection install -r requirements.yml --timeout 30" 2>&1; then
+    echo -e "${GREEN}Galaxy collections installed${NC}"
+else
+    echo -e "${YELLOW}Galaxy install failed (server may be unavailable), continuing with existing collections...${NC}"
+fi
 echo -e "${GREEN}Dependencies installed on master${NC}"
 
-# Run main install on master (ansible elevates with become: yes)
+# Build list of all private IPs for seed hosts (master + cluster nodes)
+MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "${RESOURCE_GROUP}.machines.json")
+ALL_PRIVATE_IPS=$(jq -r '[.linux_vms[].private_ip] | @json' "${RESOURCE_GROUP}.machines.json")
+
+# Run main install on master with cluster mode enabled (ansible elevates with become: yes)
 echo -e "${YELLOW}Running main install on master (this may take a while)...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook ansible/site.yml${ANSIBLE_OPTS:+ }${ANSIBLE_OPTS}"
+echo -e "  Cluster seed hosts: ${ALL_PRIVATE_IPS}"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook ansible/site.yml -e lme_cluster_mode=true -e 'es_cluster_seed_hosts=${ALL_PRIVATE_IPS}' -e es_master_publish_host=${MASTER_PRIVATE_IP}${ANSIBLE_OPTS:+ }${ANSIBLE_OPTS}"
 echo -e "${GREEN}Main install complete on master${NC}"
 
 # Create cluster inventory file locally and scp to master
+# IMPORTANT: Master (es1) must be first in the elasticsearch group so that
+# the certs role generates certs on es1 and distributes to all cluster nodes.
 echo -e "${YELLOW}Creating cluster inventory file...${NC}"
 INVENTORY_FILE=$(mktemp)
+
+# Build the seed hosts YAML list
+SEED_HOSTS_YAML=""
+for ip in $(jq -r '.linux_vms[].private_ip' "${RESOURCE_GROUP}.machines.json"); do
+    SEED_HOSTS_YAML="${SEED_HOSTS_YAML}      - ${ip}\n"
+done
+
 cat > "$INVENTORY_FILE" << EOF
 all:
+  vars:
+    # Master node IP for cluster discovery
+    es_master_host: ${MASTER_PRIVATE_IP}
+    # All seed hosts for cluster discovery
+    es_cluster_seed_hosts:
+$(echo -e "$SEED_HOSTS_YAML")
   children:
     elasticsearch:
       hosts:
+        # es1 (master) must be first for cert generation
+        es1:
+          ansible_host: ${MASTER_PRIVATE_IP}
+          ansible_connection: local
+          es_node_name: lme-elasticsearch
+          es_is_initial_master: true
+          es_publish_host: ${MASTER_PRIVATE_IP}
 EOF
 
 i=2
@@ -347,6 +390,8 @@ for ip in $CLUSTER_PRIVATE_IPS; do
         es${i}:
           ansible_host: ${ip}
           ansible_user: ${LME_USER}
+          es_node_name: es${i}
+          es_publish_host: ${ip}
 EOF
     ((i++))
 done
@@ -371,6 +416,12 @@ echo "Master: ${LME_USER}@${MASTER_IP}"
 echo ""
 echo -e "${YELLOW}To SSH to master:${NC}"
 echo -e "   ${GREEN}ssh ${LME_USER}@${MASTER_IP}${NC}"
+echo ""
+echo -e "${YELLOW}To check cluster health:${NC}"
+echo -e "   ${GREEN}ssh ${LME_USER}@${MASTER_IP} 'source /opt/lme/scripts/extract_secrets.sh -q && curl -sk -u elastic:\$lme_elastic_password https://localhost:9200/_cluster/health?pretty'${NC}"
+echo ""
+echo -e "${YELLOW}To see cluster nodes:${NC}"
+echo -e "   ${GREEN}ssh ${LME_USER}@${MASTER_IP} 'source /opt/lme/scripts/extract_secrets.sh -q && curl -sk -u elastic:\$lme_elastic_password https://localhost:9200/_cat/nodes?v'${NC}"
 echo ""
 echo -e "${YELLOW}Cleanup when done:${NC}"
 echo -e "   ${GREEN}az group delete --name $RESOURCE_GROUP --yes --no-wait${NC}"

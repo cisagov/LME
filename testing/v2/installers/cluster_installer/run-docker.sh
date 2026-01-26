@@ -91,11 +91,16 @@ echo -e "${GREEN}Running cluster installer...${NC}"
 echo ""
 
 # Build docker run command array
+# Mount paths:
+# - LME repo as read-only for reference
+# - output directory for persisting generated files (password, machines.json)
+# - exporter.txt for configuration
+# - Azure credentials for authentication
 DOCKER_ARGS=(
     run -it --rm
     --network host
     -v "$REPO_ROOT:/workspace/LME:ro"
-    -v "$SCRIPT_DIR/output:/workspace/testing/v2/installers/output"
+    -v "$SCRIPT_DIR/output:/workspace/testing/v2/installers/cluster_installer/output"
     -v "$EXPORTER_FILE:/workspace/testing/v2/installers/exporter.txt:ro"
     -v "$HOME/.azure:/root/.azure:ro"
 )

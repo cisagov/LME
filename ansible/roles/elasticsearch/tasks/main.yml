@@ -7,8 +7,8 @@
 
 - name: Set playbook variables
   ansible.builtin.set_fact:
-    local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
-    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://127.0.0.1:9200') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default(env_dict.elastic_username | default('elastic')) }}"
     elastic_password: "{{ global_secrets.elastic | default('') }}"
 
 - name: Debug - Show extracted values
