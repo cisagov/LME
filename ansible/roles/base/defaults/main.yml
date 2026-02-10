@@ -3,13 +3,16 @@
 # Note: Most common variables are now defined in site.yml
 
 # Default packages that apply to all distributions if not overridden
+# Note: ansible is NOT included here because install.sh already installs it
+# before running this playbook. On RHEL9/UBI9, the EPEL ansible package has
+# a broken dependency on ansible-core which is only in RHEL subscription repos.
+# See docker/rhel9/README-ANSIBLE.md for details.
 common_packages:
   - wget
   - gnupg2
   - sudo
   - git
   - expect
-  - ansible
 
 
 # Debian-specific packages
