@@ -6,6 +6,7 @@
 
 
 # Logging Made Easy 
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/cisagov/LME)
 
 CISA's Logging Made Easy (LME) is a no cost, open source platform that centralizes log collection, enhances threat detection, and enables real-time alerting, helping small to medium-sized organizations secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security. 
 
