@@ -1,4 +1,22 @@
 ---
+# Bootstrap play: install Python on remote nodes so Ansible modules work.
+# The raw module does not need Python on the target, so this always succeeds.
+- name: Bootstrap Python on cluster nodes
+  hosts: elasticsearch
+  gather_facts: false
+  become: yes
+  tasks:
+    - name: Check if python3 exists
+      ansible.builtin.raw: which python3
+      register: python3_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install python3 via raw (Debian/Ubuntu)
+      ansible.builtin.raw: apt-get update && apt-get install -y python3 python3-apt
+      when: python3_check.rc != 0
+      changed_when: true
+
 - name: Deploy Elasticsearch
   hosts: elasticsearch
   become: yes
