@@ -79,6 +79,54 @@
     # passwords than the master, breaking the cluster).
     lme_skip_secret_creation: true
 
+  pre_tasks:
+    # Cluster child nodes never run install.sh, so ansible-vault is not present.
+    # The podman shell secret driver uses `ansible-vault view` at container runtime
+    # to decrypt secrets.  We must ensure ansible-core is available on every node.
+    - name: Install ansible-core on cluster nodes (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: ansible
+        state: present
+        update_cache: yes
+      become: yes
+      when:
+        - ansible_os_family == 'Debian'
+        - not (offline_mode | default(false))
+
+    - name: Check if ansible-vault is already available (Red Hat)
+      ansible.builtin.command: which ansible-vault
+      register: ansible_vault_check
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install ansible-core via pip on cluster nodes (Red Hat)
+      when:
+        - ansible_os_family == 'RedHat'
+        - ansible_vault_check.rc != 0
+        - not (offline_mode | default(false))
+      become: yes
+      block:
+        - name: Install python3-pip for ansible
+          ansible.builtin.dnf:
+            name:
+              - python3-pip
+            state: present
+
+        - name: Install ansible-core via pip
+          ansible.builtin.pip:
+            name: ansible-core
+            state: present
+
+        - name: Symlink pip-installed ansible binaries to /usr/bin
+          ansible.builtin.shell: |
+            for f in /usr/local/bin/ansible*; do
+              [ -f "$f" ] && ln -sf "$f" /usr/bin/
+            done
+          args:
+            executable: /bin/bash
+          changed_when: true
+
   roles:
     - role: base
       tags: ['base']
