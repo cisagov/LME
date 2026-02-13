@@ -5,8 +5,8 @@ services:
       dockerfile: docker/rhel9/Dockerfile
       target: lme
       args:
-        USER_ID: "${HOST_UID:-1001}"
-        GROUP_ID: "${HOST_GID:-1001}"
+        USER_ID: "${HOST_UID:-1000}"
+        GROUP_ID: "${HOST_GID:-1000}"
     container_name: lme_rhel9_cluster_node1
     hostname: node1
     working_dir: /home/lme-user/LME
@@ -53,8 +53,8 @@ services:
       dockerfile: docker/rhel9/Dockerfile
       target: lme
       args:
-        USER_ID: "${HOST_UID:-1001}"
-        GROUP_ID: "${HOST_GID:-1001}"
+        USER_ID: "${HOST_UID:-1000}"
+        GROUP_ID: "${HOST_GID:-1000}"
     container_name: lme_rhel9_cluster_node2
     hostname: node2
     working_dir: /root/LME
@@ -93,8 +93,8 @@ services:
       dockerfile: docker/rhel9/Dockerfile
       target: lme
       args:
-        USER_ID: "${HOST_UID:-1001}"
-        GROUP_ID: "${HOST_GID:-1001}"
+        USER_ID: "${HOST_UID:-1000}"
+        GROUP_ID: "${HOST_GID:-1000}"
     container_name: lme_rhel9_cluster_node3
     hostname: node3
     working_dir: /root/LME
