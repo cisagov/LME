@@ -106,8 +106,8 @@ Once installation is complete:
 - `HOST_IP`: IP address for the container (set in environment.sh)
 
 ### Optional
-- `HOST_UID`: User ID for lme-user (default: 1001)
-- `HOST_GID`: Group ID for lme-user (default: 1001)
+- `HOST_UID`: User ID for lme-user (default: 1000)
+- `HOST_GID`: Group ID for lme-user (default: 1000)
 
 ### Container Environment Variables (Auto-configured)
 The following environment variables are automatically set by docker-compose:
