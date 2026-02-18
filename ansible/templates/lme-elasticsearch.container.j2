@@ -89,10 +89,17 @@ PublishPort={{ es_transport_publish_port | default('9300:9300') }}
 Ulimit=memlock=-1:-1
 
 Volume=lme_certs:/usr/share/elasticsearch/config/certs
-{% if es_node_name is defined %}
-Volume=lme_esdata_{{ es_node_name }}:/usr/share/elasticsearch/data
-{% elif inventory_hostname in ['localhost', '127.0.0.1'] %}
+{#
+  Data volume naming:
+  - The master node (local connection or localhost) always uses lme_esdata01,
+    matching the default single-node install. This keeps the volume name
+    consistent across fresh installs, cluster installs, and conversions.
+  - Remote data nodes use lme_esdata_<es_node_name> (or sanitized hostname).
+#}
+{% if (ansible_connection | default('')) == 'local' or inventory_hostname in ['localhost', '127.0.0.1'] %}
 Volume=lme_esdata01:/usr/share/elasticsearch/data
+{% elif es_node_name is defined %}
+Volume=lme_esdata_{{ es_node_name }}:/usr/share/elasticsearch/data
 {% else %}
 Volume=lme_esdata_{{ inventory_hostname | regex_replace('[^a-zA-Z0-9]', '_') }}:/usr/share/elasticsearch/data
 {% endif %}
