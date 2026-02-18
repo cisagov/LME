@@ -83,8 +83,22 @@ fi
 # Check Elasticsearch is responding
 echo -e "${BLUE}Checking Elasticsearch health...${NC}"
 export PATH=$PATH:/nix/var/nix/profiles/default/bin
+# extract_secrets.sh requires podman and ansible-vault on PATH; source root's
+# profile first so that nix-installed tools are visible.
+if [ -f /root/.profile ]; then
+    . /root/.profile 2>/dev/null || true
+fi
 source "$LME_DIR/scripts/extract_secrets.sh" -q 2>/dev/null
-ES_HEALTH=$(curl -sk -u "elastic:$lme_elastic_password" https://localhost:9200/_cluster/health 2>/dev/null)
+if [ -z "$elastic" ]; then
+    echo -e "${YELLOW}WARNING: extract_secrets.sh did not set \$elastic, retrying with explicit PATH...${NC}"
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin:/usr/local/bin
+    source "$LME_DIR/scripts/extract_secrets.sh" -q 2>/dev/null
+fi
+if [ -z "$elastic" ]; then
+    echo -e "${RED}ERROR: Could not extract elastic password. Check that ansible-vault and podman are available.${NC}"
+    exit 1
+fi
+ES_HEALTH=$(curl -sk -u "elastic:$elastic" https://localhost:9200/_cluster/health 2>/dev/null)
 if [ $? -ne 0 ] || [ -z "$ES_HEALTH" ]; then
     echo -e "${RED}ERROR: Cannot reach Elasticsearch. Is the LME service running?${NC}"
     echo -e "${YELLOW}Try: sudo systemctl status lme${NC}"
@@ -160,8 +174,8 @@ if [ $RESULT -eq 0 ]; then
     echo
     echo -e "${BLUE}Verify your cluster with:${NC}"
     echo -e "  source /opt/lme/scripts/extract_secrets.sh -q"
-    echo -e "  curl -sk -u elastic:\$lme_elastic_password https://localhost:9200/_cluster/health?pretty"
-    echo -e "  curl -sk -u elastic:\$lme_elastic_password https://localhost:9200/_cat/nodes?v"
+    echo -e "  curl -sk -u elastic:\$elastic https://localhost:9200/_cluster/health?pretty"
+  echo -e "  curl -sk -u elastic:\$elastic https://localhost:9200/_cat/nodes?v"
 else
     echo -e "${RED}===============================================${NC}"
     echo -e "${RED}  Conversion encountered errors (exit code: $RESULT)${NC}"
