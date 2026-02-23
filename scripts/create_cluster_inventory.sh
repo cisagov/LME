@@ -299,7 +299,7 @@ echo -e "   ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsea
 echo
 echo -e "${YELLOW}5. Verify cluster health:${NC}"
 echo -e "   source /opt/lme/scripts/extract_secrets.sh -q"
-echo -e "   curl -sk -u elastic:\$lme_elastic_password https://localhost:9200/_cluster/health?pretty"
+echo -e "   curl -sk -u elastic:\$elastic https://localhost:9200/_cluster/health?pretty"
 echo
 echo -e "${GREEN}For detailed instructions, see: testing/v2/development/CLUSTER_INSTALL.md${NC}"
 echo

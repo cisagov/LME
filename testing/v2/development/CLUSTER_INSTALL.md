@@ -197,13 +197,13 @@ This will:
 source /opt/lme/scripts/extract_secrets.sh -q
 
 # Check cluster health
-curl -sk -u elastic:$lme_elastic_password https://localhost:9200/_cluster/health?pretty
+curl -sk -u elastic:$elastic https://localhost:9200/_cluster/health?pretty
 
 # View cluster nodes
-curl -sk -u elastic:$lme_elastic_password https://localhost:9200/_cat/nodes?v
+curl -sk -u elastic:$elastic https://localhost:9200/_cat/nodes?v
 
 # Check shards distribution
-curl -sk -u elastic:$lme_elastic_password https://localhost:9200/_cat/shards?v
+curl -sk -u elastic:$elastic https://localhost:9200/_cat/shards?v
 ```
 
 ### Expected Output
