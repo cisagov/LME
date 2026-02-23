@@ -39,22 +39,38 @@
   run_once: true
   become: true
 
-- name: Read secrets bundle from source host
+- name: Read secrets bundle from source host (run once)
   ansible.builtin.slurp:
     src: /tmp/lme_secrets.tgz
-  register: secrets_bundle
+  register: secrets_bundle_raw
   delegate_to: "{{ lme_secrets_source_host }}"
   run_once: true
   become: true
   no_log: true
 
+# Propagate the bundle content to ALL hosts in the play.
+# When using run_once, only one host gets the registered variable.
+# We need to set a fact that all hosts can access.
+- name: Set global secrets bundle fact (from run_once host)
+  ansible.builtin.set_fact:
+    secrets_bundle_content: "{{ hostvars[ansible_play_hosts[0]].secrets_bundle_raw.content }}"
+  no_log: true
+
+- name: Remove old secrets bundle on target host (before push)
+  ansible.builtin.file:
+    path: /tmp/lme_secrets.tgz
+    state: absent
+  become: true
+
 - name: Push secrets bundle to target host
-  ansible.builtin.copy:
-    dest: /tmp/lme_secrets.tgz
-    content: "{{ secrets_bundle.content | b64decode }}"
-    mode: '0600'
+  ansible.builtin.shell: |
+    echo '{{ secrets_bundle_content }}' | base64 -d > /tmp/lme_secrets.tgz
+    chmod 600 /tmp/lme_secrets.tgz
+  args:
+    executable: /bin/bash
   become: true
   no_log: true
+  changed_when: true
 
 - name: Ensure podman secrets storage directory exists on target host
   ansible.builtin.file:
@@ -66,7 +82,7 @@
   become: true
 
 - name: Extract secrets bundle into place
-  ansible.builtin.command: tar -xzf /tmp/lme_secrets.tgz -C /
+  ansible.builtin.command: tar --overwrite -xzf /tmp/lme_secrets.tgz -C /
   become: true
 
 - name: Set proper permissions on secrets.json
