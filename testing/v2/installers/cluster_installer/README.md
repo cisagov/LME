@@ -50,7 +50,22 @@ The script will:
 9. Install ansible and run `site.yml` on master
 10. Create cluster inventory and run `elasticsearch.yml` on cluster nodes
 
----
+## 2. Test Password Change (Optional)
+
+After the cluster is running, you can test the `change_passwords.yml` playbook:
+
+```bash
+./test_change_passwords.sh
+```
+
+With a specific resource group or debug output:
+
+```bash
+./test_change_passwords.sh -r my-cluster-rg
+./test_change_passwords.sh -d
+```
+
+The test uses `${RESOURCE_GROUP}.password.txt` and `${RESOURCE_GROUP}.machines.json` from the `output/` directory (or parent directory). It runs the same steps as the Docker-based `testing/v2/development/test_change_passwords.sh`: change elastic password, verify it works, verify secrets on nodes, then restore the original password.
 
 ## Manual Steps (Alternative)
 

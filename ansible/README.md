@@ -8,6 +8,8 @@ This directory contains the Ansible playbooks and roles used to deploy, manage, 
 ansible/
 ├── site.yml              # Main installation playbook
 ├── backup_lme.yml         # Backup operations playbook
+├── change_passwords.yml   # Password change playbook
+├── convert_to_cluster.yml # Single-node to cluster conversion playbook
 ├── upgrade_lme.yml        # Upgrade operations playbook  
 ├── rollback_lme.yml       # Rollback operations playbook
 ├── requirements.yml       # Ansible collection dependencies
@@ -52,6 +54,18 @@ ansible/
   - Optional safety backup before rollback
   - Restores configuration and volume data
   - Validates successful rollback
+
+- **`change_passwords.yml`**: Changes built-in user passwords across the LME stack
+  - Supports `elastic`, `kibana_system`, `wazuh`, and `wazuh_api`
+  - Works for both single-node and cluster deployments
+  - Updates Elasticsearch via REST API; updates Wazuh via RBAC tool
+  - Validates passwords against Have I Been Pwned (skippable in offline mode)
+
+- **`convert_to_cluster.yml`**: Converts an existing single-node LME installation into a multi-node Elasticsearch cluster
+  - Requires a healthy single-node LME on the master and a cluster inventory
+  - Creates a backup before conversion
+  - Deploys Elasticsearch to new nodes and joins them to the cluster
+  - Use `scripts/convert_to_cluster.sh` as a convenience wrapper (generates inventory, then runs the playbook)
 
 ## Roles
 
@@ -161,6 +175,41 @@ ansible-playbook rollback_lme.yml
 # 1. Select which backup to restore from
 # 2. Choose whether to create a safety backup
 ```
+
+### Password Changes
+Change built-in user passwords (elastic, kibana_system, wazuh, wazuh_api). Requires a running LME installation and ansible-vault password configured at `/etc/lme/pass.sh`.
+
+```bash
+# Single-node (Elasticsearch elastic user)
+ansible-playbook ansible/change_passwords.yml \
+  -e lme_user=elastic -e lme_password='YourNewSecurePassword123!'
+
+# Cluster (run from master with ansible/inventory/cluster.yml)
+ansible-playbook -i ansible/inventory/cluster.yml ansible/change_passwords.yml \
+  -e lme_user=elastic -e lme_password='YourNewSecurePassword123!'
+
+# Offline environments (skip Have I Been Pwned breach check)
+ansible-playbook ansible/change_passwords.yml \
+  -e lme_user=elastic -e lme_password='YourNewSecurePassword123!' -e offline_mode=true
+```
+
+For clusters, ensure SSH connectivity from master to all nodes before running.
+
+### Single-Node to Cluster Conversion
+Convert an existing single-node LME installation into a multi-node Elasticsearch cluster. Prerequisites: healthy single-node LME on master, cluster inventory at `ansible/inventory/cluster.yml`, SSH connectivity from master to all cluster nodes, ports 9200 and 9300 open between nodes.
+
+```bash
+# Option 1: Use the wrapper script (generates inventory interactively, then runs playbook)
+sudo bash scripts/convert_to_cluster.sh
+
+# Option 2: Run the playbook directly (inventory must already exist)
+ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml
+
+# Non-interactive / CI (skip backup prompt)
+ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml -e skip_prompts=true
+```
+
+Generate the cluster inventory with `scripts/create_cluster_inventory.sh` if you don't have one. The wrapper script can skip inventory generation with `--skip-inventory` if `ansible/inventory/cluster.yml` already exists.
 
 ## Configuration
 
