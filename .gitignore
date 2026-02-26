@@ -67,3 +67,5 @@ scripts/measure_container_bandwidth.sh
 ansible/inventory/cluster.yml
 todo.txt
 testing/v2/installers/cluster_installer/cluster_output.log
+CLAUDE.md
+.claude

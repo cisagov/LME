@@ -10,6 +10,14 @@
     # Example: es_upgrade_pull_image: docker.io/library/elasticsearch:8.18.8
     es_upgrade_pull_image: ""
 
+    # Pre-upgrade check settings
+    disk_space_threshold_percent: "{{ pre_check_disk_threshold | default(85) }}"
+    es_snapshot_repo: lme_backups
+    es_snapshot_repo_type: fs
+    es_snapshot_repo_settings:
+      location: "/usr/share/elasticsearch/backups"
+    snapshot_name: "pre-upgrade-{{ ansible_date_time.iso8601_basic_short }}"
+
   pre_tasks:
     - name: Read lme-environment.env
       ansible.builtin.slurp:
@@ -47,6 +55,10 @@
       run_once: true
       delegate_to: "{{ groups['elasticsearch'][0] }}"
       no_log: true
+
+    - name: Run pre-upgrade verification checks
+      ansible.builtin.include_tasks: tasks/pre_upgrade_checks.yml
+      when: not (skip_pre_checks | default(false) | bool)
 
     - name: Disable shard allocation (primaries only)
       ansible.builtin.uri:

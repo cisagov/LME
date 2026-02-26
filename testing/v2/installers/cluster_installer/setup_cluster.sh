@@ -222,6 +222,7 @@ echo -e "${YELLOW}Building cluster with $CLUSTER_SIZE nodes...${NC}"
     -l "$LOCATION" \
     -ast "$AUTO_SHUTDOWN_TIME" \
     -c "$CLUSTER_SIZE" \
+    -w \
     -y
 
 # Set variables from generated files
