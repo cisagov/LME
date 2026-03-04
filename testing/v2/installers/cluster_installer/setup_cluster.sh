@@ -14,6 +14,8 @@ NC='\033[0m' # No Color
 
 # Default options
 DEBUG_MODE="false"
+SKIP_NFS="false"
+NFS_ONLY="false"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -22,11 +24,21 @@ while [[ $# -gt 0 ]]; do
             DEBUG_MODE="true"
             shift
             ;;
+        --skip-nfs)
+            SKIP_NFS="true"
+            shift
+            ;;
+        --nfs-only)
+            NFS_ONLY="true"
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "OPTIONS:"
             echo "  -d, --debug    Enable debug mode for verbose ansible output"
+            echo "  --skip-nfs     Skip NFS setup (master as NFS server, nodes as clients)"
+            echo "  --nfs-only     Run only NFS setup (cluster must already be installed)"
             echo "  -h, --help     Show this help message"
             exit 0
             ;;
@@ -94,6 +106,10 @@ fi
 cd "$INSTALLERS_DIR"
 echo -e "${GREEN}Changed to: $(pwd)${NC}"
 
+if [ "$NFS_ONLY" = "true" ]; then
+    echo -e "${YELLOW}NFS-only mode: skipping cluster build, will run NFS setup only${NC}"
+fi
+
 # Check for exporter.txt
 if [ ! -f "exporter.txt" ]; then
     echo -e "${RED}Error: exporter.txt not found in $INSTALLERS_DIR${NC}"
@@ -144,7 +160,8 @@ if [ "$DEBUG_MODE" = "true" ]; then
     echo -e "${YELLOW}Ansible debug options: $ANSIBLE_OPTS${NC}"
 fi
 
-# Setup Python venv
+# Setup Python venv (skip when NFS-only)
+if [ "$NFS_ONLY" != "true" ]; then
 echo -e "${YELLOW}Setting up Python virtual environment...${NC}"
 VENV_NEEDS_RECREATE=false
 
@@ -196,11 +213,14 @@ if [ "$VENV_NEEDS_RECREATE" = "true" ]; then
 
     echo -e "${GREEN}Created and activated venv: $VENV_PYTHON${NC}"
 fi
+fi
 
-# Install Azure requirements
+# Install Azure requirements (skip when NFS-only)
+if [ "$NFS_ONLY" != "true" ]; then
 echo -e "${YELLOW}Installing Azure requirements...${NC}"
 pip install -q -r azure/requirements.txt
 echo -e "${GREEN}Requirements installed${NC}"
+fi
 
 # Check for required local tools
 echo -e "${YELLOW}Checking for required tools...${NC}"
@@ -213,6 +233,20 @@ for tool in jq sshpass; do
 done
 echo -e "${GREEN}All required tools found${NC}"
 
+if [ "$NFS_ONLY" = "true" ]; then
+    # Load from existing cluster files
+    if [ ! -f "${RESOURCE_GROUP}.machines.json" ]; then
+        if [ -f "${SCRIPT_DIR}/output/${RESOURCE_GROUP}.machines.json" ]; then
+            cp "${SCRIPT_DIR}/output/${RESOURCE_GROUP}.machines.json" "${RESOURCE_GROUP}.machines.json"
+        else
+            echo -e "${RED}Error: ${RESOURCE_GROUP}.machines.json not found. Run full setup first or ensure cluster exists.${NC}"
+            exit 1
+        fi
+    fi
+    MASTER_IP=$(jq -r '.linux_vms[0].ip_address' "${RESOURCE_GROUP}.machines.json")
+    MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "${RESOURCE_GROUP}.machines.json")
+    echo -e "${GREEN}Using existing cluster: Master ${MASTER_IP} (private ${MASTER_PRIVATE_IP})${NC}"
+else
 # Build the cluster
 echo -e "${YELLOW}Building cluster with $CLUSTER_SIZE nodes...${NC}"
 ./azure/build_azure_linux_network.py \
@@ -409,6 +443,69 @@ ssh "${LME_USER}@${MASTER_IP}" "cat ~/LME/ansible/inventory/cluster.yml"
 echo -e "${YELLOW}Running cluster install on nodes (this may take a while)...${NC}"
 ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml${ANSIBLE_OPTS:+ }${ANSIBLE_OPTS}"
 echo -e "${GREEN}Cluster install complete${NC}"
+
+fi
+# End of non-NFS-only block
+
+# =========================================================================
+# Phase 6: NFS setup (master = NFS server, all nodes mount shared snapshot storage)
+# =========================================================================
+if [ "$SKIP_NFS" = "true" ]; then
+    echo -e "${YELLOW}Skipping NFS setup (--skip-nfs flag)${NC}"
+else
+    echo ""
+    echo -e "${GREEN}Phase 6: NFS Setup (master as NFS server)${NC}"
+    echo "================================================"
+
+    # Build NFS exports line: allow each node's private IP
+    NFS_EXPORTS="/srv/es-snapshots"
+    for ip in $(jq -r '.linux_vms[].private_ip' "${RESOURCE_GROUP}.machines.json"); do
+        NFS_EXPORTS="${NFS_EXPORTS} ${ip}(rw,sync,no_subtree_check,no_root_squash)"
+    done
+
+    # 6a: Set up NFS server on master
+    echo -e "${YELLOW}Setting up NFS server on master...${NC}"
+    ssh "${LME_USER}@${MASTER_IP}" "sudo apt-get install -y nfs-kernel-server"
+    ssh "${LME_USER}@${MASTER_IP}" "sudo mkdir -p /srv/es-snapshots && sudo chmod 777 /srv/es-snapshots"
+    ssh "${LME_USER}@${MASTER_IP}" "echo '${NFS_EXPORTS}' | sudo tee /etc/exports"
+    ssh "${LME_USER}@${MASTER_IP}" "sudo exportfs -ra && sudo systemctl start nfs-kernel-server"
+    echo -e "${GREEN}NFS server configured on master${NC}"
+
+    # 6b: Install NFS client and mount on all nodes (master + cluster nodes)
+    ALL_NODE_IPS=$(jq -r '.linux_vms[] | "\(.ip_address)|\(.private_ip)"' "${RESOURCE_GROUP}.machines.json")
+    node_num=1
+    for node_info in $ALL_NODE_IPS; do
+        node_pub_ip="${node_info%%|*}"
+        echo -e "${YELLOW}Mounting NFS on node${node_num} (${node_pub_ip})...${NC}"
+        ssh "${LME_USER}@${node_pub_ip}" "sudo apt-get install -y nfs-common"
+        ssh "${LME_USER}@${node_pub_ip}" "sudo mkdir -p /mnt/es-snapshots"
+        ssh "${LME_USER}@${node_pub_ip}" "sudo mount -t nfs ${MASTER_PRIVATE_IP}:/srv/es-snapshots /mnt/es-snapshots"
+        # Add to fstab for persistence
+        ssh "${LME_USER}@${node_pub_ip}" "grep -q '/mnt/es-snapshots' /etc/fstab || echo '${MASTER_PRIVATE_IP}:/srv/es-snapshots /mnt/es-snapshots nfs defaults 0 0' | sudo tee -a /etc/fstab"
+        echo -e "  ${GREEN}NFS mounted on node${node_num}${NC}"
+        ((node_num++))
+    done
+
+    # 6c: Configure ES on each node: add path.repo, Quadlet drop-in, restart
+    echo -e "${YELLOW}Configuring Elasticsearch NFS snapshot path on all nodes...${NC}"
+    node_num=1
+    for node_info in $ALL_NODE_IPS; do
+        node_pub_ip="${node_info%%|*}"
+        echo "  Configuring node${node_num}..."
+        ssh "${LME_USER}@${node_pub_ip}" "
+            sudo grep -q '/usr/share/elasticsearch/snapshots' /opt/lme/config/elasticsearch.yml || \
+                sudo sed -i '/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots' /opt/lme/config/elasticsearch.yml
+        "
+        ssh "${LME_USER}@${node_pub_ip}" "
+            sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
+            echo '[Container]
+Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots' | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
+        "
+        ssh "${LME_USER}@${node_pub_ip}" "sudo systemctl daemon-reload && sudo systemctl restart lme-elasticsearch"
+        ((node_num++))
+    done
+    echo -e "${GREEN}NFS setup complete on all nodes${NC}"
+fi
 
 echo ""
 echo -e "${GREEN}=== Cluster setup complete ===${NC}"
