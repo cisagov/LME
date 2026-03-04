@@ -49,8 +49,26 @@ The script will:
 8. Create `lme-environment.env` with master's private IP
 9. Install ansible and run `site.yml` on master
 10. Create cluster inventory and run `elasticsearch.yml` on cluster nodes
+11. Set up NFS (master as NFS server, all nodes mount shared snapshot storage)
 
-## 2. Test Password Change (Optional)
+Options: `--skip-nfs` to skip NFS setup, `--nfs-only` to run only NFS setup on an existing cluster.
+
+## 2. Test Snapshots (Optional)
+
+After the cluster is running (with NFS), test the snapshot playbooks:
+
+```bash
+./test_snapshot.sh
+```
+
+With debug or single-node mode:
+
+```bash
+./test_snapshot.sh -d
+./test_snapshot.sh --single-node   # Skip cluster/NFS tests
+```
+
+## 3. Test Password Change (Optional)
 
 After the cluster is running, you can test the `change_passwords.yml` playbook:
 
