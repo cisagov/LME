@@ -130,6 +130,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     cron \
+    nfs-kernel-server \
+    nfs-common \
     freerdp2-x11 \
     pkg-config \
     libcairo2-dev \

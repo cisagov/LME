@@ -12,6 +12,8 @@ ansible/
 ├── convert_to_cluster.yml # Single-node to cluster conversion playbook
 ├── upgrade_lme.yml        # Upgrade operations playbook  
 ├── rollback_lme.yml       # Rollback operations playbook
+├── rolling_upgrade.yml    # ES cluster rolling upgrade playbook
+├── snapshot_elasticsearch.yml # Snapshot repository and snapshot management
 ├── requirements.yml       # Ansible collection dependencies
 ├── roles/                 # Ansible roles for different components
 │   ├── backup_lme/        # LME backup operations
@@ -24,7 +26,8 @@ ansible/
 │   ├── podman/            # Podman container runtime setup
 │   └── wazuh/             # Wazuh server configuration
 └── tasks/                 # Shared task files
-    └── load_env.yml       # Environment variable loading
+    ├── load_env.yml       # Environment variable loading
+    └── pre_upgrade_checks.yml # Pre-upgrade verification checks
 ```
 
 ## Main Playbooks
@@ -60,6 +63,17 @@ ansible/
   - Works for both single-node and cluster deployments
   - Updates Elasticsearch via REST API; updates Wazuh via RBAC tool
   - Validates passwords against Have I Been Pwned (skippable in offline mode)
+
+- **`snapshot_elasticsearch.yml`**: Manages Elasticsearch snapshot repositories and creates snapshots
+  - Supports `fs` (filesystem) and `s3` repository types
+  - Verifies repository accessibility on all cluster nodes
+  - Creates timestamped snapshots (can be skipped with `-e create_snapshot=false`)
+  - Works with single-node and cluster deployments
+
+- **`rolling_upgrade.yml`**: Performs a rolling upgrade of Elasticsearch across cluster nodes
+  - Upgrades one node at a time to maintain cluster availability
+  - Runs pre-upgrade checks (health, version, disk, snapshot) by default
+  - Creates a pre-upgrade snapshot before upgrading (opt-out with `-e create_pre_upgrade_snapshot=false`)
 
 - **`convert_to_cluster.yml`**: Converts an existing single-node LME installation into a multi-node Elasticsearch cluster
   - Requires a healthy single-node LME on the master and a cluster inventory
@@ -175,6 +189,26 @@ ansible-playbook rollback_lme.yml
 # 1. Select which backup to restore from
 # 2. Choose whether to create a safety backup
 ```
+
+### Snapshot Operations
+Register an Elasticsearch snapshot repository, verify it, and optionally create a snapshot. Supports filesystem (`fs`) and S3 repository types.
+
+```bash
+# Single-node: register repo, verify, and create snapshot
+ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.yml
+
+# Register and verify only (no snapshot)
+ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.yml -e create_snapshot=false
+
+# Cluster
+ansible-playbook -i ansible/inventory/cluster.yml ansible/snapshot_elasticsearch.yml
+
+# S3 repository
+ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.yml \
+  -e es_snapshot_repo_type=s3 -e es_s3_bucket=my-bucket -e es_s3_region=us-west-2
+```
+
+For full details on shared storage requirements and S3 setup, see **[SNAPSHOT_README.md](SNAPSHOT_README.md)**.
 
 ### Password Changes
 Change built-in user passwords (elastic, kibana_system, wazuh, wazuh_api). Requires a running LME installation and ansible-vault password configured at `/etc/lme/pass.sh`.

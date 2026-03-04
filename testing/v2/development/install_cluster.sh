@@ -16,11 +16,13 @@ NC='\033[0m' # No Color
 MASTER_CONTAINER="lme_cluster_node1"
 NODE2_CONTAINER="lme_cluster_node2"
 NODE3_CONTAINER="lme_cluster_node3"
+NFS_CONTAINER="lme_cluster_nfs"
 
 # Default options
 DEBUG_MODE="false"
 SKIP_MASTER_INSTALL="false"
 SKIP_CLUSTER_INSTALL="false"
+SKIP_NFS="false"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -37,6 +39,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_CLUSTER_INSTALL="true"
             shift
             ;;
+        --skip-nfs)
+            SKIP_NFS="true"
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -44,6 +50,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -d, --debug        Enable debug mode for verbose ansible output"
             echo "  --skip-master      Skip master installation (site.yml)"
             echo "  --skip-cluster     Skip cluster installation (elasticsearch.yml)"
+            echo "  --skip-nfs         Skip NFS setup (Phase 5)"
             echo "  -h, --help         Show this help message"
             echo ""
             echo "Prerequisites:"
@@ -91,7 +98,7 @@ docker_exec_as_lme_user() {
 check_containers() {
     echo -e "${YELLOW}Checking if containers are running...${NC}"
     
-    for container in "$MASTER_CONTAINER" "$NODE2_CONTAINER" "$NODE3_CONTAINER"; do
+    for container in "$MASTER_CONTAINER" "$NODE2_CONTAINER" "$NODE3_CONTAINER" "$NFS_CONTAINER"; do
         if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
             echo -e "${RED}Error: Container $container is not running${NC}"
             echo -e "${YELLOW}Start the cluster first:${NC}"
@@ -297,6 +304,72 @@ run_cluster_install() {
     echo -e "  ${GREEN}✓${NC} Cluster installation complete"
 }
 
+# Function to set up NFS server on the NFS container
+setup_nfs_server() {
+    echo -e "${YELLOW}Setting up NFS server on $NFS_CONTAINER...${NC}"
+
+    # Create export directory writable by all (ES container UID 1000 maps to nobody over NFS)
+    docker_exec "$NFS_CONTAINER" "mkdir -p /srv/es-snapshots && chmod 777 /srv/es-snapshots"
+
+    # Configure NFS exports
+    docker_exec "$NFS_CONTAINER" "cat > /etc/exports << 'EOF'
+/srv/es-snapshots *(rw,sync,no_subtree_check,no_root_squash)
+EOF"
+
+    docker_exec "$NFS_CONTAINER" "exportfs -ra"
+    docker_exec "$NFS_CONTAINER" "service nfs-kernel-server start || systemctl start nfs-kernel-server"
+
+    echo -e "  ${GREEN}✓${NC} NFS server configured and started"
+}
+
+# Function to install NFS client and mount on a cluster node
+install_nfs_client() {
+    local container=$1
+    local node_name=$2
+
+    echo -e "${YELLOW}Mounting NFS on $node_name...${NC}"
+
+    docker_exec "$container" "mkdir -p /mnt/es-snapshots"
+    docker_exec "$container" "mount -t nfs nfs:/srv/es-snapshots /mnt/es-snapshots"
+
+    # Verify mount
+    if docker_exec "$container" "mountpoint -q /mnt/es-snapshots"; then
+        echo -e "  ${GREEN}✓${NC} NFS mounted on $node_name at /mnt/es-snapshots"
+    else
+        echo -e "  ${RED}✗${NC} NFS mount failed on $node_name"
+        return 1
+    fi
+}
+
+# Function to configure ES to use NFS-backed snapshot path
+configure_es_nfs_mount() {
+    local container=$1
+    local node_name=$2
+
+    echo -e "${YELLOW}Configuring ES NFS mount on $node_name...${NC}"
+
+    # Add /usr/share/elasticsearch/snapshots to path.repo in elasticsearch.yml
+    docker_exec "$container" "
+        if ! grep -q '/usr/share/elasticsearch/snapshots' /opt/lme/config/elasticsearch.yml; then
+            sed -i '/\/usr\/share\/elasticsearch\/backups/a\\    - /usr/share/elasticsearch/snapshots' /opt/lme/config/elasticsearch.yml
+        fi
+    "
+
+    # Add bind mount to ES container via Quadlet drop-in
+    docker_exec "$container" "
+        mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
+        cat > /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf << 'EOF'
+[Container]
+Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots
+EOF
+    "
+
+    # Reload and restart ES
+    docker_exec "$container" "systemctl daemon-reload && systemctl restart lme-elasticsearch"
+
+    echo -e "  ${GREEN}✓${NC} ES configured with NFS mount on $node_name"
+}
+
 # =============================================================================
 # Main execution
 # =============================================================================
@@ -361,6 +434,33 @@ if [ "$SKIP_CLUSTER_INSTALL" = "true" ]; then
 else
     # Run elasticsearch.yml on cluster nodes
     run_cluster_install
+fi
+
+echo ""
+echo -e "${GREEN}Phase 5: NFS Setup${NC}"
+echo "==================="
+
+if [ "$SKIP_NFS" = "true" ]; then
+    echo -e "${YELLOW}Skipping NFS setup (--skip-nfs flag)${NC}"
+else
+    # Set up NFS server
+    setup_nfs_server
+
+    # Install NFS client and mount on each cluster node
+    for node_info in "$MASTER_CONTAINER:node1" "$NODE2_CONTAINER:node2" "$NODE3_CONTAINER:node3"; do
+        container="${node_info%%:*}"
+        node_name="${node_info##*:}"
+        install_nfs_client "$container" "$node_name"
+    done
+
+    # Configure ES on each node to use NFS mount
+    for node_info in "$MASTER_CONTAINER:node1" "$NODE2_CONTAINER:node2" "$NODE3_CONTAINER:node3"; do
+        container="${node_info%%:*}"
+        node_name="${node_info##*:}"
+        configure_es_nfs_mount "$container" "$node_name"
+    done
+
+    echo -e "  ${GREEN}✓${NC} NFS setup complete on all nodes"
 fi
 
 echo ""

@@ -133,11 +133,11 @@
   delegate_to: "{{ groups['elasticsearch'][0] }}"
 
 # --- Check 4: Create pre-upgrade snapshot ---
-# TODO: Once snapshot infrastructure is confirmed for clusters, flip the default
-# to create_pre_upgrade_snapshot=true (opt-out instead of opt-in).
+# Snapshot infrastructure is confirmed (see snapshot_elasticsearch.yml and SNAPSHOT_README.md).
+# Default is opt-out: pass -e create_pre_upgrade_snapshot=false to skip.
 
 - name: "Pre-check: Create pre-upgrade snapshot"
-  when: create_pre_upgrade_snapshot | default(false) | bool
+  when: create_pre_upgrade_snapshot | default(true) | bool
   block:
     - name: "Pre-check: Register snapshot repository"
       ansible.builtin.uri:
@@ -190,8 +190,8 @@
 
 - name: "Pre-check: Snapshot skipped"
   ansible.builtin.debug:
-    msg: "Pre-upgrade snapshot was not requested. To create one, pass -e create_pre_upgrade_snapshot=true"
-  when: not (create_pre_upgrade_snapshot | default(false) | bool)
+    msg: "Pre-upgrade snapshot was skipped. To re-enable, omit -e create_pre_upgrade_snapshot=false"
+  when: not (create_pre_upgrade_snapshot | default(true) | bool)
   run_once: true
   delegate_to: "{{ groups['elasticsearch'][0] }}"
 
@@ -208,7 +208,7 @@
       - "Nodes: {{ pre_check_health.json.number_of_nodes }}"
       - "ES version: {{ pre_check_nodes.json.nodes.values() | map(attribute='version') | first }}"
       - "Max disk usage: {{ pre_check_disk_percents | max }}% (threshold: {{ disk_space_threshold_percent }}%)"
-      - "Snapshot: {{ snapshot_name if (create_pre_upgrade_snapshot | default(false) | bool) else 'SKIPPED (pass -e create_pre_upgrade_snapshot=true to enable)' }}"
+      - "Snapshot: {{ snapshot_name if (create_pre_upgrade_snapshot | default(true) | bool) else 'SKIPPED (omit -e create_pre_upgrade_snapshot=false to enable)' }}"
       - ""
       - "Upgrade may proceed."
   run_once: true

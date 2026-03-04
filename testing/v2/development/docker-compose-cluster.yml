@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   node1:
     build:
@@ -127,6 +125,43 @@ services:
       - "9302:9300"
     networks:
       - lme-cluster-network
+
+  nfs:
+    build:
+      context: ../../../
+      dockerfile: testing/v2/development/Dockerfile
+      target: ubuntu
+      args:
+        USER_ID: "${HOST_UID:-1001}"
+        GROUP_ID: "${HOST_GID:-1001}"
+    container_name: lme_cluster_nfs
+    hostname: nfs
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
+    privileged: true
+    user: root
+    stop_signal: SIGRTMIN+3
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
+    volumes:
+      - nfs-export:/srv/es-snapshots
+    environment:
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US:en
+      - LC_ALL=en_US.UTF-8
+      - container=docker
+      - NODE_NAME=nfs
+      - NODE_ROLE=nfs
+    command: ["/lib/systemd/systemd", "--system"]
+    networks:
+      - lme-cluster-network
+
+volumes:
+  nfs-export:
 
 networks:
   lme-cluster-network:
