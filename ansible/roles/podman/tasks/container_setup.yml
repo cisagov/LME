@@ -47,8 +47,8 @@
 - name: Set podman secret passwords
   shell: |
     source /root/.profile 
-    password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
-    while ! echo -n $password | grep -Eq '[$@!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30); echo $password;done
+    password=$(</dev/urandom tr -dc 'A-Za-z0-9_.-' | head -c30)
+    while ! echo -n "$password" | grep -Eq '[_.-]+';do password=$(</dev/urandom tr -dc 'A-Za-z0-9_.-' | head -c30);done
     echo -n $password | podman secret create --driver shell --replace "{{ item }}" -
   args:
     executable: /bin/bash
