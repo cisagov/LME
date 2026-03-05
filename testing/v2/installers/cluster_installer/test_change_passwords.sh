@@ -227,8 +227,14 @@ wait_for_wazuh() {
         done
 
         if $all_ready && echo "$output" | grep -q "is running"; then
-            echo -e "  ${GREEN}Wazuh daemons ready${NC}"
-            return 0
+            # Also verify the Wazuh API is actually accepting connections
+            local api_code
+            api_code=$(ssh_master "curl -sk -o /dev/null -w '%{http_code}' https://localhost:55000/" 2>/dev/null || echo "000")
+            if [ "$api_code" = "401" ] || [ "$api_code" = "200" ]; then
+                echo -e "  ${GREEN}Wazuh daemons ready${NC}"
+                return 0
+            fi
+            # API not ready yet, continue waiting
         fi
 
         if [ "$i" -lt "$retries" ]; then
