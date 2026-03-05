@@ -8,9 +8,9 @@
 #   2. ansible-playbook ansible/convert_to_cluster.yml  (run conversion)
 #
 # Usage:
-#   sudo bash scripts/convert_to_cluster.sh
-#   sudo bash scripts/convert_to_cluster.sh --skip-inventory   # if inventory already exists
-#   sudo bash scripts/convert_to_cluster.sh --skip-prompts     # for CI / non-interactive
+#   bash scripts/convert_to_cluster.sh
+#   bash scripts/convert_to_cluster.sh --skip-inventory   # if inventory already exists
+#   bash scripts/convert_to_cluster.sh --skip-prompts     # for CI / non-interactive
 
 # Colors for better readability
 GREEN='\033[0;32m'
@@ -68,9 +68,9 @@ echo
 # Pre-flight checks
 echo -e "${BLUE}Running pre-flight checks...${NC}"
 
-# Check we are root
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}ERROR: This script must be run as root (sudo).${NC}"
+# Check the user can sudo (needed for ansible become and extract_secrets.sh)
+if ! sudo -n true 2>/dev/null; then
+    echo -e "${RED}ERROR: This script requires passwordless sudo. Please configure sudo or run 'sudo -v' first.${NC}"
     exit 1
 fi
 
@@ -83,10 +83,10 @@ fi
 # Check Elasticsearch is responding
 echo -e "${BLUE}Checking Elasticsearch health...${NC}"
 export PATH=$PATH:/nix/var/nix/profiles/default/bin
-# extract_secrets.sh requires podman and ansible-vault on PATH; source root's
+# extract_secrets.sh requires podman and ansible-vault on PATH; source the
 # profile first so that nix-installed tools are visible.
-if [ -f /root/.profile ]; then
-    . /root/.profile 2>/dev/null || true
+if [ -f "$HOME/.profile" ]; then
+    . "$HOME/.profile" 2>/dev/null || true
 fi
 source "$LME_DIR/scripts/extract_secrets.sh" -q 2>/dev/null
 if [ -z "$elastic" ]; then
@@ -155,7 +155,7 @@ if [ "$SKIP_PROMPTS" = false ]; then
 fi
 
 # Build ansible-playbook command
-ANSIBLE_CMD="ansible-playbook -i $INVENTORY_FILE $PLAYBOOK"
+ANSIBLE_CMD="ansible-playbook --become -i $INVENTORY_FILE $PLAYBOOK"
 if [ "$SKIP_PROMPTS" = true ]; then
     ANSIBLE_CMD="$ANSIBLE_CMD -e skip_prompts=true"
 fi
@@ -173,7 +173,7 @@ if [ $RESULT -eq 0 ]; then
     echo -e "${GREEN}===============================================${NC}"
     echo
     echo -e "${BLUE}Verify your cluster with:${NC}"
-    echo -e "  source /opt/lme/scripts/extract_secrets.sh -q"
+    echo -e "  source /opt/lme/scripts/extract_secrets.sh -p"
     echo -e "  curl -sk -u elastic:\$elastic https://localhost:9200/_cluster/health?pretty"
   echo -e "  curl -sk -u elastic:\$elastic https://localhost:9200/_cat/nodes?v"
 else

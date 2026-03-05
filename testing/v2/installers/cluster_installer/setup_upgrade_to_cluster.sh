@@ -367,12 +367,6 @@ if [ "$ES_HEALTHY" != "true" ]; then
 fi
 echo -e "${GREEN}Single-node install complete${NC}"
 
-# copy lme-user's SSH keys to root so that convert_to_cluster.sh (which runs as
-# root via sudo) can SSH to the cluster data nodes
-echo -e "${YELLOW}Copying SSH keys to root on master (needed for sudo ansible)...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "sudo mkdir -p /root/.ssh && sudo cp ~/.ssh/id_rsa ~/.ssh/id_rsa.pub ~/.ssh/known_hosts /root/.ssh/ && sudo chmod 600 /root/.ssh/id_rsa && sudo chmod 644 /root/.ssh/id_rsa.pub /root/.ssh/known_hosts"
-echo -e "${GREEN}Root SSH keys configured${NC}"
-
 ###############################################################################
 # Phase 2: Prepare cluster inventory and run upgrade
 ###############################################################################
@@ -434,7 +428,7 @@ ssh "${LME_USER}@${MASTER_IP}" "cat ~/LME/ansible/inventory/cluster.yml"
 
 # Run the upgrade from single-node to cluster
 echo -e "${YELLOW}Running upgrade to cluster (this may take a while)...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && sudo bash scripts/convert_to_cluster.sh --skip-inventory --skip-prompts"
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && bash scripts/convert_to_cluster.sh --skip-inventory --skip-prompts"
 echo -e "${GREEN}Upgrade to cluster complete${NC}"
 
 echo ""

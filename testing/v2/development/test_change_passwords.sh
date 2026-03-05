@@ -140,7 +140,6 @@ docker_exec_as_lme_user "$MASTER_CONTAINER" "
     ansible-playbook -i ansible/inventory/cluster.yml ansible/change_passwords.yml \
         -e lme_user=elastic \
         -e lme_password='${TEST_PASSWORD}' \
-        -e offline_mode=true \
         ${ANSIBLE_OPTS}
 "
 echo -e "  ${GREEN}Playbook completed${NC}"
@@ -240,7 +239,6 @@ docker_exec_as_lme_user "$MASTER_CONTAINER" "
     ansible-playbook -i ansible/inventory/cluster.yml ansible/change_passwords.yml \
         -e lme_user=elastic \
         -e lme_password='${ORIGINAL_PASSWORD}' \
-        -e offline_mode=true \
         ${ANSIBLE_OPTS}
 "
 
