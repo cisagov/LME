@@ -74,8 +74,8 @@ if ! sudo -n true 2>/dev/null; then
     exit 1
 fi
 
-# Check LME is installed
-if [ ! -f /opt/lme/lme-environment.env ]; then
+# Check LME is installed (file may be root-owned, so use sudo)
+if ! sudo test -f /opt/lme/lme-environment.env; then
     echo -e "${RED}ERROR: LME does not appear to be installed (/opt/lme/lme-environment.env not found).${NC}"
     exit 1
 fi
