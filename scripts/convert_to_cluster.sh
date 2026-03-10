@@ -106,9 +106,22 @@ if [ $? -ne 0 ] || [ -z "$ES_HEALTH" ]; then
 fi
 
 NODE_COUNT=$(echo "$ES_HEALTH" | grep -o '"number_of_nodes":[0-9]*' | cut -d: -f2)
-if [ "$NODE_COUNT" != "1" ]; then
+echo -e "${BLUE}Current node count: $NODE_COUNT${NC}"
+
+# Check for partial upgrade state (quadlet already in cluster mode but not all nodes joined)
+QUADLET_FILE="/etc/containers/systemd/lme-elasticsearch.container"
+IS_SINGLE_NODE_CONFIG=$(sudo grep -c 'discovery.type=single-node' "$QUADLET_FILE" 2>/dev/null)
+[ -z "$IS_SINGLE_NODE_CONFIG" ] && IS_SINGLE_NODE_CONFIG=0
+PARTIAL_UPGRADE=false
+
+if [ "$IS_SINGLE_NODE_CONFIG" = "0" ] && [ "$NODE_COUNT" = "1" ]; then
+    PARTIAL_UPGRADE=true
+    echo -e "${YELLOW}PARTIAL UPGRADE DETECTED: The quadlet is already in cluster mode${NC}"
+    echo -e "${YELLOW}but only 1 node is present. Will resume the previous conversion.${NC}"
+    echo
+elif [ "$NODE_COUNT" != "1" ]; then
     echo -e "${RED}ERROR: This installation already has $NODE_COUNT nodes.${NC}"
-    echo -e "${RED}This script is intended for single-node installations only.${NC}"
+    echo -e "${RED}This script is intended for single-node installations or resuming a partial upgrade.${NC}"
     exit 1
 fi
 
@@ -139,6 +152,50 @@ if [ ! -f "$INVENTORY_FILE" ]; then
     echo -e "${RED}ERROR: Cluster inventory not found at $INVENTORY_FILE${NC}"
     exit 1
 fi
+
+# Step 1.5: Verify SSH connectivity to remote cluster nodes
+echo -e "${BLUE}Checking SSH connectivity to cluster nodes...${NC}"
+SSH_FAILED=false
+# Extract ansible_host values for non-local hosts from the inventory
+REMOTE_HOSTS=$(python3 -c "
+import yaml, sys
+with open('$INVENTORY_FILE') as f:
+    inv = yaml.safe_load(f)
+children = inv.get('all', {}).get('children', {})
+es_hosts = children.get('elasticsearch', {}).get('hosts', {})
+for name, vars in es_hosts.items():
+    if vars.get('ansible_connection') == 'local':
+        continue
+    host = vars.get('ansible_host', name)
+    user = vars.get('ansible_user', 'lme-user')
+    print(f'{user}@{host}')
+" 2>/dev/null)
+
+if [ -n "$REMOTE_HOSTS" ]; then
+    for target in $REMOTE_HOSTS; do
+        echo -n "  Testing SSH to $target... "
+        if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$target" echo ok 2>/dev/null; then
+            echo -e "${GREEN}OK${NC}"
+        else
+            echo -e "${RED}FAILED${NC}"
+            SSH_FAILED=true
+        fi
+    done
+    echo
+    if [ "$SSH_FAILED" = true ]; then
+        echo -e "${RED}ERROR: SSH connectivity check failed for one or more cluster nodes.${NC}"
+        echo -e "${YELLOW}Please ensure:${NC}"
+        echo -e "${YELLOW}  1. SSH keys are distributed to all cluster nodes${NC}"
+        echo -e "${YELLOW}  2. The remote user can accept SSH connections${NC}"
+        echo -e "${YELLOW}  3. sshd is running on all cluster nodes${NC}"
+        echo -e "${YELLOW}Example: ssh-copy-id lme-user@<node-ip>${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}SSH connectivity verified to all cluster nodes.${NC}"
+else
+    echo -e "${YELLOW}No remote hosts found in inventory (all local connections).${NC}"
+fi
+echo
 
 echo
 echo -e "${YELLOW}Step 2: Run conversion playbook${NC}"
