@@ -78,14 +78,6 @@
             Status: {{ es_health.json.status }}
             Number of nodes: {{ es_health.json.number_of_nodes }}
 
-    - name: Verify this is a single-node installation
-      assert:
-        that:
-          - es_health.json.number_of_nodes == 1
-        fail_msg: >
-          This installation already has {{ es_health.json.number_of_nodes }} nodes.
-          This playbook is intended for converting single-node installations only.
-
     - name: Check current discovery type from quadlet file
       ansible.builtin.shell: |
         grep -c 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container || echo "0"
@@ -94,13 +86,51 @@
       register: discovery_check
       changed_when: false
 
-    - name: Verify current config is single-node
+    - name: Detect partial upgrade state
+      ansible.builtin.set_fact:
+        is_single_node_config: "{{ discovery_check.stdout | trim | int > 0 }}"
+        is_single_node_cluster: "{{ es_health.json.number_of_nodes == 1 }}"
+        expected_node_count: "{{ groups['elasticsearch'] | length }}"
+        is_partial_upgrade: >-
+          {{ (discovery_check.stdout | trim | int == 0) and
+             (es_health.json.number_of_nodes | int < (groups['elasticsearch'] | length)) }}
+
+    - name: Display detected state
+      debug:
+        msg: |
+          Detected state:
+            Quadlet has discovery.type=single-node: {{ is_single_node_config }}
+            Current node count: {{ es_health.json.number_of_nodes }}
+            Expected node count: {{ expected_node_count }}
+            Partial upgrade detected: {{ is_partial_upgrade }}
+
+    - name: Verify this is a single-node installation or partial upgrade
+      assert:
+        that:
+          - es_health.json.number_of_nodes | int < (groups['elasticsearch'] | length) | int
+        fail_msg: >
+          This installation already has {{ es_health.json.number_of_nodes }} nodes
+          (expected {{ groups['elasticsearch'] | length }}).
+          The cluster appears to be fully formed. This playbook is intended for
+          converting single-node installations or resuming a partial upgrade.
+
+    - name: Verify current config is single-node (skip if partial upgrade)
       assert:
         that:
           - discovery_check.stdout | trim | int > 0
         fail_msg: >
           The current Elasticsearch quadlet does not contain discovery.type=single-node.
           This host may already be configured for cluster mode.
+      when: not (is_partial_upgrade | bool)
+
+    - name: Notify resuming partial upgrade
+      debug:
+        msg: >
+          RESUMING PARTIAL UPGRADE: The quadlet is already in cluster mode but only
+          {{ es_health.json.number_of_nodes }} of {{ expected_node_count }} nodes are present.
+          Skipping Phase 2 (reconfigure master) and proceeding with certificate
+          regeneration and node deployment.
+      when: is_partial_upgrade | bool
 
     - name: Get valid backup choice
       pause:
@@ -148,6 +178,22 @@
         msg: "Found {{ pre_conversion_indices.json | length }} existing indices that will be migrated to replicas=1"
 
 ###############################################################################
+# Play 1b: Verify SSH connectivity to all remote cluster nodes
+###############################################################################
+- name: "Phase 1b: Verify SSH connectivity to cluster nodes"
+  hosts: "elasticsearch:!{{ groups['elasticsearch'][0] }}"
+  gather_facts: false
+  become: no
+  tasks:
+    - name: Test SSH connectivity
+      ansible.builtin.ping:
+      register: ssh_test
+
+    - name: Confirm SSH access
+      debug:
+        msg: "SSH connectivity confirmed to {{ inventory_hostname }} ({{ ansible_host }})"
+
+###############################################################################
 # Play 2: Reconfigure master node for cluster mode
 ###############################################################################
 - name: "Phase 2: Reconfigure master for cluster mode"
@@ -174,10 +220,16 @@
     es_is_initial_master: true
 
   tasks:
+    - name: Skip Phase 2 (already in cluster mode from previous partial upgrade)
+      debug:
+        msg: "Skipping Phase 2 — quadlet is already configured for cluster mode."
+      when: hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool
+
     - name: Stop LME service
       systemd:
         name: lme
         state: stopped
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
     - name: Wait for containers to stop
       ansible.builtin.shell: |
@@ -190,6 +242,7 @@
       retries: 12
       delay: 5
       ignore_errors: yes
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
     - name: Re-render Elasticsearch quadlet with cluster settings
       template:
@@ -198,6 +251,7 @@
         owner: root
         group: root
         mode: '0644'
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
     - name: Verify quadlet was updated (no longer single-node)
       ansible.builtin.shell: |
@@ -206,16 +260,19 @@
         executable: /bin/bash
       register: post_render_check
       changed_when: false
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
     - name: Assert quadlet is now in cluster mode
       assert:
         that:
           - post_render_check.stdout | trim | int == 0
         fail_msg: "Quadlet still contains discovery.type=single-node after re-rendering. Check template variables."
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
     - name: Display quadlet update confirmation
       debug:
         msg: "Elasticsearch quadlet re-rendered with cluster settings (seed_hosts, publish_host, transport port 9300)"
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
 ###############################################################################
 # Play 3: Regenerate certificates with all cluster node IPs
@@ -247,11 +304,13 @@
     - name: Reload systemd daemon
       systemd:
         daemon_reload: yes
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
     - name: Start LME service (master with cluster config)
       systemd:
         name: lme
         state: started
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
     - name: Wait for Elasticsearch to be ready on master
       uri:
@@ -269,7 +328,7 @@
 
     - name: Display master restart confirmation
       debug:
-        msg: "Master node restarted in cluster mode and Elasticsearch is responding"
+        msg: "{{ 'Master already running in cluster mode (partial upgrade resume)' if (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool) else 'Master node restarted in cluster mode and Elasticsearch is responding' }}"
 
 ###############################################################################
 # Play 5: Deploy Elasticsearch to cluster data nodes
@@ -471,6 +530,25 @@
         name: lme-elasticsearch
         state: started
         enabled: true
+
+    - name: Wait for cluster state to be recovered on this node
+      uri:
+        url: "https://127.0.0.1:9200/_cluster/health"
+        method: GET
+        user: elastic
+        password: "{{ global_secrets.elastic }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: [200]
+      register: node_cluster_health
+      until: >
+        node_cluster_health.status is defined and
+        node_cluster_health.status == 200 and
+        node_cluster_health.json is defined and
+        node_cluster_health.json.status is defined and
+        node_cluster_health.json.status != 'red'
+      retries: 60
+      delay: 10
 
     - name: Run Elasticsearch post-install configuration
       ansible.builtin.include_role:
