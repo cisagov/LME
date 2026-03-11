@@ -102,8 +102,13 @@ source exporter.txt
     -l $LOCATION \
     -ast $AUTO_SHUTDOWN_TIME \
     -c 3 \
+    -w \
     -y
 ```
+
+The `-w` flag adds a Windows server for testing agent enrollment.
+
+Wait at least 2 minutes after the build completes for VMs to fully boot before proceeding. SSH connections will fail if VMs are not ready.
 
 Set additional variables after build:
 
@@ -175,13 +180,17 @@ cd ~/LME/ansible && ansible-galaxy install -r requirements.yml
 
 ### 7. Install Main Server (First Node)
 
-Run `site.yml` on master (ansible elevates with `become: yes`):
+Run `site.yml` on master with cluster mode enabled (ansible elevates with `become: yes`):
 
 ```bash
-cd ~/LME && ansible-playbook ansible/site.yml
+cd ~/LME && ansible-playbook ansible/site.yml \
+  -e lme_cluster_mode=true \
+  -e 'es_cluster_seed_hosts=["10.1.0.5","10.1.0.10","10.1.0.11"]' \
+  -e es_master_publish_host=10.1.0.5
 ```
 
-This installs: base → nix → podman → elasticsearch → kibana → dashboards → wazuh → fleet
+Replace the IPs with your actual master and node private IPs. This installs the full LME stack
+on the master with cluster discovery enabled: base → nix → podman → elasticsearch → kibana → dashboards → wazuh → fleet
 
 ### 8. Create Cluster Inventory
 
@@ -189,16 +198,36 @@ Create inventory file at `~/LME/ansible/inventory/cluster.yml`:
 
 ```yaml
 all:
+  vars:
+    es_master_host: 10.1.0.5
+    es_cluster_seed_hosts:
+      - 10.1.0.5
+      - 10.1.0.10
+      - 10.1.0.11
+
   children:
     elasticsearch:
       hosts:
+        # Master must be first (handles cert generation)
+        es1:
+          ansible_host: 10.1.0.5
+          ansible_connection: local
+          es_node_name: lme-elasticsearch
+          es_is_initial_master: true
+          es_publish_host: 10.1.0.5
         es2:
           ansible_host: 10.1.0.10
           ansible_user: lme-user
+          es_node_name: es2
+          es_publish_host: 10.1.0.10
         es3:
           ansible_host: 10.1.0.11
           ansible_user: lme-user
+          es_node_name: es3
+          es_publish_host: 10.1.0.11
 ```
+
+Replace IPs with your actual node private IPs. The `es_cluster_seed_hosts` values must match the `es_publish_host` values.
 
 ### 9. Install Cluster Nodes
 
