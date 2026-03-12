@@ -73,6 +73,67 @@
       register: datastream_cleanup_result
       no_log: "{{ not debug_mode }}"
       ignore_errors: yes
+
+    - name: Get Wazuh legacy index template
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_legacy_template
+      no_log: "{{ not debug_mode }}"
+
+    - name: Update Wazuh legacy template replica count
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ wazuh_legacy_template.json.wazuh
+             | combine({'settings': {'index': {'number_of_replicas': elasticsearch_number_of_replicas}}}, recursive=True) }}
+        status_code: [200, 201]
+      when: wazuh_legacy_template.status == 200
+      no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
+
+    - name: Get Wazuh composable index templates
+      uri:
+        url: "{{ local_es_url }}/_index_template/wazuh-states-*"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_composable_templates
+      no_log: "{{ not debug_mode }}"
+
+    - name: Update Wazuh composable index template replica counts
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item.name }}"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ item.index_template
+             | combine({'template': {'settings': {'index': {'number_of_replicas': elasticsearch_number_of_replicas}}}}, recursive=True) }}
+        status_code: [200, 201]
+      loop: "{{ wazuh_composable_templates.json.index_templates | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: wazuh_composable_templates.status == 200
+      no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
   when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
 
 - name: Display cleanup results

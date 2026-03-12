@@ -649,6 +649,67 @@
       debug:
         msg: "{{ 'Successfully updated existing indices to replicas=1' if replica_update.status == 200 else 'Warning: Failed to update some index replicas (some system indices may not allow changes)' }}"
 
+    - name: Get Wazuh legacy index template
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_legacy_template
+      no_log: true
+
+    - name: Update Wazuh legacy template to replicas=1
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ wazuh_legacy_template.json.wazuh
+             | combine({'settings': {'index': {'number_of_replicas': '1'}}}, recursive=True) }}
+        status_code: [200, 201]
+      when: wazuh_legacy_template.status == 200
+      no_log: true
+      ignore_errors: yes
+
+    - name: Get Wazuh composable index templates
+      uri:
+        url: "{{ local_es_url }}/_index_template/wazuh-states-*"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_composable_templates
+      no_log: true
+
+    - name: Update Wazuh composable index templates to replicas=1
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item.name }}"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ item.index_template
+             | combine({'template': {'settings': {'index': {'number_of_replicas': '1'}}}}, recursive=True) }}
+        status_code: [200, 201]
+      loop: "{{ wazuh_composable_templates.json.index_templates | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: wazuh_composable_templates.status == 200
+      no_log: true
+      ignore_errors: yes
+
     - name: Wait for cluster health to stabilize
       uri:
         url: "{{ local_es_url }}/_cluster/health?wait_for_status=yellow&timeout=120s"
