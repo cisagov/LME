@@ -315,8 +315,16 @@ Before removing a node:
 2. Remove from cluster inventory
 3. Update cluster configuration on remaining nodes
 
+### Recovering a Failed Node
+
+If a child node (`node2`, `node3`, etc.) fails and needs to be replaced, see
+[CLUSTER_NODE_RECOVERY.md](CLUSTER_NODE_RECOVERY.md) for the full procedure
+covering container replacement, SSH re-establishment, Ansible rejoin, and
+NFS snapshot reconfiguration.
+
 ## Additional Resources
 
 - [Elasticsearch Cluster Documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-discovery.html)
 - [LME Official Documentation](https://github.com/cisagov/LME)
+- [Cluster Node Recovery](CLUSTER_NODE_RECOVERY.md) — Single node failure recovery procedure
 - For automated Azure deployment, see: `testing/v2/installers/cluster_installer/setup_cluster.sh`
