@@ -28,12 +28,12 @@
   register: result
   until: result.status is defined and result.status == 200
   retries: 60
-  delay: 10
+  delay: 15
   ignore_errors: yes
 
 - name: Check if Elasticsearch is ready
   fail:
-    msg: "Elasticsearch is not ready after 10 minutes. Please check the LME service and Elasticsearch logs."
+    msg: "Elasticsearch is not ready after 15 minutes. Please check the LME service and Elasticsearch logs."
   when: result.status is not defined or result.status != 200
 
 - name: Create readonly role using uri module

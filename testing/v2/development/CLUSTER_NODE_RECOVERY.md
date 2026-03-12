@@ -21,6 +21,22 @@ that shards rebalance automatically.
 Throughout this guide, **`node2`** is used as the example failed node.
 Substitute `node3` / `lme_cluster_node3` / `es3` where appropriate.
 
+## Run Conventions
+To reproduce, run these commands from the host in
+`testing/v2/development` and set the target node variables once:
+
+```bash
+cd testing/v2/development
+
+# Change these only if recovering node3 instead of node2
+export FAILED_NODE_SERVICE="node2"
+export FAILED_NODE_CONTAINER="lme_cluster_node2"
+export FAILED_NODE_HOST="node2"
+export FAILED_NODE_INVENTORY="es2"
+```
+
+Use the commands below exactly as written after exporting variables.
+
 ## Step 1: Verify Baseline Cluster Health
 
 Before simulating or responding to a failure, confirm the cluster is healthy:
@@ -40,13 +56,16 @@ docker exec lme_cluster_node1 bash -c '
 Expected: `status: green`, `number_of_nodes: 3`, and shards distributed across
 all three nodes with no `UNASSIGNED` entries.
 
+If this check does not pass, stop and re-run `bash install_cluster.sh` before
+continuing.
+
 ## Step 2: Simulate Node Failure
 
 Stop and remove the container to simulate an unrecoverable node failure:
 
 ```bash
-docker stop lme_cluster_node2
-docker rm lme_cluster_node2
+docker stop "$FAILED_NODE_CONTAINER"
+docker rm "$FAILED_NODE_CONTAINER"
 ```
 
 ### What happens automatically
@@ -74,17 +93,28 @@ docker exec lme_cluster_node1 bash -c '
 
 Expected: `number_of_nodes: 2`, `status: yellow`, `unassigned_shards > 0`.
 
+If node count is still 3, the failed container was not removed successfully.
+
 ## Step 3: Recreate the Container
 
 Bring the replacement container up with the same hostname and network identity:
 
 ```bash
-cd testing/v2/development
-docker compose -f docker-compose-cluster.yml up -d --build --force-recreate node2
+docker compose -f docker-compose-cluster.yml up -d --build --force-recreate "$FAILED_NODE_SERVICE"
 ```
 
 The new container starts with a fresh filesystem — SSH, Ansible artifacts, and
 NFS mounts are all gone.
+
+Wait for systemd and package manager readiness before proceeding:
+
+```bash
+docker exec "$FAILED_NODE_CONTAINER" bash -c '
+  until systemctl is-system-running --wait >/dev/null 2>&1 || [ -d /run/systemd/system ]; do
+    sleep 2
+  done
+'
+```
 
 ## Step 4: Reinstall SSH and Restore Trust
 
@@ -94,7 +124,7 @@ Ansible can reach it.
 ### 4a. Install and start SSH on the replacement node
 
 ```bash
-docker exec lme_cluster_node2 bash -c '
+docker exec "$FAILED_NODE_CONTAINER" bash -c '
   apt-get update && apt-get install -y openssh-server
   mkdir -p /home/lme-user/.ssh && chmod 700 /home/lme-user/.ssh
   chown lme-user:lme-user /home/lme-user/.ssh
@@ -108,7 +138,7 @@ docker exec lme_cluster_node2 bash -c '
 ```bash
 PUBKEY=$(docker exec -u lme-user lme_cluster_node1 cat /home/lme-user/.ssh/id_rsa.pub)
 
-docker exec lme_cluster_node2 bash -c "
+docker exec "$FAILED_NODE_CONTAINER" bash -c "
   echo '$PUBKEY' > /home/lme-user/.ssh/authorized_keys
   chmod 600 /home/lme-user/.ssh/authorized_keys
   chown lme-user:lme-user /home/lme-user/.ssh/authorized_keys
@@ -122,8 +152,8 @@ rescan:
 
 ```bash
 docker exec -u lme-user lme_cluster_node1 bash -c '
-  ssh-keygen -R node2 2>/dev/null || true
-  ssh-keyscan -H node2 >> ~/.ssh/known_hosts 2>/dev/null
+  ssh-keygen -R "'"$FAILED_NODE_HOST"'" 2>/dev/null || true
+  ssh-keyscan -H "'"$FAILED_NODE_HOST"'" >> ~/.ssh/known_hosts 2>/dev/null
 '
 ```
 
@@ -131,10 +161,10 @@ docker exec -u lme-user lme_cluster_node1 bash -c '
 
 ```bash
 docker exec -u lme-user lme_cluster_node1 bash -c \
-  'ssh -o BatchMode=yes lme-user@node2 hostname'
+  'ssh -o BatchMode=yes lme-user@'"$FAILED_NODE_HOST"' hostname'
 ```
 
-Expected output: `node2`.
+Expected output: the value of `FAILED_NODE_HOST` (for example `node2`).
 
 ## Step 5: Run Ansible to Rejoin the Node
 
@@ -143,12 +173,16 @@ certificates, and Elasticsearch to the target node. Use `--limit` to target
 only the replacement:
 
 ```bash
+# Fix /tmp/ansible-tmp ownership if it exists from a prior root-owned run
+docker exec lme_cluster_node1 bash -c 'chmod 777 /tmp/ansible-tmp 2>/dev/null; true'
+
 docker exec -u lme-user lme_cluster_node1 bash -c '
   cd ~/LME
+  mkdir -p /tmp/ansible-tmp
   ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp \
   ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp \
   ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml \
-    --limit es2
+    --limit '"$FAILED_NODE_INVENTORY"'
 '
 ```
 
@@ -171,6 +205,41 @@ Once Elasticsearch starts on the replacement node and connects to the cluster:
 4. The cluster status transitions from `yellow` back to **`green`** once all
    shards are allocated.
 
+### Handling `red` status after rejoin (lost primary shards)
+
+If the cluster shows `red` after the node rejoins, it is likely because a
+primary shard existed only on the failed node with no replica (e.g., Wazuh
+indices with 0 replicas). Check which shard is unassigned:
+
+```bash
+docker exec lme_cluster_node1 bash -c '
+  source /opt/lme/scripts/extract_secrets.sh -q
+  curl -sk -u "elastic:$elastic" "https://localhost:9200/_cat/shards?v&s=state" | grep UNASSIGNED
+'
+```
+
+If the unassigned shard is a non-critical index (like
+`wazuh-states-vulnerabilities-*`) and the data is acceptable to lose, allocate
+an empty primary to restore `green` status:
+
+```bash
+docker exec lme_cluster_node1 bash -c '
+  source /opt/lme/scripts/extract_secrets.sh -q
+  curl -sk -u "elastic:$elastic" -X POST \
+    "https://localhost:9200/_cluster/reroute?pretty" \
+    -H "Content-Type: application/json" \
+    -d "{\"commands\": [{\"allocate_empty_primary\": {
+      \"index\": \"<INDEX_NAME>\",
+      \"shard\": 0,
+      \"node\": \"'"$FAILED_NODE_INVENTORY"'\",
+      \"accept_data_loss\": true
+    }}]}"
+'
+```
+
+Replace `<INDEX_NAME>` with the actual index name from the `_cat/shards`
+output above.
+
 ## Step 6: Restore NFS Snapshot Mount
 
 The NFS snapshot configuration is set up by `install_cluster.sh` outside of
@@ -179,7 +248,7 @@ Ansible, so it must be reapplied manually on the replacement node.
 ### 6a. Mount the NFS share
 
 ```bash
-docker exec lme_cluster_node2 bash -c '
+docker exec "$FAILED_NODE_CONTAINER" bash -c '
   mkdir -p /mnt/es-snapshots
   mount -t nfs nfs:/srv/es-snapshots /mnt/es-snapshots
 '
@@ -188,13 +257,13 @@ docker exec lme_cluster_node2 bash -c '
 Verify the mount:
 
 ```bash
-docker exec lme_cluster_node2 bash -c 'mountpoint -q /mnt/es-snapshots && echo "NFS mounted" || echo "NFS NOT mounted"'
+docker exec "$FAILED_NODE_CONTAINER" bash -c 'mountpoint -q /mnt/es-snapshots && echo "NFS mounted" || echo "NFS NOT mounted"'
 ```
 
 ### 6b. Add the snapshot path to Elasticsearch config
 
 ```bash
-docker exec lme_cluster_node2 bash -c "
+docker exec "$FAILED_NODE_CONTAINER" bash -c "
   if ! grep -q '/usr/share/elasticsearch/snapshots' /opt/lme/config/elasticsearch.yml; then
     sed -i '/\/usr\/share\/elasticsearch\/backups/a\\    - /usr/share/elasticsearch/snapshots' /opt/lme/config/elasticsearch.yml
   fi
@@ -204,7 +273,7 @@ docker exec lme_cluster_node2 bash -c "
 ### 6c. Add the NFS volume to the ES container via Quadlet drop-in
 
 ```bash
-docker exec lme_cluster_node2 bash -c "
+docker exec "$FAILED_NODE_CONTAINER" bash -c "
   mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
   cat > /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf << 'EOF'
 [Container]
@@ -213,6 +282,14 @@ EOF
   systemctl daemon-reload && systemctl restart lme-elasticsearch
 "
 ```
+
+Verify Elasticsearch is running on the replacement node:
+
+```bash
+docker exec "$FAILED_NODE_CONTAINER" bash -c 'systemctl is-active lme-elasticsearch'
+```
+
+Expected output: `active`.
 
 ## Step 7: Validate Recovery
 
@@ -238,16 +315,18 @@ Expected:
 - `unassigned_shards: 0`
 - Shards distributed across all three nodes
 
-### 7b. Optional smoke tests
+### 7b. Required smoke tests
 
 Run the existing test scripts to verify snapshot and password functionality
 across all cluster nodes:
 
 ```bash
-cd testing/v2/development
 bash test_snapshot.sh
 bash test_change_passwords.sh
 ```
+
+Both scripts must end with `All tests passed.` for recovery to be considered
+successful.
 
 ## Caveats
 
