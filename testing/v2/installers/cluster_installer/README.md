@@ -245,6 +245,14 @@ This runs on each node: base → nix → podman → secrets_distribution → cer
 az group delete --name $RESOURCE_GROUP --yes --no-wait
 ```
 
+## Cluster Node Recovery (Azure)
+
+To simulate and recover from a node failure in an Azure cluster, see
+[CLUSTER_NODE_RECOVERY_AZURE.md](CLUSTER_NODE_RECOVERY_AZURE.md). That guide
+covers building a 3-node cluster with a spare VM, failing a node, then
+replacing it with the spare by updating the Ansible inventory and Elasticsearch
+discovery configuration from scratch.
+
 ## Notes
 
 - Master private IP: `10.1.0.5`
