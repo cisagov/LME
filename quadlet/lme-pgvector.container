@@ -11,6 +11,7 @@ WantedBy=default.target lme.service
 [Service]
 Restart=always
 TimeoutStartSec=60
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 
 [Container]
 ContainerName=lme-pgvector
