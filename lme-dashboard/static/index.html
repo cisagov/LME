@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LME Security Dashboard</title>
+
+  <!-- Tailwind CSS (CDN, no build step) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              900: '#0d1117',
+              800: '#161b22',
+              700: '#21262d',
+              600: '#30363d',
+              500: '#484f58',
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Consolas', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Alpine.js (CDN, ~15 kb) -->
+  <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    body { background-color: #0d1117; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #161b22; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+    /* chat message animation */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg-enter { animation: fadeSlideIn 0.2s ease; }
+
+    /* typing dots */
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%            { transform: translateY(-4px); }
+    }
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #58a6ff; margin: 0 2px; }
+    .dot:nth-child(1) { animation: bounce 1.2s infinite 0s; }
+    .dot:nth-child(2) { animation: bounce 1.2s infinite .2s; }
+    .dot:nth-child(3) { animation: bounce 1.2s infinite .4s; }
+  </style>
+</head>
+
+<body class="dark h-full text-gray-300 font-mono text-sm antialiased" x-data="dashboard()" x-init="init()">
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="bg-surface-800 border-b border-surface-600 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+  <div class="flex items-center gap-3">
+    <!-- shield icon -->
+    <svg class="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955
+               11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29
+               9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+    </svg>
+    <span class="text-white font-semibold tracking-wide">LME Security Dashboard</span>
+  </div>
+
+  <!-- status pills -->
+  <div class="flex items-center gap-3 text-xs">
+    <span x-cloak :class="health.elasticsearch === 'green' ? 'bg-green-900 text-green-300' :
+                           health.elasticsearch === 'yellow' ? 'bg-yellow-900 text-yellow-300' :
+                           'bg-red-900 text-red-300'"
+          class="px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span class="w-1.5 h-1.5 rounded-full"
+            :class="health.elasticsearch === 'green' ? 'bg-green-400' :
+                    health.elasticsearch === 'yellow' ? 'bg-yellow-400' : 'bg-red-400'"></span>
+      ES: <span x-text="health.elasticsearch || '…'"></span>
+    </span>
+    <span :class="health.litellm === 'ok' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'"
+          class="px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span class="w-1.5 h-1.5 rounded-full"
+            :class="health.litellm === 'ok' ? 'bg-green-400' : 'bg-red-400'"></span>
+      LLM: <span x-text="health.litellm || '…'"></span>
+    </span>
+    <span :class="health.pgvector === 'ok' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'"
+          class="px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span class="w-1.5 h-1.5 rounded-full"
+            :class="health.pgvector === 'ok' ? 'bg-green-400' : 'bg-red-400'"></span>
+      pgvector: <span x-text="health.pgvector || '…'"></span>
+    </span>
+
+    <!-- auto-refresh toggle -->
+    <button @click="toggleAutoRefresh()"
+            :class="autoRefresh ? 'bg-blue-900 text-blue-300' : 'bg-surface-700 text-gray-400'"
+            class="px-2 py-0.5 rounded-full flex items-center gap-1 hover:opacity-80 transition">
+      <svg class="w-3 h-3" :class="autoRefresh ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Auto-refresh
+    </button>
+
+    <button @click="loadAll()"
+            class="px-2 py-0.5 rounded-full bg-surface-700 text-gray-400 hover:text-white hover:bg-surface-600 transition flex items-center gap-1">
+      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<!-- ── Main layout ─────────────────────────────────────────────────────────── -->
+<div class="flex h-[calc(100vh-57px)]">
+
+  <!-- LEFT: alerts panel -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- Tab bar + filters -->
+    <div class="bg-surface-800 border-b border-surface-600 px-4 pt-3 pb-0 flex items-end justify-between">
+      <div class="flex gap-1">
+        <button @click="activeTab = 'kibana'"
+                :class="activeTab === 'kibana' ? 'border-blue-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Kibana Alerts
+          <span x-show="kibana.total > 0" x-cloak
+                class="ml-1.5 bg-blue-900 text-blue-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="kibana.total"></span>
+        </button>
+        <button @click="activeTab = 'wazuh'"
+                :class="activeTab === 'wazuh' ? 'border-orange-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Wazuh Alerts
+          <span x-show="wazuh.total > 0" x-cloak
+                class="ml-1.5 bg-orange-900 text-orange-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="wazuh.total"></span>
+        </button>
+      </div>
+
+      <!-- filters -->
+      <div class="flex items-center gap-3 pb-2 text-xs">
+        <template x-if="activeTab === 'kibana'">
+          <div class="flex items-center gap-2">
+            <label class="text-gray-500">Min severity</label>
+            <select x-model="kibana.minSeverity" @change="loadKibana()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-blue-500">
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium" selected>Medium+</option>
+              <option value="low">Low+</option>
+            </select>
+            <label class="text-gray-500">Limit</label>
+            <select x-model.number="kibana.size" @change="loadKibana()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-blue-500">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="250">250</option>
+            </select>
+          </div>
+        </template>
+        <template x-if="activeTab === 'wazuh'">
+          <div class="flex items-center gap-2">
+            <label class="text-gray-500">Min level</label>
+            <select x-model.number="wazuh.minLevel" @change="loadWazuh()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-orange-500">
+              <option value="5">5 (notice)</option>
+              <option value="6">6</option>
+              <option value="7" selected>7 (medium)</option>
+              <option value="9">9 (high)</option>
+              <option value="12">12 (critical)</option>
+            </select>
+            <label class="text-gray-500">Limit</label>
+            <select x-model.number="wazuh.size" @change="loadWazuh()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-orange-500">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="250">250</option>
+            </select>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Alert list -->
+    <div class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+
+      <!-- loading spinner -->
+      <template x-if="(activeTab === 'kibana' && kibana.loading) || (activeTab === 'wazuh' && wazuh.loading)">
+        <div class="flex items-center justify-center h-32 text-gray-500">
+          <svg class="animate-spin w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Loading alerts…
+        </div>
+      </template>
+
+      <!-- error -->
+      <template x-if="activeTab === 'kibana' && kibana.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="kibana.error"></div>
+      </template>
+      <template x-if="activeTab === 'wazuh' && wazuh.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="wazuh.error"></div>
+      </template>
+
+      <!-- empty state -->
+      <template x-if="activeTab === 'kibana' && !kibana.loading && !kibana.error && kibana.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          No Kibana alerts at this severity level
+        </div>
+      </template>
+      <template x-if="activeTab === 'wazuh' && !wazuh.loading && !wazuh.error && wazuh.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          No Wazuh alerts at this level
+        </div>
+      </template>
+
+      <!-- ── Kibana alert cards ── -->
+      <template x-if="activeTab === 'kibana' && !kibana.loading">
+        <div class="space-y-2">
+          <template x-for="alert in kibana.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <!-- left -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.rule_name"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.host" x-cloak>
+                      <span class="text-gray-600">host:</span>
+                      <span class="text-gray-400" x-text="alert.host"></span>
+                    </span>
+                    <span x-show="alert.user" x-cloak>
+                      <span class="text-gray-600">user:</span>
+                      <span class="text-gray-400" x-text="alert.user"></span>
+                    </span>
+                    <span x-show="alert.src_ip" x-cloak>
+                      <span class="text-gray-600">src:</span>
+                      <span class="text-gray-400" x-text="alert.src_ip"></span>
+                    </span>
+                  </div>
+                  <p x-show="alert.reason" x-cloak class="mt-1 text-xs text-gray-500 line-clamp-1"
+                     x-text="alert.reason"></p>
+                </div>
+                <!-- actions -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'kibana')"
+                          class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition">
+                    <span x-text="alert._expanded ? 'Hide' : 'Details'"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- expanded detail -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.command">
+                  <div>
+                    <span class="text-gray-600">command:</span>
+                    <code class="ml-2 text-green-400 break-all" x-text="alert.command"></code>
+                  </div>
+                </template>
+                <template x-if="alert.dst_ip">
+                  <div>
+                    <span class="text-gray-600">dst_ip:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.dst_ip"></span>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis result -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-blue-900 px-3 py-2 bg-blue-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-blue-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Wazuh alert cards ── -->
+      <template x-if="activeTab === 'wazuh' && !wazuh.loading">
+        <div class="space-y-2">
+          <template x-for="alert in wazuh.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span class="bg-surface-700 text-gray-400 px-1.5 py-0.5 rounded text-xs"
+                          x-text="'L' + alert.level"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.rule_name"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.agent_name" x-cloak>
+                      <span class="text-gray-600">agent:</span>
+                      <span class="text-gray-400" x-text="alert.agent_name"></span>
+                    </span>
+                    <span x-show="alert.src_ip" x-cloak>
+                      <span class="text-gray-600">src:</span>
+                      <span class="text-gray-400" x-text="alert.src_ip"></span>
+                    </span>
+                    <span x-show="alert.rule_id" x-cloak>
+                      <span class="text-gray-600">rule:</span>
+                      <span class="text-gray-400" x-text="alert.rule_id"></span>
+                    </span>
+                  </div>
+                  <template x-if="alert.groups && alert.groups.length">
+                    <div class="mt-1 flex flex-wrap gap-1">
+                      <template x-for="g in alert.groups.slice(0,4)" :key="g">
+                        <span class="bg-surface-700 text-gray-500 px-1.5 py-0.5 rounded text-xs" x-text="g"></span>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'wazuh')"
+                          class="px-2 py-1 rounded bg-orange-900/50 text-orange-300 hover:bg-orange-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                          x-text="alert._expanded ? 'Hide' : 'Details'"></button>
+                </div>
+              </div>
+
+              <!-- expanded -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.full_log">
+                  <div>
+                    <span class="text-gray-600">log:</span>
+                    <code class="ml-2 text-green-400 break-all" x-text="alert.full_log"></code>
+                  </div>
+                </template>
+                <template x-if="alert.location">
+                  <div>
+                    <span class="text-gray-600">location:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.location"></span>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-orange-900 px-3 py-2 bg-orange-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-orange-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+    </div><!-- end alert list -->
+  </div><!-- end left panel -->
+
+  <!-- ── RIGHT: AI Chat panel ─────────────────────────────────────────────── -->
+  <div class="w-80 xl:w-96 shrink-0 bg-surface-800 border-l border-surface-600 flex flex-col">
+    <div class="px-4 py-3 border-b border-surface-600 flex items-center justify-between">
+      <div class="flex items-center gap-2 text-sm font-medium text-white">
+        <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0
+                   012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/>
+        </svg>
+        AI Assistant
+      </div>
+      <button @click="clearChat()" class="text-gray-600 hover:text-gray-400 text-xs transition">Clear</button>
+    </div>
+
+    <!-- messages -->
+    <div class="flex-1 overflow-y-auto px-3 py-3 space-y-3" x-ref="chatScroll">
+      <!-- welcome -->
+      <template x-if="chat.messages.length === 0">
+        <div class="text-center text-gray-600 text-xs mt-6 space-y-1">
+          <svg class="w-8 h-8 mx-auto mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4
+                     12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072
+                     0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0
+                     11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+          <p>Ask me about security events,<br>threat hunting, or MITRE ATT&amp;CK</p>
+          <p class="text-gray-700 mt-2">Or click <strong class="text-gray-600">Analyze</strong> on any alert</p>
+        </div>
+      </template>
+
+      <template x-for="(msg, i) in chat.messages" :key="i">
+        <div class="msg-enter" :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+          <div class="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed"
+               :class="msg.role === 'user'
+                 ? 'bg-blue-900/60 text-blue-100'
+                 : 'bg-surface-700 text-gray-300'">
+            <div class="whitespace-pre-wrap" x-text="msg.content"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- typing indicator -->
+      <template x-if="chat.thinking">
+        <div class="flex justify-start">
+          <div class="bg-surface-700 rounded-lg px-3 py-2">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- input -->
+    <div class="px-3 pb-3 pt-2 border-t border-surface-600">
+      <div class="flex gap-2">
+        <textarea
+          x-model="chat.input"
+          @keydown.enter.prevent="if (!$event.shiftKey) sendChat()"
+          rows="2"
+          placeholder="Ask anything… (Enter to send, Shift+Enter for newline)"
+          class="flex-1 bg-surface-700 border border-surface-500 rounded px-3 py-2 text-xs text-gray-300
+                 placeholder-gray-600 resize-none focus:outline-none focus:border-blue-500 transition"
+        ></textarea>
+        <button @click="sendChat()"
+                :disabled="chat.thinking || !chat.input.trim()"
+                class="px-3 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40
+                       disabled:cursor-not-allowed text-white transition flex items-center">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main layout -->
+
+<!-- ─── JavaScript ───────────────────────────────────────────────────────── -->
+<script>
+function dashboard() {
+  return {
+    activeTab: 'kibana',
+    autoRefresh: false,
+    _refreshTimer: null,
+
+    health: { elasticsearch: null, litellm: null },
+
+    kibana: {
+      loading: false, error: null,
+      alerts: [], total: 0,
+      minSeverity: 'medium', size: 100,
+    },
+    wazuh: {
+      loading: false, error: null,
+      alerts: [], total: 0,
+      minLevel: 7, size: 100,
+    },
+    chat: {
+      messages: [], input: '', thinking: false,
+    },
+
+    async init() {
+      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh()]);
+    },
+
+    async loadHealth() {
+      try {
+        const r = await fetch('/api/health');
+        this.health = await r.json();
+      } catch(e) {
+        this.health = { elasticsearch: 'error', litellm: 'error' };
+      }
+    },
+
+    async loadKibana() {
+      this.kibana.loading = true;
+      this.kibana.error = null;
+      try {
+        const params = new URLSearchParams({
+          min_severity: this.kibana.minSeverity,
+          size: this.kibana.size,
+        });
+        const r = await fetch(`/api/alerts/kibana?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        // preserve existing _expanded/_analysis/_analyzing state
+        const prevState = {};
+        for (const a of this.kibana.alerts) {
+          prevState[a.id] = { _expanded: a._expanded, _analysis: a._analysis };
+        }
+        this.kibana.alerts = data.alerts.map(a => ({
+          ...a,
+          _expanded: prevState[a.id]?._expanded || false,
+          _analysis: prevState[a.id]?._analysis || null,
+          _analyzing: false,
+        }));
+        this.kibana.total = data.total;
+      } catch(e) {
+        this.kibana.error = `Failed to load Kibana alerts: ${e.message}`;
+      } finally {
+        this.kibana.loading = false;
+      }
+    },
+
+    async loadWazuh() {
+      this.wazuh.loading = true;
+      this.wazuh.error = null;
+      try {
+        const params = new URLSearchParams({
+          min_level: this.wazuh.minLevel,
+          size: this.wazuh.size,
+        });
+        const r = await fetch(`/api/alerts/wazuh?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        const prevState = {};
+        for (const a of this.wazuh.alerts) {
+          prevState[a.id] = { _expanded: a._expanded, _analysis: a._analysis };
+        }
+        this.wazuh.alerts = data.alerts.map(a => ({
+          ...a,
+          _expanded: prevState[a.id]?._expanded || false,
+          _analysis: prevState[a.id]?._analysis || null,
+          _analyzing: false,
+        }));
+        this.wazuh.total = data.total;
+      } catch(e) {
+        this.wazuh.error = `Failed to load Wazuh alerts: ${e.message}`;
+      } finally {
+        this.wazuh.loading = false;
+      }
+    },
+
+    async loadAll() {
+      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh()]);
+    },
+
+    toggleAutoRefresh() {
+      this.autoRefresh = !this.autoRefresh;
+      if (this.autoRefresh) {
+        this._refreshTimer = setInterval(() => this.loadAll(), 60000); // every 60s
+      } else {
+        clearInterval(this._refreshTimer);
+      }
+    },
+
+    async analyzeAlert(alert, source) {
+      alert._analyzing = true;
+      alert._analysis = null;
+      // send a minimal context (cap at 4kb) to keep the tiny model happy
+      const rawSlice = JSON.parse(JSON.stringify(alert._raw));
+      // strip noisy fields
+      for (const k of ['message', 'event.original']) delete rawSlice[k];
+      try {
+        const r = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ alert: rawSlice, source }),
+        });
+        if (!r.ok) {
+          const err = await r.json();
+          alert._analysis = `Error: ${err.detail}`;
+        } else {
+          const data = await r.json();
+          alert._analysis = data.analysis;
+        }
+      } catch(e) {
+        alert._analysis = `Error: ${e.message}`;
+      } finally {
+        alert._analyzing = false;
+      }
+    },
+
+    async sendChat() {
+      const text = this.chat.input.trim();
+      if (!text || this.chat.thinking) return;
+      this.chat.input = '';
+      this.chat.messages.push({ role: 'user', content: text });
+      this.chat.thinking = true;
+      this.$nextTick(() => this.scrollChat());
+
+      try {
+        // Use SSE streaming for a more responsive feel
+        const r = await fetch('/api/chat/stream', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            messages: this.chat.messages.filter(m => m.role !== 'system'),
+            stream: true,
+          }),
+        });
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+
+        // Add empty assistant message we'll fill in
+        this.chat.messages.push({ role: 'assistant', content: '' });
+        const idx = this.chat.messages.length - 1;
+        this.chat.thinking = false;
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const payload = line.slice(6).trim();
+            if (payload === '[DONE]') break;
+            try {
+              const obj = JSON.parse(payload);
+              if (obj.content) {
+                this.chat.messages[idx].content += obj.content;
+                this.$nextTick(() => this.scrollChat());
+              }
+              if (obj.error) {
+                this.chat.messages[idx].content += `\n[Error: ${obj.error}]`;
+              }
+            } catch(_) {}
+          }
+        }
+      } catch(e) {
+        this.chat.thinking = false;
+        this.chat.messages.push({ role: 'assistant', content: `Error: ${e.message}` });
+      }
+      this.$nextTick(() => this.scrollChat());
+    },
+
+    scrollChat() {
+      const el = this.$refs.chatScroll;
+      if (el) el.scrollTop = el.scrollHeight;
+    },
+
+    clearChat() {
+      this.chat.messages = [];
+      this.chat.input = '';
+    },
+
+    fmtTime(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        const now = new Date();
+        const diff = Math.floor((now - d) / 1000);
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+        return d.toLocaleDateString();
+      } catch(_) { return iso; }
+    },
+
+    severityBorder(sev) {
+      return {
+        critical: 'border-red-700',
+        high:     'border-orange-700',
+        medium:   'border-yellow-700',
+        low:      'border-green-800',
+        unknown:  'border-surface-600',
+      }[sev] || 'border-surface-600';
+    },
+
+    severityBadge(sev) {
+      return {
+        critical: 'bg-red-900 text-red-300',
+        high:     'bg-orange-900 text-orange-300',
+        medium:   'bg-yellow-900 text-yellow-300',
+        low:      'bg-green-900 text-green-300',
+        unknown:  'bg-surface-700 text-gray-400',
+      }[sev] || 'bg-surface-700 text-gray-400';
+    },
+  };
+}
+</script>
+</body>
+</html>
