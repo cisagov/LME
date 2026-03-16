@@ -28,4 +28,3 @@ Environment=PGVECTOR_PORT=5432
 Environment=PGVECTOR_DB=lme_vectors
 Environment=PGVECTOR_USER=lme
 Secret=elastic,type=env,target=ELASTICSEARCH_PASSWORD
-Secret=pgvector,type=env,target=PGVECTOR_PASSWORD
