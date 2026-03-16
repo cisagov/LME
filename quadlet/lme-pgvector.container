@@ -23,3 +23,8 @@ Volume=lme_pgvectordata:/var/lib/postgresql/data:z
 Environment=POSTGRES_DB=lme_vectors
 Environment=POSTGRES_USER=lme
 Secret=pgvector,type=env,target=POSTGRES_PASSWORD
+HealthCmd=pg_isready -U lme -d lme_vectors
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=30s

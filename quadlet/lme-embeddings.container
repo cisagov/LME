@@ -1,0 +1,26 @@
+# lme-embeddings.container
+[Unit]
+Description=Llama.cpp Embeddings Server (nomic-embed-text-v1.5)
+Requires=lme-network.service
+After=lme-network.service
+PartOf=lme.service
+
+[Install]
+WantedBy=default.target lme.service
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Container]
+ContainerName=lme-embeddings
+Image=localhost/llama-cpp:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-embeddings
+PublishPort=8081:8081
+Volume=/opt/lme/llama-models:/models:Z
+HealthCmd=curl -f http://localhost:8081/health
+HealthInterval=30s
+HealthTimeout=10s
+HealthRetries=3
+Exec=--host 0.0.0.0 --port 8081 --model /models/nomic-embed-text-v1.5.Q4_K_M.gguf --embeddings -c 2048 -b 512 --rope-scaling yarn --rope-freq-scale .75

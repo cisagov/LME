@@ -20,5 +20,5 @@ PodmanArgs=--network-alias lme-llama-cpp
 Volume=/opt/lme/llama-models:/models:Z
 Environment=HOST=0.0.0.0
 Environment=PORT=8080
-Exec=--host 0.0.0.0 --port 8080 --model /models/gemma-3-1b-it-Q4_K_M.gguf
+Exec=--host 0.0.0.0 --port 8080 --model /models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
 

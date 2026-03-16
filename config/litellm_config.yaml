@@ -9,11 +9,11 @@ model_list:
   # ============================================================================
   # LOCAL MODEL - llama.cpp (running on lme network)
   # ============================================================================
-  - model_name: gemma-3-1b
+  - model_name: lfm2.5-1.2b
     litellm_params:
       # "openai/" prefix = use OpenAI-compatible API format (llama.cpp supports this)
       # This does NOT mean we're using OpenAI's service - it's just the API format
-      model: openai/gemma-3-1b-it-Q4_K_M
+      model: openai/LFM2.5-1.2B-Instruct-Q4_K_M
 
       # Internal HTTP connection to llama.cpp (no SSL needed on private network)
       # External clients connect to LiteLLM via HTTPS, LiteLLM connects to llama.cpp via HTTP
