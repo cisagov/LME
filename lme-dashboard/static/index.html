@@ -449,7 +449,23 @@
         </svg>
         AI Assistant
       </div>
-      <button @click="clearChat()" class="text-gray-600 hover:text-gray-400 text-xs transition">Clear</button>
+      <div class="flex items-center gap-2">
+        <!-- RAG toggle -->
+        <button @click="chat.ragMode = !chat.ragMode"
+                :class="chat.ragMode ? 'bg-purple-900 text-purple-300 border-purple-700' : 'bg-surface-700 text-gray-500 border-surface-500'"
+                class="px-2 py-0.5 rounded-full border text-xs flex items-center gap-1 transition hover:opacity-80"
+                :title="chat.ragMode ? 'RAG on: answering from LME docs' : 'RAG off: click to use LME documentation'">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168
+                     18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5
+                     16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5
+                     18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          <span x-text="chat.ragMode ? 'Docs ON' : 'Docs'"></span>
+        </button>
+        <button @click="clearChat()" class="text-gray-600 hover:text-gray-400 text-xs transition">Clear</button>
+      </div>
     </div>
 
     <!-- messages -->
@@ -464,19 +480,43 @@
                      0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0
                      11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
           </svg>
-          <p>Ask me about security events,<br>threat hunting, or MITRE ATT&amp;CK</p>
-          <p class="text-gray-700 mt-2">Or click <strong class="text-gray-600">Analyze</strong> on any alert</p>
+          <p>Ask me anything about LME</p>
+          <p class="text-gray-700 mt-2">Installation, configuration, troubleshooting, and more</p>
+          <p class="mt-3">
+            <span class="text-purple-400">📚 Answers grounded in the LME documentation</span>
+          </p>
         </div>
       </template>
 
       <template x-for="(msg, i) in chat.messages" :key="i">
-        <div class="msg-enter" :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+        <div class="msg-enter" :class="msg.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start'">
           <div class="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed"
                :class="msg.role === 'user'
                  ? 'bg-blue-900/60 text-blue-100'
                  : 'bg-surface-700 text-gray-300'">
+            <template x-if="msg.role === 'assistant' && !msg.content">
+              <div class="flex items-center gap-1.5 text-purple-400 text-xs animate-pulse">
+                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                Generating response…
+              </div>
+            </template>
             <div class="whitespace-pre-wrap" x-text="msg.content"></div>
           </div>
+          <!-- RAG sources citation block -->
+          <template x-if="msg.role === 'assistant' && msg.sources && msg.sources.length">
+            <div class="max-w-[85%] mt-1.5 space-y-1">
+              <p class="text-xs text-purple-500 font-medium">Sources</p>
+              <template x-for="(src, si) in msg.sources" :key="si">
+                <a :href="src.url" target="_blank" rel="noopener"
+                   class="block bg-purple-950/40 border border-purple-900/50 rounded px-2 py-1 text-xs
+                          text-purple-300 hover:bg-purple-900/40 transition leading-tight">
+                  <span class="text-purple-500 mr-1" x-text="'[' + (si+1) + ']'"></span>
+                  <span x-text="src.section || src.title"></span>
+                  <span class="text-purple-600 ml-1" x-text="'(' + (src.similarity * 100).toFixed(0) + '% match)'"></span>
+                </a>
+              </template>
+            </div>
+          </template>
         </div>
       </template>
 
@@ -497,7 +537,7 @@
           x-model="chat.input"
           @keydown.enter.prevent="if (!$event.shiftKey) sendChat()"
           rows="2"
-          placeholder="Ask anything… (Enter to send, Shift+Enter for newline)"
+          :placeholder="chat.ragMode ? 'Ask about LME docs… (Enter to send)' : 'Ask anything… (Enter to send)'"
           class="flex-1 bg-surface-700 border border-surface-500 rounded px-3 py-2 text-xs text-gray-300
                  placeholder-gray-600 resize-none focus:outline-none focus:border-blue-500 transition"
         ></textarea>
@@ -537,7 +577,7 @@ function dashboard() {
       minLevel: 7, size: 100,
     },
     chat: {
-      messages: [], input: '', thinking: false,
+      messages: [], input: '', thinking: false, ragMode: true,
     },
 
     async init() {
@@ -666,9 +706,10 @@ function dashboard() {
       this.chat.thinking = true;
       this.$nextTick(() => this.scrollChat());
 
+      const endpoint = this.chat.ragMode ? '/api/chat/rag/stream' : '/api/chat/stream';
+
       try {
-        // Use SSE streaming for a more responsive feel
-        const r = await fetch('/api/chat/stream', {
+        const r = await fetch(endpoint, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
@@ -682,9 +723,9 @@ function dashboard() {
         }
 
         // Add empty assistant message we'll fill in
-        this.chat.messages.push({ role: 'assistant', content: '' });
+        this.chat.messages.push({ role: 'assistant', content: '', sources: [] });
         const idx = this.chat.messages.length - 1;
-        this.chat.thinking = false;
+        // keep thinking=true until first content token arrives
 
         const reader = r.body.getReader();
         const decoder = new TextDecoder();
@@ -701,7 +742,13 @@ function dashboard() {
             if (payload === '[DONE]') break;
             try {
               const obj = JSON.parse(payload);
+              // RAG: first event carries sources
+              if (obj.sources) {
+                this.chat.messages[idx].sources = obj.sources;
+                this.$nextTick(() => this.scrollChat());
+              }
               if (obj.content) {
+                this.chat.thinking = false;
                 this.chat.messages[idx].content += obj.content;
                 this.$nextTick(() => this.scrollChat());
               }
@@ -713,7 +760,7 @@ function dashboard() {
         }
       } catch(e) {
         this.chat.thinking = false;
-        this.chat.messages.push({ role: 'assistant', content: `Error: ${e.message}` });
+        this.chat.messages.push({ role: 'assistant', content: `Error: ${e.message}`, sources: [] });
       }
       this.$nextTick(() => this.scrollChat());
     },
