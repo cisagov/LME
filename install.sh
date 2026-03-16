@@ -15,6 +15,7 @@ IPVAR=""
 DEBUG_MODE="false"
 OFFLINE_MODE="false"
 SKIP_PACKAGES="false"
+GRAPH_ROOT="/var/lib/containers/storage"
 
 # Environment variables for non-interactive mode
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
@@ -31,6 +32,7 @@ usage() {
     echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
     echo "  --skip-packages               Skip package installation (for development)"
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
+    echo "  -g, --graph-root GRAPH_ROOT   Change the graphroot directory (where volumes are stored)"
     echo "  -h, --help                    Show this help message"
     echo
     echo "Environment Variables:"
@@ -64,6 +66,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -p|--playbook)
             PLAYBOOK_PATH="$2"
+            shift 2
+            ;;
+        -g|--graph-root)
+            GRAPH_ROOT="$2"
             shift 2
             ;;
         -h|--help)
@@ -494,9 +500,9 @@ run_playbook() {
     sudo chown $(whoami):$(whoami) /opt/ansible-tmp
 
     if [ -f "$SCRIPT_DIR/inventory" ]; then
-        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
+        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"', "storage_graphroot": '"${GRAPH_ROOT}"'}' $ANSIBLE_OPTS
     else
-        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
+        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"', "storage_graphroot": '"${GRAPH_ROOT}"'}' $ANSIBLE_OPTS
     fi
     
     if [ $? -eq 0 ]; then
