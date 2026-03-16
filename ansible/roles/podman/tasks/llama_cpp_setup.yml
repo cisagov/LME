@@ -84,7 +84,11 @@
     podman image tag docker.io/pgvector/pgvector:pg17 localhost/pgvector:LME_LATEST
   args:
     executable: /bin/bash
+  register: tag_pgvector_result
   become: yes
+  retries: 3
+  delay: 5
+  until: tag_pgvector_result is not failed
   when: not (offline_mode | default(false))
 
 - name: Create llama models directory
@@ -178,17 +182,23 @@
     mode: '0644'
   become: yes
 
-- name: Copy pgvector quadlet files to /etc/containers/systemd
+- name: Copy pgvector quadlet file to /etc/containers/systemd
   copy:
-    src: "{{ clone_directory }}/quadlet/{{ item }}"
-    dest: "/etc/containers/systemd/{{ item }}"
+    src: "{{ clone_directory }}/quadlet/lme-pgvector.container"
+    dest: /etc/containers/systemd/lme-pgvector.container
     owner: "root"
     group: "root"
     mode: '0644'
   become: yes
-  loop:
-    - lme-pgvector.container
-    - lme-pgvectordata.volume
+
+- name: Copy pgvector data volume to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-pgvectordata.volume"
+    dest: /etc/containers/systemd/lme-pgvectordata.volume
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
 
 - name: Reload systemd daemon for llama.cpp and LiteLLM
   systemd:
@@ -251,4 +261,3 @@
       2. Update the Exec line in /etc/containers/systemd/lme-llama-cpp.container to point to your model
       3. Start the service: sudo systemctl daemon-reload && sudo systemctl start lme-llama-cpp.service
   when: offline_mode | default(false)
-
