@@ -44,8 +44,11 @@ testing/v2/installers/envirnment.sh
 docker/**/environment.sh
 **exporter.txt
 testing/upgrade_testing/
+# AI assistant tool directories
 .aider*
 .aider/
+.serena/
+.claude/
 .cache/
 .venv/
 *.env
@@ -58,6 +61,11 @@ ansible/roles/base/files/selinux/*.pp
 # Offline Install
 offline_resources/
 lme-offline-*.tar.gz
+
+# Elastic Agent downloads
+elastic-agent-*/
+elastic-agent-*.tar.gz
+nohup.out
 
 # Development scripts (not for production)
 scripts/dev_uninstall_lme.sh

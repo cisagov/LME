@@ -1,6 +1,18 @@
 ---
 # Llama.cpp setup tasks for podman role
 
+- name: Create pgvector secret password
+  shell: |
+    source /root/.profile
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    if ! podman secret ls | grep -q pgvector; then
+      password=$(</dev/urandom tr -dc A-Za-z0-9 | head -c30)
+      echo -n $password | podman secret create --driver shell pgvector -
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+
 - name: Pull llama.cpp container image
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
@@ -51,6 +63,28 @@
   retries: 3
   delay: 5
   until: tag_litellm_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Pull pgvector container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull docker.io/pgvector/pgvector:pg17
+  args:
+    executable: /bin/bash
+  register: pull_pgvector_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_pgvector_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Tag pgvector container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag docker.io/pgvector/pgvector:pg17 localhost/pgvector:LME_LATEST
+  args:
+    executable: /bin/bash
+  become: yes
   when: not (offline_mode | default(false))
 
 - name: Create llama models directory
@@ -124,6 +158,38 @@
     mode: '0644'
   become: yes
 
+- name: Build LME Dashboard container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    cd {{ clone_directory }}/lme-dashboard
+    podman build -t localhost/lme-dashboard:LME_LATEST .
+  args:
+    executable: /bin/bash
+  register: build_dashboard_result
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Copy Dashboard quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-dashboard.container"
+    dest: /etc/containers/systemd/lme-dashboard.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Copy pgvector quadlet files to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/{{ item }}"
+    dest: "/etc/containers/systemd/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+  loop:
+    - lme-pgvector.container
+    - lme-pgvectordata.volume
+
 - name: Reload systemd daemon for llama.cpp and LiteLLM
   systemd:
     daemon_reload: yes
@@ -147,23 +213,33 @@
   become: yes
   when: model_download is succeeded
 
+- name: Enable and start LME Dashboard service
+  systemd:
+    name: lme-dashboard.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+
+- name: Enable and start pgvector service
+  systemd:
+    name: lme-pgvector.service
+    enabled: yes
+    state: started
+  become: yes
+
 - name: Display llama.cpp setup success message
   debug:
     msg: |
       Llama.cpp server with Gemma 3 1B model has been installed and started!
 
-      LiteLLM Proxy (with HTTPS) is available at: https://{{ ansible_default_ipv4.address }}:11435
-      Direct llama.cpp access (HTTP only) at: http://{{ ansible_default_ipv4.address }}:11434
+      LME Security Dashboard:        http://{{ ansible_default_ipv4.address }}:8502
+      LiteLLM Proxy (HTTPS):         https://{{ ansible_default_ipv4.address }}:4000
+      Direct llama.cpp (HTTP only):  http://{{ ansible_default_ipv4.address }}:8080
 
       API Key for LiteLLM: sk-lme-llama-proxy
       Model name: gemma-3-1b
       Model file: /opt/lme/llama-models/gemma-3-1b-it-Q4_K_M.gguf
-
-      Example usage:
-        curl -k https://localhost:11435/v1/chat/completions \
-          -H "Authorization: Bearer sk-lme-llama-proxy" \
-          -H "Content-Type: application/json" \
-          -d '{"model": "gemma-3-1b", "messages": [{"role": "user", "content": "Hello!"}]}'
   when: model_download is succeeded
 
 - name: Display llama.cpp offline mode message
