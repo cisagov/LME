@@ -45,7 +45,7 @@ jobs:
           echo "UNIQUE_ID=${RANDOM_NUM}_escluster_${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
 
       - name: Setup environment variables
         run: |

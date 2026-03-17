@@ -1,10 +1,11 @@
 name: Cluster Run - Minimega
 
 on:
-  pull_request:
-    branches:
-      - 'develop'
-      - 'main'
+  # TEMPORARILY DISABLED - uncomment when done with escluster testing
+  # pull_request:
+  #   branches:
+  #     - 'develop'
+  #     - 'main'
   workflow_dispatch:
     inputs:
       azure_region:
@@ -61,7 +62,7 @@ jobs:
           echo "UNIQUE_ID=${RANDOM_NUM}_cluster_${{ github.run_number }}" >> $GITHUB_ENV
           
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
     
       - name: Setup environment variables
         run: |

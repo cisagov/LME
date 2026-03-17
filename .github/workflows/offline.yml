@@ -23,11 +23,12 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  pull_request:
-    branches:
-      - 'cbaxley-offline-github-workflow'
-      - 'develop'
-      - 'main'
+  # TEMPORARILY DISABLED - uncomment when done with escluster testing
+  # pull_request:
+  #   branches:
+  #     - 'cbaxley-offline-github-workflow'
+  #     - 'develop'
+  #     - 'main'
 
 jobs:
   offline:
@@ -47,7 +48,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
       
     - name: Set the environment for docker compose
       run: |
