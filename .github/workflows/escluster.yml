@@ -37,6 +37,8 @@ jobs:
       IP_ADDRESS: ""
       AZURE_IP: ""
       WINDOWS_IP: ""
+      MASTER_PRIVATE_IP: ""
+      ALL_PRIVATE_IPS_JSON: ""
       ENROLLMENT_TOKEN: ""
       ES_PASSWORD: ""
       KIBANA_PASSWORD: ""
@@ -117,43 +119,211 @@ jobs:
                 -y
             "
 
-      - name: Install LME on master node
+      - name: Extract cluster metadata
         run: |
           cd testing/v2/development
-          sleep 60
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ./install_v2/install.sh lme-user \$IP_ADDRESS \"pipe-${{ env.UNIQUE_ID }}.password.txt\" ${{ env.BRANCH_NAME }}
-          "
+          echo "Waiting for VMs to boot..."
+          sleep 120
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+          MACHINES_FILE="${INSTALLERS_DIR}/pipe-${{ env.UNIQUE_ID }}.machines.json"
 
-      - name: Wait for LME installation to complete
-        run: |
-          echo "Waiting for LME installation to fully complete..."
-          sleep 300
-
-      - name: Get Azure and Windows IP addresses
-        run: |
-          cd testing/v2/development
-          AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
+          AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -r '.linux_vms[0].ip_address' ${MACHINES_FILE}" | tr -d '\r\n ')
           echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
-          echo "Azure IP: $AZURE_IP"
+
+          MASTER_PRIVATE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -r '.linux_vms[0].private_ip' ${MACHINES_FILE}" | tr -d '\r\n ')
+          echo "MASTER_PRIVATE_IP=$MASTER_PRIVATE_IP" >> $GITHUB_ENV
+
+          ALL_PRIVATE_IPS_JSON=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -c '[.linux_vms[].private_ip]' ${MACHINES_FILE}" | tr -d '\r\n ')
+          echo "ALL_PRIVATE_IPS_JSON=$ALL_PRIVATE_IPS_JSON" >> $GITHUB_ENV
 
           WINDOWS_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             az network public-ip show --resource-group pipe-${{ env.UNIQUE_ID }} --name ws1-public-ip --query ipAddress --output tsv 2>/dev/null || \
             az vm show --resource-group pipe-${{ env.UNIQUE_ID }} --name ws1 --show-details --query publicIps --output tsv 2>/dev/null || \
             az vm list-ip-addresses --resource-group pipe-${{ env.UNIQUE_ID }} --query '[?virtualMachine.name==\`ws1\`].virtualMachine.network.publicIpAddresses[0].ipAddress' --output tsv 2>/dev/null || \
             echo ''
-          ")
-
+          " | tr -d '\r\n ')
           if [ -z "$WINDOWS_IP" ]; then
             echo "Warning: Could not retrieve Windows VM public IP, using private IP instead"
             WINDOWS_IP="10.1.0.4"
           fi
           echo "WINDOWS_IP=$WINDOWS_IP" >> $GITHUB_ENV
+
+          echo "Master public IP: $AZURE_IP"
+          echo "Master private IP: $MASTER_PRIVATE_IP"
+          echo "All private IPs: $ALL_PRIVATE_IPS_JSON"
           echo "Windows IP: $WINDOWS_IP"
 
-          echo "Azure IP: $AZURE_IP, Windows IP: $WINDOWS_IP"
+      - name: Set up SSH access to all Linux VMs
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            PASSWORD=\$(cat pipe-${{ env.UNIQUE_ID }}.password.txt) && \
+            for IP in \$(jq -r '.linux_vms[].ip_address' pipe-${{ env.UNIQUE_ID }}.machines.json); do
+              echo \"Waiting for SSH on \$IP...\"
+              for i in \$(seq 1 30); do
+                if sshpass -p \"\$PASSWORD\" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 lme-user@\$IP 'echo ok' 2>/dev/null; then
+                  echo \"SSH ready on \$IP\"
+                  break
+                fi
+                echo -n '.'
+                sleep 10
+              done
+              echo \"Copying SSH key to \$IP...\"
+              ./lib/copy_ssh_key.sh lme-user \$IP pipe-${{ env.UNIQUE_ID }}.password.txt
+            done
+          "
+
+      - name: Set up SSH trust from master to child nodes
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'ssh-keygen -t rsa -b 4096 -N \"\" -f ~/.ssh/id_rsa -q <<< y 2>/dev/null || true'
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'sudo apt-get update -qq && sudo apt-get install -y -qq sshpass'
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            PASSWORD=\$(cat pipe-${{ env.UNIQUE_ID }}.password.txt) && \
+            for ip in \$(jq -r '.linux_vms[1:][].private_ip' pipe-${{ env.UNIQUE_ID }}.machines.json); do
+              echo \"Copying master SSH key to \$ip...\"
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+                \"sshpass -p '\$PASSWORD' ssh-copy-id -o StrictHostKeyChecking=no lme-user@\$ip\"
+              echo \"Testing SSH from master to \$ip...\"
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+                \"ssh -o StrictHostKeyChecking=no lme-user@\$ip hostname\"
+            done
+          "
+
+      - name: Clone repo and prepare master for cluster install
+        run: |
+          cd testing/v2/development
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              git clone https://github.com/cisagov/LME.git ~/LME &&
+              cd ~/LME &&
+              git fetch --all --tags &&
+              if git show-ref --tags --verify --quiet \"refs/tags/${{ env.BRANCH_NAME }}\"; then
+                git checkout ${{ env.BRANCH_NAME }}
+              else
+                git checkout -t origin/${{ env.BRANCH_NAME }} || git checkout ${{ env.BRANCH_NAME }}
+              fi
+            '
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              cp ~/LME/config/example.env ~/LME/config/lme-environment.env &&
+              sed -i \"s/IPVAR=.*/IPVAR=${{ env.MASTER_PRIVATE_IP }}/\" ~/LME/config/lme-environment.env
+            '
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              sudo apt-get update && sudo apt-get install -y ansible jq
+            '
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              cd ~/LME/ansible && ansible-galaxy collection install -r requirements.yml --timeout 30
+            '
+          " || echo "Galaxy install failed, continuing with existing collections..."
+
+      - name: Run site.yml in cluster mode on master
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MASTER_PIP=\$(jq -r '.linux_vms[0].private_ip' pipe-${{ env.UNIQUE_ID }}.machines.json) && \
+            ALL_IPS=\$(jq -c '[.linux_vms[].private_ip]' pipe-${{ env.UNIQUE_ID }}.machines.json) && \
+            jq -n --argjson hosts \"\$ALL_IPS\" --arg master \"\$MASTER_PIP\" \
+              '{lme_cluster_mode: true, es_cluster_seed_hosts: \$hosts, es_master_publish_host: \$master}' \
+              > /tmp/cluster_vars.json && \
+            echo 'Cluster extra vars:' && cat /tmp/cluster_vars.json && \
+            scp /tmp/cluster_vars.json lme-user@${{ env.AZURE_IP }}:/tmp/cluster_vars.json
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              cd ~/LME && ansible-playbook ansible/site.yml -e @/tmp/cluster_vars.json
+            '
+          "
+
+      - name: Create cluster inventory and deploy to child nodes
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            MASTER_PIP=\$(jq -r '.linux_vms[0].private_ip' \$MACHINES_FILE) && \
+            MASTER_PUB=\$(jq -r '.linux_vms[0].ip_address' \$MACHINES_FILE) && \
+            TMPFILE=\$(mktemp) && \
+            echo 'all:' > \$TMPFILE && \
+            echo '  vars:' >> \$TMPFILE && \
+            echo \"    es_master_host: \${MASTER_PIP}\" >> \$TMPFILE && \
+            echo '    es_cluster_seed_hosts:' >> \$TMPFILE && \
+            for ip in \$(jq -r '.linux_vms[].private_ip' \$MACHINES_FILE); do
+              echo \"      - \${ip}\" >> \$TMPFILE
+            done && \
+            echo '  children:' >> \$TMPFILE && \
+            echo '    elasticsearch:' >> \$TMPFILE && \
+            echo '      hosts:' >> \$TMPFILE && \
+            echo '        es1:' >> \$TMPFILE && \
+            echo \"          ansible_host: \${MASTER_PIP}\" >> \$TMPFILE && \
+            echo '          ansible_connection: local' >> \$TMPFILE && \
+            echo '          es_node_name: lme-elasticsearch' >> \$TMPFILE && \
+            echo '          es_is_initial_master: true' >> \$TMPFILE && \
+            echo \"          es_publish_host: \${MASTER_PIP}\" >> \$TMPFILE && \
+            i=2 && \
+            for ip in \$(jq -r '.linux_vms[1:][].private_ip' \$MACHINES_FILE); do
+              echo \"        es\${i}:\" >> \$TMPFILE && \
+              echo \"          ansible_host: \${ip}\" >> \$TMPFILE && \
+              echo '          ansible_user: lme-user' >> \$TMPFILE && \
+              echo \"          es_node_name: es\${i}\" >> \$TMPFILE && \
+              echo \"          es_publish_host: \${ip}\" >> \$TMPFILE
+              i=\$((i + 1))
+            done && \
+            echo 'Generated cluster inventory:' && cat \$TMPFILE && \
+            scp \$TMPFILE lme-user@\${MASTER_PUB}:~/LME/ansible/inventory/cluster.yml && \
+            rm \$TMPFILE
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml
+            '
+          "
+
+      - name: Verify cluster health
+        run: |
+          cd testing/v2/development
+          echo "Waiting for cluster to stabilize..."
+          sleep 120
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sudo bash -c \"\
+              source /opt/lme/scripts/extract_secrets.sh -q && \
+              echo === Cluster Health === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cluster/health?pretty && \
+              echo === Cluster Nodes === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cat/nodes?v\"'
+          "
 
       - name: Retrieve Elastic password
         env:
@@ -173,9 +343,7 @@ jobs:
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
-            ssh lme-user@\$IP_ADDRESS 'whoami && hostname && \
+            ssh lme-user@${{ env.AZURE_IP }} 'whoami && hostname && \
             wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
             sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
             cd /home/lme-user/LME/testing/tests && \
