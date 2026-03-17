@@ -41,9 +41,10 @@ on:
           - all
           - single
           - cluster
-  pull_request:
-    branches:
-      - '*'
+  # TEMPORARILY DISABLED - uncomment when done with escluster testing
+  # pull_request:
+  #   branches:
+  #     - '*'
 
 jobs:
   build-22-04:
@@ -68,7 +69,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_ubuntu2204_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
       
     - name: Get branch name
       shell: bash
@@ -319,7 +320,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_ubuntu2404_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
       
     - name: Get branch name
       shell: bash
@@ -570,7 +571,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_debian1210_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
       
     - name: Get branch name
       shell: bash
@@ -821,7 +822,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_rhel9_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
       
     - name: Get branch name
       shell: bash
@@ -1072,7 +1073,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_ubuntu2404cluster_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
 
     - name: Get branch name
       shell: bash
@@ -1319,7 +1320,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_debian1210cluster_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
 
     - name: Get branch name
       shell: bash
@@ -1566,7 +1567,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_rhel9cluster_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
 
     - name: Get branch name
       shell: bash

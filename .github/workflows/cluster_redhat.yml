@@ -26,10 +26,11 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  pull_request:
-    branches:
-      - 'develop'
-      - 'main'
+  # TEMPORARILY DISABLED - uncomment when done with escluster testing
+  # pull_request:
+  #   branches:
+  #     - 'develop'
+  #     - 'main'
 
 jobs:
   build-and-test-cluster-redhat:
@@ -53,7 +54,7 @@ jobs:
           echo "UNIQUE_ID=${RANDOM_NUM}_cluster_redhat_${{ github.run_number }}" >> $GITHUB_ENV
           
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
     
       - name: Setup environment variables
         run: |

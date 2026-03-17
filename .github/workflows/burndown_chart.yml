@@ -18,9 +18,6 @@ on:
         required: true
         default: '1'
         type: string
-  pull_request:
-    branches:
-      - '*'
 
 jobs:
   create_chart:
@@ -33,21 +30,13 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
 
     - name: Setup environment variables
       run: |
         echo "UNIQUE_ID=$(openssl rand -hex 3 | head -c 6)" >> $GITHUB_ENV
     
-    - name: Set default dates
-      if: github.event_name == 'pull_request'
-      run: |
-        echo "start_date=2024-05-09" >> $GITHUB_ENV
-        echo "end_date=2024-05-25" >> $GITHUB_ENV
-        echo "view=1" >> $GITHUB_ENV
-
     - name: Use dispatch inputs
-      if: github.event_name == 'workflow_dispatch'
       run: |
         echo "start_date=${{ github.event.inputs.start_date }}" >> $GITHUB_ENV
         echo "end_date=${{ github.event.inputs.end_date }}" >> $GITHUB_ENV
