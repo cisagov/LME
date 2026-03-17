@@ -36,6 +36,11 @@ jobs:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       IP_ADDRESS: ""
       AZURE_IP: ""
+      WINDOWS_IP: ""
+      ENROLLMENT_TOKEN: ""
+      ES_PASSWORD: ""
+      KIBANA_PASSWORD: ""
+      ELASTIC_AGENT_VERSION: "8.18.8"
 
     steps:
       - name: Generate random number
@@ -86,7 +91,7 @@ jobs:
             pip install -r requirements.txt
           "
 
-      - name: Build Azure instance for cluster
+      - name: Build Azure Ubuntu instances with Windows VM
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
@@ -107,23 +112,187 @@ jobs:
                 -vs Standard_E16d_v4 \
                 -l ${{ inputs.azure_region || 'centralus' }} \
                 -ast 23:00 \
+                -c 3 \
+                -w \
                 -y
             "
 
-      - name: Get Azure IP
+      - name: Install LME on master node
         run: |
           cd testing/v2/development
-          sleep 30
+          sleep 60
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers && \
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ./install_v2/install.sh lme-user \$IP_ADDRESS \"pipe-${{ env.UNIQUE_ID }}.password.txt\" ${{ env.BRANCH_NAME }}
+          "
+
+      - name: Wait for LME installation to complete
+        run: |
+          echo "Waiting for LME installation to fully complete..."
+          sleep 300
+
+      - name: Get Azure and Windows IP addresses
+        run: |
+          cd testing/v2/development
           AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
           echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
           echo "Azure IP: $AZURE_IP"
 
-      - name: Setup SSH keys for Azure instance
+          WINDOWS_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            az network public-ip show --resource-group pipe-${{ env.UNIQUE_ID }} --name ws1-public-ip --query ipAddress --output tsv 2>/dev/null || \
+            az vm show --resource-group pipe-${{ env.UNIQUE_ID }} --name ws1 --show-details --query publicIps --output tsv 2>/dev/null || \
+            az vm list-ip-addresses --resource-group pipe-${{ env.UNIQUE_ID }} --query '[?virtualMachine.name==\`ws1\`].virtualMachine.network.publicIpAddresses[0].ipAddress' --output tsv 2>/dev/null || \
+            echo ''
+          ")
+
+          if [ -z "$WINDOWS_IP" ]; then
+            echo "Warning: Could not retrieve Windows VM public IP, using private IP instead"
+            WINDOWS_IP="10.1.0.4"
+          fi
+          echo "WINDOWS_IP=$WINDOWS_IP" >> $GITHUB_ENV
+          echo "Windows IP: $WINDOWS_IP"
+
+          echo "Azure IP: $AZURE_IP, Windows IP: $WINDOWS_IP"
+
+      - name: Retrieve Elastic password
+        env:
+          AZURE_IP: ${{ env.AZURE_IP }}
+        run: |
+          cd testing/v2/development
+          ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$ES_PASSWORD"
+          echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
+          echo "Elastic password retrieved successfully: $ES_PASSWORD"
+          KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$KIBANA_PASSWORD"
+          echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
+          echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
+
+      - name: Install test requirements on master node
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd /home/lme-user/LME/testing/v2/installers && \
-            ./lib/copy_ssh_key.sh lme-user ${{ env.AZURE_IP }} /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt
+            IP_ADDRESS=\$(cat pipe-${{ env.UNIQUE_ID }}.ip.txt) && \
+            ssh lme-user@\$IP_ADDRESS 'whoami && hostname && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+            cd /home/lme-user/LME/testing/tests && \
+            python3 -m venv venv && \
+            source venv/bin/activate && \
+            pip install -r requirements.txt '
+          "
+
+      - name: Retrieve Elastic policy ID and enrollment token
+        env:
+          KIBANA_URL: "https://localhost:5601"
+          ES_USERNAME: "elastic"
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          POLICY_ID_TEST=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\"  
+            '
+          ")
+          echo "Retrieved Policy ID test: $POLICY_ID_TEST"
+
+          POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" |
+              jq -r '.items[0].id'
+            '
+          ")
+          echo "Retrieved Policy ID: $POLICY_ID"
+
+          ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" \
+                -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
+              jq -r .item.api_key
+            '
+          ")
+          echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"
+
+          echo "::add-mask::$ENROLLMENT_TOKEN"
+          echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
+          echo "Policy ID and Enrollment Token retrieved successfully"
+
+      - name: Install the Elastic Agent on Windows Azure VM
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID && \
+              cd /home/lme-user/LME/testing/v2/installers/lib/ && \
+              chmod +x install_agent_windows_azure.sh && \
+              ./install_agent_windows_azure.sh \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --vm-name ws1 \
+                --token ${{ env.ENROLLMENT_TOKEN }} \
+                --version ${{ env.ELASTIC_AGENT_VERSION }} \
+                --debug
+            "
+
+      - name: Check if the Windows Elastic agent is reporting
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        run: |
+          sleep 360
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'export ES_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh windows'
+          "
+
+      - name: Wait 5 minutes after Windows agent check
+        run: |
+          sleep 300
+
+      - name: Run api tests on master node
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            source venv/bin/activate && \
+            pytest -v api_tests/'
+          "
+
+      - name: Run selenium tests on master node
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            source venv/bin/activate && \
+            pytest -v selenium_tests/'
           "
 
       - name: Cleanup Azure resources
