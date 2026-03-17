@@ -325,6 +325,107 @@ jobs:
               curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cat/nodes?v\"'
           "
 
+      - name: Set up NFS server on master
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            MASTER_PIP=\$(jq -r '.linux_vms[0].private_ip' \$MACHINES_FILE) && \
+            NFS_EXPORTS='/srv/es-snapshots' && \
+            for ip in \$(jq -r '.linux_vms[].private_ip' \$MACHINES_FILE); do
+              NFS_EXPORTS=\"\${NFS_EXPORTS} \${ip}(rw,sync,no_subtree_check,no_root_squash)\"
+            done && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              \"sudo apt-get install -y nfs-kernel-server && \
+               sudo mkdir -p /srv/es-snapshots && sudo chmod 777 /srv/es-snapshots && \
+               echo '\${NFS_EXPORTS}' | sudo tee /etc/exports && \
+               sudo exportfs -ra && sudo systemctl start nfs-kernel-server\"
+          "
+
+      - name: Mount NFS on child nodes
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            MASTER_PIP=\$(jq -r '.linux_vms[0].private_ip' \$MACHINES_FILE) && \
+            for pub_ip in \$(jq -r '.linux_vms[1:][].ip_address' \$MACHINES_FILE); do
+              echo \"=== Mounting NFS on \${pub_ip} ===\" && \
+              ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} \
+                \"sudo apt-get install -y nfs-common && \
+                 sudo mkdir -p /mnt/es-snapshots && \
+                 sudo mount -t nfs \${MASTER_PIP}:/srv/es-snapshots /mnt/es-snapshots && \
+                 grep -q /mnt/es-snapshots /etc/fstab || echo '\${MASTER_PIP}:/srv/es-snapshots /mnt/es-snapshots nfs defaults 0 0' | sudo tee -a /etc/fstab\"
+            done
+          "
+
+      - name: Configure Elasticsearch NFS snapshot path on all nodes
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            echo \"=== Configuring ES on master ===\" && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
+                sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
+              sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
+              echo \"[Container]
+          Volume=/srv/es-snapshots:/usr/share/elasticsearch/snapshots\" | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
+              sudo systemctl daemon-reload && sudo systemctl restart lme-elasticsearch
+            ' && \
+            for pub_ip in \$(jq -r '.linux_vms[1:][].ip_address' \$MACHINES_FILE); do
+              echo \"=== Configuring ES on \${pub_ip} ===\" && \
+              ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} '
+                sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
+                  sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
+                sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
+                echo \"[Container]
+          Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots\" | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
+                sudo systemctl daemon-reload && sudo systemctl restart lme-elasticsearch
+              '
+            done
+          "
+
+      - name: Verify NFS and cluster health after restart
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+          echo "Waiting for Elasticsearch to restart on all nodes..."
+          sleep 60
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            echo '=== Creating test file on master NFS export ===' && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'sudo touch /srv/es-snapshots/nfs_test_file' && \
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            for pub_ip in \$(jq -r '.linux_vms[1:][].ip_address' \$MACHINES_FILE); do
+              echo \"=== Checking NFS on \${pub_ip} ===\" && \
+              ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} \
+                'df -h /mnt/es-snapshots && ls -la /mnt/es-snapshots/nfs_test_file'
+            done && \
+            echo '=== Cleaning up test file ===' && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'sudo rm /srv/es-snapshots/nfs_test_file'
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sudo bash -c \"\
+              source /opt/lme/scripts/extract_secrets.sh -q && \
+              echo === Cluster Health After NFS === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cluster/health?pretty && \
+              echo === Cluster Nodes After NFS === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cat/nodes?v\"'
+          "
+
       - name: Retrieve Elastic password
         env:
           AZURE_IP: ${{ env.AZURE_IP }}
