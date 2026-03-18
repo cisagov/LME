@@ -87,30 +87,6 @@ jobs:
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
 
-      - name: Test heredoc file creation via volume mount
-        run: |
-          cd testing/v2/development
-          TEST_IP="10.99.99.99"
-          cat > heredoc_test.yml << EOF
-          all:
-            vars:
-              test_value: ${TEST_IP}
-            children:
-              group:
-                hosts:
-                  node1:
-                    host_var: ${TEST_IP}
-          EOF
-          echo "=== heredoc_test.yml contents ==="
-          cat -n heredoc_test.yml
-          echo "=== Verifying from inside pipeline container ==="
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
-            "cat -n /home/lme-user/LME/testing/v2/development/heredoc_test.yml"
-          echo "=== YAML validation ==="
-          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
-            "python3 -c \"import yaml; yaml.safe_load(open('/home/lme-user/LME/testing/v2/development/heredoc_test.yml')); print('YAML is valid')\""
-          rm heredoc_test.yml
-
       - name: Install Python requirements
         run: |
           cd testing/v2/development
