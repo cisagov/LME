@@ -20,6 +20,7 @@
 # Options:
 #   -r, --resource-group NAME   Resource group name (default: from exporter.txt)
 #   -d, --debug                 Enable verbose Ansible output
+#   --ansible-only              Run only Ansible change_passwords.yml tests (skip expect/TTY scripts)
 #   -h, --help                  Show help
 
 set -euo pipefail
@@ -35,6 +36,7 @@ INSTALLERS_DIR="$(dirname "$SCRIPT_DIR")"
 ELASTIC_TEST_PASSWORD="ChangeMe_Test_Pwd_99.X"
 WAZUH_TEST_PASSWORD="WazuhTest.Pass_789"
 ANSIBLE_OPTS=""
+ANSIBLE_ONLY="false"
 TESTS_PASSED=0
 TESTS_FAILED=0
 RESOURCE_GROUP=""
@@ -49,6 +51,10 @@ while [[ $# -gt 0 ]]; do
             ANSIBLE_OPTS="-e lme_debug=true -v"
             shift
             ;;
+        --ansible-only)
+            ANSIBLE_ONLY="true"
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -59,6 +65,7 @@ while [[ $# -gt 0 ]]; do
             echo "OPTIONS:"
             echo "  -r, --resource-group NAME   Resource group (default: from exporter.txt)"
             echo "  -d, --debug                 Enable verbose Ansible output"
+            echo "  --ansible-only              Run only Ansible change_passwords.yml tests (skip expect/TTY scripts)"
             echo "  -h, --help                  Show this help message"
             exit 0
             ;;
@@ -773,13 +780,18 @@ test_kibana_system
 test_wazuh
 test_wazuh_api
 
-echo ""
-echo -e "${YELLOW}========================================${NC}"
-echo -e "${YELLOW}  Part 2: password_management.sh        ${NC}"
-echo -e "${YELLOW}========================================${NC}"
-test_script_elastic
-test_script_kibana_system
-test_script_wazuh
+if [ "$ANSIBLE_ONLY" = "true" ]; then
+    echo ""
+    echo -e "${YELLOW}Skipping Part 2 (password_management.sh expect/TTY scripts) — --ansible-only mode${NC}"
+else
+    echo ""
+    echo -e "${YELLOW}========================================${NC}"
+    echo -e "${YELLOW}  Part 2: password_management.sh        ${NC}"
+    echo -e "${YELLOW}========================================${NC}"
+    test_script_elastic
+    test_script_kibana_system
+    test_script_wazuh
+fi
 
 # =========================================================================
 # Summary
