@@ -841,6 +841,49 @@ jobs:
               curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cat/shards?v\"'
           "
 
+      # =========================================================================
+      # Post-Recovery Tests: Snapshot & Password Change
+      # =========================================================================
+
+      - name: "Post-recovery: Prepare test artifacts"
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            ORIG=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            jq '[.linux_vms[] | select(.vm_name != \"ubuntu-3\")]' \$ORIG \
+              | jq '{linux_vms: .}' > ${RG}.machines.json && \
+            cp pipe-${{ env.UNIQUE_ID }}.password.txt ${RG}.password.txt && \
+            printf 'RESOURCE_GROUP=%s\nLME_USER=lme-user\n' '${RG}' > exporter.txt && \
+            echo '=== Post-recovery machines.json ===' && \
+            jq '.linux_vms[].vm_name' ${RG}.machines.json && \
+            echo '=== exporter.txt ===' && \
+            cat exporter.txt
+          "
+
+      - name: "Post-recovery: Run snapshot tests"
+        run: |
+          cd testing/v2/development
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/cluster_installer && \
+            ./test_snapshot.sh -r ${RG}
+          "
+
+      - name: "Post-recovery: Run Ansible password-change tests"
+        run: |
+          cd testing/v2/development
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/cluster_installer && \
+            ./test_change_passwords.sh --ansible-only -r ${RG}
+          "
+
       - name: Cleanup Azure resources
         if: always()
         env:
