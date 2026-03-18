@@ -591,7 +591,7 @@ jobs:
                 --resource-group pipe-${{ env.UNIQUE_ID }} \
                 --name ubuntu-4 \
                 --image 'Canonical:ubuntu-24_04-lts:server:latest' \
-                --size Standard_E16d_v4 \
+                --size Standard_E2d_v4 \
                 --admin-username lme-user \
                 --admin-password \$(cat ${INSTALLERS_DIR}/pipe-${{ env.UNIQUE_ID }}.password.txt) \
                 --vnet-name VNet1 \
