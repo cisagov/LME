@@ -771,11 +771,12 @@ jobs:
               'sudo systemctl is-active lme-elasticsearch'
           "
 
-      - name: "Recovery: Set up NFS on node 4"
+      - name: "Recovery: Set up NFS on node 4 and re-apply NFS config on all nodes"
         run: |
           cd testing/v2/development
           INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
 
+          # Update NFS exports to include node 4
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd ${INSTALLERS_DIR} && \
             MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
@@ -787,6 +788,7 @@ jobs:
                sudo exportfs -ra\"
           "
 
+          # Mount NFS on node 4
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
               \"sudo apt-get install -y nfs-common && \
@@ -800,17 +802,24 @@ jobs:
               'mountpoint -q /mnt/es-snapshots && echo NFS mounted || echo NFS NOT mounted'
           "
 
+          # Re-apply path.repo + quadlet drop-in on ALL nodes (ansible overwrote config on es1/es2)
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} '
-              sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
-                sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
-              sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
-              echo \"[Container]
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            for pub_ip in \$(jq -r '.linux_vms[] | select(.vm_name != \"ubuntu-3\") | .ip_address' \$MACHINES_FILE); do
+              echo \"=== Re-applying ES NFS config on \${pub_ip} ===\" && \
+              ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} '
+                sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
+                  sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
+                sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
+                echo \"[Container]
           Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots\" | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
-              sudo systemctl daemon-reload && sudo systemctl restart lme-elasticsearch
-            '
+                sudo systemctl daemon-reload && sudo systemctl restart lme-elasticsearch
+              '
+            done
           "
 
+          # Verify node 4 ES is running
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
               'sudo systemctl is-active lme-elasticsearch'
