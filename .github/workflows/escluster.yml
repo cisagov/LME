@@ -347,7 +347,7 @@ jobs:
                sudo exportfs -ra && sudo systemctl start nfs-kernel-server\"
           "
 
-      - name: Mount NFS on child nodes
+      - name: Mount NFS on all nodes
         run: |
           cd testing/v2/development
           INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
@@ -356,7 +356,7 @@ jobs:
             cd ${INSTALLERS_DIR} && \
             MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
             MASTER_PIP=\$(jq -r '.linux_vms[0].private_ip' \$MACHINES_FILE) && \
-            for pub_ip in \$(jq -r '.linux_vms[1:][].ip_address' \$MACHINES_FILE); do
+            for pub_ip in \$(jq -r '.linux_vms[].ip_address' \$MACHINES_FILE); do
               echo \"=== Mounting NFS on \${pub_ip} ===\" && \
               ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} \
                 \"sudo apt-get install -y nfs-common && \
@@ -374,16 +374,7 @@ jobs:
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd ${INSTALLERS_DIR} && \
             MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
-            echo \"=== Configuring ES on master ===\" && \
-            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
-              sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
-                sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
-              sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
-              echo \"[Container]
-          Volume=/srv/es-snapshots:/usr/share/elasticsearch/snapshots\" | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
-              sudo systemctl daemon-reload && sudo systemctl restart lme-elasticsearch
-            ' && \
-            for pub_ip in \$(jq -r '.linux_vms[1:][].ip_address' \$MACHINES_FILE); do
+            for pub_ip in \$(jq -r '.linux_vms[].ip_address' \$MACHINES_FILE); do
               echo \"=== Configuring ES on \${pub_ip} ===\" && \
               ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} '
                 sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
