@@ -58,12 +58,17 @@ cd cluster_installer
 All remaining commands in this guide are run from the `cluster_installer/`
 directory.
 
+`setup_cluster.sh` also copies `${RESOURCE_GROUP}.password.txt` and
+`${RESOURCE_GROUP}.machines.json` into `output/`. Read and edit those copies
+here so they stay the single source of truth (the originals under
+`testing/v2/installers/` are not updated when you change the files locally).
+
 Set variables for subsequent steps:
 
 ```bash
-export PASSWORD=$(cat "${RESOURCE_GROUP}.password.txt")
-export MASTER_IP=$(jq -r '.linux_vms[0].ip_address' "${RESOURCE_GROUP}.machines.json")
-export MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "${RESOURCE_GROUP}.machines.json")
+export PASSWORD=$(cat "output/${RESOURCE_GROUP}.password.txt")
+export MASTER_IP=$(jq -r '.linux_vms[0].ip_address' "output/${RESOURCE_GROUP}.machines.json")
+export MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "output/${RESOURCE_GROUP}.machines.json")
 echo "Master: $MASTER_IP (private: $MASTER_PRIVATE_IP)"
 ```
 
@@ -101,15 +106,15 @@ NODE4_PRIVATE_IP="10.1.0.12"
 echo "Node 4: $NODE4_PUBLIC_IP (private: $NODE4_PRIVATE_IP)"
 ```
 
-Add the new VM to `machines.json`:
+Add the new VM to `output/${RESOURCE_GROUP}.machines.json`:
 
 ```bash
 jq --arg pub "$NODE4_PUBLIC_IP" --arg priv "$NODE4_PRIVATE_IP" \
   --arg user "$LME_USER" --arg pw "$PASSWORD" \
   '.linux_vms += [{"vm_name":"ubuntu-4","ip_address":$pub,"private_ip":$priv,"username":$user,"password":$pw}]' \
-  "${RESOURCE_GROUP}.machines.json" > /tmp/machines_updated.json
+  "output/${RESOURCE_GROUP}.machines.json" > /tmp/machines_updated.json
 
-mv /tmp/machines_updated.json "${RESOURCE_GROUP}.machines.json"
+mv /tmp/machines_updated.json "output/${RESOURCE_GROUP}.machines.json"
 ```
 
 Copy your local SSH key to the new VM so you can access it:
@@ -278,7 +283,7 @@ pick up the updated `discovery.seed_hosts`:
 ssh "${LME_USER}@${MASTER_IP}" "sudo systemctl restart lme-elasticsearch"
 sleep 10
 
-ES2_PUBLIC_IP=$(jq -r '.linux_vms[1].ip_address' "${RESOURCE_GROUP}.machines.json")
+ES2_PUBLIC_IP=$(jq -r '.linux_vms[1].ip_address' "output/${RESOURCE_GROUP}.machines.json")
 ssh "${LME_USER}@${ES2_PUBLIC_IP}" "sudo systemctl restart lme-elasticsearch"
 sleep 10
 ```

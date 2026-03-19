@@ -53,6 +53,12 @@ The script will:
 
 Options: `--skip-nfs` to skip NFS setup, `--nfs-only` to run only NFS setup on an existing cluster.
 
+The Azure script writes credentials under `testing/v2/installers/` first;
+`setup_cluster.sh` then copies them to `output/`. For any manual steps you run
+from `cluster_installer/`, use `output/${RESOURCE_GROUP}.password.txt` and
+`output/${RESOURCE_GROUP}.machines.json` so edits (for example cluster recovery)
+do not diverge from stale copies in the parent directory.
+
 ## 2. Test Snapshots (Optional)
 
 After the cluster is running (with NFS), test the snapshot playbooks:
@@ -83,7 +89,7 @@ With a specific resource group or debug output:
 ./test_change_passwords.sh -d
 ```
 
-The test uses `${RESOURCE_GROUP}.password.txt` and `${RESOURCE_GROUP}.machines.json` from the `output/` directory (or parent directory). It runs the same steps as the Docker-based `testing/v2/development/test_change_passwords.sh`: change elastic password, verify it works, verify secrets on nodes, then restore the original password.
+The test looks up `${RESOURCE_GROUP}.password.txt` and `${RESOURCE_GROUP}.machines.json` in `output/` first, then the parent installers directory. Prefer keeping the canonical copies in `output/` when you edit them. It runs the same steps as the Docker-based `testing/v2/development/test_change_passwords.sh`: change elastic password, verify it works, verify secrets on nodes, then restore the original password.
 
 ## Manual Steps (Alternative)
 
