@@ -85,7 +85,7 @@
           }}
       when: es_snapshot_repo_type == 's3'
 
-    # --- Warn about fs type in multi-node clusters ---
+    # --- Warn about fs type in multi-node clusters (only when using default local path) ---
 
     - name: Warn about fs repository in multi-node cluster
       ansible.builtin.debug:
@@ -97,6 +97,9 @@
       when:
         - es_snapshot_repo_type == 'fs'
         - groups['elasticsearch'] | length > 1
+        # Skip warning when using shared storage: /usr/share/elasticsearch/snapshots is the
+        # documented NFS path; any non-default path suggests shared storage is configured.
+        - es_snapshot_fs_location == '/usr/share/elasticsearch/backups'
       run_once: true
       delegate_to: "{{ groups['elasticsearch'][0] }}"
 
