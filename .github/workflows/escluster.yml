@@ -377,8 +377,9 @@ jobs:
             for pub_ip in \$(jq -r '.linux_vms[].ip_address' \$MACHINES_FILE); do
               echo \"=== Configuring ES on \${pub_ip} ===\" && \
               ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} '
-                sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
-                  sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
+                # path.repo now set by Ansible template (elasticsearch.yml.j2) when lme_cluster_mode=true
+                # sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
+                #   sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
                 sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
                 echo \"[Container]
           Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots\" | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
@@ -802,15 +803,16 @@ jobs:
               'mountpoint -q /mnt/es-snapshots && echo NFS mounted || echo NFS NOT mounted'
           "
 
-          # Re-apply path.repo + quadlet drop-in on ALL nodes (ansible overwrote config on es1/es2)
+          # Quadlet drop-in + ES restart on all live nodes (path.repo now from Ansible template, no sed re-apply)
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd ${INSTALLERS_DIR} && \
             MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
             for pub_ip in \$(jq -r '.linux_vms[] | select(.vm_name != \"ubuntu-3\") | .ip_address' \$MACHINES_FILE); do
               echo \"=== Re-applying ES NFS config on \${pub_ip} ===\" && \
               ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} '
-                sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
-                  sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
+                # path.repo now set by Ansible template (elasticsearch.yml.j2) when lme_cluster_mode=true
+                # sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
+                #   sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
                 sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
                 echo \"[Container]
           Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots\" | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
