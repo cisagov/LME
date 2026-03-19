@@ -8,6 +8,16 @@
     owner: "{{ install_user }}"
     group: "{{ install_user }}"
     mode: '0644'
+    force: "{{ lme_force_config | default(false) }}"
+  become: yes
+
+- name: Render Elasticsearch config (cluster-aware)
+  template:
+    src: "{{ clone_directory }}/ansible/templates/elasticsearch.yml.j2"
+    dest: /opt/lme/config/elasticsearch.yml
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
   become: yes
 
 # Configure Kibana for offline/air-gapped mode BEFORE starting services
