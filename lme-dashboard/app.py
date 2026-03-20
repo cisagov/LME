@@ -38,7 +38,7 @@ PGVECTOR_USER = os.getenv("PGVECTOR_USER", "lme")
 PGVECTOR_PASS = os.getenv("PGVECTOR_PASS", "")
 EMBED_URL     = os.getenv("EMBED_URL",     "http://lme-embeddings:8081")
 RAG_TOP_K     = int(os.getenv("RAG_TOP_K", "10"))
-RAG_MIN_SIM   = float(os.getenv("RAG_MIN_SIM", "0.60"))  # drop chunks below this similarity
+RAG_MIN_SIM   = float(os.getenv("RAG_MIN_SIM", "0.55"))  # drop chunks below this similarity
 RAG_MIN_CHARS = int(os.getenv("RAG_MIN_CHARS", "200"))   # drop stub/redirect chunks
 
 ES_AUTH     = (ES_USER, ES_PASS)
@@ -430,8 +430,8 @@ async def _retrieve_context(query: str, top_k: int = RAG_TOP_K) -> list[dict]:
     emb = await _embed_query(query)
     vec_str = f"[{','.join(str(x) for x in emb)}]"
 
-    # Fetch 3x top_k candidates so filtering still leaves enough good chunks
-    fetch_k = top_k * 3
+    # Fetch 5x top_k candidates so filtering still leaves enough good chunks
+    fetch_k = top_k * 5
 
     try:
         conn = _pg_conn()
@@ -476,35 +476,39 @@ async def _retrieve_context(query: str, top_k: int = RAG_TOP_K) -> list[dict]:
 
 def _build_rag_system_prompt(chunks: list[dict]) -> str:
     """Build a system prompt that injects retrieved doc context."""
-    if not chunks:
-        return (
-            "You are an LME (Logging Made Easy) security platform assistant. "
-            "Answer questions helpfully using your knowledge of LME."
-        )
-
     context_parts = []
     for i, c in enumerate(chunks, 1):
         source = f"{c['title']} — {c['section']}" if c["section"] else c["title"]
-        context_parts.append(f"[{i}] Source: {source}\nURL: {c['url']}\n\n{c['content']}")
+        context_parts.append(f"[{i}] {source}\n{c['content'][:500]}")
 
-    context_block = "\n\n---\n\n".join(context_parts)
+    context_block = "\n\n".join(context_parts)
 
     return (
-        "You are an LME (Logging Made Easy) security platform assistant.\n\n"
-        "RULES — follow every rule exactly:\n"
-        "1. Answer using ONLY the documentation excerpts provided below. Nothing else.\n"
-        "2. NEVER invent, guess, or extrapolate commands, flags, file paths, URLs, or steps that do not appear word-for-word in the excerpts. If a command is not in the excerpts, do not write it.\n"
-        "3. Be specific — reproduce exact commands, file paths, and step-by-step instructions directly from the excerpts. Do NOT paraphrase into vague overviews.\n"
-        "4. If the question asks how to do something and the excerpts contain the steps, give the exact numbered steps or commands from the docs.\n"
-        "5. If the answer is not clearly present in the excerpts, respond with: 'I could not find that in the LME documentation. Please refer to https://cisagov.github.io/lme-docs/ for more information.'\n"
-        "6. Cite which excerpt each piece of information comes from using [1], [2], etc.\n"
-        "7. If you are unsure whether a command or step is from the excerpts or your own knowledge, do NOT include it.\n"
-        "8. Always end your response with a 'Read more:' line linking to the single most relevant documentation URL from the excerpts that best answers the question.\n\n"
-        "=== LME Documentation Context ===\n\n"
-        f"{context_block}\n\n"
-        "=== End of Context ===\n\n"
-        "Now answer with specific details and exact commands or steps copied from the excerpts above — no vague summaries. End your response with 'Read more: <url>' using the most relevant URL from the excerpts."
+        "You are an LME documentation assistant. "
+        "Answer in 1-2 sentences using only the text below. "
+        "Do not invent commands or steps.\n\n"
+        f"{context_block}"
     )
+
+
+_NOT_FOUND_PHRASES = [
+    "i could not find that in the lme documentation",
+    "i could not find that information",
+    "i could not find the answer",
+    "read more:",
+]
+
+
+def _clean_rag_response(text: str, best_url: str) -> str:
+    """Strip hallucinated 'not found' phrases and append the correct URL."""
+    lines = []
+    for line in text.splitlines():
+        lower = line.strip().lower()
+        if any(lower.startswith(p) for p in _NOT_FOUND_PHRASES):
+            continue
+        lines.append(line)
+    cleaned = "\n".join(lines).strip()
+    return f"{cleaned}\n\nRead more: {best_url}"
 
 
 class RagChatRequest(BaseModel):
@@ -531,7 +535,7 @@ async def chat_rag(req: RagChatRequest):
         "model": LITELLM_MDL,
         "messages": messages,
         "temperature": 0.1,
-        "max_tokens": 1800,
+        "max_tokens": 250,
     }
 
     async with llm_client() as c:
@@ -553,7 +557,8 @@ async def chat_rag(req: RagChatRequest):
         "content": result["choices"][0]["message"]["content"],
         "sources": [
             {"url": c["url"], "title": c["title"],
-             "section": c["section"], "similarity": c["similarity"]}
+             "section": c["section"], "similarity": c["similarity"],
+             "excerpt": c["content"][:200].strip()}
             for c in chunks
         ],
     }
@@ -567,6 +572,16 @@ async def chat_rag_stream(req: RagChatRequest):
     )
 
     chunks = await _retrieve_context(user_query, top_k=req.top_k)
+
+    # If no relevant chunks found, skip the LLM entirely
+    if not chunks:
+        async def not_found():
+            yield f"data: {json.dumps({'sources': []})}\n\n"
+            yield f"data: {json.dumps({'content': 'I could not find that in the LME documentation. '})}\n\n"
+            yield f"data: {json.dumps({'content': 'Read more: https://cisagov.github.io/lme-docs/'})}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(not_found(), media_type="text/event-stream")
+
     system_prompt = _build_rag_system_prompt(chunks)
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -576,22 +591,27 @@ async def chat_rag_stream(req: RagChatRequest):
         "model": LITELLM_MDL,
         "messages": messages,
         "temperature": 0.1,
-        "max_tokens": 1800,
+        "max_tokens": 250,
         "stream": True,
     }
 
     sources_event = json.dumps({
         "sources": [
             {"url": c["url"], "title": c["title"],
-             "section": c["section"], "similarity": c["similarity"]}
+             "section": c["section"], "similarity": c["similarity"],
+             "excerpt": c["content"][:200].strip()}
             for c in chunks
         ]
     })
+
+    best_url = chunks[0]["url"]
 
     async def event_generator():
         # First event carries the sources so the UI can render citations
         yield f"data: {sources_event}\n\n"
 
+        # Buffer full response, then clean and emit
+        full_text = ""
         async with llm_client() as c:
             try:
                 async with c.stream(
@@ -605,17 +625,21 @@ async def chat_rag_stream(req: RagChatRequest):
                         if line.startswith("data: "):
                             chunk_data = line[6:]
                             if chunk_data.strip() == "[DONE]":
-                                yield "data: [DONE]\n\n"
-                                return
+                                break
                             try:
                                 obj = json.loads(chunk_data)
                                 delta = obj["choices"][0].get("delta", {})
                                 if "content" in delta and delta["content"]:
-                                    yield f"data: {json.dumps({'content': delta['content']})}\n\n"
+                                    full_text += delta["content"]
                             except Exception:
                                 pass
             except Exception as e:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                return
+
+        cleaned = _clean_rag_response(full_text, best_url)
+        yield f"data: {json.dumps({'content': cleaned})}\n\n"
+        yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

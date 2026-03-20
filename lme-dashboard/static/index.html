@@ -489,43 +489,55 @@
       </template>
 
       <template x-for="(msg, i) in chat.messages" :key="i">
-        <div class="msg-enter" :class="msg.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start'">
-          <div class="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed"
-               :class="msg.role === 'user'
-                 ? 'bg-blue-900/60 text-blue-100'
-                 : 'bg-surface-700 text-gray-300'">
-            <template x-if="msg.role === 'assistant' && !msg.content">
-              <div class="flex items-center gap-1.5 text-purple-400 text-xs animate-pulse">
-                <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                Generating response…
-              </div>
-            </template>
-            <div class="whitespace-pre-wrap" x-text="msg.content"></div>
-          </div>
-          <!-- RAG sources citation block -->
-          <template x-if="msg.role === 'assistant' && msg.sources && msg.sources.length">
-            <div class="max-w-[85%] mt-1.5 space-y-1">
-              <p class="text-xs text-purple-500 font-medium">Sources</p>
-              <template x-for="(src, si) in msg.sources" :key="si">
-                <a :href="src.url" target="_blank" rel="noopener"
-                   class="block bg-purple-950/40 border border-purple-900/50 rounded px-2 py-1 text-xs
-                          text-purple-300 hover:bg-purple-900/40 transition leading-tight">
-                  <span class="text-purple-500 mr-1" x-text="'[' + (si+1) + ']'"></span>
-                  <span x-text="src.section || src.title"></span>
-                  <span class="text-purple-600 ml-1" x-text="'(' + (src.similarity * 100).toFixed(0) + '% match)'"></span>
-                </a>
+        <div data-msg :class="msg.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start'">
+          <!-- user bubble -->
+          <template x-if="msg.role === 'user'">
+            <div class="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed bg-blue-900/60 text-blue-100">
+              <div class="whitespace-pre-wrap" x-text="msg.content"></div>
+            </div>
+          </template>
+          <!-- assistant bubble -->
+          <template x-if="msg.role === 'assistant'">
+            <div class="max-w-[85%] space-y-2">
+              <!-- thinking indicator until LLM responds -->
+              <template x-if="!msg.content">
+                <div class="bg-surface-700 rounded-lg px-3 py-2">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </div>
+              </template>
+              <!-- text content -->
+              <template x-if="msg.content">
+                <div class="bg-surface-700 text-gray-300 rounded-lg px-3 py-2 text-xs leading-relaxed">
+                  <div class="whitespace-pre-wrap" x-html="linkify(msg.content)"></div>
+                </div>
+              </template>
+              <!-- source cards (only after LLM has responded) -->
+              <template x-if="msg.content && msg.sources && msg.sources.length">
+                <div class="space-y-1.5">
+                  <p class="text-xs text-purple-400 font-semibold uppercase tracking-wide">Relevant Documentation</p>
+                  <template x-for="(src, si) in msg.sources" :key="si">
+                    <a :href="src.url" target="_blank" rel="noopener"
+                       class="block bg-purple-950/50 border border-purple-800/60 rounded-lg px-3 py-2
+                              hover:bg-purple-900/50 hover:border-purple-700 transition group">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <p class="text-sm font-medium text-purple-200 group-hover:text-white truncate"
+                             x-text="src.section || src.title"></p>
+                          <p class="text-xs text-purple-500 truncate mt-0.5" x-text="src.url"></p>
+                        </div>
+                        <span class="shrink-0 text-xs text-purple-600 mt-0.5"
+                              x-text="(src.similarity * 100).toFixed(0) + '%'"></span>
+                      </div>
+                      <template x-if="src.excerpt">
+                        <p class="text-xs text-purple-400/80 mt-1.5 leading-relaxed line-clamp-2"
+                           x-text="src.excerpt"></p>
+                      </template>
+                    </a>
+                  </template>
+                </div>
               </template>
             </div>
           </template>
-        </div>
-      </template>
-
-      <!-- typing indicator -->
-      <template x-if="chat.thinking">
-        <div class="flex justify-start">
-          <div class="bg-surface-700 rounded-lg px-3 py-2">
-            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          </div>
         </div>
       </template>
     </div>
@@ -558,6 +570,16 @@
 
 <!-- ─── JavaScript ───────────────────────────────────────────────────────── -->
 <script>
+function linkify(text) {
+  // Escape HTML first to prevent XSS
+  const div = document.createElement('div');
+  div.textContent = text;
+  let safe = div.innerHTML;
+  // Convert URLs to clickable links
+  safe = safe.replace(/(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" rel="noopener" class="text-purple-400 hover:text-purple-300 underline">$1</a>');
+  return safe;
+}
 function dashboard() {
   return {
     activeTab: 'kibana',
@@ -704,7 +726,7 @@ function dashboard() {
       this.chat.input = '';
       this.chat.messages.push({ role: 'user', content: text });
       this.chat.thinking = true;
-      this.$nextTick(() => this.scrollChat());
+      this.$nextTick(() => this.scrollToMessage(this.chat.messages.length - 1));
 
       const endpoint = this.chat.ragMode ? '/api/chat/rag/stream' : '/api/chat/stream';
 
@@ -722,14 +744,15 @@ function dashboard() {
           throw new Error(err.detail || `HTTP ${r.status}`);
         }
 
-        // Add empty assistant message we'll fill in
+        // Add empty assistant message
         this.chat.messages.push({ role: 'assistant', content: '', sources: [] });
         const idx = this.chat.messages.length - 1;
-        // keep thinking=true until first content token arrives
+        this.$nextTick(() => this.scrollToMessage(idx));
 
         const reader = r.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
+        let gotContent = false;
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -742,15 +765,15 @@ function dashboard() {
             if (payload === '[DONE]') break;
             try {
               const obj = JSON.parse(payload);
-              // RAG: first event carries sources
               if (obj.sources) {
                 this.chat.messages[idx].sources = obj.sources;
-                this.$nextTick(() => this.scrollChat());
               }
               if (obj.content) {
-                this.chat.thinking = false;
+                if (!gotContent) {
+                  gotContent = true;
+                  this.chat.thinking = false;
+                }
                 this.chat.messages[idx].content += obj.content;
-                this.$nextTick(() => this.scrollChat());
               }
               if (obj.error) {
                 this.chat.messages[idx].content += `\n[Error: ${obj.error}]`;
@@ -758,16 +781,28 @@ function dashboard() {
             } catch(_) {}
           }
         }
+        this.chat.thinking = false;
       } catch(e) {
         this.chat.thinking = false;
         this.chat.messages.push({ role: 'assistant', content: `Error: ${e.message}`, sources: [] });
       }
-      this.$nextTick(() => this.scrollChat());
     },
 
     scrollChat() {
-      const el = this.$refs.chatScroll;
-      if (el) el.scrollTop = el.scrollHeight;
+      this.$nextTick(() => {
+        const el = this.$refs.chatScroll;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+    scrollToMessage(idx) {
+      this.$nextTick(() => {
+        const el = this.$refs.chatScroll;
+        if (!el) return;
+        const msgs = el.querySelectorAll('[data-msg]');
+        const target = msgs[idx];
+        if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        else el.scrollTop = el.scrollHeight;
+      });
     },
 
     clearChat() {

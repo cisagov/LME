@@ -37,9 +37,9 @@ PG_USER       = os.getenv("PGVECTOR_USER", "lme")
 PG_PASS       = os.getenv("PGVECTOR_PASS", "")
 
 # Chunking config
-CHUNK_SIZE     = 800   # target characters per chunk
-CHUNK_OVERLAP  = 150   # overlap between consecutive chunks
-MIN_CHUNK_SIZE = 100   # discard chunks shorter than this
+CHUNK_SIZE     = 1200  # target characters per chunk
+CHUNK_OVERLAP  = 200   # overlap between consecutive chunks
+MIN_CHUNK_SIZE = 150   # discard chunks shorter than this
 
 REQUEST_DELAY  = 0.3   # seconds between HTTP requests (be polite)
 
@@ -74,7 +74,7 @@ def setup_db(conn, reset: bool = False):
             CREATE INDEX IF NOT EXISTS docs_chunks_embedding_idx
             ON docs_chunks
             USING ivfflat (embedding vector_cosine_ops)
-            WITH (lists = 50);
+            WITH (lists = 10);
         """)
     conn.commit()
     print("  DB schema ready.")
