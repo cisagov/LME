@@ -71,7 +71,7 @@
 - name: Generate random password for readonly user
   shell: |
     source /root/.profile 
-    password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+    password="$(</dev/urandom tr -dc 'A-Za-z' | head -c1)$(</dev/urandom tr -dc 'A-Za-z0-9$@!' | head -c29)"
     echo -n $password
   register: read_only_password
   become: yes
