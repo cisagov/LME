@@ -685,9 +685,11 @@ run_cluster_playbooks() {
         ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
     fi
 
-    # Set Ansible temp directories (respect pre-set values from caller)
+    # Set Ansible temp directories (respect pre-set values from caller).
+    # REMOTE_TEMP must be under /tmp so the unprivileged SSH user can create it
+    # before Ansible's become escalation takes effect.
     export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/opt/ansible-tmp}"
-    export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/opt/ansible-tmp}"
+    export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-tmp}"
     sudo mkdir -p "$ANSIBLE_LOCAL_TEMP"
     sudo chown "$(whoami):$(whoami)" "$ANSIBLE_LOCAL_TEMP"
 
