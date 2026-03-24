@@ -40,8 +40,8 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "OPTIONS:"
             echo "  -d, --debug        Enable debug mode for verbose ansible output"
-            echo "  --skip-master      Skip master installation (ansible/site.yml)"
-            echo "  --skip-cluster     Skip cluster installation (ansible/elasticsearch.yml)"
+            echo "  --skip-master      Skip site.yml (only run elasticsearch.yml; needs prior master install)"
+            echo "  --skip-cluster     Skip elasticsearch.yml (only run site.yml)"
             echo "  -h, --help         Show this help message"
             echo ""
             echo "Prerequisites:"
@@ -166,17 +166,6 @@ install_ansible() {
     fi
 }
 
-run_master_install() {
-    echo -e "${YELLOW}Running ansible/site.yml on master as lme-user (this may take a while)...${NC}"
-    docker_exec "$MASTER_CONTAINER" "mkdir -p /tmp/ansible-tmp && chmod 777 /tmp/ansible-tmp"
-    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook ansible/site.yml -e lme_cluster_mode=true -e '{\"es_cluster_seed_hosts\": [\"node1\", \"node2\", \"node3\"]}' -e es_master_publish_host=node1"
-    if [ -n "$ANSIBLE_OPTS" ]; then
-        cmd="$cmd $ANSIBLE_OPTS"
-    fi
-    docker_exec_as_lme_user "$MASTER_CONTAINER" "$cmd"
-    echo -e "  ${GREEN}✓${NC} Master install complete"
-}
-
 create_cluster_inventory() {
     echo -e "${YELLOW}Creating ansible/inventory/cluster.yml...${NC}"
     docker_exec_as_lme_user "$MASTER_CONTAINER" "sudo tee ~/LME/ansible/inventory/cluster.yml > /dev/null << 'EOF'
@@ -220,14 +209,34 @@ install_python_on_nodes() {
     done
 }
 
-run_cluster_install() {
-    echo -e "${YELLOW}Running ansible/elasticsearch.yml for cluster nodes...${NC}"
-    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml"
-    if [ -n "$ANSIBLE_OPTS" ]; then
-        cmd="$cmd $ANSIBLE_OPTS"
+run_lme_cluster_install() {
+    if [ "$SKIP_MASTER_INSTALL" = "true" ] && [ "$SKIP_CLUSTER_INSTALL" = "true" ]; then
+        echo -e "${YELLOW}Skipping LME install (--skip-master and --skip-cluster)${NC}"
+        return 0
     fi
-    docker_exec_as_lme_user "$MASTER_CONTAINER" "$cmd"
-    echo -e "  ${GREEN}✓${NC} Cluster install complete"
+
+    echo -e "${YELLOW}Running LME cluster install on master as lme-user (may take a long time)...${NC}"
+
+    docker_exec "$MASTER_CONTAINER" "mkdir -p /tmp/ansible-tmp && chmod 777 /tmp/ansible-tmp"
+
+    local install_flags="--cluster"
+    local env_prefix="NON_INTERACTIVE=true"
+
+    if [ "$SKIP_MASTER_INSTALL" = "true" ]; then
+        install_flags="$install_flags --cluster-nodes-only"
+        env_prefix="NON_INTERACTIVE=true AUTO_CREATE_ENV=true"
+    elif [ "$SKIP_CLUSTER_INSTALL" = "true" ]; then
+        install_flags="$install_flags --cluster-master-only"
+    fi
+
+    if [ "$DEBUG_MODE" = "true" ]; then
+        install_flags="$install_flags --debug"
+    fi
+
+    docker_exec_as_lme_user "$MASTER_CONTAINER" \
+        "cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp $env_prefix ./install.sh $install_flags"
+
+    echo -e "  ${GREEN}✓${NC} LME cluster install finished"
 }
 
 echo ""
@@ -250,26 +259,13 @@ test_ssh_connectivity node2
 test_ssh_connectivity node3
 
 echo ""
-echo -e "${GREEN}Phase 3: Master Install${NC}"
-echo "======================="
+echo -e "${GREEN}Phase 3: LME Cluster Installation${NC}"
+echo "=================================="
 create_environment_file
 install_ansible
-if [ "$SKIP_MASTER_INSTALL" = "true" ]; then
-    echo -e "${YELLOW}Skipping master install${NC}"
-else
-    run_master_install
-fi
-
-echo ""
-echo -e "${GREEN}Phase 4: Cluster Install${NC}"
-echo "========================"
 install_python_on_nodes
 create_cluster_inventory
-if [ "$SKIP_CLUSTER_INSTALL" = "true" ]; then
-    echo -e "${YELLOW}Skipping cluster install${NC}"
-else
-    run_cluster_install
-fi
+run_lme_cluster_install
 
 echo ""
 echo -e "${GREEN}=== Ubuntu 24.04 Cluster Setup Complete ===${NC}"
