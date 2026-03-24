@@ -259,6 +259,27 @@ Verify the inventory was written correctly:
 ssh "${LME_USER}@${MASTER_IP}" "cat ~/LME/ansible/inventory/cluster.yml"
 ```
 
+### Update machines.json
+
+Remove the failed node from `output/${RESOURCE_GROUP}.machines.json` (the
+canonical copy used by `test_snapshot.sh` and `test_change_passwords.sh`) so
+that test scripts only target live nodes:
+
+```bash
+jq 'del(.linux_vms[] | select(.vm_name == "ubuntu-3"))' \
+  "output/${RESOURCE_GROUP}.machines.json" > /tmp/machines_updated.json
+mv /tmp/machines_updated.json "output/${RESOURCE_GROUP}.machines.json"
+echo "Removed ubuntu-3 from machines.json"
+```
+
+Verify the file now lists only active VMs:
+
+```bash
+jq '.linux_vms[].vm_name' "output/${RESOURCE_GROUP}.machines.json"
+```
+
+Expected: `"ubuntu"`, `"ubuntu-2"`, `"ubuntu-4"` (no `ubuntu-3`).
+
 ## Step 8: Run Ansible to Update Discovery and Join the New Node
 
 Run `elasticsearch.yml` against **all nodes**. This will:
