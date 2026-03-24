@@ -282,22 +282,14 @@ if [ "$NUM_NODES" -gt 1 ]; then
     done
 fi
 echo
-echo -e "${YELLOW}2. Install Ansible dependencies on the master node:${NC}"
-echo -e "   cd $LME_DIR/ansible"
-echo -e "   ansible-galaxy collection install -r requirements.yml"
-echo
-echo -e "${YELLOW}3. Run the main LME installation on the master node:${NC}"
+echo -e "${YELLOW}2. Run the cluster installation:${NC}"
 echo -e "   cd $LME_DIR"
-echo -e "   ansible-playbook ansible/site.yml \\"
-echo -e "     -e lme_cluster_mode=true \\"
-echo -e "     -e 'es_cluster_seed_hosts=[\"${NODE_IPS[0]}\"$(for i in $(seq 2 $NUM_NODES); do idx=$((i-1)); echo -n ",\"${NODE_IPS[$idx]}\""; done)]' \\"
-echo -e "     -e es_master_publish_host=${NODE_IPS[0]}"
+echo -e "   ./install.sh --cluster"
 echo
-echo -e "${YELLOW}4. Deploy Elasticsearch to all cluster nodes:${NC}"
-echo -e "   cd $LME_DIR"
-echo -e "   ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml"
+echo -e "   This will validate the inventory, check SSH connectivity, install"
+echo -e "   Ansible collections, and run both site.yml and elasticsearch.yml."
 echo
-echo -e "${YELLOW}5. Verify cluster health:${NC}"
+echo -e "${YELLOW}3. Verify cluster health:${NC}"
 echo -e "   source /opt/lme/scripts/extract_secrets.sh -q"
 echo -e "   curl -sk -u elastic:\$elastic https://localhost:9200/_cluster/health?pretty"
 echo

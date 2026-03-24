@@ -366,28 +366,13 @@ ssh "${LME_USER}@${MASTER_IP}" "cp ~/LME/config/example.env ~/LME/config/lme-env
 ssh "${LME_USER}@${MASTER_IP}" "sed -i 's/IPVAR=.*/IPVAR=${MASTER_PRIVATE_IP}/' ~/LME/config/lme-environment.env"
 echo -e "${GREEN}Environment file created with IPVAR=${MASTER_PRIVATE_IP}${NC}"
 
-# Install dependencies on master
+# Install jq on master (install.sh handles ansible + ansible-galaxy)
 echo -e "${YELLOW}Installing dependencies on master...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "sudo apt-get install -y ansible jq"
-echo -e "${YELLOW}Attempting ansible-galaxy install (may fail if Galaxy is unavailable)...${NC}"
-if ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME/ansible && ansible-galaxy collection install -r requirements.yml --timeout 30" 2>&1; then
-    echo -e "${GREEN}Galaxy collections installed${NC}"
-else
-    echo -e "${YELLOW}Galaxy install failed (server may be unavailable), continuing with existing collections...${NC}"
-fi
+ssh "${LME_USER}@${MASTER_IP}" "sudo apt-get install -y jq"
 echo -e "${GREEN}Dependencies installed on master${NC}"
 
-# Build list of all private IPs for seed hosts (master + cluster nodes)
-MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "${RESOURCE_GROUP}.machines.json")
-ALL_PRIVATE_IPS=$(jq -r '[.linux_vms[].private_ip] | @json' "${RESOURCE_GROUP}.machines.json")
-
-# Run main install on master with cluster mode enabled (ansible elevates with become: yes)
-echo -e "${YELLOW}Running main install on master (this may take a while)...${NC}"
-echo -e "  Cluster seed hosts: ${ALL_PRIVATE_IPS}"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook ansible/site.yml -e lme_cluster_mode=true -e 'es_cluster_seed_hosts=${ALL_PRIVATE_IPS}' -e es_master_publish_host=${MASTER_PRIVATE_IP}${ANSIBLE_OPTS:+ }${ANSIBLE_OPTS}"
-echo -e "${GREEN}Main install complete on master${NC}"
-
-# Create cluster inventory file locally and scp to master
+# Create cluster inventory file locally and scp to master BEFORE install.sh --cluster,
+# which validates the inventory and derives seed hosts from it.
 # IMPORTANT: Master (es1) must be first in the elasticsearch group so that
 # the certs role generates certs on es1 and distributes to all cluster nodes.
 echo -e "${YELLOW}Creating cluster inventory file...${NC}"
@@ -439,9 +424,14 @@ echo -e "${GREEN}Cluster inventory created${NC}"
 echo -e "${YELLOW}Inventory file contents:${NC}"
 ssh "${LME_USER}@${MASTER_IP}" "cat ~/LME/ansible/inventory/cluster.yml"
 
-# Run cluster install (ansible elevates with become: yes)
-echo -e "${YELLOW}Running cluster install on nodes (this may take a while)...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml${ANSIBLE_OPTS:+ }${ANSIBLE_OPTS}"
+# Run cluster install via install.sh --cluster (handles ansible install, galaxy
+# collections, inventory validation, site.yml on master, elasticsearch.yml on nodes)
+echo -e "${YELLOW}Running install.sh --cluster on master (this may take a while)...${NC}"
+INSTALL_FLAGS="--cluster"
+if [ "$DEBUG_MODE" = "true" ]; then
+    INSTALL_FLAGS="$INSTALL_FLAGS --debug"
+fi
+ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && NON_INTERACTIVE=true ./install.sh $INSTALL_FLAGS"
 echo -e "${GREEN}Cluster install complete${NC}"
 
 fi

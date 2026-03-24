@@ -47,8 +47,8 @@ The script will:
 6. Generate SSH key on master and distribute to cluster nodes
 7. Wait for network connectivity, then clone LME repo
 8. Create `lme-environment.env` with master's private IP
-9. Install ansible and run `site.yml` on master
-10. Create cluster inventory and run `elasticsearch.yml` on cluster nodes
+9. Create cluster inventory on master
+10. Run `install.sh --cluster` (installs ansible, validates inventory, runs `site.yml` + `elasticsearch.yml`)
 11. Set up NFS (master as NFS server, all nodes mount shared snapshot storage)
 
 Options: `--skip-nfs` to skip NFS setup, `--nfs-only` to run only NFS setup on an existing cluster.
@@ -180,25 +180,10 @@ sed -i 's/IPVAR=.*/IPVAR=10.1.0.5/' ~/LME/config/lme-environment.env
 ### 6. Install Dependencies on Master
 
 ```bash
-sudo apt-get install -y ansible jq
-cd ~/LME/ansible && ansible-galaxy install -r requirements.yml
+sudo apt-get install -y jq
 ```
 
-### 7. Install Main Server (First Node)
-
-Run `site.yml` on master with cluster mode enabled (ansible elevates with `become: yes`):
-
-```bash
-cd ~/LME && ansible-playbook ansible/site.yml \
-  -e lme_cluster_mode=true \
-  -e 'es_cluster_seed_hosts=["10.1.0.5","10.1.0.10","10.1.0.11"]' \
-  -e es_master_publish_host=10.1.0.5
-```
-
-Replace the IPs with your actual master and node private IPs. This installs the full LME stack
-on the master with cluster discovery enabled: base → nix → podman → elasticsearch → kibana → dashboards → wazuh → fleet
-
-### 8. Create Cluster Inventory
+### 7. Create Cluster Inventory
 
 Create inventory file at `~/LME/ansible/inventory/cluster.yml`:
 
@@ -235,15 +220,15 @@ all:
 
 Replace IPs with your actual node private IPs. The `es_cluster_seed_hosts` values must match the `es_publish_host` values.
 
-### 9. Install Cluster Nodes
-
-Run `elasticsearch.yml` against cluster nodes:
+### 8. Run Cluster Install
 
 ```bash
-cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml
+cd ~/LME && ./install.sh --cluster
 ```
 
-This runs on each node: base → nix → podman → secrets_distribution → certs → elasticsearch
+This handles ansible installation, Galaxy collections, inventory validation, SSH connectivity
+checks, running `site.yml` on the master (cluster mode), and `elasticsearch.yml` on all cluster
+nodes. Use `--debug` for verbose output.
 
 ## Cleanup
 

@@ -2,6 +2,8 @@
 
 This guide covers manual installation of LME (Logging Made Easy) on an existing cluster of servers.
 
+For **local multi-node testing with Docker**, use `docker-compose-cluster.yml` and the helper script **`install_cluster.sh`** in this directory. That script configures SSH between containers, **mounts NFS on every node before LME install (Phase 2.5)**, runs `./install.sh --cluster` (equivalent to Steps 1–4 below when applied inside the master container), then **Phase 4** wires Elasticsearch into that mount and restarts it. **`./install.sh --cluster` alone**—whether on real hosts or in the master container—does **not** set up NFS; you need that extra step (or your own shared storage) if you want **multi-node filesystem snapshot repositories** to work. See [Local Docker cluster (development)](#local-docker-cluster-development) below.
+
 ## Overview
 
 LME can be deployed in cluster mode where:
@@ -151,42 +153,56 @@ In most setups:
 - `ansible_host` = `es_publish_host` (same IP for both Ansible config and ES clustering)
 - But they can be different if you have a separate management network
 
-### Step 4: Run Main Install on Master
+### Step 4: Run the Cluster Install
 
-This installs the full LME stack on the master node:
-
-```bash
-cd ~/LME
-
-ansible-playbook ansible/site.yml \
-  -e lme_cluster_mode=true \
-  -e 'es_cluster_seed_hosts=["10.0.0.4","10.0.0.5","10.0.0.6"]' \
-  -e es_master_publish_host=10.0.0.4
-```
-
-**Note:** The `es_cluster_seed_hosts` values should match your inventory file.
-
-This will:
-- Install Podman and container dependencies
-- Deploy Elasticsearch with cluster configuration
-- Deploy Kibana, Fleet, and Wazuh
-- Generate SSL certificates for the cluster
-- Set up initial passwords and configuration
-
-### Step 5: Deploy to Cluster Nodes
-
-This distributes Elasticsearch to the remaining cluster nodes:
+Run the full cluster installation from the master node:
 
 ```bash
 cd ~/LME
-ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml
+./install.sh --cluster
 ```
 
-This will:
-- Copy SSL certificates from master to all nodes
-- Install Elasticsearch on each cluster node
-- Configure each node to join the cluster
-- Start Elasticsearch services
+This single command validates your cluster inventory, installs the full LME stack
+on the master node with cluster settings, and then deploys Elasticsearch to all
+cluster nodes. Seed hosts and the master publish host are derived automatically
+from your `ansible/inventory/cluster.yml`.
+
+The script will:
+- Validate that the cluster inventory file exists and is well-formed
+- Check SSH connectivity to all cluster nodes via Ansible ping
+- Install Ansible Galaxy collections
+- Run `site.yml` on the master with cluster mode enabled
+- Run `elasticsearch.yml` on all cluster nodes
+
+**Options:**
+- `--cluster-inventory PATH` — use a custom inventory file (default: `ansible/inventory/cluster.yml`)
+- `--cluster-master-only` — only run `site.yml` on the master (skip cluster node deployment)
+- `--cluster-nodes-only` — only run `elasticsearch.yml` on cluster nodes (skip master install)
+- `--debug` — enable verbose Ansible output
+- `LME_CLUSTER=true` — environment variable equivalent of `--cluster`
+
+**Note:** `--cluster` and `--offline` cannot be used together. Offline cluster
+installation is not supported at this time.
+
+### Shared snapshot storage (NFS) on real clusters
+
+Elasticsearch **filesystem** snapshot repositories on a **multi-node** cluster require the **same** directory to be visible on **every** data node (shared disk or NFS). LME’s `ansible/snapshot_elasticsearch.yml` can register such a repo when `path.repo` and the mount layout allow it.
+
+This guide’s Steps 1–4 do **not** configure NFS or other shared storage; that is an infrastructure choice. If you use NFS, mount it consistently on all nodes at the path you expose to the Elasticsearch containers (for example under `/opt/lme` or a dedicated mount bound into the container). The **Docker development** flow automates a minimal NFS server + client mounts in **`install_cluster.sh`** Phase 2.5 (before install), then connects Elasticsearch in Phase 4.
+
+### Local Docker cluster (development)
+
+From the **host** (not inside a container), with repo root available:
+
+```bash
+cd testing/v2/development
+docker compose -f docker-compose-cluster.yml up -d --build
+./install_cluster.sh          # SSH + NFS mounts (Phase 2.5) + install.sh --cluster + ES↔NFS (Phase 4)
+# Optional: ./install_cluster.sh --skip-nfs   # skip NFS phases if you only need the stack, not shared snapshot paths
+```
+
+- **`install_cluster.sh`** complements this document: it prepares the dev environment, **mounts NFS before LME install**, ends with the same logical install as Step 4, then **hooks Elasticsearch to that mount** (needed for **`test_snapshot.sh`** in default cluster mode and for realistic snapshot testing).
+- To match this guide **literally** inside Docker (manual Steps 1–4 only, no NFS), run those commands on **`lme_cluster_node1`** after setting up SSH to the other containers yourself; snapshot playbooks that assume a **shared** repo across nodes will not verify until shared storage is added (e.g. run `./install_cluster.sh --skip-master --skip-cluster` to run only the NFS phases, or full `install_cluster.sh`).
 
 ## Verification
 
@@ -327,4 +343,6 @@ NFS snapshot reconfiguration.
 - [Elasticsearch Cluster Documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-discovery.html)
 - [LME Official Documentation](https://github.com/cisagov/LME)
 - [Cluster Node Recovery](CLUSTER_NODE_RECOVERY.md) — Single node failure recovery procedure
+- **Docker dev cluster:** `docker-compose-cluster.yml` and **`install_cluster.sh`** (this directory) — see [Local Docker cluster (development)](#local-docker-cluster-development)
+- **Docker snapshot tests:** `test_snapshot.sh` (this directory; default mode expects NFS from `install_cluster.sh`)
 - For automated Azure deployment, see: `testing/v2/installers/cluster_installer/setup_cluster.sh`

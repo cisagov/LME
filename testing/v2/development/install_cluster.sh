@@ -48,14 +48,15 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "OPTIONS:"
             echo "  -d, --debug        Enable debug mode for verbose ansible output"
-            echo "  --skip-master      Skip master installation (site.yml)"
-            echo "  --skip-cluster     Skip cluster installation (elasticsearch.yml)"
-            echo "  --skip-nfs         Skip NFS setup (Phase 5)"
+            echo "  --skip-master      Skip site.yml (only run elasticsearch.yml; needs prior master install)"
+            echo "  --skip-cluster     Skip elasticsearch.yml (only run site.yml)"
+            echo "  --skip-nfs         Skip NFS (Phase 2.5 host mounts + Phase 4 ES wiring)"
             echo "  -h, --help         Show this help message"
             echo ""
             echo "Prerequisites:"
             echo "  - Docker containers must be running:"
             echo "    docker compose -f docker-compose-cluster.yml up -d --build"
+            echo "  - Cluster topology / inventory concepts: see CLUSTER_INSTALL.md in this directory"
             exit 0
             ;;
         *)
@@ -218,26 +219,6 @@ install_ansible() {
     echo -e "  ${GREEN}✓${NC} Ansible installed"
 }
 
-# Function to run site.yml on master
-run_master_install() {
-    echo -e "${YELLOW}Running main installation on master as lme-user (this may take a while)...${NC}"
-    
-    # Create Ansible temp directory (lme-user will use sudo for become operations)
-    docker_exec "$MASTER_CONTAINER" "mkdir -p /tmp/ansible-tmp && chmod 777 /tmp/ansible-tmp"
-    
-    # Run ansible as lme-user - ansible will use become: yes to escalate to root
-    # Enable cluster mode and set seed hosts for multi-node deployment
-    # Pass seed hosts as JSON array and set publish host for master
-    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook ansible/site.yml -e lme_cluster_mode=true -e '{\"es_cluster_seed_hosts\": [\"node1\", \"node2\", \"node3\"]}' -e es_master_publish_host=node1"
-    if [ -n "$ANSIBLE_OPTS" ]; then
-        cmd="$cmd $ANSIBLE_OPTS"
-    fi
-    
-    docker_exec_as_lme_user "$MASTER_CONTAINER" "$cmd"
-    
-    echo -e "  ${GREEN}✓${NC} Main installation complete on master"
-}
-
 # Function to create cluster inventory
 create_cluster_inventory() {
     echo -e "${YELLOW}Creating cluster inventory file...${NC}"
@@ -289,19 +270,38 @@ EOF"
     docker_exec_as_lme_user "$MASTER_CONTAINER" "cat ~/LME/ansible/inventory/cluster.yml"
 }
 
-# Function to run elasticsearch.yml on cluster nodes
-run_cluster_install() {
-    echo -e "${YELLOW}Running cluster installation on nodes as lme-user (this may take a while)...${NC}"
-    
-    # Use /tmp for temp dirs since lme-user may not have permissions to /opt before become takes effect
-    local cmd="cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml"
-    if [ -n "$ANSIBLE_OPTS" ]; then
-        cmd="$cmd $ANSIBLE_OPTS"
+# Run install.sh on the master: one process runs site.yml then elasticsearch.yml (--cluster),
+# so config/lme-environment.env is still present at script start and no second install.sh is needed.
+# With --skip-master / --skip-cluster we map to install.sh's split flags (nodes-only needs AUTO_CREATE_ENV
+# if config/lme-environment.env was removed by a prior site.yml).
+run_lme_cluster_install() {
+    if [ "$SKIP_MASTER_INSTALL" = "true" ] && [ "$SKIP_CLUSTER_INSTALL" = "true" ]; then
+        echo -e "${YELLOW}Skipping LME install (--skip-master and --skip-cluster)${NC}"
+        return 0
     fi
-    
-    docker_exec_as_lme_user "$MASTER_CONTAINER" "$cmd"
-    
-    echo -e "  ${GREEN}✓${NC} Cluster installation complete"
+
+    echo -e "${YELLOW}Running LME cluster install on master as lme-user (may take a long time)...${NC}"
+
+    docker_exec "$MASTER_CONTAINER" "mkdir -p /tmp/ansible-tmp && chmod 777 /tmp/ansible-tmp"
+
+    local install_flags="--cluster"
+    local env_prefix="NON_INTERACTIVE=true"
+
+    if [ "$SKIP_MASTER_INSTALL" = "true" ]; then
+        install_flags="$install_flags --cluster-nodes-only"
+        env_prefix="NON_INTERACTIVE=true AUTO_CREATE_ENV=true"
+    elif [ "$SKIP_CLUSTER_INSTALL" = "true" ]; then
+        install_flags="$install_flags --cluster-master-only"
+    fi
+
+    if [ "$DEBUG_MODE" = "true" ]; then
+        install_flags="$install_flags --debug"
+    fi
+
+    docker_exec_as_lme_user "$MASTER_CONTAINER" \
+        "cd ~/LME && ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp ANSIBLE_REMOTE_TEMP=/tmp/ansible-tmp $env_prefix ./install.sh $install_flags"
+
+    echo -e "  ${GREEN}✓${NC} LME cluster install finished"
 }
 
 # Function to set up NFS server on the NFS container
@@ -406,8 +406,27 @@ test_ssh_connectivity "node2"
 test_ssh_connectivity "node3"
 
 echo ""
-echo -e "${GREEN}Phase 3: Master Installation${NC}"
-echo "=============================="
+echo -e "${GREEN}Phase 2.5: NFS server and host mounts (before LME install)${NC}"
+echo "==========================================================="
+if [ "$SKIP_NFS" = "true" ]; then
+    echo -e "${YELLOW}Skipping NFS host mounts (--skip-nfs)${NC}"
+else
+    # Mount shared storage on each node before Elasticsearch runs, so /mnt/es-snapshots
+    # is stable before the first ES container start. Phase 4 still adds the Podman bind
+    # and restarts ES after LME config exists on disk.
+    setup_nfs_server
+    for node_info in "$MASTER_CONTAINER:node1" "$NODE2_CONTAINER:node2" "$NODE3_CONTAINER:node3"; do
+        container="${node_info%%:*}"
+        node_name="${node_info##*:}"
+        install_nfs_client "$container" "$node_name"
+    done
+    echo -e "  ${GREEN}✓${NC} NFS server running and /mnt/es-snapshots mounted on all nodes"
+fi
+
+echo ""
+echo -e "${GREEN}Phase 3: LME cluster installation${NC}"
+echo "=================================="
+echo -e "${YELLOW}Single install.sh --cluster run (site.yml + elasticsearch.yml) unless --skip-master/--skip-cluster${NC}"
 
 # Create environment file
 create_environment_file
@@ -415,52 +434,27 @@ create_environment_file
 # Install ansible
 install_ansible
 
-if [ "$SKIP_MASTER_INSTALL" = "true" ]; then
-    echo -e "${YELLOW}Skipping master installation (--skip-master flag)${NC}"
-else
-    # Run site.yml
-    run_master_install
-fi
-
-echo ""
-echo -e "${GREEN}Phase 4: Cluster Installation${NC}"
-echo "==============================="
-
-# Create cluster inventory
+# Create cluster inventory before install.sh --cluster so it can validate
 create_cluster_inventory
 
-if [ "$SKIP_CLUSTER_INSTALL" = "true" ]; then
-    echo -e "${YELLOW}Skipping cluster installation (--skip-cluster flag)${NC}"
-else
-    # Run elasticsearch.yml on cluster nodes
-    run_cluster_install
-fi
+run_lme_cluster_install
 
 echo ""
-echo -e "${GREEN}Phase 5: NFS Setup${NC}"
-echo "==================="
+echo -e "${GREEN}Phase 4: Wire Elasticsearch to NFS and restart${NC}"
+echo "===================================================="
 
 if [ "$SKIP_NFS" = "true" ]; then
-    echo -e "${YELLOW}Skipping NFS setup (--skip-nfs flag)${NC}"
+    echo -e "${YELLOW}Skipping Elasticsearch NFS wiring (--skip-nfs flag)${NC}"
 else
-    # Set up NFS server
-    setup_nfs_server
-
-    # Install NFS client and mount on each cluster node
-    for node_info in "$MASTER_CONTAINER:node1" "$NODE2_CONTAINER:node2" "$NODE3_CONTAINER:node3"; do
-        container="${node_info%%:*}"
-        node_name="${node_info##*:}"
-        install_nfs_client "$container" "$node_name"
-    done
-
-    # Configure ES on each node to use NFS mount
+    # Host mounts were done in Phase 2.5. Now /opt/lme/config/elasticsearch.yml exists from Phase 3:
+    # ensure path.repo line if needed, add Quadlet drop-in, restart ES so the container sees /mnt/es-snapshots.
     for node_info in "$MASTER_CONTAINER:node1" "$NODE2_CONTAINER:node2" "$NODE3_CONTAINER:node3"; do
         container="${node_info%%:*}"
         node_name="${node_info##*:}"
         configure_es_nfs_mount "$container" "$node_name"
     done
 
-    echo -e "  ${GREEN}✓${NC} NFS setup complete on all nodes"
+    echo -e "  ${GREEN}✓${NC} Elasticsearch updated to use NFS snapshot path on all nodes"
 fi
 
 echo ""
