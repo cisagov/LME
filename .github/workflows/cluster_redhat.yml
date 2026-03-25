@@ -233,7 +233,7 @@ jobs:
           echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"
 
           # Mask the enrollment token in logs and set it as an environment variable
-          # echo "::add-mask::$ENROLLMENT_TOKEN"
+          echo "::add-mask::$ENROLLMENT_TOKEN"
           echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
           echo "Policy ID and Enrollment Token retrieved successfully"
 
