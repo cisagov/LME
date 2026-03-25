@@ -77,11 +77,18 @@
     - ansible_connection | default('ssh') != 'local'
     - not optenv_file_target.stat.exists
 
+# Register to a different variable when skipped so we do not overwrite
+# optenv_file_target with a skip result (which has no .stat and breaks later whens).
 - name: Re-check if lme-environment.env exists on target after minimal creation
   stat:
     path: "/opt/lme/lme-environment.env"
-  register: optenv_file_target
+  register: optenv_recheck_after_minimal
   become: yes
+  when: minimal_env_created is changed
+
+- name: Apply refreshed stat after minimal env creation on cluster node
+  ansible.builtin.set_fact:
+    optenv_file_target: "{{ optenv_recheck_after_minimal }}"
   when: minimal_env_created is changed
 
 # Fail if no env file exists anywhere (only for local installs)
