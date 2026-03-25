@@ -71,10 +71,18 @@
     group: "{{ install_user }}"
     mode: '0600'
   become: yes
+  register: minimal_env_created
   when:
     - inventory_hostname not in ['localhost', '127.0.0.1']
     - ansible_connection | default('ssh') != 'local'
     - not optenv_file_target.stat.exists
+
+- name: Re-check if lme-environment.env exists on target after minimal creation
+  stat:
+    path: "/opt/lme/lme-environment.env"
+  register: optenv_file_target
+  become: yes
+  when: minimal_env_created is changed
 
 # Fail if no env file exists anywhere (only for local installs)
 - name: Fail if lme-environment.env doesn't exist anywhere (local install)
