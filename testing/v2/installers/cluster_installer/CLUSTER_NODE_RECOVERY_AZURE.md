@@ -12,8 +12,23 @@ The scenario:
    discovery configuration on all surviving nodes, then running Ansible on the
    new node to join it to the cluster.
 
+## Terminology: LME master vs Elasticsearch cluster coordinator
+
+Elasticsearch uses two different ideas of “master,” and this guide refers to
+only one of them most of the time:
+
+| Term | Meaning |
+|------|---------|
+| **LME master** | The node that runs the **full LME stack** on one host: Elasticsearch plus Kibana, Fleet, and Wazuh. In inventory this is **es1** (`ubuntu`). It is the Ansible control host, holds vault/certs source, and is what `MASTER_IP` points to in the commands below. |
+| **Elasticsearch cluster coordinator** | The single node **elected** at runtime among master-eligible peers to apply cluster metadata (indices, shard routing, allocation). Elastic’s APIs and `_cat/master` may still label this “master.” **Any** master-eligible node (often including es2 or es3) can hold this role; it is **not** tied to es1 and may change after restarts. |
+
+Routine searches and HTTP traffic do **not** need to target the elected
+coordinator; clients can use any node’s HTTPS endpoint (for example on es1 where
+Kibana points). This document’s SSH and Ansible steps always use the **LME
+master** unless stated otherwise.
+
 > **Scope**: This procedure applies to **child nodes** (es2, es3) that run
-> Elasticsearch only. Recovery of the master node (es1, running Kibana, Fleet,
+> Elasticsearch only. Recovery of the **LME master** (es1, running Kibana, Fleet,
 > and Wazuh) requires restoring from backup or rebuilding the full stack and is
 > not covered here.
 
@@ -69,7 +84,7 @@ Set variables for subsequent steps:
 export PASSWORD=$(cat "output/${RESOURCE_GROUP}.password.txt")
 export MASTER_IP=$(jq -r '.linux_vms[0].ip_address' "output/${RESOURCE_GROUP}.machines.json")
 export MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "output/${RESOURCE_GROUP}.machines.json")
-echo "Master: $MASTER_IP (private: $MASTER_PRIVATE_IP)"
+echo "LME master (es1): $MASTER_IP (private: $MASTER_PRIVATE_IP)"
 ```
 
 ## Step 3: Create a 4th VM (Spare Node)
@@ -188,15 +203,15 @@ Expected: `number_of_nodes: 2`, `status: yellow`, `unassigned_shards > 0`.
 
 ## Step 6: Set Up SSH Access to the Replacement Node
 
-The master needs SSH access to `ubuntu-4` so Ansible can run against it.
+The **LME master** needs SSH access to `ubuntu-4` so Ansible can run against it.
 
-Copy the master's SSH key to the new node using its **private IP**:
+Copy the LME master’s SSH key to the new node using its **private IP**:
 
 ```bash
 ssh "${LME_USER}@${MASTER_IP}" "sshpass -p '$PASSWORD' ssh-copy-id -o StrictHostKeyChecking=no ${LME_USER}@${NODE4_PRIVATE_IP}"
 ```
 
-Verify connectivity from the master:
+Verify connectivity from the LME master:
 
 ```bash
 ssh "${LME_USER}@${MASTER_IP}" "ssh -o StrictHostKeyChecking=no ${LME_USER}@${NODE4_PRIVATE_IP} hostname"
@@ -209,7 +224,7 @@ Expected output: `ubuntu-4`.
 The Ansible inventory and Elasticsearch `discovery.seed_hosts` must be updated
 to replace `ubuntu-3` (10.1.0.11) with `ubuntu-4` (10.1.0.12).
 
-Generate the new inventory and push it to the master:
+Generate the new inventory and push it to the LME master:
 
 ```bash
 INVENTORY_FILE=$(mktemp)
@@ -250,7 +265,7 @@ echo "====================="
 
 scp "$INVENTORY_FILE" "${LME_USER}@${MASTER_IP}:~/LME/ansible/inventory/cluster.yml"
 rm "$INVENTORY_FILE"
-echo "Inventory updated on master"
+echo "Inventory updated on LME master"
 ```
 
 Verify the inventory was written correctly:
@@ -284,7 +299,7 @@ Expected: `"ubuntu"`, `"ubuntu-2"`, `"ubuntu-4"` (no `ubuntu-3`).
 
 Run `elasticsearch.yml` against **all nodes**. This will:
 
-- Update `discovery.seed_hosts` on the master (es1) and es2 to include
+- Update `discovery.seed_hosts` on the **LME master** (es1) and es2 to include
   `ubuntu-4`'s IP instead of `ubuntu-3`'s
 - Install all prerequisites on `ubuntu-4` from scratch (base, nix, podman,
   secrets, certs, elasticsearch)
@@ -297,7 +312,7 @@ ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && ansible-playbook -i ansible/inventor
 This will take several minutes since it is installing everything on `ubuntu-4`
 from scratch.
 
-After Ansible completes, restart Elasticsearch on the master and es2 so they
+After Ansible completes, restart Elasticsearch on the **LME master** (es1) and es2 so they
 pick up the updated `discovery.seed_hosts`:
 
 ```bash
@@ -322,7 +337,7 @@ Expected: `active`.
 If the cluster was set up with NFS snapshots, the replacement node needs the
 NFS client, mount, and Elasticsearch snapshot configuration.
 
-### 9a. Update NFS exports on the master to allow the new node
+### 9a. Update NFS exports on the LME master to allow the new node
 
 ```bash
 ssh "${LME_USER}@${MASTER_IP}" "
@@ -444,18 +459,23 @@ ssh "${LME_USER}@${MASTER_IP}" 'sudo bash -c "
 
 ## Caveats
 
-### Master node recovery is different
+### LME master recovery is different from child-node recovery
 
-The master (es1) hosts Kibana, Fleet, Wazuh, and is the Ansible control node
+The **LME master** (es1) hosts Kibana, Fleet, Wazuh, and is the Ansible control node
 that holds source certificates and vault files. Recovering es1 requires
 restoring from backup or rebuilding the full stack — it cannot be handled with
 the approach described here.
+
+That is separate from **Elasticsearch’s elected cluster coordinator**: if es2 (or
+another node) is the coordinator at the moment, this procedure still applies;
+you replace failed **data** inventory nodes from the **LME master** as described
+above.
 
 ### Azure VM and inventory naming
 
 | VM name | Inventory name | Default private IP | Role |
 |---|---|---|---|
-| `ubuntu` | `es1` (master) | `10.1.0.5` | Master + Kibana + Fleet + Wazuh |
+| `ubuntu` | `es1` (LME master) | `10.1.0.5` | LME stack: ES + Kibana + Fleet + Wazuh |
 | `ubuntu-2` | `es2` | `10.1.0.10` | Elasticsearch data node |
 | `ubuntu-3` | `es3` | `10.1.0.11` | Elasticsearch data node (failed) |
 | `ubuntu-4` | `es4` | `10.1.0.12` | Elasticsearch data node (replacement) |

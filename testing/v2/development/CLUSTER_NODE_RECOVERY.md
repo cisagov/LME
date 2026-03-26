@@ -5,8 +5,23 @@ the Docker-based development cluster. It covers automatic shard redistribution,
 replacing the failed node, rejoining it to the cluster via Ansible, and verifying
 that shards rebalance automatically.
 
+## Terminology: LME master vs Elasticsearch cluster coordinator
+
+Elasticsearch uses two different ideas of “master,” and this guide refers to
+only one of them most of the time:
+
+| Term | Meaning |
+|------|---------|
+| **LME master** | The node that runs the **full LME stack** on one host: Elasticsearch plus Kibana, Fleet, and Wazuh. In this Docker cluster that is **`node1`** (`lme_cluster_node1`). It is the Ansible control host, holds vault/certs source, and is where you run playbooks from. |
+| **Elasticsearch cluster coordinator** | The single node **elected** at runtime among master-eligible peers to apply cluster metadata (indices, shard routing, allocation). Elastic’s APIs and `_cat/master` may still label this “master.” **Any** master-eligible node (often including `node2` or `node3`) can hold this role; it is **not** tied to `node1` and may change after restarts. |
+
+Routine searches and HTTP traffic do **not** need to target the elected
+coordinator; clients can use any node’s HTTPS endpoint (for example on `node1`
+where Kibana points). This document’s Docker exec and Ansible steps always use
+the **LME master** (`lme_cluster_node1`) unless stated otherwise.
+
 > **Scope**: This procedure applies to **child nodes** (`node2` / `node3`) that run
-> Elasticsearch only. Recovery of `node1` (the master node running Kibana, Fleet,
+> Elasticsearch only. Recovery of the **LME master** (`node1`, running Kibana, Fleet,
 > and Wazuh) is a different procedure and is not covered here.
 
 ## Prerequisites
@@ -118,7 +133,7 @@ docker exec "$FAILED_NODE_CONTAINER" bash -c '
 
 ## Step 4: Reinstall SSH and Restore Trust
 
-The replacement container needs an SSH server and the master's public key before
+The replacement container needs an SSH server and the **LME master’s** public key before
 Ansible can reach it.
 
 ### 4a. Install and start SSH on the replacement node
@@ -133,7 +148,7 @@ docker exec "$FAILED_NODE_CONTAINER" bash -c '
 '
 ```
 
-### 4b. Copy the master's public key to the replacement node
+### 4b. Copy the LME master’s public key to the replacement node
 
 ```bash
 PUBKEY=$(docker exec -u lme-user lme_cluster_node1 cat /home/lme-user/.ssh/id_rsa.pub)
@@ -145,7 +160,7 @@ docker exec "$FAILED_NODE_CONTAINER" bash -c "
 "
 ```
 
-### 4c. Update known_hosts on the master
+### 4c. Update known_hosts on the LME master
 
 The replacement container has new SSH host keys. Remove the stale entry and
 rescan:
@@ -188,7 +203,7 @@ docker exec -u lme-user lme_cluster_node1 bash -c '
 
 This will:
 - Install system prerequisites (base, nix, podman roles)
-- Push vault password and encrypted secrets from the master (`secrets_distribution` role)
+- Push vault password and encrypted secrets from the **LME master** (`secrets_distribution` role)
 - Generate/distribute TLS certificates (`certs` role)
 - Configure and start `lme-elasticsearch` with the correct cluster settings
 
@@ -198,7 +213,9 @@ Once Elasticsearch starts on the replacement node and connects to the cluster:
 
 1. The node announces itself using the same `es_node_name` (`es2`) and
    `es_publish_host` (`node2`) from the inventory.
-2. The master node recognizes the returning node via `discovery.seed_hosts`.
+2. The cluster discovers the returning node via `discovery.seed_hosts` (any
+   surviving member may participate; this does not depend on which node is the
+   Elasticsearch cluster coordinator).
 3. Elasticsearch begins **automatic shard rebalancing** — replica shards that
    were unassigned are allocated to the new node, and the cluster rebalances
    primary/replica placement across all three nodes.
@@ -330,12 +347,17 @@ successful.
 
 ## Caveats
 
-### Master node recovery is different
+### LME master recovery is different from child-node recovery
 
-`node1` hosts Kibana, Fleet, Wazuh, and is the Ansible control node that holds
+**`node1` (the LME master)** hosts Kibana, Fleet, Wazuh, and is the Ansible control node that holds
 the source certificates and vault files. Recovering `node1` requires restoring
 from backup or rebuilding the full stack — it cannot be handled with the
 `--limit` approach described here.
+
+That is separate from **Elasticsearch’s elected cluster coordinator**: if `node2`
+or another node is the coordinator at the moment, this procedure still applies;
+you reinstall the failed **child** node using the **LME master** as described
+above.
 
 ### New hostnames require additional changes
 
@@ -367,7 +389,7 @@ node receives:
 
 - `/etc/lme/pass.sh` — vault password file
 - `/etc/lme/vault/` — encrypted secret files
-- TLS certificates from the master's `lme_certs` volume
+- TLS certificates from the LME master’s `lme_certs` volume
 - Podman shell driver configuration for secret access
 
 No manual certificate or secret handling is needed when using the same hostname.
