@@ -22,6 +22,18 @@ echo "    LME Cluster Inventory Generator"
 echo "==============================================="
 echo
 
+# Check for existing inventory file
+if [ -f "$INVENTORY_FILE" ]; then
+    echo -e "${RED}ERROR: An inventory file already exists at:${NC}"
+    echo -e "  $INVENTORY_FILE"
+    echo
+    echo -e "${YELLOW}To avoid losing your existing configuration, please rename or remove it first:${NC}"
+    echo -e "  mv $INVENTORY_FILE ${INVENTORY_FILE}.bak"
+    echo
+    echo -e "${YELLOW}Then re-run this script.${NC}"
+    exit 1
+fi
+
 echo -e "${BLUE}This script will help you create a cluster inventory file for LME installation.${NC}"
 echo -e "${BLUE}You'll be asked for information about each node in your cluster.${NC}"
 echo
@@ -31,11 +43,17 @@ echo
 # Function to validate IP address
 validate_ip() {
     local ip=$1
-    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        return 0
-    else
+    if [[ ! $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         return 1
     fi
+    local IFS='.'
+    read -ra octets <<< "$ip"
+    for octet in "${octets[@]}"; do
+        if [ "$octet" -gt 255 ]; then
+            return 1
+        fi
+    done
+    return 0
 }
 
 # Function to validate hostname
@@ -115,13 +133,27 @@ for i in $(seq 1 $NUM_NODES); do
         fi
         read -p "> " node_ip
 
-        if validate_ip_or_hostname "$node_ip"; then
-            NODE_IPS+=("$node_ip")
-            echo -e "${GREEN}✓ Using: $node_ip${NC}"
-            break
-        else
+        if ! validate_ip_or_hostname "$node_ip"; then
             echo -e "${RED}Invalid IP address or hostname. Please try again.${NC}"
+            continue
         fi
+
+        # Check for duplicate IP/hostname
+        local duplicate=false
+        for existing_ip in "${NODE_IPS[@]}"; do
+            if [ "$existing_ip" = "$node_ip" ]; then
+                duplicate=true
+                break
+            fi
+        done
+        if $duplicate; then
+            echo -e "${RED}'$node_ip' is already used by another node. Each node must have a unique IP/hostname.${NC}"
+            continue
+        fi
+
+        NODE_IPS+=("$node_ip")
+        echo -e "${GREEN}✓ Using: $node_ip${NC}"
+        break
     done
     echo
 
@@ -137,13 +169,18 @@ for i in $(seq 1 $NUM_NODES); do
             echo -e "${BLUE}Example: ubuntu, centos, admin${NC}"
             read -p "> " node_user
 
-            if [ -n "$node_user" ]; then
-                NODE_USERS+=("$node_user")
-                echo -e "${GREEN}✓ SSH user: $node_user${NC}"
-                break
-            else
+            if [ -z "$node_user" ]; then
                 echo -e "${RED}Username cannot be empty.${NC}"
+                continue
             fi
+            if [[ ! "$node_user" =~ ^[a-zA-Z_][a-zA-Z0-9_.-]*$ ]]; then
+                echo -e "${RED}Invalid username. Only letters, digits, underscores, hyphens, and dots are allowed.${NC}"
+                echo -e "${RED}Characters like ':', '#', '{', '}', and spaces will break the YAML inventory file.${NC}"
+                continue
+            fi
+            NODE_USERS+=("$node_user")
+            echo -e "${GREEN}✓ SSH user: $node_user${NC}"
+            break
         done
     fi
     echo
