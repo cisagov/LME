@@ -3,3 +3,5 @@ uvicorn==0.32.0
 httpx==0.28.1
 psycopg2-binary>=2.9
 pgvector>=0.4
+pyyaml>=6.0
+cryptography>=42.0

@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch for LLM API key changes
+
+[Path]
+PathModified=/opt/lme/config/.llm-keys-updated
+
+[Install]
+WantedBy=multi-user.target

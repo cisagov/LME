@@ -99,6 +99,16 @@
       pgvector: <span x-text="health.pgvector || '…'"></span>
     </span>
 
+    <!-- MODEL SETTINGS button — prominent -->
+    <button @click="showModelSettings = true; loadModels()"
+            class="px-3 py-1 rounded-full bg-purple-800 text-purple-100 hover:bg-purple-700 transition flex items-center gap-1.5 font-medium text-sm border border-purple-600">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+      Model Settings
+    </button>
+
     <!-- auto-refresh toggle -->
     <button @click="toggleAutoRefresh()"
             :class="autoRefresh ? 'bg-blue-900 text-blue-300' : 'bg-surface-700 text-gray-400'"
@@ -568,6 +578,197 @@
 
 </div><!-- end main layout -->
 
+<!-- ── Model Settings Modal ──────────────────────────────────────────────── -->
+<div x-show="showModelSettings" x-cloak
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+     @click.self="showModelSettings = false" @keydown.escape.window="showModelSettings = false">
+  <div class="bg-surface-800 border border-surface-600 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col mx-4">
+
+    <!-- Modal header -->
+    <div class="px-6 py-4 border-b border-surface-600 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-purple-900 flex items-center justify-center">
+          <svg class="w-5 h-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-white font-semibold text-lg">Model Settings</h2>
+          <p class="text-xs text-gray-500">Configure LLM providers and API keys</p>
+        </div>
+      </div>
+      <button @click="showModelSettings = false"
+              class="text-gray-500 hover:text-white transition p-1">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal body (scrollable) -->
+    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+
+      <!-- Active model display -->
+      <div class="bg-surface-900 rounded-lg p-4 border border-surface-600">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Active Model</p>
+            <p class="text-white font-semibold text-lg" x-text="modelSettings.activeModel || 'Loading...'"></p>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-green-900 text-green-300 text-xs font-medium">In Use</span>
+        </div>
+      </div>
+
+      <!-- Configured models list -->
+      <div>
+        <h3 class="text-white font-medium mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+          </svg>
+          Configured Models
+        </h3>
+        <div class="space-y-2">
+          <template x-if="modelSettings.models.length === 0">
+            <p class="text-gray-600 text-sm">No models configured yet.</p>
+          </template>
+          <template x-for="(m, i) in modelSettings.models" :key="i">
+            <div class="bg-surface-900 border border-surface-600 rounded-lg px-4 py-3 flex items-center justify-between group hover:border-surface-500 transition">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-white font-medium" x-text="m.model_name"></span>
+                  <span x-show="m.model_name === modelSettings.activeModel"
+                        class="px-1.5 py-0.5 rounded text-xs bg-green-900 text-green-300">active</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
+                  <span x-text="m.litellm_model"></span>
+                  <span x-show="m.api_base" x-text="m.api_base" class="truncate max-w-[200px]"></span>
+                  <span x-show="m.has_api_key" class="text-green-500">key set</span>
+                  <span x-show="!m.has_api_key" class="text-gray-600">no key</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button x-show="m.model_name !== modelSettings.activeModel"
+                        @click="setActiveModel(m.model_name)"
+                        class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition">
+                  Use
+                </button>
+                <button @click="deleteModel(m.model_name)"
+                        class="px-2 py-1 rounded bg-red-900/30 text-red-400 hover:bg-red-900 text-xs transition opacity-0 group-hover:opacity-100">
+                  Remove
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Add new model -->
+      <div class="border-t border-surface-600 pt-5">
+        <h3 class="text-white font-medium mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Add Model
+        </h3>
+
+        <!-- Provider selector (big buttons) -->
+        <div class="grid grid-cols-4 gap-2 mb-4">
+          <button @click="newModel.provider = 'local'; prefillModel()"
+                  :class="newModel.provider === 'local' ? 'border-purple-500 bg-purple-900/30 text-purple-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+            <div class="font-medium">Local</div>
+            <div class="text-xs opacity-60 mt-0.5">llama.cpp</div>
+          </button>
+          <button @click="newModel.provider = 'openai'; prefillModel()"
+                  :class="newModel.provider === 'openai' ? 'border-green-500 bg-green-900/30 text-green-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+            <div class="font-medium">OpenAI</div>
+            <div class="text-xs opacity-60 mt-0.5">GPT-4o, etc.</div>
+          </button>
+          <button @click="newModel.provider = 'anthropic'; prefillModel()"
+                  :class="newModel.provider === 'anthropic' ? 'border-orange-500 bg-orange-900/30 text-orange-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+            <div class="font-medium">Anthropic</div>
+            <div class="text-xs opacity-60 mt-0.5">Claude</div>
+          </button>
+          <button @click="newModel.provider = 'openrouter'; prefillModel()"
+                  :class="newModel.provider === 'openrouter' ? 'border-blue-500 bg-blue-900/30 text-blue-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+            <div class="font-medium">OpenRouter</div>
+            <div class="text-xs opacity-60 mt-0.5">Multi-provider</div>
+          </button>
+        </div>
+
+        <!-- Form fields -->
+        <div class="space-y-3">
+          <!-- Display name -->
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Display Name</label>
+            <input x-model="newModel.model_name" type="text" placeholder="e.g. gpt-4o"
+                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          </div>
+
+          <!-- Model ID (with suggestions) -->
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Model ID</label>
+            <input x-model="newModel.litellm_model" type="text" placeholder="e.g. gpt-4o"
+                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+            <!-- Quick-pick suggestions -->
+            <template x-if="modelSettings.providers[newModel.provider]?.models">
+              <div class="flex flex-wrap gap-1 mt-1.5">
+                <template x-for="s in modelSettings.providers[newModel.provider].models" :key="s">
+                  <button @click="newModel.litellm_model = s; if(!newModel.model_name) newModel.model_name = s.split('/').pop()"
+                          class="px-2 py-0.5 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                          x-text="s"></button>
+                </template>
+              </div>
+            </template>
+          </div>
+
+          <!-- API Key (shown for providers that need it) -->
+          <template x-if="modelSettings.providers[newModel.provider]?.needs_api_key">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">API Key</label>
+              <input x-model="newModel.api_key" type="password" placeholder="sk-..."
+                     class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+            </div>
+          </template>
+
+          <!-- API Base (optional override) -->
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">API Base URL <span class="text-gray-600">(optional)</span></label>
+            <input x-model="newModel.api_base" type="text" :placeholder="modelSettings.providers[newModel.provider]?.api_base || 'Leave empty for default'"
+                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          </div>
+
+          <!-- Submit -->
+          <div class="flex items-center gap-3 pt-1">
+            <button @click="addModel()"
+                    :disabled="!newModel.model_name || modelSettings.saving"
+                    class="px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium text-sm transition">
+              <span x-show="!modelSettings.saving">Add Model</span>
+              <span x-show="modelSettings.saving">Saving…</span>
+            </button>
+            <span x-show="modelSettings.message" x-text="modelSettings.message"
+                  class="text-xs" :class="modelSettings.error ? 'text-red-400' : 'text-green-400'"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info box -->
+      <div class="bg-blue-950/30 border border-blue-900/50 rounded-lg p-3 text-xs text-blue-300/80">
+        <p class="font-medium text-blue-300 mb-1">How it works</p>
+        <ul class="space-y-1 list-disc list-inside">
+          <li><strong>Use</strong> instantly switches which model the AI Assistant uses</li>
+          <li><strong>Add/Remove</strong> updates the LiteLLM proxy config — restart the LiteLLM service to apply</li>
+          <li>By default, the local llama.cpp model is used (no API key needed)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ─── JavaScript ───────────────────────────────────────────────────────── -->
 <script>
 function linkify(text) {
@@ -600,6 +801,14 @@ function dashboard() {
     },
     chat: {
       messages: [], input: '', thinking: false, ragMode: true,
+    },
+    showModelSettings: false,
+    modelSettings: {
+      activeModel: '', models: [], providers: {},
+      saving: false, message: '', error: false,
+    },
+    newModel: {
+      provider: 'local', model_name: '', litellm_model: '', api_key: '', api_base: '',
     },
 
     async init() {
@@ -803,6 +1012,86 @@ function dashboard() {
         if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
         else el.scrollTop = el.scrollHeight;
       });
+    },
+
+    async loadModels() {
+      try {
+        const r = await fetch('/api/models');
+        const data = await r.json();
+        this.modelSettings.activeModel = data.active_model;
+        this.modelSettings.models = data.models;
+        this.modelSettings.providers = data.providers;
+      } catch(e) {
+        console.error('Failed to load models:', e);
+      }
+    },
+
+    prefillModel() {
+      const p = this.modelSettings.providers[this.newModel.provider];
+      this.newModel.model_name = '';
+      this.newModel.litellm_model = '';
+      this.newModel.api_key = '';
+      this.newModel.api_base = '';
+      if (p && p.models && p.models.length) {
+        this.newModel.litellm_model = p.models[0];
+        this.newModel.model_name = p.models[0].split('/').pop();
+      }
+    },
+
+    async addModel() {
+      this.modelSettings.saving = true;
+      this.modelSettings.message = '';
+      try {
+        const r = await fetch('/api/models', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(this.newModel),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.modelSettings.message = data.message;
+        this.modelSettings.error = false;
+        this.newModel = { provider: this.newModel.provider, model_name: '', litellm_model: '', api_key: '', api_base: '' };
+        await this.loadModels();
+      } catch(e) {
+        this.modelSettings.message = e.message;
+        this.modelSettings.error = true;
+      } finally {
+        this.modelSettings.saving = false;
+      }
+    },
+
+    async deleteModel(name) {
+      if (!confirm(`Remove model "${name}"?`)) return;
+      try {
+        const r = await fetch(`/api/models/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.modelSettings.message = data.message;
+        this.modelSettings.error = false;
+        await this.loadModels();
+      } catch(e) {
+        this.modelSettings.message = e.message;
+        this.modelSettings.error = true;
+      }
+    },
+
+    async setActiveModel(name) {
+      try {
+        const r = await fetch('/api/models/active', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ model_name: name }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.modelSettings.activeModel = data.active_model;
+        this.modelSettings.message = `Now using "${name}"`;
+        this.modelSettings.error = false;
+      } catch(e) {
+        this.modelSettings.message = e.message;
+        this.modelSettings.error = true;
+      }
     },
 
     clearChat() {
