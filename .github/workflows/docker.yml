@@ -42,9 +42,9 @@ on:
           - single
           - cluster
   # TEMPORARILY DISABLED - uncomment when done with escluster testing
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   build-22-04:
