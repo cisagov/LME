@@ -146,8 +146,30 @@
   </div>
 </header>
 
+<!-- ── Top-level view switcher ────────────────────────────────────────────── -->
+<nav class="bg-surface-800 border-b border-surface-600 px-4 flex items-center gap-1 sticky top-[57px] z-20 h-10">
+  <button @click="mainView = 'alerts'"
+          :class="mainView === 'alerts' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+    </svg>
+    Alerts
+  </button>
+  <button @click="mainView = 'detection'"
+          :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+    </svg>
+    Detection Engineering
+  </button>
+</nav>
+
 <!-- ── Main layout ─────────────────────────────────────────────────────────── -->
-<div class="flex h-[calc(100vh-57px)]">
+<div x-show="mainView === 'alerts'" class="flex h-[calc(100vh-97px)]">
 
   <!-- LEFT: alerts panel -->
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -591,6 +613,319 @@
 
 </div><!-- end main layout -->
 
+<!-- ── Detection Engineering view ─────────────────────────────────────────── -->
+<div x-show="mainView === 'detection'" x-cloak class="flex h-[calc(100vh-97px)]">
+
+  <!-- LEFT: sub-tabs + content -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- Sub-tab bar -->
+    <div class="bg-surface-800 border-b border-surface-600 px-4 pt-3 pb-0 flex items-end">
+      <div class="flex gap-1">
+        <button @click="detectionTab = 'deployment'"
+                :class="detectionTab === 'deployment' ? 'border-emerald-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          Deployment
+        </button>
+        <button @click="detectionTab = 'config'"
+                :class="detectionTab === 'config' ? 'border-emerald-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Detection Configuration
+        </button>
+      </div>
+    </div>
+
+    <!-- Content area -->
+    <div class="flex-1 overflow-y-auto px-4 py-4">
+
+      <!-- ── Deployment tab ── -->
+      <div x-show="detectionTab === 'deployment'">
+
+        <!-- Status cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">ElastAlert2 Rules</p>
+            <p class="text-2xl font-semibold text-white">—</p>
+            <p class="text-xs text-gray-600 mt-0.5">rules deployed</p>
+            <div class="mt-2 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-gray-600"></span>
+              <span class="text-xs text-gray-500">Not connected</span>
+            </div>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Sigma Rules</p>
+            <p class="text-2xl font-semibold text-white">—</p>
+            <p class="text-xs text-gray-600 mt-0.5">rules loaded</p>
+            <div class="mt-2 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-gray-600"></span>
+              <span class="text-xs text-gray-500">Not connected</span>
+            </div>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Wazuh Rules</p>
+            <p class="text-2xl font-semibold text-white">—</p>
+            <p class="text-xs text-gray-600 mt-0.5">custom rules active</p>
+            <div class="mt-2 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-gray-600"></span>
+              <span class="text-xs text-gray-500">Not connected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deploy actions -->
+        <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
+          <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            Deploy Rules
+          </h3>
+          <div class="flex flex-wrap gap-2">
+            <button disabled
+                    class="px-3 py-1.5 rounded bg-emerald-900/40 border border-emerald-800 text-emerald-400 text-xs
+                           opacity-50 cursor-not-allowed flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              Deploy ElastAlert2 Rules
+            </button>
+            <button disabled
+                    class="px-3 py-1.5 rounded bg-blue-900/40 border border-blue-800 text-blue-400 text-xs
+                           opacity-50 cursor-not-allowed flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              Deploy Sigma Rules
+            </button>
+            <button disabled
+                    class="px-3 py-1.5 rounded bg-orange-900/40 border border-orange-800 text-orange-400 text-xs
+                           opacity-50 cursor-not-allowed flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              Deploy Wazuh Rules
+            </button>
+          </div>
+          <p class="text-xs text-gray-600 mt-3">Backend integration coming soon. Use the AI assistant to ask about rule deployment steps.</p>
+        </div>
+
+        <!-- Activity log placeholder -->
+        <div class="bg-surface-800 border border-surface-600 rounded-lg p-4">
+          <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+            </svg>
+            Deployment Log
+          </h3>
+          <div class="flex flex-col items-center justify-center py-8 text-gray-600">
+            <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
+            </svg>
+            <p class="text-sm">No deployments yet</p>
+          </div>
+        </div>
+
+      </div><!-- end deployment tab -->
+
+      <!-- ── Detection Configuration tab ── -->
+      <div x-show="detectionTab === 'config'">
+
+        <!-- Toolbar -->
+        <div class="flex items-center justify-between mb-4 gap-3">
+          <input type="text" placeholder="Search rules…"
+                 class="flex-1 max-w-sm bg-surface-800 border border-surface-600 rounded px-3 py-1.5 text-xs
+                        text-gray-300 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition"/>
+          <button disabled
+                  class="px-3 py-1.5 rounded bg-emerald-900/40 border border-emerald-800 text-emerald-400 text-xs
+                         opacity-50 cursor-not-allowed flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            New Rule
+          </button>
+        </div>
+
+        <!-- Rule categories -->
+        <div class="space-y-3">
+
+          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+            <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">ElastAlert2</span>
+              <span class="text-xs text-gray-600">0 rules</span>
+            </div>
+            <div class="px-4 py-6 flex flex-col items-center text-gray-600">
+              <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="text-xs">No rules configured</p>
+            </div>
+          </div>
+
+          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+            <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Sigma</span>
+              <span class="text-xs text-gray-600">0 rules</span>
+            </div>
+            <div class="px-4 py-6 flex flex-col items-center text-gray-600">
+              <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="text-xs">No rules configured</p>
+            </div>
+          </div>
+
+          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+            <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
+              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wazuh Custom Rules</span>
+              <span class="text-xs text-gray-600">0 rules</span>
+            </div>
+            <div class="px-4 py-6 flex flex-col items-center text-gray-600">
+              <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="text-xs">No rules configured</p>
+            </div>
+          </div>
+
+        </div>
+        <p class="text-xs text-gray-600 mt-4 text-center">Backend integration coming soon. Use the AI assistant to ask about detection rule syntax and configuration.</p>
+
+      </div><!-- end config tab -->
+
+    </div><!-- end content area -->
+  </div><!-- end left panel -->
+
+  <!-- ── RIGHT: AI chat panel (detection context) ────────────────────────── -->
+  <div class="w-80 xl:w-96 shrink-0 bg-surface-800 border-l border-surface-600 flex flex-col">
+    <div class="px-4 py-3 border-b border-surface-600 flex items-center justify-between">
+      <div class="flex items-center gap-2 text-sm font-medium text-white">
+        <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/>
+        </svg>
+        Detection Assistant
+      </div>
+      <div class="flex items-center gap-2">
+        <button @click="detChat.ragMode = !detChat.ragMode"
+                :class="detChat.ragMode ? 'bg-purple-900 text-purple-300 border-purple-700' : 'bg-surface-700 text-gray-500 border-surface-500'"
+                class="px-2 py-0.5 rounded-full border text-xs flex items-center gap-1 transition hover:opacity-80"
+                :title="detChat.ragMode ? 'RAG on: answering from LME docs' : 'RAG off: click to use LME documentation'">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168
+                     18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5
+                     16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5
+                     18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          <span x-text="detChat.ragMode ? 'Docs ON' : 'Docs'"></span>
+        </button>
+        <button @click="clearDetChat()" class="text-gray-600 hover:text-gray-400 text-xs transition">Clear</button>
+      </div>
+    </div>
+
+    <!-- messages -->
+    <div class="flex-1 overflow-y-auto px-3 py-3 space-y-3" x-ref="detChatScroll">
+      <template x-if="detChat.messages.length === 0">
+        <div class="text-center text-gray-600 text-xs mt-6 space-y-1">
+          <svg class="w-8 h-8 mx-auto mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+          </svg>
+          <p>Detection Engineering Assistant</p>
+          <p class="text-gray-700 mt-1">Ask about Sigma rules, ElastAlert2 configuration, Wazuh custom rules, and detection logic</p>
+          <p class="mt-3"><span class="text-purple-400">📚 Grounded in LME documentation</span></p>
+        </div>
+      </template>
+
+      <template x-for="(msg, i) in detChat.messages" :key="i">
+        <div data-msg :class="msg.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start'">
+          <template x-if="msg.role === 'user'">
+            <div class="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed bg-emerald-900/60 text-emerald-100">
+              <div class="whitespace-pre-wrap" x-text="msg.content"></div>
+            </div>
+          </template>
+          <template x-if="msg.role === 'assistant'">
+            <div class="max-w-[85%] space-y-2">
+              <template x-if="!msg.content">
+                <div class="bg-surface-700 rounded-lg px-3 py-2">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </div>
+              </template>
+              <template x-if="msg.content">
+                <div class="bg-surface-700 text-gray-300 rounded-lg px-3 py-2 text-xs leading-relaxed">
+                  <div class="whitespace-pre-wrap" x-html="linkify(msg.content)"></div>
+                </div>
+              </template>
+              <template x-if="msg.content && msg.sources && msg.sources.length">
+                <div class="space-y-1.5">
+                  <p class="text-xs text-purple-400 font-semibold uppercase tracking-wide">Relevant Documentation</p>
+                  <template x-for="(src, si) in msg.sources" :key="si">
+                    <a :href="src.url" target="_blank" rel="noopener"
+                       class="block bg-purple-950/50 border border-purple-800/60 rounded-lg px-3 py-2
+                              hover:bg-purple-900/50 hover:border-purple-700 transition group">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <p class="text-sm font-medium text-purple-200 group-hover:text-white truncate"
+                             x-text="src.section || src.title"></p>
+                          <p class="text-xs text-purple-500 truncate mt-0.5" x-text="src.url"></p>
+                        </div>
+                        <span class="shrink-0 text-xs text-purple-600 mt-0.5"
+                              x-text="(src.similarity * 100).toFixed(0) + '%'"></span>
+                      </div>
+                      <template x-if="src.excerpt">
+                        <p class="text-xs text-purple-400/80 mt-1.5 leading-relaxed line-clamp-2"
+                           x-text="src.excerpt"></p>
+                      </template>
+                    </a>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+
+    <!-- input -->
+    <div class="px-3 pb-3 pt-2 border-t border-surface-600">
+      <div class="flex gap-2">
+        <textarea
+          x-model="detChat.input"
+          @keydown.enter.prevent="if (!$event.shiftKey) sendDetChat()"
+          rows="2"
+          :placeholder="detChat.ragMode ? 'Ask about detection rules, Sigma, ElastAlert2… (Enter)' : 'Ask anything… (Enter to send)'"
+          class="flex-1 bg-surface-700 border border-surface-500 rounded px-3 py-2 text-xs text-gray-300
+                 placeholder-gray-600 resize-none focus:outline-none focus:border-emerald-500 transition"
+        ></textarea>
+        <button @click="sendDetChat()"
+                :disabled="detChat.thinking || !detChat.input.trim()"
+                class="px-3 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40
+                       disabled:cursor-not-allowed text-white transition flex items-center">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div><!-- end right chat panel -->
+
+</div><!-- end detection engineering view -->
+
 <!-- ── Model Settings Modal ──────────────────────────────────────────────── -->
 <div x-show="showModelSettings" x-cloak
      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -807,6 +1142,8 @@ function linkify(text) {
 function dashboard() {
   return {
     activeTab: 'kibana',
+    mainView: 'alerts',
+    detectionTab: 'deployment',
     autoRefresh: false,
     _refreshTimer: null,
 
@@ -823,6 +1160,9 @@ function dashboard() {
       minLevel: 7, size: 100,
     },
     chat: {
+      messages: [], input: '', thinking: false, ragMode: true,
+    },
+    detChat: {
       messages: [], input: '', thinking: false, ragMode: true,
     },
     showModelSettings: false,
@@ -1124,6 +1464,82 @@ function dashboard() {
     clearChat() {
       this.chat.messages = [];
       this.chat.input = '';
+    },
+
+    clearDetChat() {
+      this.detChat.messages = [];
+      this.detChat.input = '';
+    },
+
+    scrollToDetMessage(idx) {
+      this.$nextTick(() => {
+        const el = this.$refs.detChatScroll;
+        if (!el) return;
+        const msgs = el.querySelectorAll('[data-msg]');
+        const target = msgs[idx];
+        if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        else el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    async sendDetChat() {
+      const text = this.detChat.input.trim();
+      if (!text || this.detChat.thinking) return;
+      this.detChat.input = '';
+      this.detChat.messages.push({ role: 'user', content: text });
+      this.detChat.thinking = true;
+      this.$nextTick(() => this.scrollToDetMessage(this.detChat.messages.length - 1));
+
+      const endpoint = this.detChat.ragMode ? '/api/chat/rag/stream' : '/api/chat/stream';
+
+      try {
+        const r = await fetch(endpoint, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            messages: this.detChat.messages.filter(m => m.role !== 'system'),
+            stream: true,
+          }),
+        });
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+
+        this.detChat.messages.push({ role: 'assistant', content: '', sources: [] });
+        const idx = this.detChat.messages.length - 1;
+        this.$nextTick(() => this.scrollToDetMessage(idx));
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let gotContent = false;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const payload = line.slice(6).trim();
+            if (payload === '[DONE]') break;
+            try {
+              const obj = JSON.parse(payload);
+              if (obj.sources) this.detChat.messages[idx].sources = obj.sources;
+              if (obj.content) {
+                if (!gotContent) { gotContent = true; this.detChat.thinking = false; }
+                this.detChat.messages[idx].content += obj.content;
+              }
+              if (obj.error) this.detChat.messages[idx].content += `\n[Error: ${obj.error}]`;
+            } catch(_) {}
+          }
+        }
+        this.detChat.thinking = false;
+      } catch(e) {
+        this.detChat.thinking = false;
+        this.detChat.messages.push({ role: 'assistant', content: `Error: ${e.message}`, sources: [] });
+      }
     },
 
     fmtTime(iso) {
