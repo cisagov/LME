@@ -1,0 +1,29 @@
+---
+galaxy_info:
+  role_name: ludus_lme_agents
+  namespace: cisagov
+  author: cisagov
+  description: "Installs Elastic Agent and Wazuh Agent on Linux/Windows endpoints for LME"
+  license: "GPLv3"
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+    - name: Windows
+      versions:
+        - all
+  galaxy_tags:
+    - ludus
+    - lme
+    - elastic
+    - wazuh
+    - sysmon
+    - agent
+    - monitoring
+    - security
+dependencies: []

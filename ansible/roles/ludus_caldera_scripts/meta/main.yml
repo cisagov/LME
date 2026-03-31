@@ -1,0 +1,23 @@
+---
+galaxy_info:
+  role_name: ludus_caldera_scripts
+  namespace: cisagov
+  author: cisagov
+  description: "Deploys MITRE Caldera automation scripts and operation configs"
+  license: "GPLv3"
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - ludus
+    - caldera
+    - automation
+    - scripting
+    - security
+dependencies: []

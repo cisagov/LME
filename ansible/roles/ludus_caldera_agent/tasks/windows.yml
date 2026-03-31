@@ -1,0 +1,68 @@
+---
+- name: Check if Caldera agent already exists
+  ansible.windows.win_stat:
+    path: "{{ ludus_caldera_agent_path }}"
+  register: agent_exe
+
+- name: Enable PowerShell script execution
+  ansible.windows.win_powershell:
+    script: |
+      Set-ExecutionPolicy RemoteSigned -Force
+
+- name: Add Defender exclusions for Caldera agent
+  ansible.windows.win_powershell:
+    script: |
+      Add-MpPreference -ExclusionPath "{{ ludus_caldera_agent_path }}"
+      Add-MpPreference -ExclusionProcess "{{ ludus_caldera_agent_path }}"
+  when: not agent_exe.stat.exists
+
+- name: Create firewall rules for Caldera agent
+  ansible.windows.win_powershell:
+    script: |
+      New-NetFirewallRule -DisplayName "Caldera Agent Outbound" -Direction Outbound -Program "{{ ludus_caldera_agent_path }}" -Action Allow -Profile Any -Enabled True
+      New-NetFirewallRule -DisplayName "Caldera Agent Inbound" -Direction Inbound -Program "{{ ludus_caldera_agent_path }}" -Action Allow -Profile Any -Enabled True
+  when: not agent_exe.stat.exists
+
+- name: Download Caldera agent from server
+  ansible.windows.win_powershell:
+    script: |
+      $server = "http://{{ _caldera_server_ip }}:{{ ludus_caldera_agent_server_port }}"
+      $url = "$server/file/download"
+      $wc = New-Object System.Net.WebClient
+      $wc.Headers.add("platform", "windows")
+      $wc.Headers.add("file", "sandcat.go")
+      $data = $wc.DownloadData($url)
+      Get-Process | Where-Object { $_.Path -eq "{{ ludus_caldera_agent_path }}" } | Stop-Process -Force -ErrorAction SilentlyContinue
+      Remove-Item -Force "{{ ludus_caldera_agent_path }}" -ErrorAction SilentlyContinue
+      [IO.File]::WriteAllBytes("{{ ludus_caldera_agent_path }}", $data) | Out-Null
+  when: not agent_exe.stat.exists
+
+- name: Ensure agent script directory exists
+  ansible.windows.win_file:
+    path: "{{ ludus_caldera_agent_script_dir }}"
+    state: directory
+
+- name: Deploy Caldera agent startup script
+  ansible.windows.win_template:
+    src: run_caldera.ps1.j2
+    dest: "{{ ludus_caldera_agent_script_dir }}\\run_caldera.ps1"
+
+- name: Check if Registry Run key exists
+  ansible.windows.win_reg_stat:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+    name: caldera
+  register: caldera_run_key_stat
+
+- name: Create Registry Run key for persistence
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+    name: caldera
+    data: 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -NonInteractive -File "{{ ludus_caldera_agent_script_dir }}\run_caldera.ps1"'
+    state: present
+  when: not caldera_run_key_stat.exists
+
+- name: Reboot Windows host to start Caldera agent
+  ansible.windows.win_reboot:
+    reboot_timeout: 600
+    post_reboot_delay: 30
+  when: ludus_caldera_agent_reboot

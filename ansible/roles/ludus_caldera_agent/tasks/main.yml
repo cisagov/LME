@@ -1,0 +1,26 @@
+---
+# @decision DEC-CALDERA-AGENT-001
+# @title Auto-resolve Caldera IP from localhost facts with explicit override
+# @status accepted
+# @rationale The ludus_caldera_server role sets caldera_ip as a fact on localhost.
+#   This role reads that fact as a fallback when ludus_caldera_agent_server_ip is
+#   not explicitly set, removing the need for a separate extract_caldera_secrets role.
+#   Explicit role_vars always take precedence for cases where the Caldera server
+#   was not deployed by the same Ludus range.
+
+- name: Resolve Caldera server IP
+  ansible.builtin.set_fact:
+    _caldera_server_ip: >-
+      {{ ludus_caldera_agent_server_ip
+         | default(hostvars['localhost'].caldera_ip | default(''), true) }}
+
+- name: Fail if Caldera server IP is not available
+  ansible.builtin.fail:
+    msg: >
+      ludus_caldera_agent_server_ip is not set and no caldera_ip fact found on localhost.
+      Either set the variable in role_vars or deploy ludus_caldera_server first.
+  when: _caldera_server_ip | length == 0
+
+- name: Install Caldera agent on Windows
+  ansible.builtin.include_tasks: windows.yml
+  when: ansible_os_family == 'Windows'
