@@ -493,7 +493,7 @@ def _pg_conn():
 
 async def _embed_query(query: str) -> list[float]:
     """Embed a single query string via the lme-embeddings llama.cpp server."""
-    async with httpx.AsyncClient(timeout=30) as c:
+    async with httpx.AsyncClient(verify=VERIFY_SSL, timeout=30) as c:
         r = await c.post(
             f"{EMBED_URL}/v1/embeddings",
             json={"model": "nomic-embed-text", "input": query},
