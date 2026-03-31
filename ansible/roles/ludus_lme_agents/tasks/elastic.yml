@@ -1,0 +1,242 @@
+---
+# @decision DEC-AGENTS-002
+# @title Dynamic Elastic version and enrollment token retrieval via API
+# @status accepted
+# @rationale Rather than hard-coding the Elastic version or requiring operators
+#   to pass it explicitly, we query the Elasticsearch API at deploy time. This
+#   ensures the agent version always matches the server version, preventing
+#   version skew. The enrollment token is fetched from Kibana Fleet API so
+#   operators need only supply credentials. Fallback: if elastic_password is
+#   empty the dynamic lookup is skipped and callers must supply both
+#   ludus_lme_agents_elastic_version and ludus_lme_agents_enrollment_token.
+
+# ---------------------------------------------------------------------------
+# Pre-flight: resolve Elastic version and Fleet enrollment token via API
+# ---------------------------------------------------------------------------
+
+- name: Fetch Elastic version from Elasticsearch API
+  when:
+    - ludus_lme_agents_elastic_password | length > 0
+    - ludus_lme_agents_elastic_version is not defined
+  block:
+    - name: Query Elasticsearch root endpoint
+      ansible.builtin.uri:
+        url: "https://{{ ludus_lme_agents_server_ip }}:{{ ludus_lme_agents_es_port }}/"
+        method: GET
+        url_username: "{{ ludus_lme_agents_elastic_user }}"
+        url_password: "{{ ludus_lme_agents_elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        return_content: true
+      register: es_api_response
+      delegate_to: localhost
+      run_once: true
+
+    - name: Set elastic_version fact from API response
+      ansible.builtin.set_fact:
+        ludus_lme_agents_elastic_version: "{{ es_api_response.json.version.number }}"
+      delegate_to: localhost
+      run_once: true
+
+- name: Fetch Fleet enrollment token from Kibana API
+  when:
+    - ludus_lme_agents_elastic_password | length > 0
+    - not (ludus_lme_agents_enrollment_token | length > 0)
+  block:
+    - name: Query Kibana Fleet enrollment API keys
+      ansible.builtin.uri:
+        url: "https://{{ ludus_lme_agents_server_ip }}:{{ ludus_lme_agents_kibana_port }}/api/fleet/enrollment_api_keys"
+        method: GET
+        url_username: "{{ ludus_lme_agents_elastic_user }}"
+        url_password: "{{ ludus_lme_agents_elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        headers:
+          Content-Type: "application/json"
+          kbn-xsrf: "true"
+        return_content: true
+      register: fleet_api_response
+      delegate_to: localhost
+      run_once: true
+
+    - name: Fail if no active enrollment tokens exist
+      ansible.builtin.fail:
+        msg: "No active Fleet enrollment API keys found. Generate one in Kibana Fleet UI."
+      when: fleet_api_response.json['items'] | selectattr('active') | list | length == 0
+      delegate_to: localhost
+      run_once: true
+
+    - name: Set enrollment_token fact from Kibana response
+      ansible.builtin.set_fact:
+        ludus_lme_agents_enrollment_token: >-
+          {{ fleet_api_response.json['items']
+             | selectattr('active')
+             | map(attribute='api_key')
+             | list | first }}
+      delegate_to: localhost
+      run_once: true
+
+- name: Fail if required variables are missing after lookup
+  ansible.builtin.fail:
+    msg: >
+      Required variable '{{ item.name }}' is not set.
+      Either provide ludus_lme_agents_elastic_password for dynamic lookup,
+      or set '{{ item.name }}' directly in role_vars.
+  when: not (item.value | length > 0)
+  loop:
+    - name: ludus_lme_agents_elastic_version
+      value: "{{ ludus_lme_agents_elastic_version | default('') }}"
+    - name: ludus_lme_agents_enrollment_token
+      value: "{{ ludus_lme_agents_enrollment_token | default('') }}"
+  delegate_to: localhost
+  run_once: true
+
+# ---------------------------------------------------------------------------
+# Linux: install Elastic Agent + auditd
+# ---------------------------------------------------------------------------
+
+- name: Install Elastic Agent on Linux
+  when: ansible_system == 'Linux'
+  become: true
+  block:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Skip Elastic Agent installation if already running
+      ansible.builtin.meta: end_host
+      when:
+        - "'elastic-agent.service' in ansible_facts.services"
+        - ansible_facts.services['elastic-agent.service'].status == 'enabled'
+
+    - name: Download Elastic Agent tar.gz
+      ansible.builtin.get_url:
+        url: >-
+          https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-{{ ludus_lme_agents_elastic_version }}-linux-{{ ludus_lme_agents_agent_arch }}.tar.gz
+        dest: "{{ ludus_lme_agents_linux_temp_dir }}/elastic-agent-{{ ludus_lme_agents_elastic_version }}-linux-{{ ludus_lme_agents_agent_arch }}.tar.gz"
+        validate_certs: true
+        mode: "0644"
+
+    - name: Extract Elastic Agent tar.gz
+      ansible.builtin.unarchive:
+        src: "{{ ludus_lme_agents_linux_temp_dir }}/elastic-agent-{{ ludus_lme_agents_elastic_version }}-linux-{{ ludus_lme_agents_agent_arch }}.tar.gz"
+        dest: "{{ ludus_lme_agents_linux_temp_dir }}"
+        remote_src: true
+
+    - name: Install Elastic Agent
+      ansible.builtin.shell: |
+        cd {{ ludus_lme_agents_linux_temp_dir }}/elastic-agent-{{ ludus_lme_agents_elastic_version }}-linux-{{ ludus_lme_agents_agent_arch }}
+        ./elastic-agent install \
+          --url={{ ludus_lme_agents_fleet_server }} \
+          --enrollment-token={{ ludus_lme_agents_enrollment_token }} \
+          --insecure \
+          --non-interactive
+      args:
+        creates: /opt/Elastic/Agent/elastic-agent
+
+- name: Install auditd on Linux
+  when: ansible_system == 'Linux'
+  become: true
+  block:
+    - name: Install auditd packages
+      ansible.builtin.package:
+        name:
+          - auditd
+        state: present
+
+    - name: Download audit rules
+      ansible.builtin.get_url:
+        url: "{{ ludus_lme_agents_audit_rules_url }}"
+        dest: /etc/audit/rules.d/audit.rules
+        mode: "0644"
+
+    - name: Load audit rules
+      ansible.builtin.command: augenrules --load
+      changed_when: false
+
+    - name: Restart auditd service
+      ansible.builtin.service:
+        name: auditd
+        state: restarted
+
+# ---------------------------------------------------------------------------
+# Windows: install Elastic Agent + Sysmon
+# ---------------------------------------------------------------------------
+
+- name: Install Elastic Agent on Windows
+  when: ansible_os_family == 'Windows'
+  block:
+    - name: Check if Elastic Agent service exists and is running
+      ansible.windows.win_service:
+        name: "Elastic Agent"
+      register: elastic_service_info
+
+    - name: Create Windows temp directory
+      ansible.windows.win_file:
+        path: "{{ ludus_lme_agents_windows_temp_dir }}"
+        state: directory
+      when: not (elastic_service_info.exists | default(false) and elastic_service_info.state | default('') == 'running')
+
+    - name: Download Elastic Agent ZIP
+      ansible.windows.win_get_url:
+        url: >-
+          https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-{{ ludus_lme_agents_elastic_version }}-windows-{{ ludus_lme_agents_agent_arch }}.zip
+        dest: "{{ ludus_lme_agents_windows_temp_dir }}\\elastic-agent-{{ ludus_lme_agents_elastic_version }}-windows-{{ ludus_lme_agents_agent_arch }}.zip"
+      when: not (elastic_service_info.exists | default(false) and elastic_service_info.state | default('') == 'running')
+
+    - name: Extract Elastic Agent ZIP
+      community.windows.win_unzip:
+        src: "{{ ludus_lme_agents_windows_temp_dir }}\\elastic-agent-{{ ludus_lme_agents_elastic_version }}-windows-{{ ludus_lme_agents_agent_arch }}.zip"
+        dest: "{{ ludus_lme_agents_windows_temp_dir }}"
+      when: not (elastic_service_info.exists | default(false) and elastic_service_info.state | default('') == 'running')
+
+    - name: Install Elastic Agent on Windows
+      ansible.windows.win_shell: |
+        cd {{ ludus_lme_agents_windows_temp_dir }}\elastic-agent-{{ ludus_lme_agents_elastic_version }}-windows-{{ ludus_lme_agents_agent_arch }}
+        .\elastic-agent.exe install `
+          --url={{ ludus_lme_agents_fleet_server }} `
+          --enrollment-token={{ ludus_lme_agents_enrollment_token }} `
+          --insecure `
+          --non-interactive
+      args:
+        creates: 'C:\Program Files\Elastic\Agent\elastic-agent.exe'
+      when: not (elastic_service_info.exists | default(false) and elastic_service_info.state | default('') == 'running')
+
+- name: Install Sysmon on Windows
+  when: ansible_os_family == 'Windows'
+  block:
+    - name: Check if Sysmon64 service exists and is running
+      ansible.windows.win_service:
+        name: Sysmon64
+      register: sysmon_service_info
+
+    - name: Create Windows temp directory for Sysmon
+      ansible.windows.win_file:
+        path: "{{ ludus_lme_agents_windows_temp_dir }}\\Sysmon"
+        state: directory
+      when: not (sysmon_service_info.exists | default(false) and sysmon_service_info.state | default('') == 'running')
+
+    - name: Download Sysmon ZIP
+      ansible.windows.win_get_url:
+        url: "{{ ludus_lme_agents_sysmon_url }}"
+        dest: "{{ ludus_lme_agents_windows_temp_dir }}\\Sysmon.zip"
+      when: not (sysmon_service_info.exists | default(false) and sysmon_service_info.state | default('') == 'running')
+
+    - name: Extract Sysmon ZIP
+      community.windows.win_unzip:
+        src: "{{ ludus_lme_agents_windows_temp_dir }}\\Sysmon.zip"
+        dest: "{{ ludus_lme_agents_windows_temp_dir }}\\Sysmon"
+      when: not (sysmon_service_info.exists | default(false) and sysmon_service_info.state | default('') == 'running')
+
+    - name: Download Sysmon config
+      ansible.windows.win_get_url:
+        url: "{{ ludus_lme_agents_sysmon_config_url }}"
+        dest: "{{ ludus_lme_agents_windows_temp_dir }}\\Sysmon\\sysmonconfig-export.xml"
+      when: not (sysmon_service_info.exists | default(false) and sysmon_service_info.state | default('') == 'running')
+
+    - name: Install Sysmon with config
+      ansible.windows.win_shell: |
+        cd {{ ludus_lme_agents_windows_temp_dir }}\Sysmon
+        .\Sysmon64.exe -accepteula -i sysmonconfig-export.xml
+      args:
+        creates: 'C:\Windows\Sysmon64.exe'
+      when: not (sysmon_service_info.exists | default(false) and sysmon_service_info.state | default('') == 'running')

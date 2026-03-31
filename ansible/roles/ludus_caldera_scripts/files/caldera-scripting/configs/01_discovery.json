@@ -1,0 +1,26 @@
+{
+    "adversary": {
+        "name": "Discovery 2",
+        "description": "optional adversary description",
+        "abilities": [
+            {"name": "Find System Network Connections"},
+            {"name": "Hostname Discovery (Windows)"},
+            {"name": "Enumerate all accounts on Windows (Local)"},
+            {"name": "Identify active user"},
+            {"name": "Identify local users"},
+            {"name": "System processes"},
+            {"name": "Find user processes"},
+            {"name": "View Processes"}
+        ]
+    },
+    "operation": {
+        "name": "Discovery 2 Op",
+        "planner": {"name": "atomic"},
+        "source": {"name": "basic"},
+        "group": "red"
+    },
+    "options": {
+        "add timestamp to operation": true,
+        "fail on error": true
+    }
+}

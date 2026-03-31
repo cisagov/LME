@@ -1,0 +1,19 @@
+---
+# @decision DEC-AGENTS-001
+# @title Agent installation split into elastic and wazuh task files
+# @status accepted
+# @rationale Elastic Agent and Wazuh Agent have independent installation paths
+#   and can be deployed selectively on different endpoint populations. Splitting
+#   into two task files lets callers invoke only what they need via
+#   tasks_from: elastic or tasks_from: wazuh, while this main.yml provides the
+#   default "install both" entrypoint for Ludus range deployments.
+
+- name: Install Elastic Agent
+  ansible.builtin.include_role:
+    name: ludus_lme_agents
+    tasks_from: elastic
+
+- name: Install Wazuh Agent
+  ansible.builtin.include_role:
+    name: ludus_lme_agents
+    tasks_from: wazuh

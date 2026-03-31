@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: ludus_caldera_server
+  namespace: cisagov
+  author: cisagov
+  description: "Deploys MITRE Caldera adversary emulation platform on a Ludus VM"
+  license: "GPLv3"
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - ludus
+    - caldera
+    - mitre
+    - adversary
+    - emulation
+    - security
+    - red_team
+dependencies: []

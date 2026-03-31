@@ -1,0 +1,30 @@
+{
+    "adversary": {
+        "name": "Discovery redux",
+        "description": "optional adversary description",
+        "abilities": [
+            {"name": "Identify active user"},
+            {"name": "Find local users"},
+            {"name": "Identify local users"},
+            {"name": "Snag broadcast IP"},
+            {"name": "Find user processes"},
+            {"name": "View admin shares"},
+            {"name": "Discover domain controller"},
+            {"name": "Discover antivirus programs"},
+            {"name": "Permission Groups Discovery"},
+            {"name": "Identify Firewalls"},
+            {"name": "Discover Mail Server"},
+            {"name": "Get Chrome Bookmarks"}
+        ]
+    },
+    "operation": {
+        "name": "Test operation name",
+        "planner": {"name": "atomic"},
+        "source": {"name": "basic"},
+        "group": "red"
+    },
+    "options": {
+        "add timestamp to operation": true,
+        "fail on error": true
+    }
+}
