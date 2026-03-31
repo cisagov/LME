@@ -130,6 +130,16 @@
   delay: 10
   until: embed_model_download is not failed
 
+- name: Ensure llm_keys.env exists (empty placeholder for fresh installs)
+  copy:
+    content: "# LLM API keys - managed by the dashboard UI\n"
+    dest: /opt/lme/config/llm_keys.env
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0600'
+    force: no
+  become: yes
+
 - name: Copy llama.cpp quadlet file to /etc/containers/systemd
   copy:
     src: "{{ clone_directory }}/quadlet/lme-llama-cpp.container"
