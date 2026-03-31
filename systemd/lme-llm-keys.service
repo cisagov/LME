@@ -6,5 +6,4 @@ After=lme-litellm.service
 Type=oneshot
 ExecStart=/usr/bin/python3 /opt/lme/scripts/sync_llm_keys.py
 Environment=LLM_KEYS_PATH=/opt/lme/config/llm_keys.enc
-Environment=LLM_KEYS_ENV_PATH=/opt/lme/config/llm_keys.env
 Environment=VAULT_PASS_FILE=/etc/lme/pass.sh

@@ -130,14 +130,15 @@
   delay: 10
   until: embed_model_download is not failed
 
-- name: Ensure llm_keys.env exists (empty placeholder for fresh installs)
-  copy:
-    content: "# LLM API keys - managed by the dashboard UI\n"
-    dest: /opt/lme/config/llm_keys.env
-    owner: "{{ install_user }}"
-    group: "{{ install_user }}"
-    mode: '0600'
-    force: no
+- name: Create initial llm-keys podman secret (empty placeholder for fresh installs)
+  shell: |
+    source /root/.profile
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    if ! podman secret ls | grep -q llm-keys; then
+      echo -n '# empty' | podman secret create --driver shell llm-keys -
+    fi
+  args:
+    executable: /bin/bash
   become: yes
 
 - name: Copy llama.cpp quadlet file to /etc/containers/systemd
@@ -234,6 +235,36 @@
     mode: '0644'
   become: yes
 
+- name: Create scripts directory
+  file:
+    path: /opt/lme/scripts
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy LLM key sync script
+  copy:
+    src: "{{ clone_directory }}/scripts/sync_llm_keys.py"
+    dest: /opt/lme/scripts/sync_llm_keys.py
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy LLM keys systemd service and path units
+  copy:
+    src: "{{ clone_directory }}/systemd/{{ item }}"
+    dest: /etc/systemd/system/{{ item }}
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - lme-llm-keys.service
+    - lme-llm-keys.path
+  become: yes
+
 - name: Reload systemd daemon for llama.cpp and LiteLLM
   systemd:
     daemon_reload: yes
@@ -279,6 +310,13 @@
     state: started
   become: yes
   when: model_download is succeeded
+
+- name: Enable and start LLM keys path watcher
+  systemd:
+    name: lme-llm-keys.path
+    enabled: yes
+    state: started
+  become: yes
 
 - name: Run LME documentation ingestion into pgvector
   shell: |
