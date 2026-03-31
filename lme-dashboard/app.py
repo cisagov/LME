@@ -10,10 +10,14 @@ import os
 import json
 import logging
 import socket
+import base64
+import hashlib
 from pathlib import Path
 
 import httpx
 import psycopg2
+import yaml
+from cryptography.fernet import Fernet
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,6 +33,85 @@ ES_PASS     = os.getenv("ELASTICSEARCH_PASSWORD", "")
 LITELLM_URL = os.getenv("LITELLM_URL",        "https://lme-litellm:4000")
 LITELLM_KEY = os.getenv("LITELLM_API_KEY",    "sk-lme-llama-proxy")
 LITELLM_MDL = os.getenv("LITELLM_MODEL",      "gemma-3-1b")
+
+# Path to LiteLLM config YAML — writable so the UI can manage models
+LITELLM_CONFIG_PATH = os.getenv("LITELLM_CONFIG_PATH", "/opt/lme/config/litellm_config.yaml")
+
+# Encrypted key storage paths
+LLM_KEYS_PATH  = os.getenv("LLM_KEYS_PATH", "/opt/lme/config/llm_keys.enc")
+VAULT_PASS_FILE = os.getenv("VAULT_PASS_FILE", "/etc/lme/pass.sh")
+LLM_KEYS_TRIGGER = os.getenv("LLM_KEYS_TRIGGER", "/opt/lme/config/.llm-keys-updated")
+
+# Mutable active-model state (updated via UI)
+_active_model = {"name": LITELLM_MDL}
+
+
+# ── Encrypted key storage ────────────────────────────────────────────────────
+
+def _get_fernet() -> Fernet:
+    """Derive a Fernet key from the ansible vault password."""
+    try:
+        with open(VAULT_PASS_FILE, "r") as f:
+            content = f.read().strip()
+        # pass.sh is a script that echoes the password; extract it
+        # Look for the echo/printf line
+        vault_pass = ""
+        for line in content.splitlines():
+            line = line.strip()
+            if line.startswith("echo") or line.startswith("printf"):
+                # Extract quoted string
+                for q in ('"', "'"):
+                    if q in line:
+                        parts = line.split(q)
+                        if len(parts) >= 2:
+                            vault_pass = parts[1]
+                            break
+                if vault_pass:
+                    break
+            elif not line.startswith("#") and not line.startswith("!") and line:
+                vault_pass = line
+        if not vault_pass:
+            vault_pass = content
+    except FileNotFoundError:
+        # Fallback key for development — not for production
+        vault_pass = "lme-dev-key-not-for-production"
+        logger.warning("Vault password file not found, using development fallback")
+
+    # Derive a 32-byte Fernet key from the vault password using PBKDF2
+    key = hashlib.pbkdf2_hmac("sha256", vault_pass.encode(), b"lme-llm-keys", 100000)
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
+def _read_llm_keys() -> dict:
+    """Read and decrypt the LLM API keys store."""
+    try:
+        with open(LLM_KEYS_PATH, "rb") as f:
+            encrypted = f.read()
+        if not encrypted:
+            return {}
+        fernet = _get_fernet()
+        decrypted = fernet.decrypt(encrypted)
+        return json.loads(decrypted)
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        logger.error(f"Failed to decrypt LLM keys: {e}")
+        return {}
+
+
+def _write_llm_keys(keys: dict):
+    """Encrypt and write the LLM API keys store, then signal for sync."""
+    fernet = _get_fernet()
+    encrypted = fernet.encrypt(json.dumps(keys).encode())
+    with open(LLM_KEYS_PATH, "wb") as f:
+        f.write(encrypted)
+    # Touch the trigger file so the host-side systemd unit picks up the change
+    Path(LLM_KEYS_TRIGGER).touch()
+
+
+def _env_var_name(provider: str) -> str:
+    """Convert a provider name to an env var name for LiteLLM."""
+    return f"LME_LLM_KEY_{provider.upper()}"
 
 # httpx clients — both ES and LiteLLM use self-signed certs
 PGVECTOR_HOST = os.getenv("PGVECTOR_HOST", "lme-pgvector")
@@ -295,7 +378,7 @@ class AnalyzeRequest(BaseModel):
 async def chat(req: ChatRequest):
     """Forward a chat conversation to LiteLLM. Returns full response."""
     payload = {
-        "model": LITELLM_MDL,
+        "model": _active_model["name"],
         "messages": [m.model_dump() for m in req.messages],
         "temperature": 0.7,
         "max_tokens": 800,
@@ -322,7 +405,7 @@ async def chat(req: ChatRequest):
 async def chat_stream(req: ChatRequest):
     """SSE streaming chat via LiteLLM."""
     payload = {
-        "model": LITELLM_MDL,
+        "model": _active_model["name"],
         "messages": [m.model_dump() for m in req.messages],
         "temperature": 0.7,
         "max_tokens": 800,
@@ -375,7 +458,7 @@ Reply with exactly three sections (be brief, 1-2 sentences each):
 **Action:** [recommended immediate response]"""
 
     payload = {
-        "model": LITELLM_MDL,
+        "model": _active_model["name"],
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
         "max_tokens": 400,
@@ -532,7 +615,7 @@ async def chat_rag(req: RagChatRequest):
     messages += [m.model_dump() for m in req.messages]
 
     payload = {
-        "model": LITELLM_MDL,
+        "model": _active_model["name"],
         "messages": messages,
         "temperature": 0.1,
         "max_tokens": 250,
@@ -588,7 +671,7 @@ async def chat_rag_stream(req: RagChatRequest):
     messages += [m.model_dump() for m in req.messages]
 
     payload = {
-        "model": LITELLM_MDL,
+        "model": _active_model["name"],
         "messages": messages,
         "temperature": 0.1,
         "max_tokens": 250,
@@ -642,6 +725,213 @@ async def chat_rag_stream(req: RagChatRequest):
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+# ── Model management endpoints ───────────────────────────────────────────────
+
+PROVIDER_TEMPLATES = {
+    "local": {
+        "label": "Local (llama.cpp)",
+        "prefix": "openai/",
+        "api_base": "http://lme-llama-cpp:8080/v1",
+        "api_key": "dummy",
+        "needs_api_key": False,
+    },
+    "openai": {
+        "label": "OpenAI",
+        "prefix": "",
+        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+        "needs_api_key": True,
+    },
+    "anthropic": {
+        "label": "Anthropic Claude",
+        "prefix": "",
+        "models": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"],
+        "needs_api_key": True,
+    },
+    "openrouter": {
+        "label": "OpenRouter",
+        "prefix": "openrouter/",
+        "api_base": "https://openrouter.ai/api/v1",
+        "models": ["openai/gpt-4o", "anthropic/claude-sonnet-4", "google/gemini-2.0-flash-exp:free", "meta-llama/llama-3-70b-instruct"],
+        "needs_api_key": True,
+    },
+}
+
+
+def _read_litellm_config() -> dict:
+    """Read the litellm_config.yaml file."""
+    try:
+        with open(LITELLM_CONFIG_PATH, "r") as f:
+            return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return {"model_list": [], "general_settings": {"master_key": LITELLM_KEY},
+                "litellm_settings": {"drop_params": True, "success_callback": [], "failure_callback": []}}
+
+
+def _write_litellm_config(config: dict):
+    """Write the litellm_config.yaml file."""
+    with open(LITELLM_CONFIG_PATH, "w") as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+
+
+@app.get("/api/models")
+async def get_models():
+    """Return configured models and the currently active model."""
+    config = _read_litellm_config()
+    keys = _read_llm_keys()
+    models = []
+    for entry in config.get("model_list", []):
+        params = entry.get("litellm_params", {})
+        model_name = entry.get("model_name", "")
+        # Determine if key is set: check encrypted store for the provider
+        api_key_ref = params.get("api_key", "")
+        has_key = False
+        provider = ""
+        if isinstance(api_key_ref, str) and api_key_ref.startswith("os.environ/"):
+            env_name = api_key_ref.split("/", 1)[1]
+            # Reverse-lookup provider from env var name
+            for p in PROVIDER_TEMPLATES:
+                if _env_var_name(p) == env_name:
+                    provider = p
+                    break
+            has_key = env_name in keys or bool(os.getenv(env_name))
+        elif api_key_ref and api_key_ref != "dummy":
+            has_key = True
+        models.append({
+            "model_name": model_name,
+            "litellm_model": params.get("model", ""),
+            "api_base": params.get("api_base", ""),
+            "has_api_key": has_key,
+            "provider": provider,
+        })
+    return {
+        "active_model": _active_model["name"],
+        "models": models,
+        "providers": PROVIDER_TEMPLATES,
+    }
+
+
+class AddModelRequest(BaseModel):
+    model_name: str
+    provider: str
+    litellm_model: str = ""
+    api_key: str = ""
+    api_base: str = ""
+
+
+@app.post("/api/models")
+async def add_model(req: AddModelRequest):
+    """Add or update a model in litellm_config.yaml.
+    API keys are stored encrypted — the YAML only contains os.environ/ references.
+    """
+    config = _read_litellm_config()
+    if "model_list" not in config:
+        config["model_list"] = []
+
+    template = PROVIDER_TEMPLATES.get(req.provider, {})
+
+    # Build litellm_params
+    params = {}
+    prefix = template.get("prefix", "")
+    if req.litellm_model:
+        params["model"] = f"{prefix}{req.litellm_model}" if prefix and not req.litellm_model.startswith(prefix) else req.litellm_model
+    else:
+        params["model"] = req.model_name
+
+    if req.api_base:
+        params["api_base"] = req.api_base
+    elif "api_base" in template:
+        params["api_base"] = template["api_base"]
+
+    # Handle API key: store encrypted, put env var reference in YAML
+    needs_restart = False
+    if req.api_key:
+        env_name = _env_var_name(req.provider)
+        # Store the key encrypted
+        keys = _read_llm_keys()
+        keys[env_name] = req.api_key
+        _write_llm_keys(keys)
+        # YAML gets the env var reference — never the raw key
+        params["api_key"] = f"os.environ/{env_name}"
+        needs_restart = True
+    elif template.get("api_key"):
+        params["api_key"] = template["api_key"]
+
+    # Remove existing model with same name (update)
+    config["model_list"] = [
+        m for m in config["model_list"] if m.get("model_name") != req.model_name
+    ]
+
+    config["model_list"].append({
+        "model_name": req.model_name,
+        "litellm_params": params,
+    })
+
+    _write_litellm_config(config)
+
+    msg = f"Model '{req.model_name}' added."
+    if needs_restart:
+        msg += " LiteLLM will restart to pick up the new key."
+    else:
+        msg += " Restart LiteLLM to apply."
+    return {"status": "ok", "message": msg, "needs_restart": needs_restart}
+
+
+@app.delete("/api/models/{model_name}")
+async def delete_model(model_name: str):
+    """Remove a model from litellm_config.yaml."""
+    config = _read_litellm_config()
+    original_len = len(config.get("model_list", []))
+
+    # Find the model to get its provider key reference before removing
+    removed_entry = None
+    for m in config.get("model_list", []):
+        if m.get("model_name") == model_name:
+            removed_entry = m
+            break
+
+    config["model_list"] = [
+        m for m in config.get("model_list", []) if m.get("model_name") != model_name
+    ]
+    if len(config["model_list"]) == original_len:
+        raise HTTPException(404, f"Model '{model_name}' not found")
+
+    # Check if any remaining models use the same provider key; if not, clean it up
+    if removed_entry:
+        removed_key_ref = removed_entry.get("litellm_params", {}).get("api_key", "")
+        if isinstance(removed_key_ref, str) and removed_key_ref.startswith("os.environ/"):
+            env_name = removed_key_ref.split("/", 1)[1]
+            still_used = any(
+                m.get("litellm_params", {}).get("api_key") == removed_key_ref
+                for m in config["model_list"]
+            )
+            if not still_used:
+                keys = _read_llm_keys()
+                keys.pop(env_name, None)
+                _write_llm_keys(keys)
+
+    _write_litellm_config(config)
+
+    # If deleted model was active, fall back to first available or default
+    if _active_model["name"] == model_name:
+        if config["model_list"]:
+            _active_model["name"] = config["model_list"][0]["model_name"]
+        else:
+            _active_model["name"] = LITELLM_MDL
+
+    return {"status": "ok", "message": f"Model '{model_name}' removed. LiteLLM will restart to apply."}
+
+
+class SetActiveModelRequest(BaseModel):
+    model_name: str
+
+
+@app.post("/api/models/active")
+async def set_active_model(req: SetActiveModelRequest):
+    """Set which model the dashboard uses for chat/analysis."""
+    _active_model["name"] = req.model_name
+    return {"status": "ok", "active_model": req.model_name}
 
 
 # ── Static files / SPA ───────────────────────────────────────────────────────

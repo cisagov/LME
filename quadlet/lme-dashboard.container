@@ -29,5 +29,11 @@ Environment=PGVECTOR_PORT=5432
 Environment=PGVECTOR_DB=lme_vectors
 Environment=PGVECTOR_USER=lme
 Environment=EMBED_URL=http://lme-embeddings:8081
+Volume=/opt/lme/config:/opt/lme/config:rw
+Volume=/etc/lme/pass.sh:/etc/lme/pass.sh:ro
+Environment=LITELLM_CONFIG_PATH=/opt/lme/config/litellm_config.yaml
+Environment=LLM_KEYS_PATH=/opt/lme/config/llm_keys.enc
+Environment=LLM_KEYS_TRIGGER=/opt/lme/config/.llm-keys-updated
+Environment=VAULT_PASS_FILE=/etc/lme/pass.sh
 Secret=elastic,type=env,target=ELASTICSEARCH_PASSWORD
 Secret=pgvector,type=env,target=PGVECTOR_PASS
