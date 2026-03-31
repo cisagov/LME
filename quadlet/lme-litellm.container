@@ -20,7 +20,7 @@ PublishPort=4000:4000
 Volume=/opt/lme/config/litellm_config.yaml:/app/config.yaml:ro
 Volume=/opt/lme/config/llm_keys.env:/app/llm_keys.env:ro
 Volume=lme_certs:/certs:ro
-EnvironmentFile=/opt/lme/config/llm_keys.env
+EnvironmentFile=-/opt/lme/config/llm_keys.env
 Environment=SSL_KEYFILE=/certs/litellm/litellm.key
 Environment=SSL_CERTFILE=/certs/litellm/litellm.crt
 Exec=--config /app/config.yaml --port 4000 --ssl_keyfile_path /certs/litellm/litellm.key --ssl_certfile_path /certs/litellm/litellm.crt

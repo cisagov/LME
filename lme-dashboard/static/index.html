@@ -99,6 +99,11 @@
       pgvector: <span x-text="health.pgvector || '…'"></span>
     </span>
 
+    <span class="bg-purple-900 text-purple-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+      Model: <span x-text="modelSettings.activeModel || '…'"></span>
+    </span>
+
     <!-- MODEL SETTINGS button — prominent -->
     <button @click="showModelSettings = true; loadModels()"
             class="px-3 py-1 rounded-full bg-purple-800 text-purple-100 hover:bg-purple-700 transition flex items-center gap-1.5 font-medium text-sm border border-purple-600">
@@ -812,7 +817,7 @@ function dashboard() {
     },
 
     async init() {
-      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh()]);
+      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh(), this.loadModels()]);
     },
 
     async loadHealth() {

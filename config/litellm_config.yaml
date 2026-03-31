@@ -15,12 +15,13 @@ model_list:
       # This does NOT mean we're using OpenAI's service - it's just the API format
       model: openai/LFM2.5-1.2B-Instruct-Q4_K_M
 
-      # Internal HTTP connection to llama.cpp (no SSL needed on private network)
-      # External clients connect to LiteLLM via HTTPS, LiteLLM connects to llama.cpp via HTTP
-      api_base: http://lme-llama-cpp:8080/v1
+      # Internal HTTPS connection to llama.cpp (all services use TLS on the lme network)
+      api_base: https://lme-llama-cpp:8080/v1
 
       # Dummy key - llama.cpp doesn't require authentication
       api_key: dummy
+      # Self-signed certs on the internal network
+      ssl_verify: false
 
   # ============================================================================
   # CLOUD-BASED MODELS (Examples - uncomment and configure to use)
