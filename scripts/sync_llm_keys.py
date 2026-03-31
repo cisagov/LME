@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Decrypt LLM API keys from the encrypted store and write them to an
-environment file that LiteLLM can load.  Then restart the LiteLLM service
+Decrypt LLM API keys from the encrypted store and write them to a
+podman secret that LiteLLM can load.  Then restart the LiteLLM service
 so it picks up new/changed keys.
 
 This script runs on the HOST (not inside a container) and is triggered by
@@ -10,8 +10,8 @@ a systemd path unit that watches the trigger file.
 Flow:
   1. Read the vault password from /etc/lme/pass.sh
   2. Decrypt /opt/lme/config/llm_keys.enc using Fernet (PBKDF2-derived key)
-  3. Write key=value pairs to /opt/lme/config/llm_keys.env (mode 0600)
-  4. Restart lme-litellm.service so it loads the new env vars
+  3. Write key=value pairs into a podman secret called 'llm-keys'
+  4. Restart lme-litellm.service so it loads the new secrets
 """
 
 import base64
@@ -21,10 +21,10 @@ import os
 import subprocess
 import sys
 
-KEYS_ENC_PATH  = os.getenv("LLM_KEYS_PATH", "/opt/lme/config/llm_keys.enc")
-KEYS_ENV_PATH  = os.getenv("LLM_KEYS_ENV_PATH", "/opt/lme/config/llm_keys.env")
+KEYS_ENC_PATH   = os.getenv("LLM_KEYS_PATH", "/opt/lme/config/llm_keys.enc")
 VAULT_PASS_FILE = os.getenv("VAULT_PASS_FILE", "/etc/lme/pass.sh")
 TRIGGER_FILE    = "/opt/lme/config/.llm-keys-updated"
+SECRET_NAME     = "llm-keys"
 
 
 def get_vault_password() -> str:
@@ -54,7 +54,6 @@ def decrypt_keys() -> dict:
     try:
         from cryptography.fernet import Fernet
     except ImportError:
-        # If cryptography isn't installed on the host, install it
         subprocess.check_call([sys.executable, "-m", "pip", "install", "cryptography>=42.0", "-q"])
         from cryptography.fernet import Fernet
 
@@ -79,24 +78,28 @@ def decrypt_keys() -> dict:
         return {}
 
 
-def write_env_file(keys: dict):
-    """Write decrypted keys to an environment file (root-only readable)."""
+def update_podman_secret(keys: dict):
+    """Write decrypted keys into a podman secret (replaces any existing)."""
     lines = []
     for name, value in sorted(keys.items()):
-        # Sanitize: no newlines or quotes in env values
         safe_value = value.replace("\n", "").replace("'", "").replace('"', "")
         lines.append(f"{name}={safe_value}")
 
-    env_content = "\n".join(lines) + "\n" if lines else ""
+    env_content = "\n".join(lines) + "\n" if lines else "# empty\n"
 
-    # Write atomically: temp file then rename
-    tmp_path = KEYS_ENV_PATH + ".tmp"
-    with open(tmp_path, "w") as f:
-        f.write(env_content)
-    os.chmod(tmp_path, 0o600)
-    os.rename(tmp_path, KEYS_ENV_PATH)
+    # Create/replace the podman secret from stdin
+    # Must use bash with profile sourced so ANSIBLE_VAULT_PASSWORD_FILE is set
+    # for the shell secret driver
+    result = subprocess.run(
+        ["bash", "-c",
+         f'source /root/.profile && echo -n "$SECRET_DATA" | podman secret create --driver shell --replace {SECRET_NAME} -'],
+        env={**os.environ, "SECRET_DATA": env_content},
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"ERROR: Failed to create podman secret: {result.stderr}", file=sys.stderr)
+        sys.exit(1)
 
-    print(f"Wrote {len(keys)} key(s) to {KEYS_ENV_PATH}")
+    print(f"Updated podman secret '{SECRET_NAME}' with {len(keys)} key(s)")
 
 
 def restart_litellm():
@@ -113,11 +116,10 @@ def restart_litellm():
 def main():
     print(f"Syncing LLM keys from {KEYS_ENC_PATH}...")
     keys = decrypt_keys()
-    write_env_file(keys)
+    update_podman_secret(keys)
     restart_litellm()
 
-    # Reset trigger file (touch it back so systemd can detect the next change)
-    # Don't remove it — just truncate so PathModified fires on next touch
+    # Reset trigger file so systemd can detect the next change
     try:
         if os.path.isdir(TRIGGER_FILE):
             os.rmdir(TRIGGER_FILE)
