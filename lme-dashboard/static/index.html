@@ -204,7 +204,26 @@
       </div>
 
       <!-- filters -->
-      <div class="flex items-center gap-3 pb-2 text-xs">
+      <div class="flex items-center gap-3 pb-2 text-xs flex-wrap">
+        <!-- Time range (shared) -->
+        <div class="flex items-center gap-2">
+          <label class="text-gray-500">Time range</label>
+          <select x-model="timeRange" @change="loadKibana(); loadWazuh()"
+                  class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-purple-500">
+            <option value="now-15m">Last 15 min</option>
+            <option value="now-1h">Last 1 hour</option>
+            <option value="now-4h">Last 4 hours</option>
+            <option value="now-12h">Last 12 hours</option>
+            <option value="now-24h" selected>Last 24 hours</option>
+            <option value="now-3d">Last 3 days</option>
+            <option value="now-7d">Last 7 days</option>
+            <option value="now-30d">Last 30 days</option>
+            <option value="now-90d">Last 90 days</option>
+          </select>
+        </div>
+
+        <span class="text-surface-600">|</span>
+
         <template x-if="activeTab === 'kibana'">
           <div class="flex items-center gap-2">
             <label class="text-gray-500">Min severity</label>
@@ -214,13 +233,6 @@
               <option value="high">High</option>
               <option value="medium" selected>Medium+</option>
               <option value="low">Low+</option>
-            </select>
-            <label class="text-gray-500">Limit</label>
-            <select x-model.number="kibana.size" @change="loadKibana()"
-                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-blue-500">
-              <option value="50">50</option>
-              <option value="100" selected>100</option>
-              <option value="250">250</option>
             </select>
           </div>
         </template>
@@ -235,20 +247,20 @@
               <option value="9">9 (high)</option>
               <option value="12">12 (critical)</option>
             </select>
-            <label class="text-gray-500">Limit</label>
-            <select x-model.number="wazuh.size" @change="loadWazuh()"
-                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-orange-500">
-              <option value="50">50</option>
-              <option value="100" selected>100</option>
-              <option value="250">250</option>
-            </select>
           </div>
         </template>
       </div>
     </div>
 
     <!-- Alert list -->
-    <div class="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+    <div class="flex-1 overflow-y-auto px-4 py-3 space-y-2" x-ref="alertScroll"
+         @scroll.debounce.100ms="
+           const el = $refs.alertScroll;
+           if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+             if (activeTab === 'kibana') loadMoreKibana();
+             else loadMoreWazuh();
+           }
+         ">
 
       <!-- loading spinner -->
       <template x-if="(activeTab === 'kibana' && kibana.loading) || (activeTab === 'wazuh' && wazuh.loading)">
@@ -486,6 +498,26 @@
             </div>
           </template>
         </div>
+      </template>
+
+      <!-- loading more spinner -->
+      <template x-if="(activeTab === 'kibana' && kibana.loadingMore) || (activeTab === 'wazuh' && wazuh.loadingMore)">
+        <div class="flex items-center justify-center py-4 text-gray-500 text-xs">
+          <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Loading more…
+        </div>
+      </template>
+
+      <!-- end-of-results -->
+      <template x-if="activeTab === 'kibana' && !kibana.loading && !kibana.loadingMore && kibana.alerts.length > 0 && !kibana.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
+      </template>
+      <template x-if="activeTab === 'wazuh' && !wazuh.loading && !wazuh.loadingMore && wazuh.alerts.length > 0 && !wazuh.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
       </template>
 
     </div><!-- end alert list -->
@@ -1774,15 +1806,16 @@ function dashboard() {
 
     health: { elasticsearch: null, litellm: null },
 
+    timeRange: 'now-24h',
     kibana: {
-      loading: false, error: null,
+      loading: false, loadingMore: false, error: null,
       alerts: [], total: 0,
-      minSeverity: 'medium', size: 100,
+      minSeverity: 'medium', nextCursor: '',
     },
     wazuh: {
-      loading: false, error: null,
+      loading: false, loadingMore: false, error: null,
       alerts: [], total: 0,
-      minLevel: 7, size: 100,
+      minLevel: 7, nextCursor: '',
     },
     chat: {
       messages: [], input: '', thinking: false, ragMode: true,
@@ -2002,10 +2035,13 @@ function dashboard() {
     async loadKibana() {
       this.kibana.loading = true;
       this.kibana.error = null;
+      this.kibana.nextCursor = '';
       try {
         const params = new URLSearchParams({
           min_severity: this.kibana.minSeverity,
-          size: this.kibana.size,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
         });
         const r = await fetch(`/api/alerts/kibana?${params}`);
         if (!r.ok) {
@@ -2013,18 +2049,11 @@ function dashboard() {
           throw new Error(err.detail || `HTTP ${r.status}`);
         }
         const data = await r.json();
-        // preserve existing _expanded/_analysis/_analyzing state
-        const prevState = {};
-        for (const a of this.kibana.alerts) {
-          prevState[a.id] = { _expanded: a._expanded, _analysis: a._analysis };
-        }
         this.kibana.alerts = data.alerts.map(a => ({
-          ...a,
-          _expanded: prevState[a.id]?._expanded || false,
-          _analysis: prevState[a.id]?._analysis || null,
-          _analyzing: false,
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
         }));
         this.kibana.total = data.total;
+        this.kibana.nextCursor = data.next_cursor || '';
       } catch(e) {
         this.kibana.error = `Failed to load Kibana alerts: ${e.message}`;
       } finally {
@@ -2032,13 +2061,40 @@ function dashboard() {
       }
     },
 
+    async loadMoreKibana() {
+      if (this.kibana.loadingMore || !this.kibana.nextCursor) return;
+      this.kibana.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          min_severity: this.kibana.minSeverity,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.kibana.nextCursor,
+        });
+        const r = await fetch(`/api/alerts/kibana?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.kibana.alerts.push(...newAlerts);
+        this.kibana.nextCursor = data.next_cursor || '';
+      } finally {
+        this.kibana.loadingMore = false;
+      }
+    },
+
     async loadWazuh() {
       this.wazuh.loading = true;
       this.wazuh.error = null;
+      this.wazuh.nextCursor = '';
       try {
         const params = new URLSearchParams({
           min_level: this.wazuh.minLevel,
-          size: this.wazuh.size,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
         });
         const r = await fetch(`/api/alerts/wazuh?${params}`);
         if (!r.ok) {
@@ -2046,21 +2102,39 @@ function dashboard() {
           throw new Error(err.detail || `HTTP ${r.status}`);
         }
         const data = await r.json();
-        const prevState = {};
-        for (const a of this.wazuh.alerts) {
-          prevState[a.id] = { _expanded: a._expanded, _analysis: a._analysis };
-        }
         this.wazuh.alerts = data.alerts.map(a => ({
-          ...a,
-          _expanded: prevState[a.id]?._expanded || false,
-          _analysis: prevState[a.id]?._analysis || null,
-          _analyzing: false,
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
         }));
         this.wazuh.total = data.total;
+        this.wazuh.nextCursor = data.next_cursor || '';
       } catch(e) {
         this.wazuh.error = `Failed to load Wazuh alerts: ${e.message}`;
       } finally {
         this.wazuh.loading = false;
+      }
+    },
+
+    async loadMoreWazuh() {
+      if (this.wazuh.loadingMore || !this.wazuh.nextCursor) return;
+      this.wazuh.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          min_level: this.wazuh.minLevel,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.wazuh.nextCursor,
+        });
+        const r = await fetch(`/api/alerts/wazuh?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.wazuh.alerts.push(...newAlerts);
+        this.wazuh.nextCursor = data.next_cursor || '';
+      } finally {
+        this.wazuh.loadingMore = false;
       }
     },
 
