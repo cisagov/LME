@@ -219,7 +219,10 @@ async def health():
 @app.get("/api/alerts/kibana")
 async def kibana_alerts(
     min_severity: str = Query("medium", description="Minimum severity: low|medium|high|critical"),
-    size: int = Query(100, ge=1, le=500),
+    size: int = Query(50, ge=1, le=500),
+    time_from: str = Query("now-24h", description="Start of time range (ES date math, e.g. now-24h)"),
+    time_to: str = Query("now", description="End of time range (ES date math, e.g. now)"),
+    search_after: str = Query("", description="Cursor for pagination (timestamp,doc_id from previous page)"),
 ):
     """Return Kibana security detection rule alerts, newest first."""
     if not ES_PASS:
@@ -230,11 +233,12 @@ async def kibana_alerts(
 
     query = {
         "size": size,
-        "sort": [{"@timestamp": {"order": "desc"}}],
+        "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
         "query": {
             "bool": {
                 "filter": [
-                    {"terms": {"kibana.alert.severity": accepted}}
+                    {"terms": {"kibana.alert.severity": accepted}},
+                    {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
                 ]
             }
         },
@@ -253,6 +257,11 @@ async def kibana_alerts(
             "rule.name",
         ],
     }
+
+    if search_after:
+        parts = search_after.split(",", 1)
+        if len(parts) == 2:
+            query["search_after"] = [parts[0], parts[1]]
 
     async with es_client() as c:
         try:
@@ -314,13 +323,22 @@ async def kibana_alerts(
             "_raw": s,
         })
 
-    return {"total": total, "returned": len(alerts), "alerts": alerts}
+    next_cursor = ""
+    if hits:
+        last_sort = hits[-1].get("sort", [])
+        if len(last_sort) >= 2:
+            next_cursor = f"{last_sort[0]},{last_sort[1]}"
+
+    return {"total": total, "returned": len(alerts), "alerts": alerts, "next_cursor": next_cursor}
 
 
 @app.get("/api/alerts/wazuh")
 async def wazuh_alerts(
     min_level: int = Query(7, ge=0, le=15, description="Minimum Wazuh rule level (0-15)"),
-    size: int = Query(100, ge=1, le=500),
+    size: int = Query(50, ge=1, le=500),
+    time_from: str = Query("now-24h", description="Start of time range (ES date math, e.g. now-24h)"),
+    time_to: str = Query("now", description="End of time range (ES date math, e.g. now)"),
+    search_after: str = Query("", description="Cursor for pagination (timestamp,doc_id from previous page)"),
 ):
     """Return Wazuh alerts at or above min_level, newest first."""
     if not ES_PASS:
@@ -328,9 +346,14 @@ async def wazuh_alerts(
 
     query = {
         "size": size,
-        "sort": [{"@timestamp": {"order": "desc"}}],
+        "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
         "query": {
-            "range": {"rule.level": {"gte": min_level}}
+            "bool": {
+                "filter": [
+                    {"range": {"rule.level": {"gte": min_level}}},
+                    {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
+                ]
+            }
         },
         "_source": [
             "@timestamp",
@@ -349,6 +372,11 @@ async def wazuh_alerts(
         ],
     }
 
+    if search_after:
+        parts = search_after.split(",", 1)
+        if len(parts) == 2:
+            query["search_after"] = [parts[0], parts[1]]
+
     async with es_client() as c:
         try:
             r = await c.post(
@@ -359,7 +387,7 @@ async def wazuh_alerts(
             r.raise_for_status()
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                return {"total": 0, "returned": 0, "alerts": [], "note": "No wazuh-alerts-* index found"}
+                return {"total": 0, "returned": 0, "alerts": [], "next_cursor": "", "note": "No wazuh-alerts-* index found"}
             raise HTTPException(e.response.status_code, f"Elasticsearch error: {e.response.text[:200]}")
         except Exception as e:
             raise HTTPException(502, f"Elasticsearch unreachable: {e}")
@@ -403,7 +431,13 @@ async def wazuh_alerts(
             "_raw": s,
         })
 
-    return {"total": total, "returned": len(alerts), "alerts": alerts}
+    next_cursor = ""
+    if hits:
+        last_sort = hits[-1].get("sort", [])
+        if len(last_sort) >= 2:
+            next_cursor = f"{last_sort[0]},{last_sort[1]}"
+
+    return {"total": total, "returned": len(alerts), "alerts": alerts, "next_cursor": next_cursor}
 
 
 # ── Vulnerability endpoints ───────────────────────────────────────────────────
