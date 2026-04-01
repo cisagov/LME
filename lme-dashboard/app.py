@@ -2288,6 +2288,8 @@ async def list_kibana_rules(
     q: str = Query("", description="Search rule names"),
     enabled: str = Query("", description="'true', 'false', or '' for all"),
     tags: str = Query("", description="Comma-separated tag filters, e.g. 'OS: Windows'"),
+    sort_field: str = Query("name", description="Sort field: name, severity, enabled, risk_score"),
+    sort_order: str = Query("asc", description="Sort order: asc or desc"),
 ):
     """List Kibana detection rules with filtering."""
     if not ES_PASS:
@@ -2296,8 +2298,8 @@ async def list_kibana_rules(
     params = {
         "page": page,
         "per_page": per_page,
-        "sort_field": "name",
-        "sort_order": "asc",
+        "sort_field": sort_field,
+        "sort_order": sort_order,
     }
 
     # Build KQL filter
@@ -2393,128 +2395,108 @@ async def toggle_kibana_rules(req: ToggleRuleRequest):
     return results
 
 
-# ── Sigma Rule Import ────────────────────────────────────────────────────────
+# ── Sigma Rule Conversion (wraps convert_sigma_to_kibana.sh) ─────────────────
 
-
-class SigmaConvertRequest(BaseModel):
-    yaml_content: str
-    platform: str = "windows"  # windows, linux, macos
+SIGMA_SCRIPT = os.getenv("SIGMA_SCRIPT", "/opt/lme/scripts/sigma/convert_sigma_to_kibana.sh")
+SIGMA_OUTPUT_DIR = os.getenv("SIGMA_OUTPUT_DIR", "/opt/lme/scripts/sigma/output")
 
 
 @app.post("/api/rules/sigma/convert")
-async def convert_sigma_rule(req: SigmaConvertRequest):
-    """Convert a Sigma YAML rule to Kibana SIEM format and return the NDJSON."""
-    try:
-        from sigma.rule import SigmaRule
-        from sigma.backends.elasticsearch import LuceneBackend
-        from sigma.processing.pipeline import ProcessingPipeline
-    except ImportError:
-        raise HTTPException(500, "pySigma not installed — rebuild the dashboard image")
+async def sigma_convert():
+    """Run the Sigma conversion script to download and convert latest rules."""
+    script = Path(SIGMA_SCRIPT)
+    if not script.is_file():
+        raise HTTPException(404, f"Sigma script not found at {SIGMA_SCRIPT}")
 
-    # Try to load Windows pipeline if available
-    windows_pipeline = None
-    try:
-        from sigma.pipelines.windows import windows_pipeline as _wp
-        windows_pipeline = _wp
-    except ImportError:
-        pass
+    work_dir = script.parent
 
     try:
-        sigma_rule = SigmaRule.from_yaml(req.yaml_content)
+        result = subprocess.run(
+            ["bash", str(script)],
+            cwd=str(work_dir),
+            capture_output=True, text=True, timeout=600,
+            input="n\n",  # answer "no" to upload prompt — we handle that separately
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "Sigma conversion timed out (10 min limit)")
     except Exception as e:
-        raise HTTPException(400, f"Invalid Sigma YAML: {e}")
+        raise HTTPException(500, f"Failed to run script: {e}")
 
-    # Apply pipeline based on platform
-    if req.platform == "windows" and windows_pipeline:
-        pipeline = windows_pipeline()
-    else:
-        pipeline = ProcessingPipeline()
+    # Parse output for results
+    output = result.stdout + result.stderr
+    files = {}
+    output_dir = Path(work_dir / "output")
+    if output_dir.is_dir():
+        for f in sorted(output_dir.glob("sigma_*_rules.ndjson")):
+            count = sum(1 for line in f.read_text().splitlines() if line.strip())
+            platform = f.stem.replace("sigma_", "").replace("_rules", "")
+            files[platform] = {"filename": f.name, "rule_count": count}
 
-    backend = LuceneBackend(pipeline)
-
-    try:
-        queries = backend.convert_rule(sigma_rule)
-    except Exception as e:
-        raise HTTPException(400, f"Conversion failed: {e}")
-
-    if not queries:
-        raise HTTPException(400, "No queries generated from this rule")
-
-    # Map sigma severity to Kibana
-    sev_map = {"informational": "low", "low": "low", "medium": "medium", "high": "high", "critical": "critical"}
-    severity = sev_map.get(str(sigma_rule.level).lower() if sigma_rule.level else "medium", "medium")
-
-    risk_map = {"low": 21, "medium": 47, "high": 73, "critical": 99}
-
-    import uuid
-    kibana_rule = {
-        "rule_id": f"sigma-{uuid.uuid4().hex[:12]}",
-        "name": sigma_rule.title or "Sigma Rule",
-        "description": sigma_rule.description or sigma_rule.title or "",
-        "type": "query",
-        "language": "lucene",
-        "query": queries[0],
-        "severity": severity,
-        "risk_score": risk_map.get(severity, 47),
-        "enabled": False,
-        "tags": [f"Sigma", f"Sigma {req.platform.title()}"],
-        "interval": "5m",
-        "from": "now-6m",
-        "to": "now",
-    }
-
-    if sigma_rule.references:
-        kibana_rule["references"] = list(sigma_rule.references)
-    if sigma_rule.author:
-        kibana_rule["author"] = list(sigma_rule.author) if isinstance(sigma_rule.author, (list, tuple)) else [str(sigma_rule.author)]
+    total = sum(f["rule_count"] for f in files.values())
 
     return {
-        "status": "ok",
-        "query": queries[0],
-        "kibana_rule": kibana_rule,
+        "status": "ok" if result.returncode == 0 else "error",
+        "total_rules": total,
+        "platforms": files,
+        "output": output[-2000:],  # last 2000 chars of script output
     }
 
 
-class SigmaImportRequest(BaseModel):
-    yaml_content: str
-    platform: str = "windows"
+@app.get("/api/rules/sigma/status")
+async def sigma_status():
+    """Check if converted Sigma rule files exist and their stats."""
+    work_dir = Path(SIGMA_SCRIPT).parent / "output" if Path(SIGMA_SCRIPT).is_file() else Path(SIGMA_OUTPUT_DIR)
+    files = {}
+    if work_dir.is_dir():
+        for f in sorted(work_dir.glob("sigma_*_rules.ndjson")):
+            count = sum(1 for line in f.read_text().splitlines() if line.strip())
+            platform = f.stem.replace("sigma_", "").replace("_rules", "")
+            files[platform] = {
+                "filename": f.name,
+                "rule_count": count,
+                "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
+            }
+    return {"platforms": files, "total_rules": sum(f["rule_count"] for f in files.values())}
 
 
-@app.post("/api/rules/sigma/import")
-async def import_sigma_rule(req: SigmaImportRequest):
-    """Convert a Sigma YAML rule and import it directly into Kibana."""
-    # First convert
-    convert_req = SigmaConvertRequest(yaml_content=req.yaml_content, platform=req.platform)
-    converted = await convert_sigma_rule(convert_req)
+class SigmaUploadRequest(BaseModel):
+    platform: str  # "windows", "linux", "macos"
 
-    kibana_rule = converted["kibana_rule"]
-    ndjson_content = json.dumps(kibana_rule) + "\n"
 
-    # Import into Kibana
+@app.post("/api/rules/sigma/upload")
+async def sigma_upload(req: SigmaUploadRequest):
+    """Upload a converted Sigma NDJSON file to Kibana."""
+    work_dir = Path(SIGMA_SCRIPT).parent / "output" if Path(SIGMA_SCRIPT).is_file() else Path(SIGMA_OUTPUT_DIR)
+    ndjson_file = work_dir / f"sigma_{req.platform}_rules.ndjson"
+
+    if not ndjson_file.is_file():
+        raise HTTPException(404, f"No converted file for {req.platform}. Run conversion first.")
+
+    content = ndjson_file.read_bytes()
+    if not content.strip():
+        raise HTTPException(400, f"Converted file for {req.platform} is empty")
+
     async with llm_client() as c:
         try:
             r = await c.post(
                 f"{KIBANA_URL}/api/detection_engine/rules/_import?overwrite=false",
                 auth=ES_AUTH,
                 headers={"kbn-xsrf": "true"},
-                files={"file": ("sigma_rule.ndjson", ndjson_content.encode(), "application/x-ndjson")},
+                files={"file": (ndjson_file.name, content, "application/x-ndjson")},
+                timeout=120,
             )
             r.raise_for_status()
         except Exception as e:
-            raise HTTPException(502, f"Kibana import failed: {e}")
+            raise HTTPException(502, f"Kibana upload failed: {e}")
 
     result = r.json()
-    if result.get("success_count", 0) > 0:
-        return {
-            "status": "ok",
-            "message": f"Rule '{kibana_rule['name']}' imported successfully (disabled by default)",
-            "rule_name": kibana_rule["name"],
-            "query": converted["query"],
-        }
-    else:
-        errors = result.get("errors", [])
-        detail = errors[0].get("error", {}).get("message", "Unknown error") if errors else "Unknown error"
-        raise HTTPException(400, f"Kibana rejected the rule: {detail}")
+    return {
+        "status": "ok",
+        "platform": req.platform,
+        "success_count": result.get("success_count", 0),
+        "rules_count": result.get("rules_count", 0),
+        "errors": result.get("errors", [])[:5],
+    }
 
 
 @app.get("/", response_class=HTMLResponse)

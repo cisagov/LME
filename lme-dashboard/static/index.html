@@ -155,7 +155,7 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
-  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules(); if (!kibanaRules._loaded) loadKibanaRules()"
+  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules(); if (!kibanaRules._loaded) loadKibanaRules(); if (!sigma._loaded) loadSigmaStatus()"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1129,20 +1129,23 @@
             </div>
             <div class="flex items-center gap-2">
               <input type="text" x-model="kibanaRules.search" placeholder="Search rules…"
-                     @input.debounce.400ms="loadKibanaRules()"
+                     @input.debounce.400ms="kibanaRules.page=1; loadKibanaRules()"
                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 w-48 focus:outline-none focus:border-blue-500">
-              <select x-model="kibanaRules.enabledFilter" @change="loadKibanaRules()"
+              <select x-model="kibanaRules.enabledFilter" @change="kibanaRules.page=1; loadKibanaRules()"
                       class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
                 <option value="">All</option>
                 <option value="true">Enabled</option>
                 <option value="false">Disabled</option>
               </select>
-              <select x-model="kibanaRules.tagFilter" @change="loadKibanaRules()"
+              <select x-model="kibanaRules.tagFilter" @change="kibanaRules.page=1; loadKibanaRules()"
                       class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
                 <option value="">All OS</option>
-                <option value="OS: Windows">Windows</option>
-                <option value="OS: Linux">Linux</option>
-                <option value="OS: macOS">macOS</option>
+                <option value="OS: Windows">Windows (Elastic)</option>
+                <option value="OS: Linux">Linux (Elastic)</option>
+                <option value="OS: macOS">macOS (Elastic)</option>
+                <option value="Sigma Windows">Windows (Sigma)</option>
+                <option value="Sigma Linux">Linux (Sigma)</option>
+                <option value="Sigma macOS">macOS (Sigma)</option>
               </select>
               <button @click="loadKibanaRules()" class="text-gray-400 hover:text-white transition">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1150,6 +1153,18 @@
                 </svg>
               </button>
             </div>
+          </div>
+
+          <!-- Bulk actions bar -->
+          <div x-show="kibanaRules.selected.size > 0" x-cloak
+               class="flex items-center gap-3 mb-2 px-3 py-2 bg-blue-900/20 border border-blue-800 rounded-lg text-xs">
+            <span class="text-blue-300 font-medium" x-text="kibanaRules.selected.size + ' selected'"></span>
+            <button @click="bulkToggleKibanaRules(true)"
+                    class="px-2 py-1 rounded bg-green-700 hover:bg-green-600 text-white transition">Enable Selected</button>
+            <button @click="bulkToggleKibanaRules(false)"
+                    class="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white transition">Disable Selected</button>
+            <button @click="kibanaRules.selected = new Set()"
+                    class="px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 text-gray-300 transition ml-auto">Clear Selection</button>
           </div>
 
           <!-- loading -->
@@ -1167,16 +1182,46 @@
                 <table class="w-full text-xs">
                   <thead class="bg-surface-700 text-gray-400 uppercase tracking-wider">
                     <tr>
-                      <th class="px-3 py-2 text-left w-10">On</th>
-                      <th class="px-3 py-2 text-left">Rule Name</th>
-                      <th class="px-3 py-2 text-left w-20">Severity</th>
-                      <th class="px-3 py-2 text-left w-24">Type</th>
+                      <th class="px-2 py-2 w-8">
+                        <input type="checkbox"
+                               :checked="kibanaRules.selected.size === kibanaRules.rules.length && kibanaRules.rules.length > 0"
+                               @change="toggleSelectAll()"
+                               class="rounded bg-surface-600 border-surface-500 text-blue-600 focus:ring-0 cursor-pointer">
+                      </th>
+                      <th class="px-2 py-2 text-left w-10">On</th>
+                      <th class="px-3 py-2 text-left cursor-pointer hover:text-gray-200 transition select-none"
+                          @click="sortKibanaRules('name')">
+                        Rule Name
+                        <span x-show="kibanaRules.sortField === 'name'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
+                      </th>
+                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none"
+                          @click="sortKibanaRules('severity')">
+                        Severity
+                        <span x-show="kibanaRules.sortField === 'severity'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
+                      </th>
+                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none"
+                          @click="sortKibanaRules('risk_score')">
+                        Risk
+                        <span x-show="kibanaRules.sortField === 'risk_score'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
+                      </th>
+                      <th class="px-3 py-2 text-left w-24 cursor-pointer hover:text-gray-200 transition select-none"
+                          @click="sortKibanaRules('enabled')">
+                        Status
+                        <span x-show="kibanaRules.sortField === 'enabled'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-surface-700">
                     <template x-for="rule in kibanaRules.rules" :key="rule.id">
-                      <tr class="hover:bg-surface-700/50 transition">
-                        <td class="px-3 py-1.5">
+                      <tr class="hover:bg-surface-700/50 transition"
+                          :class="kibanaRules.selected.has(rule.id) ? 'bg-blue-900/10' : ''">
+                        <td class="px-2 py-1.5">
+                          <input type="checkbox"
+                                 :checked="kibanaRules.selected.has(rule.id)"
+                                 @change="toggleSelectRule(rule.id)"
+                                 class="rounded bg-surface-600 border-surface-500 text-blue-600 focus:ring-0 cursor-pointer">
+                        </td>
+                        <td class="px-2 py-1.5">
                           <button @click="toggleKibanaRule(rule)"
                                   class="relative w-8 h-4 rounded-full transition-colors"
                                   :class="rule.enabled ? 'bg-blue-600' : 'bg-surface-600'">
@@ -1193,7 +1238,11 @@
                                 :class="severityBadge(rule.severity)"
                                 x-text="rule.severity"></span>
                         </td>
-                        <td class="px-3 py-1.5 text-gray-500" x-text="rule.type"></td>
+                        <td class="px-3 py-1.5 text-gray-500" x-text="rule.risk_score"></td>
+                        <td class="px-3 py-1.5">
+                          <span class="text-[10px]" :class="rule.enabled ? 'text-green-400' : 'text-gray-600'"
+                                x-text="rule.enabled ? 'Active' : 'Disabled'"></span>
+                        </td>
                       </tr>
                     </template>
                   </tbody>
@@ -1217,67 +1266,69 @@
           </template>
         </div><!-- end Kibana Rules section -->
 
-        <!-- ══ Sigma Rule Import ═════════════════════════════════════════════ -->
+        <!-- ══ Sigma Rules (SigmaHQ → Kibana) ════════════════════════════════ -->
         <div class="mb-6">
-          <div class="flex items-center gap-2 mb-3">
-            <svg class="w-4 h-4 text-purple-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-            </svg>
-            <h2 class="text-sm font-semibold text-white">Import Sigma Rule</h2>
-            <span class="text-xs text-gray-500">Paste a Sigma YAML rule to convert and import into Kibana</span>
-          </div>
-
-          <div class="bg-surface-800 border border-surface-600 rounded-lg p-3">
-            <div class="flex items-center gap-3 mb-2">
-              <label class="text-xs text-gray-500">Platform</label>
-              <select x-model="sigmaImport.platform"
-                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
-                <option value="windows">Windows</option>
-                <option value="linux">Linux</option>
-                <option value="macos">macOS</option>
-              </select>
-              <button @click="importSigmaRule()" :disabled="!sigmaImport.yaml.trim() || sigmaImport.importing"
-                      class="ml-auto px-3 py-1 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center gap-1">
-                <template x-if="sigmaImport.importing">
-                  <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                </template>
-                <span x-text="sigmaImport.importing ? 'Importing…' : 'Convert & Import'"></span>
-              </button>
-              <button @click="previewSigmaRule()" :disabled="!sigmaImport.yaml.trim() || sigmaImport.importing"
-                      class="px-3 py-1 rounded bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-gray-300 text-xs transition">
-                Preview Query
-              </button>
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-purple-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+              <h2 class="text-sm font-semibold text-white">Sigma Rules</h2>
+              <span class="text-xs text-gray-500">Download latest SigmaHQ rules, convert, and import into Kibana</span>
             </div>
-            <textarea x-model="sigmaImport.yaml" rows="8" placeholder="Paste Sigma YAML here…
-title: My Detection Rule
-status: stable
-logsource:
-    category: process_creation
-    product: windows
-detection:
-    selection:
-        CommandLine|contains: 'mimikatz'
-    condition: selection
-level: high"
-                      class="w-full bg-surface-900 border border-surface-600 rounded p-2 text-xs text-gray-300 font-mono placeholder-gray-700 focus:outline-none focus:border-purple-500 resize-y"></textarea>
-
-            <!-- result message -->
-            <template x-if="sigmaImport.message">
-              <div class="mt-2 px-3 py-2 rounded text-xs"
-                   :class="sigmaImport.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
-                   x-text="sigmaImport.message"></div>
-            </template>
-
-            <!-- preview -->
-            <template x-if="sigmaImport.preview">
-              <div class="mt-2 bg-surface-900 border border-surface-600 rounded p-2">
-                <div class="text-xs text-gray-500 mb-1">Generated Lucene query:</div>
-                <code class="text-xs text-green-400 break-all" x-text="sigmaImport.preview"></code>
-              </div>
-            </template>
+            <button @click="sigmaConvert()" :disabled="sigma.converting"
+                    class="px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center gap-1.5">
+              <template x-if="sigma.converting">
+                <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              </template>
+              <template x-if="!sigma.converting">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+              </template>
+              <span x-text="sigma.converting ? 'Downloading & converting…' : 'Download & Convert Latest'"></span>
+            </button>
           </div>
-        </div><!-- end Sigma Import section -->
+
+          <!-- message -->
+          <template x-if="sigma.message">
+            <div class="mb-3 px-3 py-2 rounded text-xs"
+                 :class="sigma.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="sigma.message"></div>
+          </template>
+
+          <!-- Platform cards -->
+          <template x-if="sigma.totalRules > 0">
+            <div>
+              <div class="grid grid-cols-3 gap-3">
+                <template x-for="(info, platform) in sigma.platforms" :key="platform">
+                  <div class="bg-surface-800 border border-surface-600 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm font-medium text-white capitalize" x-text="platform"></span>
+                      <span class="text-xs text-gray-500" x-text="info.rule_count + ' rules'"></span>
+                    </div>
+                    <div x-show="info.modified" class="text-[10px] text-gray-600 mb-2" x-text="'Converted: ' + (info.modified ? new Date(info.modified).toLocaleString() : '')"></div>
+                    <button @click="sigmaUpload(platform)" :disabled="sigma.uploading === platform"
+                            class="w-full px-2 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center justify-center gap-1">
+                      <template x-if="sigma.uploading === platform">
+                        <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      </template>
+                      <span x-text="sigma.uploading === platform ? 'Uploading…' : 'Upload to Kibana'"></span>
+                    </button>
+                  </div>
+                </template>
+              </div>
+              <p class="mt-2 text-[10px] text-gray-600 italic">All rules are imported disabled by default. Review and enable individually in the Kibana Rules section above.</p>
+            </div>
+          </template>
+
+          <template x-if="!sigma.converting && sigma.totalRules === 0 && !sigma.message">
+            <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 text-center text-xs text-gray-500">
+              No converted rules found. Click "Download & Convert Latest" to fetch the latest Sigma rules from SigmaHQ and convert them for Kibana.
+            </div>
+          </template>
+        </div><!-- end Sigma section -->
 
       <!-- KEV Overview -->
       <div class="flex items-center gap-2 mb-4 mt-4">
@@ -2326,12 +2377,15 @@ function dashboard() {
       loading: false, rules: [], total: 0,
       page: 1, perPage: 50,
       search: '', enabledFilter: '', tagFilter: '',
+      sortField: 'severity', sortOrder: 'asc',
+      selected: new Set(),
       _loaded: false,
     },
-    sigmaImport: {
-      yaml: '', platform: 'windows',
-      importing: false, message: '', error: false,
-      preview: '',
+    sigma: {
+      converting: false, uploading: null,
+      message: '', error: false,
+      platforms: {}, totalRules: 0,
+      _loaded: false,
     },
     eaRules: {
       loading: false, error: null, _loaded: false,
@@ -2354,10 +2408,13 @@ function dashboard() {
     async loadKibanaRules() {
       this.kibanaRules.loading = true;
       this.kibanaRules._loaded = true;
+      this.kibanaRules.selected = new Set();
       try {
         const params = new URLSearchParams({
           page: this.kibanaRules.page,
           per_page: this.kibanaRules.perPage,
+          sort_field: this.kibanaRules.sortField,
+          sort_order: this.kibanaRules.sortOrder,
         });
         if (this.kibanaRules.search) params.set('q', this.kibanaRules.search);
         if (this.kibanaRules.enabledFilter) params.set('enabled', this.kibanaRules.enabledFilter);
@@ -2374,67 +2431,116 @@ function dashboard() {
       }
     },
 
+    sortKibanaRules(field) {
+      if (this.kibanaRules.sortField === field) {
+        this.kibanaRules.sortOrder = this.kibanaRules.sortOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.kibanaRules.sortField = field;
+        this.kibanaRules.sortOrder = field === 'severity' || field === 'risk_score' ? 'desc' : 'asc';
+      }
+      this.kibanaRules.page = 1;
+      this.loadKibanaRules();
+    },
+
+    toggleSelectAll() {
+      if (this.kibanaRules.selected.size === this.kibanaRules.rules.length) {
+        this.kibanaRules.selected = new Set();
+      } else {
+        this.kibanaRules.selected = new Set(this.kibanaRules.rules.map(r => r.id));
+      }
+    },
+
+    toggleSelectRule(id) {
+      const s = new Set(this.kibanaRules.selected);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      this.kibanaRules.selected = s;
+    },
+
     async toggleKibanaRule(rule) {
       const newState = !rule.enabled;
-      rule.enabled = newState; // optimistic
+      rule.enabled = newState;
       try {
         const r = await fetch('/api/rules/kibana/toggle', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ ids: [rule.id], enabled: newState }),
         });
-        if (!r.ok) {
-          rule.enabled = !newState; // revert
-        }
+        if (!r.ok) rule.enabled = !newState;
       } catch(e) {
         rule.enabled = !newState;
       }
     },
 
-    async previewSigmaRule() {
-      this.sigmaImport.message = '';
-      this.sigmaImport.preview = '';
-      this.sigmaImport.importing = true;
+    async bulkToggleKibanaRules(enabled) {
+      const ids = [...this.kibanaRules.selected];
+      if (!ids.length) return;
+      if (!confirm(`${enabled ? 'Enable' : 'Disable'} ${ids.length} rules?`)) return;
       try {
-        const r = await fetch('/api/rules/sigma/convert', {
+        const r = await fetch('/api/rules/kibana/toggle', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ yaml_content: this.sigmaImport.yaml, platform: this.sigmaImport.platform }),
+          body: JSON.stringify({ ids, enabled }),
         });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || 'Conversion failed');
-        this.sigmaImport.preview = data.query;
+        if (r.ok) {
+          this.kibanaRules.selected = new Set();
+          await this.loadKibanaRules();
+        }
       } catch(e) {
-        this.sigmaImport.message = e.message;
-        this.sigmaImport.error = true;
-      } finally {
-        this.sigmaImport.importing = false;
+        console.error('Bulk toggle failed:', e);
       }
     },
 
-    async importSigmaRule() {
-      this.sigmaImport.message = '';
-      this.sigmaImport.preview = '';
-      this.sigmaImport.importing = true;
-      this.sigmaImport.error = false;
+    async loadSigmaStatus() {
       try {
-        const r = await fetch('/api/rules/sigma/import', {
+        const r = await fetch('/api/rules/sigma/status');
+        if (r.ok) {
+          const data = await r.json();
+          this.sigma.platforms = data.platforms;
+          this.sigma.totalRules = data.total_rules;
+          this.sigma._loaded = true;
+        }
+      } catch(e) {}
+    },
+
+    async sigmaConvert() {
+      this.sigma.converting = true;
+      this.sigma.message = '';
+      this.sigma.error = false;
+      try {
+        const r = await fetch('/api/rules/sigma/convert', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Conversion failed');
+        this.sigma.platforms = data.platforms;
+        this.sigma.totalRules = data.total_rules;
+        this.sigma.message = `Conversion complete: ${data.total_rules} rules across ${Object.keys(data.platforms).length} platforms`;
+      } catch(e) {
+        this.sigma.message = e.message;
+        this.sigma.error = true;
+      } finally {
+        this.sigma.converting = false;
+      }
+    },
+
+    async sigmaUpload(platform) {
+      this.sigma.uploading = platform;
+      this.sigma.message = '';
+      this.sigma.error = false;
+      try {
+        const r = await fetch('/api/rules/sigma/upload', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ yaml_content: this.sigmaImport.yaml, platform: this.sigmaImport.platform }),
+          body: JSON.stringify({ platform }),
         });
         const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || 'Import failed');
-        this.sigmaImport.message = data.message;
-        this.sigmaImport.preview = data.query;
-        this.sigmaImport.yaml = '';
-        // Refresh kibana rules list
+        if (!r.ok) throw new Error(data.detail || 'Upload failed');
+        const errCount = (data.errors || []).length;
+        this.sigma.message = `${platform}: ${data.success_count} rules imported${errCount > 0 ? `, ${errCount} errors` : ''} (all disabled by default)`;
         await this.loadKibanaRules();
       } catch(e) {
-        this.sigmaImport.message = e.message;
-        this.sigmaImport.error = true;
+        this.sigma.message = e.message;
+        this.sigma.error = true;
       } finally {
-        this.sigmaImport.importing = false;
+        this.sigma.uploading = null;
       }
     },
 

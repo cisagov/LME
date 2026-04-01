@@ -33,6 +33,7 @@ Volume=/home/lme-user/LME/lme-dashboard/app.py:/app/app.py:ro
 Volume=/home/lme-user/LME/lme-dashboard/static:/app/static:ro
 Volume=/opt/lme/config:/opt/lme/config:rw
 Volume=/opt/lme/llama-models:/opt/lme/llama-models:rw
+Volume=/home/lme-user/LME/scripts/sigma:/opt/lme/scripts/sigma:rw
 Volume=/etc/lme/pass.sh:/etc/lme/pass.sh:ro
 Volume=lme_certs:/certs:ro
 Environment=LLAMA_MODELS_DIR=/opt/lme/llama-models

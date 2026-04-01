@@ -2,6 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# System deps for Sigma conversion script
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl jq unzip pipx && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install deps first for layer caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
