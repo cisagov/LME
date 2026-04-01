@@ -57,6 +57,14 @@
     .dot:nth-child(1) { animation: bounce 1.2s infinite 0s; }
     .dot:nth-child(2) { animation: bounce 1.2s infinite .2s; }
     .dot:nth-child(3) { animation: bounce 1.2s infinite .4s; }
+
+    /* line clamp */
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
   </style>
 </head>
 
@@ -156,6 +164,18 @@
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
     </svg>
     Alerts
+  </button>
+  <button @click="mainView = 'vulns'; if(!vulns._loaded) loadVulns()"
+          :class="mainView === 'vulns' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    Vulnerabilities
+    <span x-show="vulns.totalVulns > 0" x-cloak
+          class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
+          x-text="vulns.totalVulns"></span>
   </button>
   <button @click="mainView = 'detection'"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
@@ -926,6 +946,187 @@
 
 </div><!-- end detection engineering view -->
 
+<!-- ── Vulnerabilities view ────────────────────────────────────────────── -->
+<div x-show="mainView === 'vulns'" x-cloak class="h-[calc(100vh-97px)] overflow-y-auto">
+  <div class="max-w-7xl mx-auto p-6">
+
+    <!-- Header row -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-xl font-semibold text-white">Vulnerability Overview</h2>
+        <p class="text-gray-500 text-xs mt-1">Machines ranked by risk — most vulnerable first</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span x-show="vulns.totalVulns > 0" class="text-xs text-gray-500">
+          <span x-text="vulns.agents.length"></span> machine(s),
+          <span x-text="vulns.totalVulns"></span> total vulnerabilities
+        </span>
+        <button @click="loadVulns()" class="px-3 py-1.5 rounded bg-surface-700 text-gray-300 hover:bg-surface-600 text-xs flex items-center gap-1.5">
+          <svg class="w-3 h-3" :class="vulns.loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="vulns.loading" class="text-center py-12 text-gray-500">Loading vulnerability data...</div>
+
+    <!-- Error -->
+    <div x-show="vulns.error" class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-4 text-red-300 text-sm" x-text="vulns.error"></div>
+
+    <!-- Empty state -->
+    <div x-show="!vulns.loading && !vulns.error && vulns.agents.length === 0" class="text-center py-16">
+      <svg class="w-12 h-12 mx-auto text-green-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+      </svg>
+      <p class="text-gray-400">No vulnerability data found. Ensure Wazuh agents are enrolled and vulnerability detection is enabled.</p>
+    </div>
+
+    <!-- Agent cards -->
+    <div x-show="!vulns.loading && vulns.agents.length > 0" class="space-y-4">
+      <template x-for="(agent, idx) in vulns.agents" :key="agent.agent_id">
+        <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+
+          <!-- Agent summary row (clickable) -->
+          <button @click="toggleAgentDetail(agent)"
+                  class="w-full px-5 py-4 flex items-center gap-4 hover:bg-surface-700/50 transition text-left">
+
+            <!-- Rank badge -->
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                 :class="idx === 0 ? 'bg-red-900 text-red-300' : idx < 3 ? 'bg-orange-900 text-orange-300' : 'bg-surface-700 text-gray-400'">
+              <span x-text="idx + 1"></span>
+            </div>
+
+            <!-- Machine info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-white font-medium truncate" x-text="agent.agent_name"></span>
+                <span class="text-xs text-gray-600" x-text="'ID: ' + agent.agent_id"></span>
+              </div>
+              <div class="text-xs text-gray-500 truncate" x-text="agent.os"></div>
+            </div>
+
+            <!-- Severity bar -->
+            <div class="flex items-center gap-1 shrink-0">
+              <span x-show="agent.critical > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300"
+                    x-text="agent.critical + ' Critical'"></span>
+              <span x-show="agent.high > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-orange-900 text-orange-300"
+                    x-text="agent.high + ' High'"></span>
+              <span x-show="agent.medium > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300"
+                    x-text="agent.medium + ' Med'"></span>
+              <span x-show="agent.low > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300"
+                    x-text="agent.low + ' Low'"></span>
+            </div>
+
+            <!-- Total + CVSS -->
+            <div class="text-right shrink-0 w-24">
+              <div class="text-white font-semibold" x-text="agent.total + ' CVEs'"></div>
+              <div class="text-xs text-gray-500">
+                Max CVSS: <span class="font-medium"
+                  :class="agent.max_cvss >= 9 ? 'text-red-400' : agent.max_cvss >= 7 ? 'text-orange-400' : agent.max_cvss >= 4 ? 'text-yellow-400' : 'text-green-400'"
+                  x-text="agent.max_cvss.toFixed(1)"></span>
+              </div>
+            </div>
+
+            <!-- Severity visual bar -->
+            <div class="w-32 shrink-0">
+              <div class="flex h-3 rounded-full overflow-hidden bg-surface-700">
+                <div class="bg-red-500" :style="'width:' + (agent.total ? (agent.critical/agent.total*100) : 0) + '%'"></div>
+                <div class="bg-orange-500" :style="'width:' + (agent.total ? (agent.high/agent.total*100) : 0) + '%'"></div>
+                <div class="bg-yellow-500" :style="'width:' + (agent.total ? (agent.medium/agent.total*100) : 0) + '%'"></div>
+                <div class="bg-green-600" :style="'width:' + (agent.total ? (agent.low/agent.total*100) : 0) + '%'"></div>
+              </div>
+            </div>
+
+            <!-- Expand chevron -->
+            <svg class="w-4 h-4 text-gray-500 transition-transform shrink-0" :class="agent._expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+
+          <!-- Expanded detail: CVE list -->
+          <div x-show="agent._expanded" class="border-t border-surface-600">
+
+            <!-- Severity filter tabs -->
+            <div class="px-5 py-2 bg-surface-900/50 flex items-center gap-2 text-xs border-b border-surface-700">
+              <span class="text-gray-500 mr-1">Filter:</span>
+              <button @click="loadAgentVulns(agent.agent_id, '', false)"
+                      :class="vulnDetail.sevFilter === '' ? 'bg-surface-600 text-white' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">All</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'Critical', false)"
+                      :class="vulnDetail.sevFilter === 'Critical' ? 'bg-red-900 text-red-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">Critical</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'High', false)"
+                      :class="vulnDetail.sevFilter === 'High' ? 'bg-orange-900 text-orange-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">High</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'Medium', false)"
+                      :class="vulnDetail.sevFilter === 'Medium' ? 'bg-yellow-900 text-yellow-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">Medium</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'Low', false)"
+                      :class="vulnDetail.sevFilter === 'Low' ? 'bg-green-900 text-green-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">Low</button>
+              <span x-show="vulnDetail.loading" class="ml-2 text-gray-500">Loading...</span>
+            </div>
+
+            <!-- CVE table -->
+            <div class="max-h-96 overflow-y-auto" @scroll="onVulnScroll($event)">
+              <table class="w-full text-xs">
+                <thead class="bg-surface-900/80 sticky top-0">
+                  <tr class="text-gray-500 text-left">
+                    <th class="px-5 py-2 font-medium w-36">CVE</th>
+                    <th class="px-3 py-2 font-medium w-20">Severity</th>
+                    <th class="px-3 py-2 font-medium w-16">CVSS</th>
+                    <th class="px-3 py-2 font-medium w-40">Package</th>
+                    <th class="px-3 py-2 font-medium">Description</th>
+                    <th class="px-3 py-2 font-medium w-24">Detected</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(vuln, vi) in vulnDetail.vulns" :key="vi">
+                    <tr class="border-t border-surface-700 hover:bg-surface-700/30">
+                      <td class="px-5 py-2">
+                        <a :href="'https://nvd.nist.gov/vuln/detail/' + vuln.cve_id" target="_blank"
+                           class="text-blue-400 hover:underline font-medium" x-text="vuln.cve_id"></a>
+                      </td>
+                      <td class="px-3 py-2">
+                        <span class="px-1.5 py-0.5 rounded text-xs"
+                              :class="severityBadge(vuln.severity.toLowerCase())"
+                              x-text="vuln.severity || 'N/A'"></span>
+                      </td>
+                      <td class="px-3 py-2 font-medium"
+                          :class="(vuln.cvss||0) >= 9 ? 'text-red-400' : (vuln.cvss||0) >= 7 ? 'text-orange-400' : (vuln.cvss||0) >= 4 ? 'text-yellow-400' : 'text-green-400'"
+                          x-text="vuln.cvss != null ? vuln.cvss.toFixed(1) : '—'"></td>
+                      <td class="px-3 py-2">
+                        <div class="text-gray-300" x-text="vuln.package"></div>
+                        <div class="text-gray-600 truncate max-w-[10rem]" x-text="vuln.package_version"></div>
+                      </td>
+                      <td class="px-3 py-2 text-gray-400">
+                        <div class="line-clamp-2" x-text="vuln.description"></div>
+                      </td>
+                      <td class="px-3 py-2 text-gray-500" x-text="fmtTime(vuln.detected_at)"></td>
+                    </tr>
+                  </template>
+                  <tr x-show="agent._expanded && !vulnDetail.loading && vulnDetail.vulns.length === 0">
+                    <td colspan="6" class="px-5 py-4 text-center text-gray-500">No vulnerabilities found for this filter.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <!-- Load more / status row -->
+              <div class="px-5 py-2 text-xs text-gray-500 flex items-center justify-between border-t border-surface-700">
+                <span x-text="'Showing ' + vulnDetail.vulns.length + ' of ' + vulnDetail.total"></span>
+                <span x-show="vulnDetail.loading && vulnDetail.vulns.length > 0" class="text-blue-400">Loading more...</span>
+                <span x-show="!vulnDetail.hasMore && vulnDetail.vulns.length > 0 && !vulnDetail.loading" class="text-gray-600">All loaded</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div><!-- end vulnerabilities view -->
+
 <!-- ── Model Settings Modal ──────────────────────────────────────────────── -->
 <div x-show="showModelSettings" x-cloak
      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -1164,6 +1365,10 @@ function dashboard() {
     },
     detChat: {
       messages: [], input: '', thinking: false, ragMode: true,
+    },
+    vulns: {
+      loading: false, error: null, _loaded: false,
+      agents: [], totalVulns: 0,
     },
     showModelSettings: false,
     modelSettings: {
@@ -1458,6 +1663,70 @@ function dashboard() {
       } catch(e) {
         this.modelSettings.message = e.message;
         this.modelSettings.error = true;
+      }
+    },
+
+    async loadVulns() {
+      this.vulns.loading = true;
+      this.vulns.error = null;
+      try {
+        const r = await fetch('/api/vulnerabilities');
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.vulns.agents = data.agents.map(a => ({
+          ...a,
+          _expanded: false,
+        }));
+        this.vulns.totalVulns = data.total_vulnerabilities;
+        this.vulns._loaded = true;
+      } catch(e) {
+        this.vulns.error = `Failed to load vulnerabilities: ${e.message}`;
+      } finally {
+        this.vulns.loading = false;
+      }
+    },
+
+    vulnDetail: { vulns: [], loading: false, sevFilter: '', agentId: null, total: 0, hasMore: false },
+    _vulnPageSize: 50,
+
+    async toggleAgentDetail(agent) {
+      agent._expanded = !agent._expanded;
+      if (agent._expanded) {
+        this.vulnDetail = { vulns: [], loading: false, sevFilter: '', agentId: agent.agent_id, total: 0, hasMore: false };
+        await this.loadAgentVulns(agent.agent_id, '', false);
+      }
+    },
+
+    async loadAgentVulns(agentId, sevFilter, append) {
+      const offset = append ? this.vulnDetail.vulns.length : 0;
+      if (!append) {
+        this.vulnDetail = { vulns: [], loading: true, sevFilter, agentId, total: 0, hasMore: false };
+      } else {
+        this.vulnDetail = { ...this.vulnDetail, loading: true };
+      }
+      try {
+        const params = new URLSearchParams({ size: this._vulnPageSize, offset });
+        if (sevFilter) params.set('severity', sevFilter);
+        const r = await fetch(`/api/vulnerabilities/${agentId}?${params}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const newVulns = append ? [...this.vulnDetail.vulns, ...data.vulnerabilities] : data.vulnerabilities;
+        const hasMore = newVulns.length < data.total;
+        this.vulnDetail = { vulns: newVulns, loading: false, sevFilter, agentId, total: data.total, hasMore };
+      } catch(e) {
+        console.error('Failed to load agent vulns:', e);
+        this.vulnDetail = { ...this.vulnDetail, loading: false };
+      }
+    },
+
+    onVulnScroll(ev) {
+      const el = ev.target;
+      if (this.vulnDetail.loading || !this.vulnDetail.hasMore) return;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+        this.loadAgentVulns(this.vulnDetail.agentId, this.vulnDetail.sevFilter, true);
       }
     },
 
