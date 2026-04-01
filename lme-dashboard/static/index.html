@@ -155,7 +155,7 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
-  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules()"
+  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules(); if (!kibanaRules._loaded) loadKibanaRules()"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -201,14 +201,52 @@
                 class="ml-1.5 bg-orange-900 text-orange-300 text-xs px-1.5 py-0.5 rounded-full"
                 x-text="wazuh.total"></span>
         </button>
+        <button @click="activeTab = 'sysmon'"
+                :class="activeTab === 'sysmon' ? 'border-red-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Sysmon
+          <span x-show="sysmon.total > 0" x-cloak
+                class="ml-1.5 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="sysmon.total"></span>
+        </button>
+        <button @click="activeTab = 'defender'"
+                :class="activeTab === 'defender' ? 'border-green-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Windows Defender
+          <span x-show="defender.total > 0" x-cloak
+                class="ml-1.5 bg-green-900 text-green-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="defender.total"></span>
+        </button>
       </div>
 
       <!-- filters -->
       <div class="flex items-center gap-3 pb-2 text-xs flex-wrap">
+        <!-- Search -->
+        <div class="flex items-center gap-2 flex-1 min-w-[180px] max-w-xs">
+          <div class="relative w-full">
+            <svg class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" x-model="searchQuery" placeholder="Search alerts…"
+                   @input.debounce.400ms="loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                   @keydown.escape="searchQuery = ''; loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                   class="w-full bg-surface-700 border border-surface-500 rounded pl-7 pr-7 py-1 text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500">
+            <button x-show="searchQuery" x-cloak
+                    @click="searchQuery = ''; loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                    class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <span class="text-surface-600">|</span>
+
         <!-- Time range (shared) -->
         <div class="flex items-center gap-2">
           <label class="text-gray-500">Time range</label>
-          <select x-model="timeRange" @change="loadKibana(); loadWazuh()"
+          <select x-model="timeRange" @change="loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
                   class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-purple-500">
             <option value="now-15m">Last 15 min</option>
             <option value="now-1h">Last 1 hour</option>
@@ -222,7 +260,19 @@
           </select>
         </div>
 
-        <span class="text-surface-600">|</span>
+        <!-- Machine filter (shared) -->
+        <div class="flex items-center gap-2" x-show="hosts.length > 1">
+          <label class="text-gray-500">Machine</label>
+          <select x-model="hostFilter" @change="loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                  class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-purple-500">
+            <option value="">All machines</option>
+            <template x-for="h in hosts" :key="h">
+              <option :value="h" x-text="h"></option>
+            </template>
+          </select>
+        </div>
+
+        <span class="text-surface-600" x-show="hosts.length > 1">|</span>
 
         <template x-if="activeTab === 'kibana'">
           <div class="flex items-center gap-2">
@@ -249,6 +299,23 @@
             </select>
           </div>
         </template>
+        <template x-if="activeTab === 'sysmon'">
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 italic">High-value event IDs only (8, 10, 25, 6, 9, 15, 17-21, 255)</span>
+          </div>
+        </template>
+        <template x-if="activeTab === 'defender'">
+          <div class="flex items-center gap-2">
+            <label class="text-gray-500">Min severity</label>
+            <select x-model="defender.minSeverity" @change="loadDefender()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-green-500">
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium+</option>
+              <option value="low" selected>All</option>
+            </select>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -258,12 +325,14 @@
            const el = $refs.alertScroll;
            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
              if (activeTab === 'kibana') loadMoreKibana();
-             else loadMoreWazuh();
+             else if (activeTab === 'wazuh') loadMoreWazuh();
+             else if (activeTab === 'sysmon') loadMoreSysmon();
+             else if (activeTab === 'defender') loadMoreDefender();
            }
          ">
 
       <!-- loading spinner -->
-      <template x-if="(activeTab === 'kibana' && kibana.loading) || (activeTab === 'wazuh' && wazuh.loading)">
+      <template x-if="(activeTab === 'kibana' && kibana.loading) || (activeTab === 'wazuh' && wazuh.loading) || (activeTab === 'sysmon' && sysmon.loading) || (activeTab === 'defender' && defender.loading)">
         <div class="flex items-center justify-center h-32 text-gray-500">
           <svg class="animate-spin w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -277,6 +346,12 @@
       <!-- error -->
       <template x-if="activeTab === 'kibana' && kibana.error">
         <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="kibana.error"></div>
+      </template>
+      <template x-if="activeTab === 'sysmon' && sysmon.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="sysmon.error"></div>
+      </template>
+      <template x-if="activeTab === 'defender' && defender.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="defender.error"></div>
       </template>
       <template x-if="activeTab === 'wazuh' && wazuh.error">
         <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="wazuh.error"></div>
@@ -299,6 +374,24 @@
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           No Wazuh alerts at this level
+        </div>
+      </template>
+      <template x-if="activeTab === 'defender' && !defender.loading && !defender.error && defender.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+          No Windows Defender events in this time range
+        </div>
+      </template>
+      <template x-if="activeTab === 'sysmon' && !sysmon.loading && !sysmon.error && sysmon.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          No Sysmon events in this time range
         </div>
       </template>
 
@@ -500,8 +593,206 @@
         </div>
       </template>
 
+      <!-- ── Sysmon cards ── -->
+      <template x-if="activeTab === 'sysmon' && !sysmon.loading">
+        <div class="space-y-2">
+          <template x-for="alert in sysmon.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span class="bg-red-900/50 text-red-300 px-1.5 py-0.5 rounded text-xs font-mono"
+                          x-text="'ID ' + alert.event_id + ' ' + alert.event_name"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.summary"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.host" x-cloak>
+                      <span class="text-gray-600">host:</span>
+                      <span class="text-gray-400" x-text="alert.host"></span>
+                    </span>
+                    <span x-show="alert.user" x-cloak>
+                      <span class="text-gray-600">user:</span>
+                      <span class="text-gray-400" x-text="alert.user"></span>
+                    </span>
+                  </div>
+                  <p x-show="alert.image" x-cloak class="mt-1 text-xs text-gray-500 truncate">
+                    <span class="text-gray-600">image:</span>
+                    <span class="text-yellow-400/70 font-mono" x-text="alert.image"></span>
+                  </p>
+                  <p x-show="alert.target" x-cloak class="text-xs text-gray-500 truncate">
+                    <span class="text-gray-600">target:</span>
+                    <span class="text-red-400/70 font-mono" x-text="alert.target"></span>
+                  </p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'sysmon')"
+                          class="px-2 py-1 rounded bg-red-900/50 text-red-300 hover:bg-red-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                          x-text="alert._expanded ? 'Hide' : 'Details'"></button>
+                </div>
+              </div>
+
+              <!-- expanded -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.command_line">
+                  <div>
+                    <span class="text-gray-600">cmdline:</span>
+                    <code class="ml-2 text-green-400 break-all" x-text="alert.command_line"></code>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-red-900 px-3 py-2 bg-red-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-red-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Windows Defender cards ── -->
+      <template x-if="activeTab === 'defender' && !defender.loading">
+        <div class="space-y-2">
+          <template x-for="alert in defender.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span x-show="alert.event_id" class="bg-surface-700 text-gray-400 px-1.5 py-0.5 rounded text-xs"
+                          x-text="'ID ' + alert.event_id"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.summary"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.threat_name" x-cloak>
+                      <span class="text-gray-600">threat:</span>
+                      <span class="text-red-400 font-medium" x-text="alert.threat_name"></span>
+                    </span>
+                    <span x-show="alert.category" x-cloak>
+                      <span class="text-gray-600">category:</span>
+                      <span class="text-gray-400" x-text="alert.category"></span>
+                    </span>
+                    <span x-show="alert.action" x-cloak>
+                      <span class="text-gray-600">action:</span>
+                      <span class="text-green-400" x-text="alert.action"></span>
+                    </span>
+                    <span x-show="alert.host" x-cloak>
+                      <span class="text-gray-600">host:</span>
+                      <span class="text-gray-400" x-text="alert.host"></span>
+                    </span>
+                  </div>
+                  <p x-show="alert.path" x-cloak class="mt-1 text-xs text-gray-500 line-clamp-1"
+                     x-text="alert.path"></p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'defender')"
+                          class="px-2 py-1 rounded bg-green-900/50 text-green-300 hover:bg-green-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                          x-text="alert._expanded ? 'Hide' : 'Details'"></button>
+                </div>
+              </div>
+
+              <!-- expanded -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.source">
+                  <div>
+                    <span class="text-gray-600">source:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.source"></span>
+                  </div>
+                </template>
+                <template x-if="alert.user">
+                  <div>
+                    <span class="text-gray-600">user:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.user"></span>
+                  </div>
+                </template>
+                <template x-if="alert.severity_name">
+                  <div>
+                    <span class="text-gray-600">severity:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.severity_name"></span>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-green-900 px-3 py-2 bg-green-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-green-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
       <!-- loading more spinner -->
-      <template x-if="(activeTab === 'kibana' && kibana.loadingMore) || (activeTab === 'wazuh' && wazuh.loadingMore)">
+      <template x-if="(activeTab === 'kibana' && kibana.loadingMore) || (activeTab === 'wazuh' && wazuh.loadingMore) || (activeTab === 'sysmon' && sysmon.loadingMore) || (activeTab === 'defender' && defender.loadingMore)">
         <div class="flex items-center justify-center py-4 text-gray-500 text-xs">
           <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -517,6 +808,12 @@
         <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
       </template>
       <template x-if="activeTab === 'wazuh' && !wazuh.loading && !wazuh.loadingMore && wazuh.alerts.length > 0 && !wazuh.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
+      </template>
+      <template x-if="activeTab === 'sysmon' && !sysmon.loading && !sysmon.loadingMore && sysmon.alerts.length > 0 && !sysmon.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
+      </template>
+      <template x-if="activeTab === 'defender' && !defender.loading && !defender.loadingMore && defender.alerts.length > 0 && !defender.nextCursor">
         <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
       </template>
 
@@ -818,6 +1115,169 @@
             Rules are written to <span class="font-mono">/opt/lme/config/elastalert2/rules/</span> and picked up by ElastAlert2 within 5 minutes.
           </p>
         </div><!-- end ElastAlert2 section -->
+
+        <!-- ══ Kibana Detection Rules ════════════════════════════════════════ -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <h2 class="text-sm font-semibold text-white">Kibana Detection Rules</h2>
+              <span class="text-xs text-gray-500" x-text="'(' + kibanaRules.total + ' rules)'"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="text" x-model="kibanaRules.search" placeholder="Search rules…"
+                     @input.debounce.400ms="loadKibanaRules()"
+                     class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 w-48 focus:outline-none focus:border-blue-500">
+              <select x-model="kibanaRules.enabledFilter" @change="loadKibanaRules()"
+                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
+                <option value="">All</option>
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+              <select x-model="kibanaRules.tagFilter" @change="loadKibanaRules()"
+                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
+                <option value="">All OS</option>
+                <option value="OS: Windows">Windows</option>
+                <option value="OS: Linux">Linux</option>
+                <option value="OS: macOS">macOS</option>
+              </select>
+              <button @click="loadKibanaRules()" class="text-gray-400 hover:text-white transition">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- loading -->
+          <template x-if="kibanaRules.loading">
+            <div class="flex items-center justify-center h-20 text-gray-500 text-xs">
+              <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              Loading rules…
+            </div>
+          </template>
+
+          <!-- rules table -->
+          <template x-if="!kibanaRules.loading && kibanaRules.rules.length > 0">
+            <div>
+              <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+                <table class="w-full text-xs">
+                  <thead class="bg-surface-700 text-gray-400 uppercase tracking-wider">
+                    <tr>
+                      <th class="px-3 py-2 text-left w-10">On</th>
+                      <th class="px-3 py-2 text-left">Rule Name</th>
+                      <th class="px-3 py-2 text-left w-20">Severity</th>
+                      <th class="px-3 py-2 text-left w-24">Type</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-surface-700">
+                    <template x-for="rule in kibanaRules.rules" :key="rule.id">
+                      <tr class="hover:bg-surface-700/50 transition">
+                        <td class="px-3 py-1.5">
+                          <button @click="toggleKibanaRule(rule)"
+                                  class="relative w-8 h-4 rounded-full transition-colors"
+                                  :class="rule.enabled ? 'bg-blue-600' : 'bg-surface-600'">
+                            <span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform"
+                                  :class="rule.enabled ? 'translate-x-4' : ''"></span>
+                          </button>
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <div class="text-gray-200 truncate max-w-md" x-text="rule.name"></div>
+                          <div class="text-gray-600 truncate max-w-md text-[10px]" x-text="rule.description"></div>
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
+                                :class="severityBadge(rule.severity)"
+                                x-text="rule.severity"></span>
+                        </td>
+                        <td class="px-3 py-1.5 text-gray-500" x-text="rule.type"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <!-- pagination -->
+              <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+                <span x-text="'Showing ' + ((kibanaRules.page-1)*kibanaRules.perPage+1) + '-' + Math.min(kibanaRules.page*kibanaRules.perPage, kibanaRules.total) + ' of ' + kibanaRules.total"></span>
+                <div class="flex gap-2">
+                  <button @click="kibanaRules.page--; loadKibanaRules()" :disabled="kibanaRules.page <= 1"
+                          class="px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 disabled:opacity-30 disabled:cursor-not-allowed">Prev</button>
+                  <button @click="kibanaRules.page++; loadKibanaRules()" :disabled="kibanaRules.page * kibanaRules.perPage >= kibanaRules.total"
+                          class="px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="!kibanaRules.loading && kibanaRules.rules.length === 0">
+            <div class="text-center py-6 text-gray-600 text-xs">No matching rules</div>
+          </template>
+        </div><!-- end Kibana Rules section -->
+
+        <!-- ══ Sigma Rule Import ═════════════════════════════════════════════ -->
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <svg class="w-4 h-4 text-purple-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <h2 class="text-sm font-semibold text-white">Import Sigma Rule</h2>
+            <span class="text-xs text-gray-500">Paste a Sigma YAML rule to convert and import into Kibana</span>
+          </div>
+
+          <div class="bg-surface-800 border border-surface-600 rounded-lg p-3">
+            <div class="flex items-center gap-3 mb-2">
+              <label class="text-xs text-gray-500">Platform</label>
+              <select x-model="sigmaImport.platform"
+                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
+                <option value="windows">Windows</option>
+                <option value="linux">Linux</option>
+                <option value="macos">macOS</option>
+              </select>
+              <button @click="importSigmaRule()" :disabled="!sigmaImport.yaml.trim() || sigmaImport.importing"
+                      class="ml-auto px-3 py-1 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center gap-1">
+                <template x-if="sigmaImport.importing">
+                  <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                </template>
+                <span x-text="sigmaImport.importing ? 'Importing…' : 'Convert & Import'"></span>
+              </button>
+              <button @click="previewSigmaRule()" :disabled="!sigmaImport.yaml.trim() || sigmaImport.importing"
+                      class="px-3 py-1 rounded bg-surface-700 hover:bg-surface-600 disabled:opacity-40 text-gray-300 text-xs transition">
+                Preview Query
+              </button>
+            </div>
+            <textarea x-model="sigmaImport.yaml" rows="8" placeholder="Paste Sigma YAML here…
+title: My Detection Rule
+status: stable
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection:
+        CommandLine|contains: 'mimikatz'
+    condition: selection
+level: high"
+                      class="w-full bg-surface-900 border border-surface-600 rounded p-2 text-xs text-gray-300 font-mono placeholder-gray-700 focus:outline-none focus:border-purple-500 resize-y"></textarea>
+
+            <!-- result message -->
+            <template x-if="sigmaImport.message">
+              <div class="mt-2 px-3 py-2 rounded text-xs"
+                   :class="sigmaImport.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                   x-text="sigmaImport.message"></div>
+            </template>
+
+            <!-- preview -->
+            <template x-if="sigmaImport.preview">
+              <div class="mt-2 bg-surface-900 border border-surface-600 rounded p-2">
+                <div class="text-xs text-gray-500 mb-1">Generated Lucene query:</div>
+                <code class="text-xs text-green-400 break-all" x-text="sigmaImport.preview"></code>
+              </div>
+            </template>
+          </div>
+        </div><!-- end Sigma Import section -->
 
       <!-- KEV Overview -->
       <div class="flex items-center gap-2 mb-4 mt-4">
@@ -1807,6 +2267,10 @@ function dashboard() {
     health: { elasticsearch: null, litellm: null },
 
     timeRange: 'now-24h',
+    searchQuery: '',
+    hostFilter: '',
+    hosts: [],
+    _searchDebounce: null,
     kibana: {
       loading: false, loadingMore: false, error: null,
       alerts: [], total: 0,
@@ -1816,6 +2280,15 @@ function dashboard() {
       loading: false, loadingMore: false, error: null,
       alerts: [], total: 0,
       minLevel: 7, nextCursor: '',
+    },
+    sysmon: {
+      loading: false, loadingMore: false, error: null,
+      alerts: [], total: 0, nextCursor: '',
+    },
+    defender: {
+      loading: false, loadingMore: false, error: null,
+      alerts: [], total: 0, nextCursor: '',
+      minSeverity: 'low',
     },
     chat: {
       messages: [], input: '', thinking: false, ragMode: true,
@@ -1849,6 +2322,17 @@ function dashboard() {
       _pollTimer: null,
     },
 
+    kibanaRules: {
+      loading: false, rules: [], total: 0,
+      page: 1, perPage: 50,
+      search: '', enabledFilter: '', tagFilter: '',
+      _loaded: false,
+    },
+    sigmaImport: {
+      yaml: '', platform: 'windows',
+      importing: false, message: '', error: false,
+      preview: '',
+    },
     eaRules: {
       loading: false, error: null, _loaded: false,
       rules: [],
@@ -1865,6 +2349,93 @@ function dashboard() {
     clearPastedText() {
       this.pastedText = '';
       this.submitResponse = '';
+    },
+
+    async loadKibanaRules() {
+      this.kibanaRules.loading = true;
+      this.kibanaRules._loaded = true;
+      try {
+        const params = new URLSearchParams({
+          page: this.kibanaRules.page,
+          per_page: this.kibanaRules.perPage,
+        });
+        if (this.kibanaRules.search) params.set('q', this.kibanaRules.search);
+        if (this.kibanaRules.enabledFilter) params.set('enabled', this.kibanaRules.enabledFilter);
+        if (this.kibanaRules.tagFilter) params.set('tags', this.kibanaRules.tagFilter);
+        const r = await fetch(`/api/rules/kibana?${params}`);
+        if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+        const data = await r.json();
+        this.kibanaRules.rules = data.rules;
+        this.kibanaRules.total = data.total;
+      } catch(e) {
+        console.error('Failed to load Kibana rules:', e);
+      } finally {
+        this.kibanaRules.loading = false;
+      }
+    },
+
+    async toggleKibanaRule(rule) {
+      const newState = !rule.enabled;
+      rule.enabled = newState; // optimistic
+      try {
+        const r = await fetch('/api/rules/kibana/toggle', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ids: [rule.id], enabled: newState }),
+        });
+        if (!r.ok) {
+          rule.enabled = !newState; // revert
+        }
+      } catch(e) {
+        rule.enabled = !newState;
+      }
+    },
+
+    async previewSigmaRule() {
+      this.sigmaImport.message = '';
+      this.sigmaImport.preview = '';
+      this.sigmaImport.importing = true;
+      try {
+        const r = await fetch('/api/rules/sigma/convert', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ yaml_content: this.sigmaImport.yaml, platform: this.sigmaImport.platform }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Conversion failed');
+        this.sigmaImport.preview = data.query;
+      } catch(e) {
+        this.sigmaImport.message = e.message;
+        this.sigmaImport.error = true;
+      } finally {
+        this.sigmaImport.importing = false;
+      }
+    },
+
+    async importSigmaRule() {
+      this.sigmaImport.message = '';
+      this.sigmaImport.preview = '';
+      this.sigmaImport.importing = true;
+      this.sigmaImport.error = false;
+      try {
+        const r = await fetch('/api/rules/sigma/import', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ yaml_content: this.sigmaImport.yaml, platform: this.sigmaImport.platform }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Import failed');
+        this.sigmaImport.message = data.message;
+        this.sigmaImport.preview = data.query;
+        this.sigmaImport.yaml = '';
+        // Refresh kibana rules list
+        await this.loadKibanaRules();
+      } catch(e) {
+        this.sigmaImport.message = e.message;
+        this.sigmaImport.error = true;
+      } finally {
+        this.sigmaImport.importing = false;
+      }
     },
 
     async loadEaRules() {
@@ -2009,7 +2580,7 @@ function dashboard() {
     },
 
     async init() {
-      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh(), this.loadModels(), this.loadLocalModels()]);
+      await Promise.all([this.loadHealth(), this.loadHosts(), this.loadKibana(), this.loadWazuh(), this.loadSysmon(), this.loadDefender(), this.loadModels(), this.loadLocalModels()]);
     },
 
     async loadHealth() {
@@ -2043,6 +2614,8 @@ function dashboard() {
           time_from: this.timeRange,
           time_to: 'now',
         });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
         const r = await fetch(`/api/alerts/kibana?${params}`);
         if (!r.ok) {
           const err = await r.json();
@@ -2072,6 +2645,8 @@ function dashboard() {
           time_to: 'now',
           search_after: this.kibana.nextCursor,
         });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
         const r = await fetch(`/api/alerts/kibana?${params}`);
         if (!r.ok) return;
         const data = await r.json();
@@ -2096,6 +2671,8 @@ function dashboard() {
           time_from: this.timeRange,
           time_to: 'now',
         });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
         const r = await fetch(`/api/alerts/wazuh?${params}`);
         if (!r.ok) {
           const err = await r.json();
@@ -2125,6 +2702,8 @@ function dashboard() {
           time_to: 'now',
           search_after: this.wazuh.nextCursor,
         });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
         const r = await fetch(`/api/alerts/wazuh?${params}`);
         if (!r.ok) return;
         const data = await r.json();
@@ -2138,8 +2717,132 @@ function dashboard() {
       }
     },
 
+    async loadSysmon() {
+      this.sysmon.loading = true;
+      this.sysmon.error = null;
+      this.sysmon.nextCursor = '';
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          filter_mode: 'severe',
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/sysmon?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.sysmon.alerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.sysmon.total = data.total;
+        this.sysmon.nextCursor = data.next_cursor || '';
+      } catch(e) {
+        this.sysmon.error = `Failed to load Sysmon events: ${e.message}`;
+      } finally {
+        this.sysmon.loading = false;
+      }
+    },
+
+    async loadMoreSysmon() {
+      if (this.sysmon.loadingMore || !this.sysmon.nextCursor) return;
+      this.sysmon.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.sysmon.nextCursor,
+          filter_mode: 'severe',
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/sysmon?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.sysmon.alerts.push(...newAlerts);
+        this.sysmon.nextCursor = data.next_cursor || '';
+      } finally {
+        this.sysmon.loadingMore = false;
+      }
+    },
+
+    async loadDefender() {
+      this.defender.loading = true;
+      this.defender.error = null;
+      this.defender.nextCursor = '';
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          min_severity: this.defender.minSeverity,
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/defender?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.defender.alerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.defender.total = data.total;
+        this.defender.nextCursor = data.next_cursor || '';
+      } catch(e) {
+        this.defender.error = `Failed to load Defender events: ${e.message}`;
+      } finally {
+        this.defender.loading = false;
+      }
+    },
+
+    async loadMoreDefender() {
+      if (this.defender.loadingMore || !this.defender.nextCursor) return;
+      this.defender.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.defender.nextCursor,
+          min_severity: this.defender.minSeverity,
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/defender?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.defender.alerts.push(...newAlerts);
+        this.defender.nextCursor = data.next_cursor || '';
+      } finally {
+        this.defender.loadingMore = false;
+      }
+    },
+
+    async loadHosts() {
+      try {
+        const r = await fetch('/api/alerts/hosts');
+        if (r.ok) {
+          const data = await r.json();
+          this.hosts = data.hosts || [];
+        }
+      } catch(e) {}
+    },
+
     async loadAll() {
-      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh()]);
+      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh(), this.loadSysmon(), this.loadDefender()]);
     },
 
     toggleAutoRefresh() {
