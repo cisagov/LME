@@ -35,7 +35,7 @@ ES_USER = os.getenv("ELASTICSEARCH_USER", "elastic")
 ES_PASS = os.getenv("ELASTICSEARCH_PASSWORD", "")
 LITELLM_URL = os.getenv("LITELLM_URL", "https://lme-litellm:4000")
 LITELLM_KEY = os.getenv("LITELLM_API_KEY", "sk-lme-llama-proxy")
-LITELLM_MDL = os.getenv("LITELLM_MODEL", "gemma-3-1b")
+LITELLM_MDL = os.getenv("LITELLM_MODEL", "lfm2.5-1.2b-instruct")
 
 # Path to LiteLLM config YAML — writable so the UI can manage models
 LITELLM_CONFIG_PATH = os.getenv("LITELLM_CONFIG_PATH", "/opt/lme/config/litellm_config.yaml")
@@ -59,6 +59,28 @@ KEV_SYNC_SCRIPT = os.getenv("KEV_SYNC_SCRIPT", "/opt/lme/scripts/kev_sync.py")
 
 # Mutable active-model state (updated via UI)
 _active_model = {"name": LITELLM_MDL}
+
+
+def _sync_active_model_from_litellm():
+    """On startup, sync _active_model with what LiteLLM actually has registered."""
+    import httpx as _httpx
+    try:
+        r = _httpx.get(
+            f"{LITELLM_URL}/v1/models",
+            headers={"Authorization": f"Bearer {LITELLM_KEY}"},
+            verify=False,
+            timeout=5,
+        )
+        if r.status_code == 200:
+            models = [m["id"] for m in r.json().get("data", [])]
+            if models and _active_model["name"] not in models:
+                _active_model["name"] = models[0]
+                logger.info("Synced active model to '%s' (from LiteLLM)", models[0])
+    except Exception as e:
+        logger.warning("Could not sync active model from LiteLLM: %s", e)
+
+
+_sync_active_model_from_litellm()
 
 
 # ── Encrypted key storage ────────────────────────────────────────────────────
@@ -609,6 +631,16 @@ async def chat_stream(req: ChatRequest):
                              "Content-Type": "application/json"},
                     json=payload,
                 ) as resp:
+                    if resp.status_code != 200:
+                        body = await resp.aread()
+                        try:
+                            detail = json.loads(body).get("error", {})
+                            if isinstance(detail, dict):
+                                detail = detail.get("message", str(detail))
+                        except Exception:
+                            detail = body.decode(errors="replace")
+                        yield f"data: {json.dumps({'error': f'LLM error ({resp.status_code}): {detail}'})}\n\n"
+                        return
                     async for line in resp.aiter_lines():
                         if line.startswith("data: "):
                             chunk = line[6:]
@@ -891,6 +923,16 @@ async def chat_rag_stream(req: RagChatRequest):
                              "Content-Type": "application/json"},
                     json=payload,
                 ) as resp:
+                    if resp.status_code != 200:
+                        body = await resp.aread()
+                        try:
+                            detail = json.loads(body).get("error", {})
+                            if isinstance(detail, dict):
+                                detail = detail.get("message", str(detail))
+                        except Exception:
+                            detail = body.decode(errors="replace")
+                        yield f"data: {json.dumps({'error': f'LLM error ({resp.status_code}): {detail}'})}\n\n"
+                        return
                     async for line in resp.aiter_lines():
                         if line.startswith("data: "):
                             chunk_data = line[6:]
@@ -1189,13 +1231,11 @@ async def switch_local_model(req: SwitchLocalModelRequest):
 
     # Derive a friendly display name from the filename
     # e.g. "gemma-3-1b-it.Q4_K_M.gguf" → "gemma-3-1b-it"
-    # e.g. "LFM2.5-1.2B-Instruct-Q4_K_M.gguf" → "lfm2.5-1.2b"
+    # e.g. "LFM2.5-1.2B-Instruct-Q4_K_M.gguf" → "lfm2.5-1.2b-instruct"
+    import re as _re
     stem = filename.rsplit(".gguf", 1)[0]  # strip .gguf
-    # Strip quantization suffixes (Q4_K_M, Q8_0, f16, etc.)
-    for sep in [".", "-"]:
-        parts = stem.rsplit(sep, 1)
-        if len(parts) == 2 and parts[1][:1].upper() in ("Q", "F", "B"):
-            stem = parts[0]
+    # Strip quantization suffixes like Q4_K_M, Q8_0, F16, BF16 (may use . - or _ as separator)
+    stem = _re.sub(r'[.\-_](?:Q\d[._]?\w*|[FB]F?\d+)$', '', stem, flags=_re.IGNORECASE)
     display_name = stem.lower()
 
     # Update the local model entry in litellm_config.yaml

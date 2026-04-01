@@ -23,7 +23,7 @@ Environment=ELASTICSEARCH_URL=https://lme-elasticsearch:9200
 Environment=ELASTICSEARCH_USER=elastic
 Environment=LITELLM_URL=https://lme-litellm:4000
 Environment=LITELLM_API_KEY=sk-lme-llama-proxy
-Environment=LITELLM_MODEL=lfm2.5-1.2b
+Environment=LITELLM_MODEL=lfm2.5-1.2b-instruct
 Environment=PGVECTOR_HOST=lme-pgvector
 Environment=PGVECTOR_PORT=5432
 Environment=PGVECTOR_DB=lme_vectors
