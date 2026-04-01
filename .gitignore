@@ -77,3 +77,12 @@ todo.txt
 testing/v2/installers/cluster_installer/cluster_output.log
 CLAUDE.md
 .claude
+
+# Sigma script runtime artifacts
+scripts/sigma/output/
+scripts/sigma/sigma/
+scripts/sigma/rules-emerging-threats/
+scripts/sigma/version.txt
+
+# Misc
+elastic-agent-*.deb
