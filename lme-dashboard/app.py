@@ -21,7 +21,7 @@ import httpx
 import psycopg2
 import yaml
 from cryptography.fernet import Fernet
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -50,6 +50,11 @@ LLAMA_MODELS_DIR = os.getenv("LLAMA_MODELS_DIR", "/opt/lme/llama-models")
 LLAMA_MODEL_CONFIG = os.getenv("LLAMA_MODEL_CONFIG", "/opt/lme/config/llama-cpp-model.json")
 LLAMA_MODEL_TRIGGER = os.getenv("LLAMA_MODEL_TRIGGER", "/opt/lme/config/.llama-model-updated")
 LLAMA_MODEL_STATUS = os.getenv("LLAMA_MODEL_STATUS", "/opt/lme/config/llama-cpp-status.json")
+
+# ── ElastAlert2 rules path ───────────────────────────────────────────────────
+ELASTALERT_RULES_PATH = Path(
+    os.getenv("ELASTALERT_RULES_PATH", "/opt/lme/config/elastalert2/rules")
+)
 
 # ── KEV config paths ─────────────────────────────────────────────────────────
 KEV_CATALOG_PATH = os.getenv("KEV_CATALOG_PATH", "/opt/lme/config/wazuh_cluster/kev_catalog.json")
@@ -1679,6 +1684,156 @@ async def update_kev_settings(req: KevSettingsRequest):
 
     logger.info("KEV settings updated: %s", settings)
     return {"status": "ok", "settings": settings}
+
+
+# ── ElastAlert2 rules routes ─────────────────────────────────────────────────
+
+def _parse_ea_rule_meta(path: Path) -> dict:
+    """Return lightweight metadata for a single rule file without raising."""
+    meta = {"filename": path.name, "name": path.stem, "type": "unknown", "index": ""}
+    try:
+        with open(path) as fh:
+            data = yaml.safe_load(fh) or {}
+        meta["name"] = data.get("name", path.stem)
+        meta["type"] = data.get("type", "unknown")
+        meta["index"] = data.get("index", "")
+    except Exception:
+        pass
+    return meta
+
+
+@app.get("/api/rules/elastalert")
+async def list_ea_rules():
+    """List all ElastAlert2 rule files with basic metadata."""
+    if not ELASTALERT_RULES_PATH.exists():
+        return {"rules": []}
+    rules = []
+    for p in sorted(ELASTALERT_RULES_PATH.glob("*.yml")):
+        if p.is_file():
+            rules.append(_parse_ea_rule_meta(p))
+    for p in sorted(ELASTALERT_RULES_PATH.glob("*.yaml")):
+        if p.is_file():
+            rules.append(_parse_ea_rule_meta(p))
+    return {"rules": rules}
+
+
+class PasteRuleRequest(BaseModel):
+    yaml_content: str
+    filename: str = ""
+
+
+@app.post("/api/rules/elastalert/paste")
+async def paste_ea_rule(req: PasteRuleRequest):
+    """Save a pasted YAML string as an ElastAlert2 rule file."""
+    import tempfile
+    try:
+        data = yaml.safe_load(req.yaml_content)
+    except yaml.YAMLError as exc:
+        raise HTTPException(400, f"Invalid YAML: {exc}")
+    if not isinstance(data, dict):
+        raise HTTPException(400, "Rule must be a YAML mapping")
+
+    # Derive filename from rule name field or caller-supplied name
+    if req.filename:
+        fname = req.filename.strip()
+    elif "name" in data:
+        fname = data["name"].lower().replace(" ", "_").replace("/", "_") + ".yml"
+    else:
+        raise HTTPException(400, "Rule must contain a 'name' field or a filename must be provided")
+
+    if not fname.endswith((".yml", ".yaml")):
+        fname += ".yml"
+
+    # Reject path traversal
+    dest = ELASTALERT_RULES_PATH / fname
+    if dest.resolve().parent != ELASTALERT_RULES_PATH.resolve():
+        raise HTTPException(400, "Invalid filename")
+
+    ELASTALERT_RULES_PATH.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=ELASTALERT_RULES_PATH, prefix=".tmp_rule_")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(req.yaml_content)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, dest)
+    except Exception as exc:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise HTTPException(500, f"Failed to write rule: {exc}")
+
+    logger.info("ElastAlert2 rule saved: %s", fname)
+    return {"status": "ok", "filename": fname, **_parse_ea_rule_meta(dest)}
+
+
+@app.post("/api/rules/elastalert/upload")
+async def upload_ea_rules(files: list[UploadFile] = File(...)):
+    """Upload one or more ElastAlert2 rule YAML files."""
+    import tempfile
+    ELASTALERT_RULES_PATH.mkdir(parents=True, exist_ok=True)
+    saved = []
+    errors = []
+    for upload in files:
+        fname = Path(upload.filename).name  # strip any directory component
+        if not fname.endswith((".yml", ".yaml")):
+            errors.append({"filename": fname, "error": "Only .yml / .yaml files accepted"})
+            continue
+        dest = ELASTALERT_RULES_PATH / fname
+        if dest.resolve().parent != ELASTALERT_RULES_PATH.resolve():
+            errors.append({"filename": fname, "error": "Invalid filename"})
+            continue
+        content = await upload.read()
+        try:
+            data = yaml.safe_load(content)
+            if not isinstance(data, dict):
+                raise ValueError("Not a YAML mapping")
+        except Exception as exc:
+            errors.append({"filename": fname, "error": f"Invalid YAML: {exc}"})
+            continue
+        fd, tmp = tempfile.mkstemp(dir=ELASTALERT_RULES_PATH, prefix=".tmp_rule_")
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(content)
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, dest)
+        except Exception as exc:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            errors.append({"filename": fname, "error": f"Write failed: {exc}"})
+            continue
+        saved.append(_parse_ea_rule_meta(dest))
+        logger.info("ElastAlert2 rule uploaded: %s", fname)
+
+    if errors and not saved:
+        raise HTTPException(400, {"saved": [], "errors": errors})
+    return {"saved": saved, "errors": errors}
+
+
+@app.get("/api/rules/elastalert/{filename}")
+async def get_ea_rule(filename: str):
+    """Return the raw YAML content of a single ElastAlert2 rule file."""
+    dest = ELASTALERT_RULES_PATH / filename
+    if dest.resolve().parent != ELASTALERT_RULES_PATH.resolve():
+        raise HTTPException(400, "Invalid filename")
+    if not dest.exists():
+        raise HTTPException(404, f"Rule '{filename}' not found")
+    return {"filename": filename, "content": dest.read_text()}
+
+
+@app.delete("/api/rules/elastalert/{filename}")
+async def delete_ea_rule(filename: str):
+    """Delete a single ElastAlert2 rule file."""
+    dest = ELASTALERT_RULES_PATH / filename
+    if dest.resolve().parent != ELASTALERT_RULES_PATH.resolve():
+        raise HTTPException(400, "Invalid filename")
+    if not dest.exists():
+        raise HTTPException(404, f"Rule '{filename}' not found")
+    dest.unlink()
+    logger.info("ElastAlert2 rule deleted: %s", filename)
+    return {"status": "ok", "filename": filename}
 
 
 class SubmitReportRequest(BaseModel):

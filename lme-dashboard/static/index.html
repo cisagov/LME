@@ -155,7 +155,7 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
-  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus()"
+  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules()"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -632,92 +632,160 @@
 
       <div>
 
-        <!-- Status cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">ElastAlert2 Rules</p>
-            <p class="text-2xl font-semibold text-white">—</p>
-            <p class="text-xs text-gray-600 mt-0.5">rules deployed</p>
-            <div class="mt-2 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-gray-600"></span>
-              <span class="text-xs text-gray-500">Not connected</span>
-            </div>
-          </div>
-          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Sigma Rules</p>
-            <p class="text-2xl font-semibold text-white">—</p>
-            <p class="text-xs text-gray-600 mt-0.5">rules loaded</p>
-            <div class="mt-2 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-gray-600"></span>
-              <span class="text-xs text-gray-500">Not connected</span>
-            </div>
-          </div>
-          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Wazuh Rules</p>
-            <p class="text-2xl font-semibold text-white">—</p>
-            <p class="text-xs text-gray-600 mt-0.5">custom rules active</p>
-            <div class="mt-2 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-gray-600"></span>
-              <span class="text-xs text-gray-500">Not connected</span>
-            </div>
-          </div>
-        </div>
+        <!-- ══ ElastAlert2 Rules ══════════════════════════════════════════════ -->
+        <div class="mb-6">
 
-        <!-- Deploy actions -->
-        <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
-          <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-            </svg>
-            Deploy Rules
-          </h3>
-          <div class="flex flex-wrap gap-2">
-            <button disabled
-                    class="px-3 py-1.5 rounded bg-emerald-900/40 border border-emerald-800 text-emerald-400 text-xs
-                           opacity-50 cursor-not-allowed flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          <!-- Panel header + actions -->
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
+                         01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
-              Deploy ElastAlert2 Rules
-            </button>
-            <button disabled
-                    class="px-3 py-1.5 rounded bg-blue-900/40 border border-blue-800 text-blue-400 text-xs
-                           opacity-50 cursor-not-allowed flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </svg>
-              Deploy Sigma Rules
-            </button>
-            <button disabled
-                    class="px-3 py-1.5 rounded bg-orange-900/40 border border-orange-800 text-orange-400 text-xs
-                           opacity-50 cursor-not-allowed flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </svg>
-              Deploy Wazuh Rules
-            </button>
+              <h2 class="text-sm font-semibold text-white">ElastAlert2 Rules</h2>
+              <span class="text-xs text-gray-500 font-mono" x-text="`(${eaRules.rules.length})`"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Refresh -->
+              <button @click="loadEaRules()"
+                      :disabled="eaRules.loading"
+                      class="p-1.5 rounded hover:bg-surface-700 text-gray-500 hover:text-gray-300 transition disabled:opacity-40"
+                      title="Refresh">
+                <svg class="w-3.5 h-3.5" :class="eaRules.loading ? 'animate-spin' : ''"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                           0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
+              <!-- Paste YAML -->
+              <button @click="eaRules.showPasteModal = true; eaRules.pasteMessage = null"
+                      class="px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 border border-surface-500
+                             text-gray-300 text-xs transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0
+                           00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Paste YAML
+              </button>
+              <!-- Upload -->
+              <label class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 text-white text-xs
+                            transition flex items-center gap-1.5 cursor-pointer"
+                     :class="eaRules.uploading ? 'opacity-60 pointer-events-none' : ''">
+                <svg class="w-3.5 h-3.5" :class="eaRules.uploading ? 'animate-spin' : ''"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <span x-text="eaRules.uploading ? 'Uploading…' : 'Upload File'"></span>
+                <input type="file" accept=".yml,.yaml" multiple class="hidden"
+                       @change="uploadEaRules($event)">
+              </label>
+            </div>
           </div>
-          <p class="text-xs text-gray-600 mt-3">Backend integration coming soon. Use the AI assistant to ask about rule deployment steps.</p>
-        </div>
 
-        <!-- Activity log placeholder -->
-        <div class="bg-surface-800 border border-surface-600 rounded-lg p-4">
-          <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-            </svg>
-            Deployment Log
-          </h3>
-          <div class="flex flex-col items-center justify-center py-8 text-gray-600">
-            <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
-            </svg>
-            <p class="text-sm">No deployments yet</p>
+          <!-- Upload feedback -->
+          <template x-if="eaRules.uploadMessage">
+            <div class="text-xs rounded px-3 py-2 mb-3"
+                 :class="eaRules.uploadError
+                   ? 'bg-red-900/30 border border-red-700 text-red-300'
+                   : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="eaRules.uploadMessage"></div>
+          </template>
+
+          <!-- Error state -->
+          <template x-if="eaRules.error">
+            <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-3"
+                 x-text="eaRules.error"></div>
+          </template>
+
+          <!-- Loading -->
+          <template x-if="eaRules.loading && !eaRules.rules.length">
+            <div class="flex items-center gap-2 text-gray-500 text-xs py-4">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Loading rules…
+            </div>
+          </template>
+
+          <!-- Rules list -->
+          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+            <template x-if="!eaRules.loading && eaRules.rules.length === 0">
+              <div class="flex flex-col items-center justify-center py-10 text-gray-600">
+                <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
+                           01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <p class="text-sm">No rules yet — upload a file or paste YAML to get started.</p>
+              </div>
+            </template>
+            <template x-for="(rule, idx) in eaRules.rules" :key="rule.filename">
+              <div :class="idx > 0 ? 'border-t border-surface-600' : ''">
+                <!-- Row header — click to expand -->
+                <div class="flex items-center justify-between px-4 py-3 gap-3 cursor-pointer hover:bg-surface-700/50 transition"
+                     @click="toggleEaRule(rule.filename)">
+                  <div class="min-w-0 flex items-center gap-2">
+                    <!-- Chevron -->
+                    <svg class="w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform"
+                         :class="eaRules.expanded === rule.filename ? 'rotate-90' : ''"
+                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <div class="min-w-0">
+                      <p class="text-sm text-white truncate" x-text="rule.name"></p>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-xs font-mono text-gray-500" x-text="rule.filename"></span>
+                        <template x-if="rule.type !== 'unknown'">
+                          <span class="px-1.5 py-0.5 rounded text-xs bg-surface-700 text-gray-400"
+                                x-text="rule.type"></span>
+                        </template>
+                        <template x-if="rule.index">
+                          <span class="text-xs text-gray-600 truncate" x-text="rule.index"></span>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                  <button @click.stop="deleteEaRule(rule.filename)"
+                          :disabled="eaRules.deleting === rule.filename"
+                          class="shrink-0 p-1.5 rounded hover:bg-red-900/40 text-gray-600 hover:text-red-400
+                                 transition disabled:opacity-40" title="Delete rule">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5
+                               4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                </div>
+                <!-- Expanded YAML -->
+                <div x-show="eaRules.expanded === rule.filename"
+                     class="border-t border-surface-600 bg-surface-900 px-4 py-3">
+                  <template x-if="eaRules.loadingYaml === rule.filename">
+                    <div class="flex items-center gap-2 text-gray-500 text-xs py-2">
+                      <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                      </svg>
+                      Loading…
+                    </div>
+                  </template>
+                  <template x-if="eaRules.loadingYaml !== rule.filename && eaRules.yamlCache[rule.filename] !== undefined">
+                    <pre class="text-xs text-gray-300 font-mono whitespace-pre-wrap break-words leading-relaxed"
+                         x-text="eaRules.yamlCache[rule.filename]"></pre>
+                  </template>
+                </div>
+              </div>
+            </template>
           </div>
-        </div>
+
+          <p class="text-xs text-gray-600 mt-2">
+            Rules are written to <span class="font-mono">/opt/lme/config/elastalert2/rules/</span> and picked up by ElastAlert2 within 5 minutes.
+          </p>
+        </div><!-- end ElastAlert2 section -->
 
       <!-- KEV Overview -->
       <div class="flex items-center gap-2 mb-4 mt-4">
@@ -898,6 +966,79 @@
       </div>
     </div>
   </div><!-- end right chat panel -->
+
+  <!-- ── Paste YAML modal ── -->
+  <div x-show="eaRules.showPasteModal" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+       @keydown.escape.window="eaRules.showPasteModal = false">
+    <div class="bg-surface-800 border border-surface-600 rounded-lg w-full max-w-2xl flex flex-col max-h-[90vh]"
+         @click.stop>
+      <!-- Modal header -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-surface-600">
+        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0
+                     00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Paste ElastAlert2 Rule
+        </h3>
+        <button @click="eaRules.showPasteModal = false"
+                class="text-gray-500 hover:text-gray-300 transition">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <!-- Modal body -->
+      <div class="flex-1 overflow-y-auto p-4">
+        <p class="text-xs text-gray-500 mb-3">
+          Paste a valid ElastAlert2 rule YAML below. The filename will be derived from the rule's
+          <span class="font-mono">name</span> field, or you can specify one manually.
+        </p>
+        <textarea
+          x-model="eaRules.pasteYaml"
+          placeholder="name: My Detection Rule&#10;type: any&#10;index: .alerts-security.alerts-*&#10;filter:&#10;  - query_string:&#10;      query: &quot;event.action:login_failed&quot;&#10;alert:&#10;  - debug"
+          rows="16"
+          class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-2 text-xs text-gray-300
+                 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition resize-none font-mono"
+        ></textarea>
+        <div class="mt-3">
+          <label class="block text-xs text-gray-500 mb-1">Filename (optional — leave blank to auto-derive)</label>
+          <input type="text" x-model="eaRules.pasteFilename"
+                 placeholder="my_rule.yml"
+                 class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-1.5 text-xs text-gray-300
+                        placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition font-mono">
+        </div>
+      </div>
+      <!-- Modal footer -->
+      <div class="px-4 py-3 border-t border-surface-600 flex items-center justify-between gap-3">
+        <template x-if="eaRules.pasteMessage">
+          <span class="text-xs"
+                :class="eaRules.pasteError ? 'text-red-400' : 'text-green-400'"
+                x-text="eaRules.pasteMessage"></span>
+        </template>
+        <div x-show="!eaRules.pasteMessage"></div>
+        <div class="flex gap-2 shrink-0">
+          <button @click="eaRules.showPasteModal = false"
+                  class="px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 border border-surface-500
+                         text-gray-300 text-xs transition">
+            Cancel
+          </button>
+          <button @click="pasteEaRule()"
+                  :disabled="eaRules.pasting || !eaRules.pasteYaml.trim()"
+                  class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" :class="eaRules.pasting ? 'animate-spin' : ''"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span x-text="eaRules.pasting ? 'Saving…' : 'Save Rule'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </div><!-- end detection engineering view -->
 
@@ -1675,12 +1816,135 @@ function dashboard() {
       _pollTimer: null,
     },
 
+    eaRules: {
+      loading: false, error: null, _loaded: false,
+      rules: [],
+      uploading: false, uploadMessage: null, uploadError: false,
+      showPasteModal: false, pasteYaml: '', pasteFilename: '',
+      pasting: false, pasteMessage: null, pasteError: false,
+      deleting: null,
+      expanded: null, yamlCache: {}, loadingYaml: null,
+    },
+
     pastedText: '',
     submitResponse: '',
 
     clearPastedText() {
       this.pastedText = '';
       this.submitResponse = '';
+    },
+
+    async loadEaRules() {
+      this.eaRules.loading = true;
+      this.eaRules.error = null;
+      try {
+        const r = await fetch('/api/rules/elastalert');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        this.eaRules.rules = data.rules;
+        this.eaRules._loaded = true;
+      } catch(e) {
+        this.eaRules.error = `Failed to load rules: ${e.message}`;
+      } finally {
+        this.eaRules.loading = false;
+      }
+    },
+
+    async uploadEaRules(event) {
+      const files = event.target.files;
+      if (!files || !files.length) return;
+      this.eaRules.uploading = true;
+      this.eaRules.uploadMessage = null;
+      this.eaRules.uploadError = false;
+      const fd = new FormData();
+      for (const f of files) fd.append('files', f);
+      try {
+        const r = await fetch('/api/rules/elastalert/upload', { method: 'POST', body: fd });
+        const data = await r.json();
+        if (!r.ok) {
+          const detail = data.detail || `HTTP ${r.status}`;
+          throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+        }
+        const saved = data.saved?.length || 0;
+        const errs = data.errors?.length || 0;
+        this.eaRules.uploadMessage = `Uploaded ${saved} rule${saved !== 1 ? 's' : ''}` +
+          (errs ? ` (${errs} failed)` : '');
+        this.eaRules.uploadError = saved === 0;
+        await this.loadEaRules();
+      } catch(e) {
+        this.eaRules.uploadMessage = `Upload failed: ${e.message}`;
+        this.eaRules.uploadError = true;
+      } finally {
+        this.eaRules.uploading = false;
+        event.target.value = '';
+      }
+    },
+
+    async pasteEaRule() {
+      if (!this.eaRules.pasteYaml.trim()) return;
+      this.eaRules.pasting = true;
+      this.eaRules.pasteMessage = null;
+      this.eaRules.pasteError = false;
+      try {
+        const r = await fetch('/api/rules/elastalert/paste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            yaml_content: this.eaRules.pasteYaml,
+            filename: this.eaRules.pasteFilename,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        this.eaRules.pasteMessage = `Saved as ${data.filename}`;
+        this.eaRules.pasteError = false;
+        this.eaRules.pasteYaml = '';
+        this.eaRules.pasteFilename = '';
+        await this.loadEaRules();
+        setTimeout(() => { this.eaRules.showPasteModal = false; this.eaRules.pasteMessage = null; }, 1200);
+      } catch(e) {
+        this.eaRules.pasteMessage = `${e.message}`;
+        this.eaRules.pasteError = true;
+      } finally {
+        this.eaRules.pasting = false;
+      }
+    },
+
+    async deleteEaRule(filename) {
+      if (!confirm(`Delete rule "${filename}"?`)) return;
+      this.eaRules.deleting = filename;
+      if (this.eaRules.expanded === filename) this.eaRules.expanded = null;
+      try {
+        const r = await fetch(`/api/rules/elastalert/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        if (!r.ok) { const d = await r.json(); throw new Error(d.detail || `HTTP ${r.status}`); }
+        delete this.eaRules.yamlCache[filename];
+        await this.loadEaRules();
+      } catch(e) {
+        this.eaRules.uploadMessage = `Delete failed: ${e.message}`;
+        this.eaRules.uploadError = true;
+      } finally {
+        this.eaRules.deleting = null;
+      }
+    },
+
+    async toggleEaRule(filename) {
+      if (this.eaRules.expanded === filename) {
+        this.eaRules.expanded = null;
+        return;
+      }
+      this.eaRules.expanded = filename;
+      if (this.eaRules.yamlCache[filename] !== undefined) return;
+      this.eaRules.loadingYaml = filename;
+      try {
+        const r = await fetch(`/api/rules/elastalert/${encodeURIComponent(filename)}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        this.eaRules.yamlCache[filename] = data.content;
+      } catch(e) {
+        this.eaRules.yamlCache[filename] = `# Error loading rule: ${e.message}`;
+      } finally {
+        this.eaRules.loadingYaml = null;
+      }
     },
 
     async submitReport() {
