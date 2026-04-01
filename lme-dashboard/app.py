@@ -359,6 +359,152 @@ async def wazuh_alerts(
     return {"total": total, "returned": len(alerts), "alerts": alerts}
 
 
+# ── Vulnerability endpoints ───────────────────────────────────────────────────
+
+VULN_INDEX = "wazuh-states-vulnerabilities-*"
+
+
+@app.get("/api/vulnerabilities")
+async def vulnerabilities_overview():
+    """Return per-agent vulnerability summary, sorted most-to-least vulnerable."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    query = {
+        "size": 0,
+        "aggs": {
+            "by_agent": {
+                "terms": {"field": "agent.name", "size": 500},
+                "aggs": {
+                    "agent_id":   {"terms": {"field": "agent.id", "size": 1}},
+                    "os":         {"terms": {"field": "host.os.full", "size": 1}},
+                    "by_severity": {"terms": {"field": "vulnerability.severity", "size": 10}},
+                    "max_score":  {"max": {"field": "vulnerability.score.base"}},
+                    "risk_score": {
+                        "weighted_avg": {
+                            "value": {"field": "vulnerability.score.base"},
+                            "weight": {"script": {
+                                "source": """
+                                    String s = doc['vulnerability.severity'].size() > 0 ? doc['vulnerability.severity'].value : '';
+                                    if (s == 'Critical') return 10;
+                                    if (s == 'High') return 5;
+                                    if (s == 'Medium') return 2;
+                                    if (s == 'Low') return 1;
+                                    return 0.5;
+                                """
+                            }}
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+    async with es_client() as c:
+        try:
+            r = await c.post(f"{ES_URL}/{VULN_INDEX}/_search", auth=ES_AUTH, json=query)
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return {"agents": [], "total_vulnerabilities": 0}
+            raise HTTPException(e.response.status_code, f"Elasticsearch error: {e.response.text[:200]}")
+        except Exception as e:
+            raise HTTPException(502, f"Elasticsearch unreachable: {e}")
+
+    data = r.json()
+    buckets = data.get("aggregations", {}).get("by_agent", {}).get("buckets", [])
+
+    agents = []
+    total_vulns = 0
+    for b in buckets:
+        sev_map = {s["key"]: s["doc_count"] for s in b["by_severity"]["buckets"]}
+        count = b["doc_count"]
+        total_vulns += count
+        agent_id_buckets = b["agent_id"]["buckets"]
+        os_buckets = b["os"]["buckets"]
+        agents.append({
+            "agent_name": b["key"],
+            "agent_id": agent_id_buckets[0]["key"] if agent_id_buckets else "",
+            "os": os_buckets[0]["key"] if os_buckets else "",
+            "total": count,
+            "critical": sev_map.get("Critical", 0),
+            "high": sev_map.get("High", 0),
+            "medium": sev_map.get("Medium", 0),
+            "low": sev_map.get("Low", 0),
+            "unrated": sev_map.get("", 0),
+            "max_cvss": b["max_score"]["value"] or 0,
+            "risk_score": round(b["risk_score"]["value"] or 0, 1),
+        })
+
+    # Sort: most vulnerable first (by weighted risk score desc, then total desc)
+    agents.sort(key=lambda a: (a["critical"], a["risk_score"], a["total"]), reverse=True)
+
+    return {"agents": agents, "total_vulnerabilities": total_vulns}
+
+
+@app.get("/api/vulnerabilities/{agent_id}")
+async def vulnerabilities_detail(
+    agent_id: str,
+    severity: str = Query("", description="Filter by severity: Critical|High|Medium|Low"),
+    size: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0, description="Number of results to skip for pagination"),
+):
+    """Return individual CVEs for a specific agent, paginated."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    filters = [{"term": {"agent.id": agent_id}}]
+    if severity:
+        filters.append({"term": {"vulnerability.severity": severity}})
+
+    query = {
+        "from": offset,
+        "size": size,
+        "sort": [{"vulnerability.score.base": {"order": "desc", "missing": "_last"}}],
+        "query": {"bool": {"filter": filters}},
+        "_source": [
+            "vulnerability.id", "vulnerability.severity", "vulnerability.score.base",
+            "vulnerability.description", "vulnerability.detected_at", "vulnerability.published_at",
+            "vulnerability.reference", "package.name", "package.version",
+            "agent.name", "host.os.full",
+        ],
+    }
+
+    async with es_client() as c:
+        try:
+            r = await c.post(f"{ES_URL}/{VULN_INDEX}/_search", auth=ES_AUTH, json=query)
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return {"total": 0, "vulnerabilities": []}
+            raise HTTPException(e.response.status_code, f"Elasticsearch error: {e.response.text[:200]}")
+        except Exception as e:
+            raise HTTPException(502, f"Elasticsearch unreachable: {e}")
+
+    data = r.json()
+    hits = data.get("hits", {}).get("hits", [])
+    total = data.get("hits", {}).get("total", {}).get("value", 0)
+
+    vulns = []
+    for h in hits:
+        s = h["_source"]
+        v = s.get("vulnerability", {})
+        p = s.get("package", {})
+        vulns.append({
+            "cve_id": v.get("id", ""),
+            "severity": v.get("severity", ""),
+            "cvss": v.get("score", {}).get("base"),
+            "description": v.get("description", ""),
+            "detected_at": v.get("detected_at", ""),
+            "published_at": v.get("published_at", ""),
+            "reference": v.get("reference", ""),
+            "package": p.get("name", ""),
+            "package_version": p.get("version", ""),
+        })
+
+    return {"total": total, "returned": len(vulns), "vulnerabilities": vulns}
+
+
 # ── Chat / LLM endpoints ──────────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):
