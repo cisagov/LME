@@ -12,6 +12,9 @@ import logging
 import socket
 import base64
 import hashlib
+import subprocess
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -41,6 +44,12 @@ LITELLM_CONFIG_PATH = os.getenv("LITELLM_CONFIG_PATH", "/opt/lme/config/litellm_
 LLM_KEYS_PATH  = os.getenv("LLM_KEYS_PATH", "/opt/lme/config/llm_keys.enc")
 VAULT_PASS_FILE = os.getenv("VAULT_PASS_FILE", "/etc/lme/pass.sh")
 LLM_KEYS_TRIGGER = os.getenv("LLM_KEYS_TRIGGER", "/opt/lme/config/.llm-keys-updated")
+
+# ── KEV config paths ─────────────────────────────────────────────────────────
+KEV_CATALOG_PATH  = os.getenv("KEV_CATALOG_PATH",  "/opt/lme/config/wazuh_cluster/kev_catalog.json")
+KEV_HISTORY_PATH  = os.getenv("KEV_HISTORY_PATH",  "/opt/lme/config/kev_history.json")
+KEV_CONFIG_PATH   = os.getenv("KEV_CONFIG_PATH",   "/opt/lme/config/kev_config.json")
+KEV_SYNC_SCRIPT   = os.getenv("KEV_SYNC_SCRIPT",   "/opt/lme/scripts/kev_sync.py")
 
 # Mutable active-model state (updated via UI)
 _active_model = {"name": LITELLM_MDL}
@@ -506,6 +515,13 @@ async def vulnerabilities_detail(
 
 
 # ── Chat / LLM endpoints ──────────────────────────────────────────────────────
+
+class KevSettingsRequest(BaseModel):
+    auto_pull: bool = True
+    frequency_hours: int = 24          # 6 | 12 | 24 | 168 (weekly)
+    alert_on_match: bool = True
+    alert_on_overdue: bool = True
+    ransomware_only: bool = False
 
 class ChatMessage(BaseModel):
     role: str
@@ -1083,6 +1099,171 @@ async def set_active_model(req: SetActiveModelRequest):
 # ── Static files / SPA ───────────────────────────────────────────────────────
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+# ── KEV helpers ─────────────────────────────────────────────────────────────
+
+_KEV_SETTINGS_DEFAULTS: dict = {
+    "auto_pull": True,
+    "frequency_hours": 24,
+    "alert_on_match": True,
+    "alert_on_overdue": True,
+    "ransomware_only": False,
+}
+
+
+def _read_kev_config() -> dict:
+    """Return persisted KEV settings, falling back to defaults."""
+    try:
+        with open(KEV_CONFIG_PATH) as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            return dict(_KEV_SETTINGS_DEFAULTS)
+        return {**_KEV_SETTINGS_DEFAULTS, **data}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return dict(_KEV_SETTINGS_DEFAULTS)
+
+
+def _write_kev_config(settings: dict) -> None:
+    """Atomically persist KEV settings to disk."""
+    import tempfile
+    dest = Path(KEV_CONFIG_PATH)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=".kev_config_tmp_")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(settings, fh, indent=2)
+        os.replace(tmp, dest)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _read_kev_catalog() -> dict:
+    """Return the KEV catalog dict, or empty structure if not present."""
+    try:
+        with open(KEV_CATALOG_PATH) as fh:
+            return json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"generated": None, "total": 0, "cves": {}}
+
+
+def _read_kev_history(n: int = 20) -> list:
+    """Return the last n history entries."""
+    try:
+        with open(KEV_HISTORY_PATH) as fh:
+            history = json.load(fh)
+        if not isinstance(history, list):
+            return []
+        return history[-n:]
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+# ── KEV routes ───────────────────────────────────────────────────────────────
+
+@app.post("/api/kev/pull")
+async def kev_pull():
+    """Trigger kev_sync.py as a subprocess and return status."""
+    script = KEV_SYNC_SCRIPT
+    if not Path(script).exists():
+        # Fall back to path inside the container image
+        script = str(Path(__file__).parent / "scripts" / "kev_sync.py")
+    if not Path(script).exists():
+        raise HTTPException(404, f"kev_sync.py not found at {KEV_SYNC_SCRIPT}")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, script],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env={**os.environ,
+                 "KEV_CATALOG_PATH": KEV_CATALOG_PATH,
+                 "KEV_HISTORY_PATH": KEV_HISTORY_PATH},
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "kev_sync.py timed out after 60 seconds")
+    except Exception as exc:
+        raise HTTPException(500, f"Failed to run kev_sync.py: {exc}")
+
+    if result.returncode != 0:
+        logger.error("kev_sync stderr: %s", result.stderr)
+        raise HTTPException(500, result.stderr.strip() or "kev_sync.py exited with error")
+
+    catalog = _read_kev_catalog()
+    return {
+        "status": "ok",
+        "total": catalog.get("total", 0),
+        "generated": catalog.get("generated"),
+        "stdout": result.stdout.strip(),
+    }
+
+
+@app.get("/api/kev/status")
+async def kev_status():
+    """Return catalog stats: last pull time, total CVEs, matched/overdue counts."""
+    catalog = _read_kev_catalog()
+    history = _read_kev_history(1)
+
+    # Determine status badge: Current (<24h), Syncing (pull in progress),
+    # Stale (>24h or never pulled), or Never.
+    generated = catalog.get("generated")
+    badge = "never"
+    if generated:
+        try:
+            pulled_at = datetime.strptime(generated, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            age_hours = (datetime.now(timezone.utc) - pulled_at).total_seconds() / 3600
+            badge = "current" if age_hours < 24 else "stale"
+        except ValueError:
+            badge = "stale"
+
+    last_pull = history[-1] if history else None
+
+    return {
+        "last_pull_timestamp": generated,
+        "badge": badge,
+        "total_kev": catalog.get("total", 0),
+        # Matched/overdue counts require Elasticsearch — placeholder for now.
+        # The Wazuh integration populates these via alert enrichment.
+        "matched_cves": 0,
+        "overdue_count": 0,
+        "last_pull_status": last_pull.get("status") if last_pull else None,
+        "settings": _read_kev_config(),
+    }
+
+
+@app.get("/api/kev/history")
+async def kev_history(n: int = Query(20, ge=1, le=100)):
+    """Return the last n KEV sync log entries."""
+    return {"history": _read_kev_history(n)}
+
+
+@app.patch("/api/settings/kev")
+async def update_kev_settings(req: KevSettingsRequest):
+    """Persist KEV settings and (on a real host) reschedule the systemd timer."""
+    valid_frequencies = {6, 12, 24, 168}
+    if req.frequency_hours not in valid_frequencies:
+        raise HTTPException(400, f"frequency_hours must be one of {sorted(valid_frequencies)}")
+
+    settings = {
+        "auto_pull": req.auto_pull,
+        "frequency_hours": req.frequency_hours,
+        "alert_on_match": req.alert_on_match,
+        "alert_on_overdue": req.alert_on_overdue,
+        "ransomware_only": req.ransomware_only,
+    }
+
+    try:
+        _write_kev_config(settings)
+    except Exception as exc:
+        raise HTTPException(500, f"Failed to save KEV settings: {exc}")
+
+    logger.info("KEV settings updated: %s", settings)
+    return {"status": "ok", "settings": settings}
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
