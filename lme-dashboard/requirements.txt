@@ -6,6 +6,3 @@ pgvector>=0.4
 pyyaml>=6.0
 cryptography>=42.0
 python-multipart>=0.0.9
-pySigma>=0.11
-pySigma-backend-elasticsearch>=1.1
-pySigma-pipeline-windows>=2.0
