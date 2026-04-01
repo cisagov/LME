@@ -107,39 +107,17 @@
       pgvector: <span x-text="health.pgvector || '…'"></span>
     </span>
 
-    <span class="px-2 py-0.5 rounded-full flex items-center gap-1"
-          :class="activeModelIsLocal ? 'bg-purple-900 text-purple-300' : 'bg-sky-900 text-sky-300'">
-      <!-- local chip icon -->
+    <button @click="mainView = 'settings'; settingsSection = 'models'; loadModels(); loadLocalModels()"
+            class="px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer hover:opacity-80 transition"
+            :class="activeModelIsLocal ? 'bg-purple-900 text-purple-300' : 'bg-sky-900 text-sky-300'"
+            title="Click to open model settings">
       <svg x-show="activeModelIsLocal" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
       </svg>
-      <!-- cloud icon -->
       <svg x-show="!activeModelIsLocal" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
       </svg>
       Model: <span x-text="modelSettings.activeModel || '…'"></span>
-    </span>
-
-    <!-- MODEL SETTINGS button — prominent -->
-    <button @click="showModelSettings = true; loadModels()"
-            class="px-3 py-1 rounded-full bg-purple-800 text-purple-100 hover:bg-purple-700 transition flex items-center gap-1.5 font-medium text-sm border border-purple-600">
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-      </svg>
-      Model Settings
-    </button>
-
-    <!-- auto-refresh toggle -->
-    <button @click="toggleAutoRefresh()"
-            :class="autoRefresh ? 'bg-blue-900 text-blue-300' : 'bg-surface-700 text-gray-400'"
-            class="px-2 py-0.5 rounded-full flex items-center gap-1 hover:opacity-80 transition">
-      <svg class="w-3 h-3" :class="autoRefresh ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
-                 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-      </svg>
-      Auto-refresh
     </button>
 
     <button @click="loadAll()"
@@ -185,6 +163,16 @@
             d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
     </svg>
     Detection Engineering
+  </button>
+  <button @click="mainView = 'settings'; loadModels(); loadLocalModels(); if (!kev.status) loadKevStatus()"
+          :class="mainView === 'settings' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    </svg>
+    Settings
   </button>
 </nav>
 
@@ -639,35 +627,10 @@
   <!-- LEFT: sub-tabs + content -->
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-    <!-- Sub-tab bar -->
-    <div class="bg-surface-800 border-b border-surface-600 px-4 pt-3 pb-0 flex items-end">
-      <div class="flex gap-1">
-        <button @click="detectionTab = 'deployment'"
-                :class="detectionTab === 'deployment' ? 'border-emerald-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
-                class="px-4 py-2 border-b-2 transition text-sm font-medium flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-          </svg>
-          Deployment
-        </button>
-        <button @click="detectionTab = 'config'"
-                :class="detectionTab === 'config' ? 'border-emerald-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
-                class="px-4 py-2 border-b-2 transition text-sm font-medium flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          Detection Configuration
-        </button>
-      </div>
-    </div>
-
     <!-- Content area -->
     <div class="flex-1 overflow-y-auto px-4 py-4">
 
-      <!-- ── Deployment tab ── -->
-      <div x-show="detectionTab === 'deployment'">
+      <div>
 
         <!-- Status cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
@@ -756,341 +719,67 @@
           </div>
         </div>
 
-      </div><!-- end deployment tab -->
-
-      <!-- ── Detection Configuration tab ── -->
-      <div x-show="detectionTab === 'config'">
-
-        <!-- Text Input Widget -->
-        <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
-          <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 4v16m8-8H4"/>
-            </svg>
-            Paste Vulnerability Report
-          </h3>
-          <div>
-            <textarea
-              x-model="pastedText"
-              placeholder="Paste your vulnerability report here..."
-              rows="8"
-              class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300
-                     placeholder-gray-600 focus:outline-none focus:border-blue-500 transition resize-none"
-            ></textarea>
-          </div>
-          <div class="mt-3 flex items-center gap-3">
-            <button @click="submitReport()"
-                    :disabled="!pastedText.trim()"
-                    class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
-                           disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
-                         0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              Submit Report
-            </button>
-            <button @click="clearPastedText()"
-                    class="px-3 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white text-xs transition flex items-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-              Clear
-            </button>
-          </div>
-          <div x-show="submitResponse" class="mt-3 text-xs text-gray-300">
-            <h4 class="text-sm font-medium text-white">Response:</h4>
-            <p class="bg-surface-700 rounded p-3 text-gray-400 whitespace-pre-wrap" x-text="submitResponse"></p>
-          </div>
+      <!-- KEV Overview -->
+      <div class="flex items-center gap-2 mb-4 mt-4">
+        <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
+                   4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <h2 class="text-sm font-semibold text-white">CISA KEV Overview</h2>
+        <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+           target="_blank" rel="noopener"
+           class="text-xs text-blue-500 hover:text-blue-400 transition ml-1">CISA Catalog ↗</a>
+      </div>
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total KEVs</p>
+          <p class="text-2xl font-semibold text-white"
+             x-text="kev.status ? kev.status.total_kev : '—'"></p>
+          <p class="text-xs text-gray-600 mt-0.5">in catalog</p>
         </div>
-        <!-- end text input widget -->
-        <!-- ══ CISA KEV Panel ══════════════════════════════════════════════ -->
-        <div class="mb-6">
-
-          <!-- Panel header -->
-          <div class="flex items-center gap-2 mb-4">
-            <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
-                       4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-            <h2 class="text-sm font-semibold text-white">CISA Known Exploited Vulnerabilities</h2>
-            <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
-               target="_blank" rel="noopener"
-               class="text-xs text-blue-500 hover:text-blue-400 transition ml-1">CISA Catalog ↗</a>
-          </div>
-
-          <!-- Loading / error states -->
-          <template x-if="kev.loading">
-            <div class="flex items-center gap-2 text-gray-500 text-xs mb-4">
-              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-              Loading KEV status…
-            </div>
-          </template>
-          <template x-if="kev.error">
-            <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-4"
-                 x-text="kev.error"></div>
-          </template>
-
-          <!-- ── Stats row ── -->
-          <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-              <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total KEVs</p>
-              <p class="text-2xl font-semibold text-white"
-                 x-text="kev.status ? kev.status.total_kev : '—'"></p>
-              <p class="text-xs text-gray-600 mt-0.5">in catalog</p>
-            </div>
-            <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-              <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">CVEs Matched</p>
-              <p class="text-2xl font-semibold"
-                 :class="kev.status && kev.status.matched_cves > 0 ? 'text-orange-400' : 'text-white'"
-                 x-text="kev.status ? kev.status.matched_cves : '—'"></p>
-              <p class="text-xs text-gray-600 mt-0.5">in environment</p>
-            </div>
-            <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-              <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Overdue</p>
-              <p class="text-2xl font-semibold"
-                 :class="kev.status && kev.status.overdue_count > 0 ? 'text-red-400' : 'text-white'"
-                 x-text="kev.status ? kev.status.overdue_count : '—'"></p>
-              <p class="text-xs text-gray-600 mt-0.5">past CISA due date</p>
-            </div>
-          </div>
-
-          <!-- ── Catalog Sync card ── -->
-          <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-3">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
-                         0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              Catalog Sync
-            </h3>
-
-            <!-- Last pull + badge + pull button -->
-            <div class="flex items-center justify-between gap-3 mb-3">
-              <div class="flex items-center gap-2 text-xs">
-                <span class="text-gray-500">Last pull:</span>
-                <span class="text-gray-300"
-                      x-text="kev.status && kev.status.last_pull_timestamp
-                               ? kev.status.last_pull_timestamp : 'Never'"></span>
-                <!-- Status badge -->
-                <template x-if="kev.status">
-                  <span class="px-1.5 py-0.5 rounded-full text-xs font-medium"
-                        :class="{
-                          'bg-green-900 text-green-300': kev.status.badge === 'current',
-                          'bg-yellow-900 text-yellow-300': kev.status.badge === 'stale',
-                          'bg-gray-700 text-gray-400':    kev.status.badge === 'never',
-                        }"
-                        x-text="kev.status.badge === 'current' ? 'Current'
-                               : kev.status.badge === 'stale'   ? 'Stale'
-                               : 'Never pulled'"></span>
-                </template>
-              </div>
-
-              <!-- Pull now button -->
-              <button @click="kevPull()"
-                      :disabled="kev.pulling"
-                      class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
-                             disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5 shrink-0">
-                <svg class="w-3.5 h-3.5" :class="kev.pulling ? 'animate-spin' : ''"
-                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
-                           0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                <span x-text="kev.pulling ? 'Pulling…' : 'Pull now'"></span>
-              </button>
-            </div>
-
-            <!-- Pull feedback message -->
-            <template x-if="kev.pullMessage">
-              <div class="text-xs rounded px-3 py-2 mb-3"
-                   :class="kev.pullError
-                     ? 'bg-red-900/30 border border-red-700 text-red-300'
-                     : 'bg-green-900/30 border border-green-700 text-green-300'"
-                   x-text="kev.pullMessage"></div>
-            </template>
-
-            <!-- Auto-pull toggle -->
-            <div class="flex items-center justify-between py-2 border-t border-surface-600">
-              <div>
-                <p class="text-xs text-gray-300">Auto-pull</p>
-                <p class="text-xs text-gray-600">Automatically sync the catalog on a schedule</p>
-              </div>
-              <button @click="kevSettings.auto_pull = !kevSettings.auto_pull; saveKevSettings()"
-                      :class="kevSettings.auto_pull ? 'bg-emerald-600' : 'bg-surface-600'"
-                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
-                             transition-colors focus:outline-none cursor-pointer">
-                <span :class="kevSettings.auto_pull ? 'translate-x-4' : 'translate-x-0'"
-                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
-              </button>
-            </div>
-
-            <!-- Frequency selector -->
-            <div class="flex items-center justify-between py-2 border-t border-surface-600">
-              <div>
-                <p class="text-xs" :class="kevSettings.auto_pull ? 'text-gray-300' : 'text-gray-600'">
-                  Pull frequency
-                </p>
-                <p class="text-xs text-gray-600">How often to sync from CISA</p>
-              </div>
-              <select x-model.number="kevSettings.frequency_hours"
-                      @change="saveKevSettings()"
-                      :disabled="!kevSettings.auto_pull"
-                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs
-                             text-gray-300 focus:outline-none focus:border-emerald-500 transition
-                             disabled:opacity-40 disabled:cursor-not-allowed">
-                <option value="6">Every 6 hours</option>
-                <option value="12">Every 12 hours</option>
-                <option value="24">Daily</option>
-                <option value="168">Weekly</option>
-              </select>
-            </div>
-          </div><!-- end sync card -->
-
-          <!-- ── Alert Settings card ── -->
-          <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
-            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0
-                         00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0
-                         .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-              </svg>
-              Alert Settings
-            </h3>
-
-            <!-- Alert on new KEV match -->
-            <div class="flex items-center justify-between py-2">
-              <div>
-                <p class="text-xs text-gray-300">Alert on new KEV match</p>
-                <p class="text-xs text-gray-600">Level 15 Wazuh alert when a host CVE enters the catalog</p>
-              </div>
-              <button @click="kevSettings.alert_on_match = !kevSettings.alert_on_match"
-                      :class="kevSettings.alert_on_match ? 'bg-emerald-600' : 'bg-surface-600'"
-                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
-                             transition-colors focus:outline-none cursor-pointer">
-                <span :class="kevSettings.alert_on_match ? 'translate-x-4' : 'translate-x-0'"
-                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
-              </button>
-            </div>
-
-            <!-- Alert on overdue remediation -->
-            <div class="flex items-center justify-between py-2 border-t border-surface-600">
-              <div>
-                <p class="text-xs text-gray-300">Alert on overdue remediation</p>
-                <p class="text-xs text-gray-600">Notify when a matched KEV passes its CISA due date</p>
-              </div>
-              <button @click="kevSettings.alert_on_overdue = !kevSettings.alert_on_overdue"
-                      :class="kevSettings.alert_on_overdue ? 'bg-emerald-600' : 'bg-surface-600'"
-                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
-                             transition-colors focus:outline-none cursor-pointer">
-                <span :class="kevSettings.alert_on_overdue ? 'translate-x-4' : 'translate-x-0'"
-                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
-              </button>
-            </div>
-
-            <!-- Ransomware-linked KEVs only -->
-            <div class="flex items-center justify-between py-2 border-t border-surface-600">
-              <div>
-                <p class="text-xs text-gray-300">Ransomware-linked KEVs only</p>
-                <p class="text-xs text-gray-600">Filter alerts to CVEs confirmed in ransomware campaigns</p>
-              </div>
-              <button @click="kevSettings.ransomware_only = !kevSettings.ransomware_only"
-                      :class="kevSettings.ransomware_only ? 'bg-orange-600' : 'bg-surface-600'"
-                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
-                             transition-colors focus:outline-none cursor-pointer">
-                <span :class="kevSettings.ransomware_only ? 'translate-x-4' : 'translate-x-0'"
-                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
-              </button>
-            </div>
-
-            <!-- Save button + feedback -->
-            <div class="flex items-center justify-between mt-3 pt-3 border-t border-surface-600">
-              <template x-if="kevSettings.message">
-                <span class="text-xs"
-                      :class="kevSettings.error ? 'text-red-400' : 'text-green-400'"
-                      x-text="kevSettings.message"></span>
-              </template>
-              <div x-show="!kevSettings.message"></div>
-              <button @click="saveKevSettings()"
-                      :disabled="kevSettings.saving"
-                      class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40
-                             disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5" :class="kevSettings.saving ? 'animate-spin' : ''"
-                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M5 13l4 4L19 7"/>
-                </svg>
-                <span x-text="kevSettings.saving ? 'Saving…' : 'Save settings'"></span>
-              </button>
-            </div>
-          </div><!-- end alert settings card -->
-
-        </div><!-- end KEV panel -->
-
-        <!-- ══ Rule Categories (existing) ══════════════════════════════════ -->
-        <div class="flex items-center justify-between mb-3 gap-3">
-          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Detection Rules</h3>
-          <button disabled
-                  class="px-3 py-1.5 rounded bg-emerald-900/40 border border-emerald-800 text-emerald-400 text-xs
-                         opacity-50 cursor-not-allowed flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            New Rule
-          </button>
+        <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">CVEs Matched</p>
+          <p class="text-2xl font-semibold"
+             :class="kev.status && kev.status.matched_cves > 0 ? 'text-orange-400' : 'text-white'"
+             x-text="kev.status ? kev.status.matched_cves : '—'"></p>
+          <p class="text-xs text-gray-600 mt-0.5">in environment</p>
         </div>
-
-        <div class="space-y-3">
-          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
-            <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
-              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">ElastAlert2</span>
-              <span class="text-xs text-gray-600">0 rules</span>
-            </div>
-            <div class="px-4 py-6 flex flex-col items-center text-gray-600">
-              <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              <p class="text-xs">No rules configured</p>
-            </div>
-          </div>
-          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
-            <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
-              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Sigma</span>
-              <span class="text-xs text-gray-600">0 rules</span>
-            </div>
-            <div class="px-4 py-6 flex flex-col items-center text-gray-600">
-              <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              <p class="text-xs">No rules configured</p>
-            </div>
-          </div>
-          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
-            <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
-              <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wazuh Custom Rules</span>
-              <span class="text-xs text-gray-600">0 rules</span>
-            </div>
-            <div class="px-4 py-6 flex flex-col items-center text-gray-600">
-              <svg class="w-6 h-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                      d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              <p class="text-xs">No rules configured</p>
-            </div>
-          </div>
+        <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Overdue</p>
+          <p class="text-2xl font-semibold"
+             :class="kev.status && kev.status.overdue_count > 0 ? 'text-red-400' : 'text-white'"
+             x-text="kev.status ? kev.status.overdue_count : '—'"></p>
+          <p class="text-xs text-gray-600 mt-0.5">past CISA due date</p>
         </div>
+      </div>
 
-      </div><!-- end config tab -->
+      <!-- Paste Vulnerability Report -->
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
+        <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Paste Vulnerability Report
+        </h3>
+        <textarea x-model="pastedText" placeholder="Paste your vulnerability report here..."
+                  rows="6"
+                  class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300
+                         placeholder-gray-600 focus:outline-none focus:border-blue-500 transition resize-none"></textarea>
+        <div class="mt-3 flex items-center gap-3">
+          <button @click="submitReport()" :disabled="!pastedText.trim()"
+                  class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-xs transition">Submit Report</button>
+          <button @click="clearPastedText()"
+                  class="px-3 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white text-xs transition">Clear</button>
+        </div>
+        <div x-show="submitResponse" class="mt-3 text-xs text-gray-300">
+          <h4 class="text-sm font-medium text-white">Response:</h4>
+          <p class="bg-surface-700 rounded p-3 text-gray-400 whitespace-pre-wrap" x-text="submitResponse"></p>
+        </div>
+      </div>
+
+      </div><!-- end content -->
 
     </div><!-- end content area -->
   </div><!-- end left panel -->
@@ -1400,39 +1089,61 @@
   </div>
 </div><!-- end vulnerabilities view -->
 
-<!-- ── Model Settings Modal ──────────────────────────────────────────────── -->
-<div x-show="showModelSettings" x-cloak
-     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-     @click.self="showModelSettings = false" @keydown.escape.window="showModelSettings = false">
-  <div class="bg-surface-800 border border-surface-600 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col mx-4">
+<!-- ── Settings View ──────────────────────────────────────────────────────── -->
+<div x-show="mainView === 'settings'" x-cloak class="flex h-[calc(100vh-97px)]">
 
-    <!-- Modal header -->
-    <div class="px-6 py-4 border-b border-surface-600 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-purple-900 flex items-center justify-center">
-          <svg class="w-5 h-5 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-          </svg>
-        </div>
-        <div>
-          <h2 class="text-white font-semibold text-lg">Model Settings</h2>
-          <p class="text-xs text-gray-500">Configure LLM providers and API keys</p>
-        </div>
-      </div>
-      <button @click="showModelSettings = false"
-              class="text-gray-500 hover:text-white transition p-1">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    </div>
+  <!-- LEFT: Settings sidebar -->
+  <div class="w-52 shrink-0 bg-surface-800 border-r border-surface-600 py-4 px-3 space-y-1">
+    <button @click="settingsSection = 'models'"
+            :class="settingsSection === 'models' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+      AI Models
+    </button>
+    <button @click="settingsSection = 'local-models'"
+            :class="settingsSection === 'local-models' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+      </svg>
+      Local Models
+    </button>
+    <button @click="settingsSection = 'kev'"
+            :class="settingsSection === 'kev' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
+                 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      KEV Configuration
+    </button>
+    <button @click="settingsSection = 'general'"
+            :class="settingsSection === 'general' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6
+                 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+      </svg>
+      General
+    </button>
+  </div>
 
-    <!-- Modal body (scrollable) -->
-    <div class="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+  <!-- RIGHT: Settings content -->
+  <div class="flex-1 overflow-y-auto px-8 py-6">
+    <div class="max-w-3xl">
+
+    <!-- ═══ AI Models Section ═══ -->
+    <div x-show="settingsSection === 'models'">
+      <h2 class="text-white font-semibold text-lg mb-1">AI Models</h2>
+      <p class="text-xs text-gray-500 mb-6">Configure LLM providers and API keys</p>
 
       <!-- Active model display -->
-      <div class="bg-surface-900 rounded-lg p-4 border border-surface-600">
+      <div class="bg-surface-900 rounded-lg p-4 border border-surface-600 mb-6">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Active Model</p>
@@ -1443,307 +1154,462 @@
       </div>
 
       <!-- Configured models list -->
-      <div>
-        <h3 class="text-white font-medium mb-3 flex items-center gap-2">
-          <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-          </svg>
-          Configured Models
-        </h3>
-        <div class="space-y-2">
-          <template x-if="modelSettings.models.length === 0">
-            <p class="text-gray-600 text-sm">No models configured yet.</p>
-          </template>
-          <template x-for="(m, i) in modelSettings.models" :key="i">
-            <div class="bg-surface-900 border border-surface-600 rounded-lg px-4 py-3 flex items-center justify-between group hover:border-surface-500 transition">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span class="text-white font-medium" x-text="m.model_name"></span>
-                  <span x-show="m.provider === 'local' || m.provider === ''"
-                        class="px-1.5 py-0.5 rounded text-xs bg-purple-900 text-purple-300 flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
-                    Local
-                  </span>
-                  <span x-show="m.provider && m.provider !== 'local'"
-                        class="px-1.5 py-0.5 rounded text-xs bg-sky-900 text-sky-300 flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
-                    Cloud
-                  </span>
-                  <span x-show="m.model_name === modelSettings.activeModel"
-                        class="px-1.5 py-0.5 rounded text-xs bg-green-900 text-green-300">active</span>
-                </div>
-                <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
-                  <span x-text="m.litellm_model"></span>
-                  <span x-show="m.api_base" x-text="m.api_base" class="truncate max-w-[200px]"></span>
-                  <span x-show="m.has_api_key" class="text-green-500">key set</span>
-                  <span x-show="!m.has_api_key" class="text-gray-600">no key</span>
-                </div>
+      <h3 class="text-white font-medium mb-3">Configured Models</h3>
+      <div class="space-y-2 mb-6">
+        <template x-if="modelSettings.models.length === 0">
+          <p class="text-gray-600 text-sm">No models configured yet.</p>
+        </template>
+        <template x-for="(m, i) in modelSettings.models" :key="i">
+          <div class="bg-surface-900 border border-surface-600 rounded-lg px-4 py-3 flex items-center justify-between group hover:border-surface-500 transition">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-white font-medium" x-text="m.model_name"></span>
+                <span x-show="m.provider === 'local' || m.provider === ''"
+                      class="px-1.5 py-0.5 rounded text-xs bg-purple-900 text-purple-300 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                  Local
+                </span>
+                <span x-show="m.provider && m.provider !== 'local'"
+                      class="px-1.5 py-0.5 rounded text-xs bg-sky-900 text-sky-300 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                  Cloud
+                </span>
+                <span x-show="m.model_name === modelSettings.activeModel"
+                      class="px-1.5 py-0.5 rounded text-xs bg-green-900 text-green-300">active</span>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <button x-show="m.model_name !== modelSettings.activeModel"
-                        @click="setActiveModel(m.model_name)"
-                        class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition">
-                  Use
-                </button>
-                <button @click="deleteModel(m.model_name)"
-                        class="px-2 py-1 rounded bg-red-900/30 text-red-400 hover:bg-red-900 text-xs transition opacity-0 group-hover:opacity-100">
-                  Remove
-                </button>
+              <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
+                <span x-text="m.litellm_model"></span>
+                <span x-show="m.api_base" x-text="m.api_base" class="truncate max-w-[200px]"></span>
+                <span x-show="m.has_api_key" class="text-green-500">key set</span>
+                <span x-show="!m.has_api_key" class="text-gray-600">no key</span>
               </div>
             </div>
-          </template>
-        </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button x-show="m.model_name !== modelSettings.activeModel"
+                      @click="setActiveModel(m.model_name)"
+                      class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition">
+                Use
+              </button>
+              <button @click="deleteModel(m.model_name)"
+                      class="px-2 py-1 rounded bg-red-900/30 text-red-400 hover:bg-red-900 text-xs transition opacity-0 group-hover:opacity-100">
+                Remove
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- Add new model -->
-      <div class="border-t border-surface-600 pt-5">
-        <h3 class="text-white font-medium mb-3 flex items-center gap-2">
-          <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
-          Add Model
-        </h3>
-
-        <!-- Provider selector (big buttons) -->
-        <div class="grid grid-cols-4 gap-2 mb-4">
-          <button @click="newModel.provider = 'local'; prefillModel()"
-                  :class="newModel.provider === 'local' ? 'border-purple-500 bg-purple-900/30 text-purple-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
-                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
-            <div class="font-medium">Local</div>
-            <div class="text-xs opacity-60 mt-0.5">llama.cpp</div>
-          </button>
-          <button @click="newModel.provider = 'openai'; prefillModel()"
-                  :class="newModel.provider === 'openai' ? 'border-green-500 bg-green-900/30 text-green-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
-                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
-            <div class="font-medium">OpenAI</div>
-            <div class="text-xs opacity-60 mt-0.5">GPT-4o, etc.</div>
-          </button>
-          <button @click="newModel.provider = 'anthropic'; prefillModel()"
-                  :class="newModel.provider === 'anthropic' ? 'border-orange-500 bg-orange-900/30 text-orange-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
-                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
-            <div class="font-medium">Anthropic</div>
-            <div class="text-xs opacity-60 mt-0.5">Claude</div>
-          </button>
-          <button @click="newModel.provider = 'openrouter'; prefillModel()"
-                  :class="newModel.provider === 'openrouter' ? 'border-blue-500 bg-blue-900/30 text-blue-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
-                  class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
-            <div class="font-medium">OpenRouter</div>
-            <div class="text-xs opacity-60 mt-0.5">Multi-provider</div>
-          </button>
-        </div>
-
-        <!-- Form fields -->
-        <div class="space-y-3">
-          <!-- Display name -->
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Display Name</label>
-            <input x-model="newModel.model_name" type="text" placeholder="e.g. gpt-4o"
-                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
-          </div>
-
-          <!-- Model ID (with suggestions) -->
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Model ID</label>
-            <input x-model="newModel.litellm_model" type="text" placeholder="e.g. gpt-4o"
-                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
-            <!-- Quick-pick suggestions -->
-            <template x-if="modelSettings.providers[newModel.provider]?.models">
-              <div class="flex flex-wrap gap-1 mt-1.5">
-                <template x-for="s in modelSettings.providers[newModel.provider].models" :key="s">
-                  <button @click="newModel.litellm_model = s; if(!newModel.model_name) newModel.model_name = s.split('/').pop()"
-                          class="px-2 py-0.5 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
-                          x-text="s"></button>
-                </template>
-              </div>
-            </template>
-          </div>
-
-          <!-- API Key (shown for providers that need it) -->
-          <template x-if="modelSettings.providers[newModel.provider]?.needs_api_key">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">API Key</label>
-              <input x-model="newModel.api_key" type="password" placeholder="sk-..."
-                     class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
-            </div>
-          </template>
-
-          <!-- API Base (optional override) -->
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">API Base URL <span class="text-gray-600">(optional)</span></label>
-            <input x-model="newModel.api_base" type="text" :placeholder="modelSettings.providers[newModel.provider]?.api_base || 'Leave empty for default'"
-                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
-          </div>
-
-          <!-- Submit -->
-          <div class="flex items-center gap-3 pt-1">
-            <button @click="addModel()"
-                    :disabled="!newModel.model_name || modelSettings.saving"
-                    class="px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium text-sm transition">
-              <span x-show="!modelSettings.saving">Add Model</span>
-              <span x-show="modelSettings.saving">Saving…</span>
-            </button>
-            <span x-show="modelSettings.message" x-text="modelSettings.message"
-                  class="text-xs" :class="modelSettings.error ? 'text-red-400' : 'text-green-400'"></span>
-          </div>
-        </div>
+      <h3 class="text-white font-medium mb-3">Add Model</h3>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button @click="newModel.provider = 'local'; prefillModel()"
+                :class="newModel.provider === 'local' ? 'border-purple-500 bg-purple-900/30 text-purple-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">Local</div>
+          <div class="text-xs opacity-60 mt-0.5">llama.cpp</div>
+        </button>
+        <button @click="newModel.provider = 'openai'; prefillModel()"
+                :class="newModel.provider === 'openai' ? 'border-green-500 bg-green-900/30 text-green-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">OpenAI</div>
+          <div class="text-xs opacity-60 mt-0.5">GPT-4o, etc.</div>
+        </button>
+        <button @click="newModel.provider = 'anthropic'; prefillModel()"
+                :class="newModel.provider === 'anthropic' ? 'border-orange-500 bg-orange-900/30 text-orange-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">Anthropic</div>
+          <div class="text-xs opacity-60 mt-0.5">Claude</div>
+        </button>
+        <button @click="newModel.provider = 'openrouter'; prefillModel()"
+                :class="newModel.provider === 'openrouter' ? 'border-blue-500 bg-blue-900/30 text-blue-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">OpenRouter</div>
+          <div class="text-xs opacity-60 mt-0.5">Multi-provider</div>
+        </button>
       </div>
-
-      <!-- Local Model Configuration -->
-      <div class="border-t border-surface-600 pt-5">
-        <h3 class="text-white font-medium mb-3 flex items-center gap-2">
-          <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-          Local Model (llama.cpp)
-          <span class="text-xs font-normal px-2 py-0.5 rounded-full"
-                :class="localModels.status.status === 'ready' ? 'bg-green-900/50 text-green-400' :
-                         localModels.status.status === 'switching' ? 'bg-yellow-900/50 text-yellow-400' :
-                         localModels.status.status === 'error' ? 'bg-red-900/50 text-red-400' :
-                         'bg-gray-800 text-gray-500'"
-                x-text="localModels.status.status === 'switching' ? 'Restarting...' :
-                         localModels.status.status === 'error' ? 'Error' :
-                         localModels.status.status === 'ready' ? 'Running' : 'Unknown'"></span>
-        </h3>
-
-        <!-- Status banner for errors -->
-        <template x-if="localModels.status.status === 'error' && localModels.status.error">
-          <div class="mb-3 p-2 rounded bg-red-900/30 border border-red-800 text-red-300 text-xs"
-               x-text="localModels.status.error"></div>
-        </template>
-
-        <!-- Available GGUF models -->
-        <div class="space-y-2 mb-4">
-          <template x-if="localModels.models.length === 0">
-            <p class="text-gray-500 text-sm">No .gguf models found in /opt/lme/llama-models/</p>
-          </template>
-          <template x-for="m in localModels.models" :key="m.filename">
-            <div class="flex items-center justify-between p-3 rounded-lg border group transition"
-                 :class="m.filename === localModels.activeModel ? 'border-green-700 bg-green-900/20' : 'border-surface-600 bg-surface-900 hover:border-surface-500'">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                     :class="m.filename === localModels.activeModel ? 'bg-green-900/50' : 'bg-surface-700'">
-                  <svg class="w-4 h-4" :class="m.filename === localModels.activeModel ? 'text-green-400' : 'text-gray-500'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="text-sm font-medium truncate" :class="m.filename === localModels.activeModel ? 'text-green-300' : 'text-gray-300'"
-                     x-text="m.filename"></p>
-                  <p class="text-xs text-gray-500" x-text="m.size_mb + ' MB'"></p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <span x-show="m.filename === localModels.activeModel"
-                      class="px-2 py-0.5 rounded-full bg-green-900/50 text-green-400 text-xs">Active</span>
-                <button x-show="m.filename !== localModels.activeModel"
-                        @click="switchLocalModel(m.filename)"
-                        :disabled="localModels.switching"
-                        class="px-3 py-1.5 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed">
-                  <span x-show="!localModels.switching">Switch</span>
-                  <span x-show="localModels.switching">Switching...</span>
-                </button>
-              </div>
-            </div>
-          </template>
+      <div class="space-y-3 mb-6">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Display Name</label>
+          <input x-model="newModel.model_name" type="text" placeholder="e.g. gpt-4o"
+                 class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
         </div>
-
-        <!-- Download in progress -->
-        <template x-if="localModels.downloads.length > 0">
-          <div class="mb-4 space-y-2">
-            <template x-for="d in localModels.downloads" :key="d.filename">
-              <div class="p-3 rounded-lg bg-blue-900/20 border border-blue-800">
-                <div class="flex items-center gap-3 mb-1">
-                  <svg class="w-4 h-4 text-blue-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                  </svg>
-                  <span class="text-sm text-blue-300 font-medium" x-text="d.filename"></span>
-                </div>
-                <div class="ml-7 flex items-center gap-2">
-                  <div class="flex-1 bg-blue-950 rounded-full h-2 overflow-hidden">
-                    <div class="bg-blue-500 h-2 rounded-full animate-pulse" style="width: 100%"></div>
-                  </div>
-                  <span class="text-xs text-blue-400 whitespace-nowrap"
-                        x-text="d.downloaded_mb >= 1024 ? (d.downloaded_mb / 1024).toFixed(1) + ' GB' : d.downloaded_mb + ' MB'"></span>
-                </div>
-              </div>
-            </template>
-          </div>
-        </template>
-
-        <!-- Download new model -->
-        <div class="border border-surface-600 rounded-lg p-3 bg-surface-900">
-          <p class="text-xs text-gray-400 mb-2 font-medium">Download new model</p>
-          <!-- Search bar -->
-          <div class="flex gap-2 mb-3">
-            <input x-model="localModels.searchQuery" type="text"
-                   placeholder="e.g. google/gemma-3-1b-it, mistral-7b, phi-3-mini"
-                   @keydown.enter="searchModels()"
-                   class="flex-1 bg-surface-800 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
-            <button @click="searchModels()"
-                    :disabled="!localModels.searchQuery || localModels.searching"
-                    class="px-4 py-2 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition whitespace-nowrap">
-              <span x-show="!localModels.searching">Search</span>
-              <span x-show="localModels.searching">Searching...</span>
-            </button>
-          </div>
-
-          <!-- Search results -->
-          <template x-if="localModels.searchResults.length > 0">
-            <div class="space-y-3 max-h-64 overflow-y-auto">
-              <template x-for="repo in localModels.searchResults" :key="repo.repo_id">
-                <div class="border border-surface-500 rounded-lg p-3 bg-surface-800">
-                  <p class="text-sm text-purple-300 font-medium mb-2" x-text="repo.repo_id"></p>
-                  <div class="space-y-1.5">
-                    <template x-for="f in repo.files" :key="f.filename">
-                      <div class="flex items-center justify-between px-2 py-1.5 rounded hover:bg-surface-700 transition group">
-                        <div class="min-w-0 flex-1">
-                          <span class="text-xs text-gray-300 truncate block" x-text="f.filename"></span>
-                          <span class="text-xs text-gray-500">
-                            <span x-show="f.size_mb" x-text="f.size_mb >= 1024 ? (f.size_mb / 1024).toFixed(1) + ' GB' : f.size_mb + ' MB'"></span>
-                            <span x-show="f.quant" class="ml-1 px-1.5 py-0.5 rounded bg-surface-600 text-gray-400" x-text="f.quant"></span>
-                          </span>
-                        </div>
-                        <button @click="downloadSearchResult(repo.repo_id, f.filename)"
-                                :disabled="localModels.downloading"
-                                class="ml-2 px-3 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition opacity-0 group-hover:opacity-100 shrink-0">
-                          Download
-                        </button>
-                      </div>
-                    </template>
-                  </div>
-                </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Model ID</label>
+          <input x-model="newModel.litellm_model" type="text" placeholder="e.g. gpt-4o"
+                 class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          <template x-if="modelSettings.providers[newModel.provider]?.models">
+            <div class="flex flex-wrap gap-1 mt-1.5">
+              <template x-for="s in modelSettings.providers[newModel.provider].models" :key="s">
+                <button @click="newModel.litellm_model = s; if(!newModel.model_name) newModel.model_name = s.split('/').pop()"
+                        class="px-2 py-0.5 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                        x-text="s"></button>
               </template>
             </div>
           </template>
-
-          <template x-if="localModels.searchDone && localModels.searchResults.length === 0">
-            <p class="text-xs text-gray-500 py-2">No GGUF models found. Try a different name like "owner/model-name".</p>
-          </template>
-
-          <p x-show="localModels.downloadMessage" x-text="localModels.downloadMessage"
-             class="mt-2 text-xs" :class="localModels.downloadError ? 'text-red-400' : 'text-green-400'"></p>
         </div>
-
-        <!-- Message -->
-        <p x-show="localModels.message" x-text="localModels.message"
-           class="mt-3 text-xs" :class="localModels.messageError ? 'text-red-400' : 'text-green-400'"></p>
+        <template x-if="modelSettings.providers[newModel.provider]?.needs_api_key">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">API Key</label>
+            <input x-model="newModel.api_key" type="password" placeholder="sk-..."
+                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          </div>
+        </template>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">API Base URL <span class="text-gray-600">(optional)</span></label>
+          <input x-model="newModel.api_base" type="text" :placeholder="modelSettings.providers[newModel.provider]?.api_base || 'Leave empty for default'"
+                 class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+        </div>
+        <div class="flex items-center gap-3 pt-1">
+          <button @click="addModel()"
+                  :disabled="!newModel.model_name || modelSettings.saving"
+                  class="px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium text-sm transition">
+            <span x-show="!modelSettings.saving">Add Model</span>
+            <span x-show="modelSettings.saving">Saving…</span>
+          </button>
+          <span x-show="modelSettings.message" x-text="modelSettings.message"
+                class="text-xs" :class="modelSettings.error ? 'text-red-400' : 'text-green-400'"></span>
+        </div>
       </div>
 
-      <!-- Info box -->
       <div class="bg-blue-950/30 border border-blue-900/50 rounded-lg p-3 text-xs text-blue-300/80">
         <p class="font-medium text-blue-300 mb-1">How it works</p>
         <ul class="space-y-1 list-disc list-inside">
           <li><strong>Use</strong> instantly switches which model the AI Assistant uses</li>
           <li><strong>Add/Remove</strong> updates the LiteLLM proxy config — restart the LiteLLM service to apply</li>
           <li>By default, the local llama.cpp model is used (no API key needed)</li>
-          <li><strong>Switch</strong> (local models) changes the .gguf model and restarts llama.cpp automatically</li>
-          <li><strong>Search + Download</strong> finds GGUF models on HuggingFace — just type a model name like "google/gemma-3-1b-it"</li>
         </ul>
       </div>
-    </div>
-  </div>
-</div>
+    </div><!-- end AI Models section -->
+
+    <!-- ═══ Local Models Section ═══ -->
+    <div x-show="settingsSection === 'local-models'">
+      <div class="flex items-center gap-3 mb-1">
+        <h2 class="text-white font-semibold text-lg">Local Models</h2>
+        <span class="text-xs font-normal px-2 py-0.5 rounded-full"
+              :class="localModels.status.status === 'ready' ? 'bg-green-900/50 text-green-400' :
+                       localModels.status.status === 'switching' ? 'bg-yellow-900/50 text-yellow-400' :
+                       localModels.status.status === 'error' ? 'bg-red-900/50 text-red-400' :
+                       'bg-gray-800 text-gray-500'"
+              x-text="localModels.status.status === 'switching' ? 'Restarting...' :
+                       localModels.status.status === 'error' ? 'Error' :
+                       localModels.status.status === 'ready' ? 'Running' : 'Unknown'"></span>
+      </div>
+      <p class="text-xs text-gray-500 mb-6">Manage local llama.cpp GGUF model files</p>
+
+      <template x-if="localModels.status.status === 'error' && localModels.status.error">
+        <div class="mb-4 p-2 rounded bg-red-900/30 border border-red-800 text-red-300 text-xs"
+             x-text="localModels.status.error"></div>
+      </template>
+
+      <!-- Available GGUF models -->
+      <h3 class="text-white font-medium mb-3">Installed Models</h3>
+      <div class="space-y-2 mb-6">
+        <template x-if="localModels.models.length === 0">
+          <p class="text-gray-500 text-sm">No .gguf models found in /opt/lme/llama-models/</p>
+        </template>
+        <template x-for="m in localModels.models" :key="m.filename">
+          <div class="flex items-center justify-between p-3 rounded-lg border group transition"
+               :class="m.filename === localModels.activeModel ? 'border-green-700 bg-green-900/20' : 'border-surface-600 bg-surface-900 hover:border-surface-500'">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                   :class="m.filename === localModels.activeModel ? 'bg-green-900/50' : 'bg-surface-700'">
+                <svg class="w-4 h-4" :class="m.filename === localModels.activeModel ? 'text-green-400' : 'text-gray-500'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium truncate" :class="m.filename === localModels.activeModel ? 'text-green-300' : 'text-gray-300'"
+                   x-text="m.filename"></p>
+                <p class="text-xs text-gray-500" x-text="m.size_mb + ' MB'"></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span x-show="m.filename === localModels.activeModel"
+                    class="px-2 py-0.5 rounded-full bg-green-900/50 text-green-400 text-xs">Active</span>
+              <button x-show="m.filename !== localModels.activeModel"
+                      @click="switchLocalModel(m.filename)"
+                      :disabled="localModels.switching"
+                      class="px-3 py-1.5 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed">
+                <span x-show="!localModels.switching">Switch</span>
+                <span x-show="localModels.switching">Switching...</span>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Download in progress -->
+      <template x-if="localModels.downloads.length > 0">
+        <div class="mb-6 space-y-2">
+          <template x-for="d in localModels.downloads" :key="d.filename">
+            <div class="p-3 rounded-lg bg-blue-900/20 border border-blue-800">
+              <div class="flex items-center gap-3 mb-1">
+                <svg class="w-4 h-4 text-blue-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span class="text-sm text-blue-300 font-medium" x-text="d.filename"></span>
+              </div>
+              <div class="ml-7 flex items-center gap-2">
+                <div class="flex-1 bg-blue-950 rounded-full h-2 overflow-hidden">
+                  <div class="bg-blue-500 h-2 rounded-full animate-pulse" style="width: 100%"></div>
+                </div>
+                <span class="text-xs text-blue-400 whitespace-nowrap"
+                      x-text="d.downloaded_mb >= 1024 ? (d.downloaded_mb / 1024).toFixed(1) + ' GB' : d.downloaded_mb + ' MB'"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Download new model -->
+      <h3 class="text-white font-medium mb-3">Download from HuggingFace</h3>
+      <div class="border border-surface-600 rounded-lg p-4 bg-surface-900">
+        <div class="flex gap-2 mb-3">
+          <input x-model="localModels.searchQuery" type="text"
+                 placeholder="e.g. google/gemma-3-1b-it, mistral-7b, phi-3-mini"
+                 @keydown.enter="searchModels()"
+                 class="flex-1 bg-surface-800 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          <button @click="searchModels()"
+                  :disabled="!localModels.searchQuery || localModels.searching"
+                  class="px-4 py-2 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition whitespace-nowrap">
+            <span x-show="!localModels.searching">Search</span>
+            <span x-show="localModels.searching">Searching...</span>
+          </button>
+        </div>
+        <template x-if="localModels.searchResults.length > 0">
+          <div class="space-y-3 max-h-80 overflow-y-auto">
+            <template x-for="repo in localModels.searchResults" :key="repo.repo_id">
+              <div class="border border-surface-500 rounded-lg p-3 bg-surface-800">
+                <p class="text-sm text-purple-300 font-medium mb-2" x-text="repo.repo_id"></p>
+                <div class="space-y-1.5">
+                  <template x-for="f in repo.files" :key="f.filename">
+                    <div class="flex items-center justify-between px-2 py-1.5 rounded hover:bg-surface-700 transition group">
+                      <div class="min-w-0 flex-1">
+                        <span class="text-xs text-gray-300 truncate block" x-text="f.filename"></span>
+                        <span class="text-xs text-gray-500">
+                          <span x-show="f.size_mb" x-text="f.size_mb >= 1024 ? (f.size_mb / 1024).toFixed(1) + ' GB' : f.size_mb + ' MB'"></span>
+                          <span x-show="f.quant" class="ml-1 px-1.5 py-0.5 rounded bg-surface-600 text-gray-400" x-text="f.quant"></span>
+                        </span>
+                      </div>
+                      <button @click="downloadSearchResult(repo.repo_id, f.filename)"
+                              :disabled="localModels.downloading"
+                              class="ml-2 px-3 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition opacity-0 group-hover:opacity-100 shrink-0">
+                        Download
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+        <template x-if="localModels.searchDone && localModels.searchResults.length === 0">
+          <p class="text-xs text-gray-500 py-2">No GGUF models found. Try a different name like "owner/model-name".</p>
+        </template>
+        <p x-show="localModels.downloadMessage" x-text="localModels.downloadMessage"
+           class="mt-2 text-xs" :class="localModels.downloadError ? 'text-red-400' : 'text-green-400'"></p>
+      </div>
+
+      <p x-show="localModels.message" x-text="localModels.message"
+         class="mt-3 text-xs" :class="localModels.messageError ? 'text-red-400' : 'text-green-400'"></p>
+    </div><!-- end Local Models section -->
+
+    <!-- ═══ KEV Configuration Section ═══ -->
+    <div x-show="settingsSection === 'kev'">
+      <h2 class="text-white font-semibold text-lg mb-1">KEV Configuration</h2>
+      <p class="text-xs text-gray-500 mb-6">CISA Known Exploited Vulnerabilities catalog sync and alerting</p>
+
+      <template x-if="kev.loading">
+        <div class="flex items-center gap-2 text-gray-500 text-xs mb-4">
+          <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Loading KEV status…
+        </div>
+      </template>
+      <template x-if="kev.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-4"
+             x-text="kev.error"></div>
+      </template>
+
+      <!-- Catalog Sync card -->
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Catalog Sync</h3>
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-500">Last pull:</span>
+            <span class="text-gray-300"
+                  x-text="kev.status && kev.status.last_pull_timestamp
+                           ? kev.status.last_pull_timestamp : 'Never'"></span>
+            <template x-if="kev.status">
+              <span class="px-1.5 py-0.5 rounded-full text-xs font-medium"
+                    :class="{
+                      'bg-green-900 text-green-300': kev.status.badge === 'current',
+                      'bg-yellow-900 text-yellow-300': kev.status.badge === 'stale',
+                      'bg-gray-700 text-gray-400':    kev.status.badge === 'never',
+                    }"
+                    x-text="kev.status.badge === 'current' ? 'Current'
+                           : kev.status.badge === 'stale'   ? 'Stale'
+                           : 'Never pulled'"></span>
+            </template>
+          </div>
+          <button @click="kevPull()"
+                  :disabled="kev.pulling"
+                  class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5 shrink-0">
+            <svg class="w-3.5 h-3.5" :class="kev.pulling ? 'animate-spin' : ''"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                       0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span x-text="kev.pulling ? 'Pulling…' : 'Pull now'"></span>
+          </button>
+        </div>
+        <template x-if="kev.pullMessage">
+          <div class="text-xs rounded px-3 py-2 mb-3"
+               :class="kev.pullError
+                 ? 'bg-red-900/30 border border-red-700 text-red-300'
+                 : 'bg-green-900/30 border border-green-700 text-green-300'"
+               x-text="kev.pullMessage"></div>
+        </template>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs text-gray-300">Auto-pull</p>
+            <p class="text-xs text-gray-600">Automatically sync the catalog on a schedule</p>
+          </div>
+          <button @click="kevSettings.auto_pull = !kevSettings.auto_pull; saveKevSettings()"
+                  :class="kevSettings.auto_pull ? 'bg-emerald-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.auto_pull ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs" :class="kevSettings.auto_pull ? 'text-gray-300' : 'text-gray-600'">Pull frequency</p>
+            <p class="text-xs text-gray-600">How often to sync from CISA</p>
+          </div>
+          <select x-model.number="kevSettings.frequency_hours"
+                  @change="saveKevSettings()"
+                  :disabled="!kevSettings.auto_pull"
+                  class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs
+                         text-gray-300 focus:outline-none focus:border-emerald-500 transition
+                         disabled:opacity-40 disabled:cursor-not-allowed">
+            <option value="6">Every 6 hours</option>
+            <option value="12">Every 12 hours</option>
+            <option value="24">Daily</option>
+            <option value="168">Weekly</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Alert Settings card -->
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Alert Settings</h3>
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <p class="text-xs text-gray-300">Alert on new KEV match</p>
+            <p class="text-xs text-gray-600">Level 15 Wazuh alert when a host CVE enters the catalog</p>
+          </div>
+          <button @click="kevSettings.alert_on_match = !kevSettings.alert_on_match"
+                  :class="kevSettings.alert_on_match ? 'bg-emerald-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.alert_on_match ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs text-gray-300">Alert on overdue remediation</p>
+            <p class="text-xs text-gray-600">Notify when a matched KEV passes its CISA due date</p>
+          </div>
+          <button @click="kevSettings.alert_on_overdue = !kevSettings.alert_on_overdue"
+                  :class="kevSettings.alert_on_overdue ? 'bg-emerald-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.alert_on_overdue ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs text-gray-300">Ransomware-linked KEVs only</p>
+            <p class="text-xs text-gray-600">Filter alerts to CVEs confirmed in ransomware campaigns</p>
+          </div>
+          <button @click="kevSettings.ransomware_only = !kevSettings.ransomware_only"
+                  :class="kevSettings.ransomware_only ? 'bg-orange-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.ransomware_only ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-surface-600">
+          <template x-if="kevSettings.message">
+            <span class="text-xs"
+                  :class="kevSettings.error ? 'text-red-400' : 'text-green-400'"
+                  x-text="kevSettings.message"></span>
+          </template>
+          <div x-show="!kevSettings.message"></div>
+          <button @click="saveKevSettings()"
+                  :disabled="kevSettings.saving"
+                  class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" :class="kevSettings.saving ? 'animate-spin' : ''"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span x-text="kevSettings.saving ? 'Saving…' : 'Save settings'"></span>
+          </button>
+        </div>
+      </div>
+    </div><!-- end KEV Configuration section -->
+
+    <!-- ═══ General Section ═══ -->
+    <div x-show="settingsSection === 'general'">
+      <h2 class="text-white font-semibold text-lg mb-1">General</h2>
+      <p class="text-xs text-gray-500 mb-6">Dashboard behavior and defaults</p>
+
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 space-y-0">
+        <!-- Auto-refresh -->
+        <div class="flex items-center justify-between py-3">
+          <div>
+            <p class="text-sm text-gray-300">Auto-refresh</p>
+            <p class="text-xs text-gray-600">Automatically reload alerts and health status every 60 seconds</p>
+          </div>
+          <button @click="toggleAutoRefresh()"
+                  :class="autoRefresh ? 'bg-blue-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="autoRefresh ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <!-- Default RAG mode -->
+        <div class="flex items-center justify-between py-3 border-t border-surface-600">
+          <div>
+            <p class="text-sm text-gray-300">RAG Mode (Documentation)</p>
+            <p class="text-xs text-gray-600">AI assistants answer using LME documentation by default</p>
+          </div>
+          <button @click="chat.ragMode = !chat.ragMode; detChat.ragMode = chat.ragMode"
+                  :class="chat.ragMode ? 'bg-purple-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="chat.ragMode ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+      </div>
+    </div><!-- end General section -->
+
+    </div><!-- end max-w-3xl -->
+  </div><!-- end content area -->
+</div><!-- end Settings view -->
 
 <!-- ─── JavaScript ───────────────────────────────────────────────────────── -->
 <script>
@@ -1761,7 +1627,7 @@ function dashboard() {
   return {
     activeTab: 'kibana',
     mainView: 'alerts',
-    detectionTab: 'deployment',
+    settingsSection: 'models',
     autoRefresh: false,
     _refreshTimer: null,
 
@@ -1796,7 +1662,6 @@ function dashboard() {
       alert_on_match: true, alert_on_overdue: true, ransomware_only: false,
       saving: false, message: null, error: false,
     },
-    showModelSettings: false,
     modelSettings: {
       activeModel: '', models: [], providers: {},
       saving: false, message: '', error: false,
