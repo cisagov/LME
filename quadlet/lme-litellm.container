@@ -23,8 +23,8 @@ Volume=lme_certs:/certs:ro
 Secret=llm-keys,type=mount,target=/run/secrets/llm_keys
 Environment=SSL_KEYFILE=/certs/litellm/litellm.key
 Environment=SSL_CERTFILE=/certs/litellm/litellm.crt
-Environment=SSL_CERT_FILE=/certs/ca/ca.crt
-Environment=REQUESTS_CA_BUNDLE=/certs/ca/ca.crt
-Environment=CURL_CA_BUNDLE=/certs/ca/ca.crt
-Exec=-c "set -a; [ -f /run/secrets/llm_keys ] && . /run/secrets/llm_keys; set +a; exec litellm --config /app/config.yaml --port 4000 --ssl_keyfile_path /certs/litellm/litellm.key --ssl_certfile_path /certs/litellm/litellm.crt"
+Environment=SSL_CERT_FILE=/tmp/combined-ca.crt
+Environment=REQUESTS_CA_BUNDLE=/tmp/combined-ca.crt
+Environment=CURL_CA_BUNDLE=/tmp/combined-ca.crt
+Exec=-c "cat /etc/ssl/certs/ca-certificates.crt /certs/ca/ca.crt > /tmp/combined-ca.crt; set -a; [ -f /run/secrets/llm_keys ] && . /run/secrets/llm_keys; set +a; exec litellm --config /app/config.yaml --port 4000 --ssl_keyfile_path /certs/litellm/litellm.key --ssl_certfile_path /certs/litellm/litellm.crt"
 
