@@ -494,13 +494,18 @@ async def vulnerabilities_detail(
     hits = data.get("hits", {}).get("hits", [])
     total = data.get("hits", {}).get("total", {}).get("value", 0)
 
+    # Load KEV catalog for cross-reference
+    kev_cves = _read_kev_catalog().get("cves", {})
+
     vulns = []
     for h in hits:
         s = h["_source"]
         v = s.get("vulnerability", {})
         p = s.get("package", {})
-        vulns.append({
-            "cve_id": v.get("id", ""),
+        cve_id = v.get("id", "")
+        kev_info = kev_cves.get(cve_id)
+        entry = {
+            "cve_id": cve_id,
             "severity": v.get("severity", ""),
             "cvss": v.get("score", {}).get("base"),
             "description": v.get("description", ""),
@@ -509,7 +514,13 @@ async def vulnerabilities_detail(
             "reference": v.get("reference", ""),
             "package": p.get("name", ""),
             "package_version": p.get("version", ""),
-        })
+            "is_kev": kev_info is not None,
+        }
+        if kev_info:
+            entry["kev_due_date"] = kev_info.get("dueDate", "")
+            entry["kev_ransomware"] = kev_info.get("knownRansomwareCampaignUse", "Unknown")
+            entry["kev_name"] = kev_info.get("vulnerabilityName", "")
+        vulns.append(entry)
 
     return {"total": total, "returned": len(vulns), "vulnerabilities": vulns}
 
@@ -1222,14 +1233,52 @@ async def kev_status():
 
     last_pull = history[-1] if history else None
 
+    # Cross-reference KEV catalog against Wazuh vulnerability index
+    matched_cves = 0
+    overdue_count = 0
+    kev_cves = catalog.get("cves", {})
+    if kev_cves and ES_PASS:
+        try:
+            kev_ids = list(kev_cves.keys())
+            query = {
+                "size": 0,
+                "query": {"terms": {"vulnerability.id": kev_ids}},
+                "aggs": {"matched": {"cardinality": {"field": "vulnerability.id"}}},
+            }
+            async with es_client() as c:
+                r = await c.post(
+                    f"{ES_URL}/{VULN_INDEX}/_search", auth=ES_AUTH, json=query,
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    matched_cves = data.get("aggregations", {}).get("matched", {}).get("value", 0)
+                    # Count overdue: KEVs matched AND past their due date
+                    if matched_cves > 0:
+                        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        overdue_ids = [
+                            cve_id for cve_id, info in kev_cves.items()
+                            if info.get("dueDate") and info["dueDate"] < now_str[:10]
+                        ]
+                        if overdue_ids:
+                            oq = {
+                                "size": 0,
+                                "query": {"terms": {"vulnerability.id": overdue_ids}},
+                                "aggs": {"overdue": {"cardinality": {"field": "vulnerability.id"}}},
+                            }
+                            r2 = await c.post(
+                                f"{ES_URL}/{VULN_INDEX}/_search", auth=ES_AUTH, json=oq,
+                            )
+                            if r2.status_code == 200:
+                                overdue_count = r2.json().get("aggregations", {}).get("overdue", {}).get("value", 0)
+        except Exception as e:
+            logger.warning(f"KEV cross-reference failed: {e}")
+
     return {
         "last_pull_timestamp": generated,
         "badge": badge,
         "total_kev": catalog.get("total", 0),
-        # Matched/overdue counts require Elasticsearch — placeholder for now.
-        # The Wazuh integration populates these via alert enrichment.
-        "matched_cves": 0,
-        "overdue_count": 0,
+        "matched_cves": matched_cves,
+        "overdue_count": overdue_count,
         "last_pull_status": last_pull.get("status") if last_pull else None,
         "settings": _read_kev_config(),
     }

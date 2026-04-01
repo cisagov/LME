@@ -1308,8 +1308,15 @@
                   <template x-for="(vuln, vi) in vulnDetail.vulns" :key="vi">
                     <tr class="border-t border-surface-700 hover:bg-surface-700/30">
                       <td class="px-5 py-2">
-                        <a :href="'https://nvd.nist.gov/vuln/detail/' + vuln.cve_id" target="_blank"
-                           class="text-blue-400 hover:underline font-medium" x-text="vuln.cve_id"></a>
+                        <div class="flex items-center gap-1.5">
+                          <a :href="'https://nvd.nist.gov/vuln/detail/' + vuln.cve_id" target="_blank"
+                             class="text-blue-400 hover:underline font-medium" x-text="vuln.cve_id"></a>
+                          <span x-show="vuln.is_kev" class="px-1 py-0.5 rounded text-[10px] font-bold bg-rose-700 text-white" title="CISA Known Exploited Vulnerability">KEV</span>
+                        </div>
+                        <div x-show="vuln.is_kev && vuln.kev_due_date" class="text-[10px] text-rose-400 mt-0.5">
+                          Due: <span x-text="vuln.kev_due_date"></span>
+                          <span x-show="vuln.kev_ransomware === 'Known'" class="ml-1 text-rose-300">Ransomware</span>
+                        </div>
                       </td>
                       <td class="px-3 py-2">
                         <span class="px-1.5 py-0.5 rounded text-xs"
