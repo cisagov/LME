@@ -32,8 +32,13 @@ Environment=EMBED_URL=https://lme-embeddings:8081
 Volume=/home/lme-user/LME/lme-dashboard/app.py:/app/app.py:ro
 Volume=/home/lme-user/LME/lme-dashboard/static:/app/static:ro
 Volume=/opt/lme/config:/opt/lme/config:rw
+Volume=/opt/lme/llama-models:/opt/lme/llama-models:rw
 Volume=/etc/lme/pass.sh:/etc/lme/pass.sh:ro
 Volume=lme_certs:/certs:ro
+Environment=LLAMA_MODELS_DIR=/opt/lme/llama-models
+Environment=LLAMA_MODEL_CONFIG=/opt/lme/config/llama-cpp-model.json
+Environment=LLAMA_MODEL_TRIGGER=/opt/lme/config/.llama-model-updated
+Environment=LLAMA_MODEL_STATUS=/opt/lme/config/llama-cpp-status.json
 Environment=SSL_KEYFILE=/certs/dashboard/dashboard.key
 Environment=SSL_CERTFILE=/certs/dashboard/dashboard.crt
 Environment=LITELLM_CONFIG_PATH=/opt/lme/config/litellm_config.yaml
