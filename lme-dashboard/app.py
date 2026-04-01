@@ -14,6 +14,7 @@ import base64
 import hashlib
 import subprocess
 import sys
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1874,6 +1875,38 @@ class SubmitReportRequest(BaseModel):
     text: str
 
 
+class GenerateDetectionRequest(BaseModel):
+    cve_id: str
+    host: str
+    package: str
+    excluded_fields: list[str] = []
+
+
+class DetectionField(BaseModel):
+    name: str
+    seen: bool
+    event_count: int = 0
+
+
+class DetectionWarning(BaseModel):
+    field: str
+    message: str
+
+
+class GenerateDetectionResponse(BaseModel):
+    summary: str
+    elastalert_yaml: str
+    sigma_yaml: str
+    fields: list[DetectionField]
+    warnings: list[DetectionWarning]
+    reasoning: str
+
+
+class DeployElastAlertRequest(BaseModel):
+    rule_yaml: str
+    rule_name: str
+
+
 @app.post("/api/submit_report")
 async def submit_report(req: SubmitReportRequest):
     """
@@ -1887,6 +1920,298 @@ async def submit_report(req: SubmitReportRequest):
         return {"status": "success", "message": "received"}
     except Exception as e:
         raise HTTPException(500, f"Failed to process report: {str(e)}")
+
+
+# ── Detection builder endpoints ────────────────────────────────────────────────
+
+def _flatten_fields(obj, prefix="", depth=0, max_depth=5):
+    """Recursively flatten nested dict/list to extract all field paths."""
+    if depth > max_depth:
+        return set()
+    fields = set()
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            path = f"{prefix}.{k}" if prefix else k
+            fields.add(path)
+            fields.update(_flatten_fields(v, path, depth + 1, max_depth))
+    elif isinstance(obj, list) and obj:
+        fields.update(_flatten_fields(obj[0], prefix, depth + 1, max_depth))
+    return fields
+
+
+def _parse_llm_response(text: str) -> dict:
+    """Parse LLM response into structured sections."""
+    # Extract SUMMARY section
+    summary_match = re.search(r'SUMMARY:\s*\n(.*?)(?:\n\n|$)', text, re.DOTALL)
+    summary = summary_match.group(1).strip() if summary_match else ""
+
+    # Extract ELASTALERT2 YAML block
+    elastalert_match = re.search(r'ELASTALERT2:\s*\n```yaml\s*\n(.*?)\n```', text, re.DOTALL)
+    elastalert_yaml = elastalert_match.group(1).strip() if elastalert_match else ""
+
+    # Extract SIGMA YAML block
+    sigma_match = re.search(r'SIGMA:\s*\n```yaml\s*\n(.*?)\n```', text, re.DOTALL)
+    sigma_yaml = sigma_match.group(1).strip() if sigma_match else ""
+
+    # Extract REASONING section
+    reasoning_match = re.search(r'REASONING:\s*\n(.*?)(?:\n|$)', text, re.DOTALL)
+    reasoning = reasoning_match.group(1).strip() if reasoning_match else ""
+
+    return {
+        "summary": summary,
+        "elastalert_yaml": elastalert_yaml,
+        "sigma_yaml": sigma_yaml,
+        "reasoning": reasoning,
+    }
+
+
+@app.post("/api/detections/generate", response_model=GenerateDetectionResponse)
+async def generate_detection(req: GenerateDetectionRequest):
+    """Generate a detection rule for a CVE based on available logs."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    # 1. Read KEV catalog and get CVE entry
+    kev_catalog = _read_kev_catalog()
+    cve_entry = kev_catalog.get("cves", {}).get(req.cve_id, {})
+    if not cve_entry:
+        raise HTTPException(404, f"CVE {req.cve_id} not found in KEV catalog")
+
+    # 2. Confirm CVE+host pairing in Wazuh vulnerability index
+    async with es_client() as c:
+        query = {
+            "size": 1,
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"vulnerability.id": req.cve_id}},
+                        {"term": {"agent.name": req.host}},
+                    ]
+                }
+            },
+        }
+        try:
+            r = await c.post(
+                f"{ES_URL}/wazuh-states-vulnerabilities-*/_search",
+                auth=ES_AUTH,
+                json=query,
+            )
+            r.raise_for_status()
+            hits = r.json().get("hits", {}).get("hits", [])
+            if not hits:
+                raise HTTPException(400, f"CVE {req.cve_id} not found on host {req.host}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404:
+                raise HTTPException(502, f"Elasticsearch error: {e.response.text[:200]}")
+
+    # 3. Get log sources for the host (last 7 days)
+    log_sources = []
+    async with es_client() as c:
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"agent.name": req.host}},
+                        {"range": {"@timestamp": {"gte": "now-7d"}}},
+                    ]
+                }
+            },
+            "aggs": {"log_sources": {"terms": {"field": "event.dataset", "size": 20}}},
+        }
+        try:
+            r = await c.post(
+                f"{ES_URL}/logs-*/_search",
+                auth=ES_AUTH,
+                json=query,
+            )
+            if r.status_code == 200:
+                buckets = r.json().get("aggregations", {}).get("log_sources", {}).get("buckets", [])
+                log_sources = [b["key"] for b in buckets if b["key"]]
+        except:
+            pass
+
+    # 4. Extract available field names from recent events (last 7 days, max 50)
+    available_fields = set()
+    async with es_client() as c:
+        query = {
+            "size": 50,
+            "sort": [{"@timestamp": {"order": "desc"}}],
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"agent.name": req.host}},
+                        {"range": {"@timestamp": {"gte": "now-7d"}}},
+                    ]
+                }
+            },
+        }
+        try:
+            r = await c.post(
+                f"{ES_URL}/logs-*/_search",
+                auth=ES_AUTH,
+                json=query,
+            )
+            if r.status_code == 200:
+                hits = r.json().get("hits", {}).get("hits", [])
+                for h in hits:
+                    fields = _flatten_fields(h.get("_source", {}))
+                    available_fields.update(fields)
+        except:
+            pass
+
+    # 5. Scan existing rules for this CVE
+    existing_rules = ""
+    if ELASTALERT_RULES_PATH.exists():
+        for rule_file in ELASTALERT_RULES_PATH.glob("*.yml"):
+            try:
+                content = rule_file.read_text()
+                if req.cve_id in content:
+                    existing_rules += f"\n# {rule_file.name}\n{content[:500]}"
+            except:
+                pass
+
+    # 6. Build LLM prompt
+    excluded_str = ", ".join(req.excluded_fields) if req.excluded_fields else "none"
+    prompt = f"""You are a detection engineer writing rules for a small organization running LME (Logging Made Easy).
+
+CVE: {req.cve_id}
+Vulnerable software: {cve_entry.get('vulnerabilityName', 'Unknown')}
+What the exploit does: {cve_entry.get('description', 'See CISA KEV catalog')}
+Affected host: {req.host}
+
+Log sources available on this host:
+{', '.join(log_sources) if log_sources else 'Unknown'}
+
+Fields present in recent logs on this host:
+{', '.join(sorted(available_fields)[:50]) if available_fields else 'Unknown'}
+
+Do NOT use these fields (not present in logs):
+{excluded_str}
+
+Existing rules for this CVE: {existing_rules if existing_rules else 'None'}
+
+Generate:
+1. A plain-English description (2 sentences max) of what exploitation looks like in logs. Written for a non-technical IT admin. No ATT&CK IDs or jargon.
+2. An ElastAlert2 YAML rule using only fields from the available list above
+3. A Sigma rule (product: windows, category: process_creation) for the same behavior
+4. A plain-English explanation of why you chose these specific fields
+
+Format your response exactly as:
+
+SUMMARY:
+<2 sentence description>
+
+ELASTALERT2:
+```yaml
+<rule>
+```
+
+SIGMA:
+```yaml
+<rule>
+```
+
+REASONING:
+<explanation>"""
+
+    # 7. Call LiteLLM
+    parsed_response = None
+    try:
+        async with llm_client() as c:
+            r = await c.post(
+                f"{LITELLM_URL}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {LITELLM_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": _active_model["name"],
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.2,
+                    "max_tokens": 1500,
+                },
+            )
+            r.raise_for_status()
+            data = r.json()
+            llm_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            parsed_response = _parse_llm_response(llm_text)
+    except Exception as e:
+        raise HTTPException(502, f"LLM call failed: {str(e)}")
+
+    # 8. Validate fields in generated rules
+    warnings = []
+    field_list = []
+
+    # Extract all field references from YAML (simplified: look for quoted strings and unquoted identifiers)
+    yaml_text = (parsed_response.get("elastalert_yaml", "") + " " + parsed_response.get("sigma_yaml", "")).lower()
+    field_pattern = r'[\w.]+'
+    mentioned_fields = set(re.findall(field_pattern, yaml_text))
+
+    for field in mentioned_fields:
+        if field in available_fields:
+            field_list.append({"name": field, "seen": True})
+        else:
+            # Check if it's a partial match or common field that might not be in recent data
+            if any(av_field.endswith('.' + field) or av_field.endswith(field) for av_field in available_fields):
+                field_list.append({"name": field, "seen": True})
+            else:
+                # Only warn if it's not a common static field
+                if not field.startswith('_') and field not in ['and', 'or', 'not', 'query', 'filter', 'name', 'type', 'index', 'alert', 'query_string', 'timeframe', 'days', 'hours', 'minutes', 'seconds']:
+                    warnings.append({"field": field, "message": "Not found in last 7 days of logs"})
+
+    return GenerateDetectionResponse(
+        summary=parsed_response.get("summary", ""),
+        elastalert_yaml=parsed_response.get("elastalert_yaml", ""),
+        sigma_yaml=parsed_response.get("sigma_yaml", ""),
+        fields=field_list[:20],  # Limit to first 20 for display
+        warnings=warnings[:10],  # Limit to first 10
+        reasoning=parsed_response.get("reasoning", ""),
+    )
+
+
+@app.post("/api/detections/deploy/elastalert")
+async def deploy_elastalert(req: DeployElastAlertRequest):
+    """Deploy an ElastAlert2 rule and restart the service."""
+    # 1. Validate YAML
+    try:
+        yaml.safe_load(req.rule_yaml)
+    except Exception as e:
+        raise HTTPException(400, f"Invalid YAML: {str(e)}")
+
+    # 2. Sanitize rule name
+    import re
+    safe_name = re.sub(r'[^a-z0-9_]', '_', req.rule_name.lower())
+
+    # 3. Write rule with atomic pattern
+    dest = ELASTALERT_RULES_PATH / f"{safe_name}.yml"
+    try:
+        import tempfile
+        fd, tmp = tempfile.mkstemp(dir=str(ELASTALERT_RULES_PATH), prefix=".tmp_rule_", suffix=".yml")
+        with os.fdopen(fd, "w") as fh:
+            fh.write("# Generated by LME detection builder — review before use\n")
+            fh.write(req.rule_yaml)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, str(dest))
+    except Exception as e:
+        raise HTTPException(500, f"Failed to write rule: {str(e)}")
+
+    # 4. Restart service
+    try:
+        result = subprocess.run(
+            ["systemctl", "restart", "lme-elastalert.service"],
+            capture_output=True,
+            timeout=30,
+            text=True,
+        )
+        if result.returncode != 0:
+            return {"success": False, "message": f"Service restart failed: {result.stderr}"}
+    except subprocess.TimeoutExpired:
+        return {"success": False, "message": "Service restart timed out"}
+    except Exception as e:
+        return {"success": False, "message": f"Service restart error: {str(e)}"}
+
+    return {"success": True, "message": "Rule deployed — service restarting"}
 
 
 @app.get("/", response_class=HTMLResponse)
