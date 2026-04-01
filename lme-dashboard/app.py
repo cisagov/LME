@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 ES_URL = os.getenv("ELASTICSEARCH_URL", "https://lme-elasticsearch:9200")
 ES_USER = os.getenv("ELASTICSEARCH_USER", "elastic")
 ES_PASS = os.getenv("ELASTICSEARCH_PASSWORD", "")
+KIBANA_URL = os.getenv("KIBANA_URL", "https://lme-kibana:5601")
 LITELLM_URL = os.getenv("LITELLM_URL", "https://lme-litellm:4000")
 LITELLM_KEY = os.getenv("LITELLM_API_KEY", "sk-lme-llama-proxy")
 LITELLM_MDL = os.getenv("LITELLM_MODEL", "lfm2.5-1.2b-instruct")
@@ -186,6 +187,26 @@ def llm_client() -> httpx.AsyncClient:
 def _severity_order(s: str) -> int:
     return {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(s.lower(), 4)
 
+
+def _looks_like_ip(s: str) -> bool:
+    """Return True if s looks like an IPv4 or IPv6 address."""
+    parts = s.split(".")
+    if len(parts) == 4:
+        return all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+    return ":" in s  # rough IPv6 check
+
+
+def _build_search_should(q: str, fields: list[str], ip_fields: list[str] | None = None):
+    """Build a bool/should clause for case-insensitive wildcard search across keyword fields."""
+    pattern = "*" + "*".join(q.strip().lower().split()) + "*"
+    should = []
+    for f in fields:
+        should.append({"wildcard": {f: {"value": pattern, "case_insensitive": True}}})
+    if ip_fields and _looks_like_ip(q.strip()):
+        for f in ip_fields:
+            should.append({"term": {f: q.strip()}})
+    return {"bool": {"should": should, "minimum_should_match": 1}}
+
 # ── API routes ────────────────────────────────────────────────────────────────
 
 
@@ -216,6 +237,34 @@ async def health():
     return status
 
 
+@app.get("/api/alerts/hosts")
+async def alert_hosts():
+    """Return unique host names across all alert indices for the machine filter."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+    hosts = set()
+    queries = [
+        (".alerts-security.alerts-*", "host.name"),
+        ("wazuh-alerts-*", "agent.name"),
+        ("logs-windows.sysmon_operational-*", "winlog.computer_name"),
+        ("logs-windows.windows_defender-*", "winlog.computer_name"),
+    ]
+    async with es_client() as c:
+        for index, field in queries:
+            try:
+                r = await c.post(
+                    f"{ES_URL}/{index}/_search",
+                    auth=ES_AUTH,
+                    json={"size": 0, "aggs": {"h": {"terms": {"field": field, "size": 100}}}},
+                )
+                if r.status_code == 200:
+                    for b in r.json().get("aggregations", {}).get("h", {}).get("buckets", []):
+                        hosts.add(b["key"])
+            except Exception:
+                pass
+    return {"hosts": sorted(hosts)}
+
+
 @app.get("/api/alerts/kibana")
 async def kibana_alerts(
     min_severity: str = Query("medium", description="Minimum severity: low|medium|high|critical"),
@@ -223,6 +272,8 @@ async def kibana_alerts(
     time_from: str = Query("now-24h", description="Start of time range (ES date math, e.g. now-24h)"),
     time_to: str = Query("now", description="End of time range (ES date math, e.g. now)"),
     search_after: str = Query("", description="Cursor for pagination (timestamp,doc_id from previous page)"),
+    q: str = Query("", description="Search query (fuzzy match across rule name, reason, host, user, IPs, command)"),
+    host: str = Query("", description="Filter by host name"),
 ):
     """Return Kibana security detection rule alerts, newest first."""
     if not ES_PASS:
@@ -231,15 +282,35 @@ async def kibana_alerts(
     severity_rank = _severity_order(min_severity)
     accepted = [s for s in ("critical", "high", "medium", "low") if _severity_order(s) <= severity_rank]
 
+    filters = [
+        {"terms": {"kibana.alert.severity": accepted}},
+        {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
+    ]
+    if host:
+        filters.append({"term": {"host.name": host}})
+    must = []
+    if q.strip():
+        must.append(_build_search_should(
+            q,
+            fields=[
+                "kibana.alert.rule.name",
+                "kibana.alert.reason",
+                "rule.name",
+                "host.name",
+                "user.name",
+                "process.command_line",
+                "event.action",
+            ],
+            ip_fields=["source.ip", "destination.ip"],
+        ))
+
     query = {
         "size": size,
         "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
         "query": {
             "bool": {
-                "filter": [
-                    {"terms": {"kibana.alert.severity": accepted}},
-                    {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
-                ]
+                "filter": filters,
+                "must": must if must else [{"match_all": {}}],
             }
         },
         "_source": [
@@ -339,20 +410,41 @@ async def wazuh_alerts(
     time_from: str = Query("now-24h", description="Start of time range (ES date math, e.g. now-24h)"),
     time_to: str = Query("now", description="End of time range (ES date math, e.g. now)"),
     search_after: str = Query("", description="Cursor for pagination (timestamp,doc_id from previous page)"),
+    q: str = Query("", description="Search query (fuzzy match across rule description, agent, log, IPs)"),
+    host: str = Query("", description="Filter by agent name"),
 ):
     """Return Wazuh alerts at or above min_level, newest first."""
     if not ES_PASS:
         raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    filters = [
+        {"range": {"rule.level": {"gte": min_level}}},
+        {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
+    ]
+    if host:
+        filters.append({"term": {"agent.name": host}})
+    must = []
+    if q.strip():
+        must.append(_build_search_should(
+            q,
+            fields=[
+                "rule.description",
+                "agent.name",
+                "data.win.system.computer",
+                "data.win.eventdata.commandLine",
+                "full_log",
+                "location",
+            ],
+            ip_fields=["data.srcip", "data.dstip"],
+        ))
 
     query = {
         "size": size,
         "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
         "query": {
             "bool": {
-                "filter": [
-                    {"range": {"rule.level": {"gte": min_level}}},
-                    {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
-                ]
+                "filter": filters,
+                "must": must if must else [{"match_all": {}}],
             }
         },
         "_source": [
@@ -428,6 +520,296 @@ async def wazuh_alerts(
             "dst_ip": data_block.get("dstip", ""),
             "full_log": s.get("full_log", "")[:500],
             "location": s.get("location", ""),
+            "_raw": s,
+        })
+
+    next_cursor = ""
+    if hits:
+        last_sort = hits[-1].get("sort", [])
+        if len(last_sort) >= 2:
+            next_cursor = f"{last_sort[0]},{last_sort[1]}"
+
+    return {"total": total, "returned": len(alerts), "alerts": alerts, "next_cursor": next_cursor}
+
+
+# High-value Sysmon event IDs — uncommon but indicate serious threats
+SYSMON_SEVERE_IDS = ["6", "8", "9", "10", "15", "17", "18", "19", "20", "21", "25", "255"]
+SYSMON_EVENT_NAMES = {
+    "1": "ProcessCreate", "2": "FileCreationTimeChanged", "3": "NetworkConnect",
+    "4": "SysmonServiceStateChanged", "5": "ProcessTerminated", "6": "DriverLoaded",
+    "7": "ImageLoaded", "8": "CreateRemoteThread", "9": "RawAccessRead",
+    "10": "ProcessAccess", "11": "FileCreate", "12": "RegistryAddOrDelete",
+    "13": "RegistryValueSet", "14": "RegistryKeyRenamed", "15": "FileCreateStreamHash",
+    "16": "SysmonConfigChange", "17": "PipeCreated", "18": "PipeConnected",
+    "19": "WmiFilterRegistered", "20": "WmiConsumerRegistered", "21": "WmiConsumerBound",
+    "22": "DNSQuery", "23": "FileDelete", "24": "ClipboardChange", "25": "ProcessTampering",
+    "26": "FileDeleteDetected", "27": "FileBlockExecutable", "255": "Error",
+}
+
+
+@app.get("/api/alerts/sysmon")
+async def sysmon_alerts(
+    size: int = Query(50, ge=1, le=500),
+    time_from: str = Query("now-24h", description="Start of time range"),
+    time_to: str = Query("now", description="End of time range"),
+    search_after: str = Query("", description="Cursor for pagination"),
+    q: str = Query("", description="Search query"),
+    filter_mode: str = Query("severe", description="'severe' for high-value events only, 'all' for everything"),
+    host: str = Query("", description="Filter by computer name"),
+):
+    """Return Sysmon events. Defaults to high-severity event IDs only."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    filters = [
+        {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
+    ]
+    if filter_mode == "severe":
+        filters.append({"terms": {"winlog.event_id": SYSMON_SEVERE_IDS}})
+    if host:
+        filters.append({"term": {"winlog.computer_name": host}})
+
+    must = []
+    if q.strip():
+        must.append(_build_search_should(
+            q,
+            fields=[
+                "message",
+                "winlog.event_data.TargetImage",
+                "winlog.event_data.SourceImage",
+                "winlog.event_data.Image",
+                "winlog.event_data.CommandLine",
+                "winlog.event_data.ParentImage",
+                "winlog.event_data.ParentCommandLine",
+                "winlog.event_data.TargetFilename",
+                "winlog.event_data.PipeName",
+                "winlog.event_data.DestinationHostname",
+                "winlog.task",
+                "winlog.computer_name",
+                "process.executable",
+            ],
+        ))
+
+    query = {
+        "size": size,
+        "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
+        "query": {
+            "bool": {
+                "filter": filters,
+                "must": must if must else [{"match_all": {}}],
+            }
+        },
+        "_source": [
+            "@timestamp",
+            "message",
+            "winlog.event_id",
+            "winlog.task",
+            "winlog.computer_name",
+            "winlog.event_data.*",
+            "process.executable",
+            "process.name",
+            "process.pid",
+        ],
+    }
+
+    if search_after:
+        parts = search_after.split(",", 1)
+        if len(parts) == 2:
+            query["search_after"] = [parts[0], parts[1]]
+
+    async with es_client() as c:
+        try:
+            r = await c.post(
+                f"{ES_URL}/logs-windows.sysmon_operational-*/_search",
+                auth=ES_AUTH,
+                json=query,
+            )
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return {"total": 0, "returned": 0, "alerts": [], "next_cursor": "", "note": "No Sysmon index found"}
+            raise HTTPException(e.response.status_code, f"Elasticsearch error: {e.response.text[:200]}")
+        except Exception as e:
+            raise HTTPException(502, f"Elasticsearch unreachable: {e}")
+
+    data = r.json()
+    hits = data.get("hits", {}).get("hits", [])
+    total = data.get("hits", {}).get("total", {}).get("value", 0)
+
+    alerts = []
+    for h in hits:
+        s = h["_source"]
+        wl = s.get("winlog", {})
+        ed = wl.get("event_data", {})
+        eid = str(wl.get("event_id", ""))
+        event_name = SYSMON_EVENT_NAMES.get(eid, f"Event {eid}")
+
+        # Severity based on event type
+        if eid in ("8", "10", "25"):
+            sev = "critical"
+        elif eid in ("6", "9", "19", "20", "21", "255"):
+            sev = "high"
+        elif eid in ("15", "17", "18"):
+            sev = "medium"
+        else:
+            sev = "low"
+
+        # Build a useful summary line
+        summary = wl.get("task", "") or event_name
+        image = ed.get("Image", "") or ed.get("SourceImage", "") or s.get("process", {}).get("executable", "")
+        target = ed.get("TargetImage", "") or ed.get("TargetFilename", "") or ed.get("PipeName", "")
+
+        alerts.append({
+            "id": h["_id"],
+            "timestamp": s.get("@timestamp", ""),
+            "event_id": eid,
+            "event_name": event_name,
+            "summary": summary,
+            "severity": sev,
+            "image": image,
+            "target": target,
+            "command_line": ed.get("CommandLine", ""),
+            "host": wl.get("computer_name", ""),
+            "user": ed.get("SourceUser", "") or ed.get("User", ""),
+            "_raw": s,
+        })
+
+    next_cursor = ""
+    if hits:
+        last_sort = hits[-1].get("sort", [])
+        if len(last_sort) >= 2:
+            next_cursor = f"{last_sort[0]},{last_sort[1]}"
+
+    return {"total": total, "returned": len(alerts), "alerts": alerts, "next_cursor": next_cursor}
+
+
+@app.get("/api/alerts/defender")
+async def defender_alerts(
+    size: int = Query(50, ge=1, le=500),
+    time_from: str = Query("now-24h", description="Start of time range"),
+    time_to: str = Query("now", description="End of time range"),
+    search_after: str = Query("", description="Cursor for pagination"),
+    q: str = Query("", description="Search query"),
+    min_severity: str = Query("low", description="Minimum severity: low|medium|high|critical"),
+    host: str = Query("", description="Filter by computer name"),
+):
+    """Return Windows Defender events, newest first."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    # Map severity to Defender Severity_ID values: 5=Severe, 4=High, 3=??, 2=Medium/Low, 1=Low, 0=Info
+    sev_ids = {"critical": ["5", "4"], "high": ["5", "4", "3"], "medium": ["5", "4", "3", "2"], "low": []}
+    accepted_ids = sev_ids.get(min_severity.lower(), [])
+
+    filters = [
+        {"range": {"@timestamp": {"gte": time_from, "lte": time_to}}},
+    ]
+    if accepted_ids:
+        filters.append({"terms": {"winlog.event_data.Severity_ID": accepted_ids}})
+    if host:
+        filters.append({"term": {"winlog.computer_name": host}})
+    must = []
+    if q.strip():
+        must.append(_build_search_should(
+            q,
+            fields=[
+                "message",
+                "winlog.event_data.Threat_Name",
+                "winlog.event_data.Category_Name",
+                "winlog.event_data.Action_Name",
+                "winlog.event_data.Severity_Name",
+                "winlog.event_data.Path",
+                "winlog.event_data.Source_Name",
+                "winlog.computer_name",
+            ],
+        ))
+
+    query = {
+        "size": size,
+        "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
+        "query": {
+            "bool": {
+                "filter": filters,
+                "must": must if must else [{"match_all": {}}],
+            }
+        },
+        "_source": [
+            "@timestamp",
+            "message",
+            "winlog.event_id",
+            "winlog.computer_name",
+            "winlog.event_data.Threat_Name",
+            "winlog.event_data.Category_Name",
+            "winlog.event_data.Severity_Name",
+            "winlog.event_data.Severity_ID",
+            "winlog.event_data.Action_Name",
+            "winlog.event_data.Path",
+            "winlog.event_data.Source_Name",
+            "winlog.event_data.Detection_Time",
+            "winlog.event_data.Detection_User",
+            "winlog.event_data.Product_Name",
+        ],
+    }
+
+    if search_after:
+        parts = search_after.split(",", 1)
+        if len(parts) == 2:
+            query["search_after"] = [parts[0], parts[1]]
+
+    async with es_client() as c:
+        try:
+            r = await c.post(
+                f"{ES_URL}/logs-windows.windows_defender-*/_search",
+                auth=ES_AUTH,
+                json=query,
+            )
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return {"total": 0, "returned": 0, "alerts": [], "next_cursor": "", "note": "No Defender index found"}
+            raise HTTPException(e.response.status_code, f"Elasticsearch error: {e.response.text[:200]}")
+        except Exception as e:
+            raise HTTPException(502, f"Elasticsearch unreachable: {e}")
+
+    data = r.json()
+    hits = data.get("hits", {}).get("hits", [])
+    total = data.get("hits", {}).get("total", {}).get("value", 0)
+
+    alerts = []
+    for h in hits:
+        s = h["_source"]
+        wl = s.get("winlog", {})
+        ed = wl.get("event_data", {})
+
+        # Map Defender severity_id to our severity levels
+        sid = ed.get("Severity_ID", "0")
+        if sid in ("5", "4"):
+            sev = "critical"
+        elif sid == "3":
+            sev = "high"
+        elif sid == "2":
+            sev = "medium"
+        else:
+            sev = "low"
+
+        # First line of message as summary
+        msg = s.get("message", "")
+        summary = msg.split("\n")[0].strip() if msg else f"Event {wl.get('event_id', '?')}"
+
+        alerts.append({
+            "id": h["_id"],
+            "timestamp": s.get("@timestamp", ""),
+            "event_id": wl.get("event_id", ""),
+            "summary": summary,
+            "severity": sev,
+            "threat_name": ed.get("Threat_Name", ""),
+            "category": ed.get("Category_Name", ""),
+            "severity_name": ed.get("Severity_Name", ""),
+            "action": ed.get("Action_Name", ""),
+            "path": ed.get("Path", ""),
+            "source": ed.get("Source_Name", ""),
+            "host": wl.get("computer_name", ""),
+            "user": ed.get("Detection_User", ""),
             "_raw": s,
         })
 
@@ -1887,6 +2269,252 @@ async def submit_report(req: SubmitReportRequest):
         return {"status": "success", "message": "received"}
     except Exception as e:
         raise HTTPException(500, f"Failed to process report: {str(e)}")
+
+
+# ── Kibana Detection Rules Management ────────────────────────────────────────
+
+
+def _kibana_headers():
+    return {
+        "kbn-xsrf": "true",
+        "Content-Type": "application/json",
+    }
+
+
+@app.get("/api/rules/kibana")
+async def list_kibana_rules(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=100),
+    q: str = Query("", description="Search rule names"),
+    enabled: str = Query("", description="'true', 'false', or '' for all"),
+    tags: str = Query("", description="Comma-separated tag filters, e.g. 'OS: Windows'"),
+):
+    """List Kibana detection rules with filtering."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    params = {
+        "page": page,
+        "per_page": per_page,
+        "sort_field": "name",
+        "sort_order": "asc",
+    }
+
+    # Build KQL filter
+    filters = []
+    if enabled in ("true", "false"):
+        filters.append(f"alert.attributes.enabled:{enabled}")
+    if q.strip():
+        safe_q = q.strip().replace('"', '\\"')
+        filters.append(f'alert.attributes.name:"{safe_q}*"')
+    if tags.strip():
+        for tag in tags.split(","):
+            tag = tag.strip()
+            if tag:
+                safe_tag = tag.replace('"', '\\"')
+                filters.append(f'alert.attributes.tags:"{safe_tag}"')
+    if filters:
+        params["filter"] = " AND ".join(filters)
+
+    async with llm_client() as c:
+        try:
+            r = await c.get(
+                f"{KIBANA_URL}/api/detection_engine/rules/_find",
+                params=params,
+                auth=ES_AUTH,
+                headers=_kibana_headers(),
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Kibana unreachable: {e}")
+
+    data = r.json()
+    rules = []
+    for rule in data.get("data", []):
+        rules.append({
+            "id": rule.get("id", ""),
+            "rule_id": rule.get("rule_id", ""),
+            "name": rule.get("name", ""),
+            "enabled": rule.get("enabled", False),
+            "severity": rule.get("severity", ""),
+            "risk_score": rule.get("risk_score", 0),
+            "description": rule.get("description", "")[:200],
+            "tags": rule.get("tags", []),
+            "type": rule.get("type", ""),
+            "updated_at": rule.get("updated_at", ""),
+        })
+
+    # Collect unique tags for filter UI
+    all_tags = set()
+    for rule in rules:
+        for t in rule["tags"]:
+            if t.startswith("OS:"):
+                all_tags.add(t)
+
+    return {
+        "total": data.get("total", 0),
+        "page": data.get("page", 1),
+        "per_page": data.get("perPage", per_page),
+        "rules": rules,
+        "os_tags": sorted(all_tags),
+    }
+
+
+class ToggleRuleRequest(BaseModel):
+    ids: list[str]
+    enabled: bool
+
+
+@app.post("/api/rules/kibana/toggle")
+async def toggle_kibana_rules(req: ToggleRuleRequest):
+    """Enable or disable one or more Kibana detection rules."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    results = {"succeeded": 0, "failed": 0, "errors": []}
+    async with llm_client() as c:
+        for rule_id in req.ids:
+            try:
+                r = await c.patch(
+                    f"{KIBANA_URL}/api/detection_engine/rules",
+                    auth=ES_AUTH,
+                    headers=_kibana_headers(),
+                    json={"id": rule_id, "enabled": req.enabled},
+                )
+                if r.status_code == 200:
+                    results["succeeded"] += 1
+                else:
+                    results["failed"] += 1
+                    results["errors"].append(f"{rule_id}: {r.text[:100]}")
+            except Exception as e:
+                results["failed"] += 1
+                results["errors"].append(f"{rule_id}: {e}")
+
+    return results
+
+
+# ── Sigma Rule Import ────────────────────────────────────────────────────────
+
+
+class SigmaConvertRequest(BaseModel):
+    yaml_content: str
+    platform: str = "windows"  # windows, linux, macos
+
+
+@app.post("/api/rules/sigma/convert")
+async def convert_sigma_rule(req: SigmaConvertRequest):
+    """Convert a Sigma YAML rule to Kibana SIEM format and return the NDJSON."""
+    try:
+        from sigma.rule import SigmaRule
+        from sigma.backends.elasticsearch import LuceneBackend
+        from sigma.processing.pipeline import ProcessingPipeline
+    except ImportError:
+        raise HTTPException(500, "pySigma not installed — rebuild the dashboard image")
+
+    # Try to load Windows pipeline if available
+    windows_pipeline = None
+    try:
+        from sigma.pipelines.windows import windows_pipeline as _wp
+        windows_pipeline = _wp
+    except ImportError:
+        pass
+
+    try:
+        sigma_rule = SigmaRule.from_yaml(req.yaml_content)
+    except Exception as e:
+        raise HTTPException(400, f"Invalid Sigma YAML: {e}")
+
+    # Apply pipeline based on platform
+    if req.platform == "windows" and windows_pipeline:
+        pipeline = windows_pipeline()
+    else:
+        pipeline = ProcessingPipeline()
+
+    backend = LuceneBackend(pipeline)
+
+    try:
+        queries = backend.convert_rule(sigma_rule)
+    except Exception as e:
+        raise HTTPException(400, f"Conversion failed: {e}")
+
+    if not queries:
+        raise HTTPException(400, "No queries generated from this rule")
+
+    # Map sigma severity to Kibana
+    sev_map = {"informational": "low", "low": "low", "medium": "medium", "high": "high", "critical": "critical"}
+    severity = sev_map.get(str(sigma_rule.level).lower() if sigma_rule.level else "medium", "medium")
+
+    risk_map = {"low": 21, "medium": 47, "high": 73, "critical": 99}
+
+    import uuid
+    kibana_rule = {
+        "rule_id": f"sigma-{uuid.uuid4().hex[:12]}",
+        "name": sigma_rule.title or "Sigma Rule",
+        "description": sigma_rule.description or sigma_rule.title or "",
+        "type": "query",
+        "language": "lucene",
+        "query": queries[0],
+        "severity": severity,
+        "risk_score": risk_map.get(severity, 47),
+        "enabled": False,
+        "tags": [f"Sigma", f"Sigma {req.platform.title()}"],
+        "interval": "5m",
+        "from": "now-6m",
+        "to": "now",
+    }
+
+    if sigma_rule.references:
+        kibana_rule["references"] = list(sigma_rule.references)
+    if sigma_rule.author:
+        kibana_rule["author"] = list(sigma_rule.author) if isinstance(sigma_rule.author, (list, tuple)) else [str(sigma_rule.author)]
+
+    return {
+        "status": "ok",
+        "query": queries[0],
+        "kibana_rule": kibana_rule,
+    }
+
+
+class SigmaImportRequest(BaseModel):
+    yaml_content: str
+    platform: str = "windows"
+
+
+@app.post("/api/rules/sigma/import")
+async def import_sigma_rule(req: SigmaImportRequest):
+    """Convert a Sigma YAML rule and import it directly into Kibana."""
+    # First convert
+    convert_req = SigmaConvertRequest(yaml_content=req.yaml_content, platform=req.platform)
+    converted = await convert_sigma_rule(convert_req)
+
+    kibana_rule = converted["kibana_rule"]
+    ndjson_content = json.dumps(kibana_rule) + "\n"
+
+    # Import into Kibana
+    async with llm_client() as c:
+        try:
+            r = await c.post(
+                f"{KIBANA_URL}/api/detection_engine/rules/_import?overwrite=false",
+                auth=ES_AUTH,
+                headers={"kbn-xsrf": "true"},
+                files={"file": ("sigma_rule.ndjson", ndjson_content.encode(), "application/x-ndjson")},
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Kibana import failed: {e}")
+
+    result = r.json()
+    if result.get("success_count", 0) > 0:
+        return {
+            "status": "ok",
+            "message": f"Rule '{kibana_rule['name']}' imported successfully (disabled by default)",
+            "rule_name": kibana_rule["name"],
+            "query": converted["query"],
+        }
+    else:
+        errors = result.get("errors", [])
+        detail = errors[0].get("error", {}).get("message", "Unknown error") if errors else "Unknown error"
+        raise HTTPException(400, f"Kibana rejected the rule: {detail}")
 
 
 @app.get("/", response_class=HTMLResponse)
