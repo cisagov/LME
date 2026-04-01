@@ -710,6 +710,41 @@
       no_log: true
       ignore_errors: yes
 
+    - name: Get Kibana system index templates (.items-default, .lists-default)
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item }}"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      loop:
+        - .items-default
+        - .lists-default
+      register: kibana_system_templates
+      no_log: true
+
+    - name: Update Kibana system index templates to replicas=1
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item.item }}"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ item.json.index_templates[0].index_template
+             | combine({'template': {'settings': {'index': {'number_of_replicas': '1'}}}}, recursive=True) }}
+        status_code: [200, 201]
+      loop: "{{ kibana_system_templates.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.status == 200
+      no_log: true
+      ignore_errors: yes
+
     - name: Wait for cluster health to stabilize
       uri:
         url: "{{ local_es_url }}/_cluster/health?wait_for_status=yellow&timeout=120s"

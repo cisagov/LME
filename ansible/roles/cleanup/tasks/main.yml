@@ -134,6 +134,41 @@
       when: wazuh_composable_templates.status == 200
       no_log: "{{ not debug_mode }}"
       ignore_errors: yes
+
+    - name: Get Kibana system index templates (.items-default, .lists-default)
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item }}"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      loop:
+        - .items-default
+        - .lists-default
+      register: kibana_system_templates
+      no_log: "{{ not debug_mode }}"
+
+    - name: Update Kibana system index template replica counts
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item.item }}"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ item.json.index_templates[0].index_template
+             | combine({'template': {'settings': {'index': {'number_of_replicas': elasticsearch_number_of_replicas}}}}, recursive=True) }}
+        status_code: [200, 201]
+      loop: "{{ kibana_system_templates.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.status == 200
+      no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
   when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
 
 - name: Display cleanup results
