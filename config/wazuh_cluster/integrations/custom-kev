@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""
+custom-kev — Wazuh integration script for CISA KEV enrichment
+==============================================================
+Wazuh calls this script when a vulnerability-detector alert fires:
+  custom-kev <alert_file_path> [<api_key>] [<hook_url>]
+
+The script:
+  1. Reads the JSON alert from the file at argv[1]
+  2. Extracts the CVE ID from the alert
+  3. Looks up the CVE in the local KEV catalog
+  4. If matched, sends a Level 15 enriched alert to the Wazuh alerts socket
+
+The KEV catalog must be present at KEV_CATALOG_PATH (default:
+/var/ossec/integrations/kev_catalog.json) — the Ansible role and the
+lme-kev-sync.service keep it current.
+
+Stdlib only — no external dependencies.
+"""
+
+import json
+import os
+import socket
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+KEV_CATALOG_PATH = os.getenv(
+    "KEV_CATALOG_PATH",
+    "/var/ossec/integrations/kev_catalog.json",
+)
+
+# Wazuh active-response / alert socket (UNIX dgram, max 65535 bytes per msg)
+WAZUH_SOCKET = os.getenv("WAZUH_SOCKET", "/var/ossec/queue/alerts/ar")
+
+# Level assigned to KEV-match alerts (15 = highest non-critical in Wazuh)
+KEV_ALERT_LEVEL = 15
+
+# Rule ID space reserved for LME custom rules
+KEV_RULE_ID = 99901
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def load_catalog(path: str) -> dict:
+    """Return the CVE lookup dict from the catalog, or {} on any error."""
+    try:
+        with open(path) as fh:
+            data = json.load(fh)
+        return data.get("cves", {})
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[custom-kev] WARNING: cannot load catalog {path}: {exc}",
+              file=sys.stderr)
+        return {}
+
+
+def extract_cve(alert: dict) -> str | None:
+    """Pull the CVE ID out of a Wazuh vulnerability-detector alert."""
+    # Primary location: data.vulnerability.cve
+    cve = (alert.get("data", {})
+                .get("vulnerability", {})
+                .get("cve", ""))
+    if cve:
+        return cve.strip()
+
+    # Fallback: search the full_log string for a CVE pattern
+    full_log = alert.get("full_log", "")
+    if "CVE-" in full_log:
+        import re
+        m = re.search(r"CVE-\d{4}-\d{4,}", full_log)
+        if m:
+            return m.group(0)
+
+    return None
+
+
+def is_overdue(due_date_str: str) -> bool:
+    """Return True if the CISA remediation due date has passed."""
+    if not due_date_str:
+        return False
+    try:
+        due = datetime.strptime(due_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) > due
+    except ValueError:
+        return False
+
+
+def build_enriched_alert(original: dict, cve_id: str, kev_entry: dict) -> dict:
+    """Construct the Level 15 enriched alert payload."""
+    overdue = is_overdue(kev_entry.get("dueDate", ""))
+    description = (
+        f"CISA KEV match: {cve_id} — "
+        f"{kev_entry.get('vulnerabilityName', 'Unknown vulnerability')} "
+        f"({kev_entry.get('vendorProject', '')}/{kev_entry.get('product', '')}). "
+        f"Ransomware: {kev_entry.get('knownRansomwareCampaignUse', 'Unknown')}. "
+        f"CISA due date: {kev_entry.get('dueDate', 'N/A')}"
+        + (" [OVERDUE]" if overdue else "")
+    )
+
+    return {
+        "type": "event",
+        "data": {
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "rule": {
+                "id": str(KEV_RULE_ID),
+                "level": KEV_ALERT_LEVEL,
+                "description": description,
+                "groups": ["vulnerability-detector", "cisa-kev"],
+            },
+            "agent": original.get("agent", {}),
+            "manager": original.get("manager", {}),
+            "id": original.get("id", ""),
+            "full_log": description,
+            "data": {
+                "integration": "custom-kev",
+                "cve": {
+                    "id": cve_id,
+                    "vendor": kev_entry.get("vendorProject", ""),
+                    "product": kev_entry.get("product", ""),
+                    "vulnerability_name": kev_entry.get("vulnerabilityName", ""),
+                    "date_added": kev_entry.get("dateAdded", ""),
+                    "due_date": kev_entry.get("dueDate", ""),
+                    "overdue": overdue,
+                    "known_ransomware": kev_entry.get("knownRansomwareCampaignUse", "Unknown"),
+                    "required_action": kev_entry.get("requiredAction", ""),
+                },
+            },
+        },
+    }
+
+
+def send_alert(payload: dict, socket_path: str) -> None:
+    """Send the enriched alert to the Wazuh alerts socket."""
+    raw = json.dumps(payload).encode("utf-8")
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sock:
+            sock.sendto(raw, socket_path)
+    except OSError as exc:
+        print(f"[custom-kev] ERROR: cannot send alert to {socket_path}: {exc}",
+              file=sys.stderr)
+        raise
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def main() -> int:
+    if len(sys.argv) < 2:
+        print("[custom-kev] Usage: custom-kev <alert_file>", file=sys.stderr)
+        return 1
+
+    alert_file = sys.argv[1]
+    try:
+        with open(alert_file) as fh:
+            alert = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[custom-kev] ERROR: cannot read alert file {alert_file}: {exc}",
+              file=sys.stderr)
+        return 1
+
+    cve_id = extract_cve(alert)
+    if not cve_id:
+        # Not a CVE alert — nothing to do
+        return 0
+
+    catalog = load_catalog(KEV_CATALOG_PATH)
+    kev_entry = catalog.get(cve_id)
+    if not kev_entry:
+        # CVE not in KEV catalog — no enrichment needed
+        return 0
+
+    print(f"[custom-kev] KEV match: {cve_id} ({kev_entry.get('vulnerabilityName', '')})")
+
+    enriched = build_enriched_alert(alert, cve_id, kev_entry)
+    try:
+        send_alert(enriched, WAZUH_SOCKET)
+    except OSError:
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

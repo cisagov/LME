@@ -177,7 +177,7 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
-  <button @click="mainView = 'detection'"
+  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus()"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -761,11 +761,238 @@
       <!-- ── Detection Configuration tab ── -->
       <div x-show="detectionTab === 'config'">
 
-        <!-- Toolbar -->
-        <div class="flex items-center justify-between mb-4 gap-3">
-          <input type="text" placeholder="Search rules…"
-                 class="flex-1 max-w-sm bg-surface-800 border border-surface-600 rounded px-3 py-1.5 text-xs
-                        text-gray-300 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition"/>
+        <!-- ══ CISA KEV Panel ══════════════════════════════════════════════ -->
+        <div class="mb-6">
+
+          <!-- Panel header -->
+          <div class="flex items-center gap-2 mb-4">
+            <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
+                       4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <h2 class="text-sm font-semibold text-white">CISA Known Exploited Vulnerabilities</h2>
+            <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+               target="_blank" rel="noopener"
+               class="text-xs text-blue-500 hover:text-blue-400 transition ml-1">CISA Catalog ↗</a>
+          </div>
+
+          <!-- Loading / error states -->
+          <template x-if="kev.loading">
+            <div class="flex items-center gap-2 text-gray-500 text-xs mb-4">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              Loading KEV status…
+            </div>
+          </template>
+          <template x-if="kev.error">
+            <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-4"
+                 x-text="kev.error"></div>
+          </template>
+
+          <!-- ── Stats row ── -->
+          <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+              <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total KEVs</p>
+              <p class="text-2xl font-semibold text-white"
+                 x-text="kev.status ? kev.status.total_kev : '—'"></p>
+              <p class="text-xs text-gray-600 mt-0.5">in catalog</p>
+            </div>
+            <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+              <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">CVEs Matched</p>
+              <p class="text-2xl font-semibold"
+                 :class="kev.status && kev.status.matched_cves > 0 ? 'text-orange-400' : 'text-white'"
+                 x-text="kev.status ? kev.status.matched_cves : '—'"></p>
+              <p class="text-xs text-gray-600 mt-0.5">in environment</p>
+            </div>
+            <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+              <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Overdue</p>
+              <p class="text-2xl font-semibold"
+                 :class="kev.status && kev.status.overdue_count > 0 ? 'text-red-400' : 'text-white'"
+                 x-text="kev.status ? kev.status.overdue_count : '—'"></p>
+              <p class="text-xs text-gray-600 mt-0.5">past CISA due date</p>
+            </div>
+          </div>
+
+          <!-- ── Catalog Sync card ── -->
+          <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-3">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                         0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Catalog Sync
+            </h3>
+
+            <!-- Last pull + badge + pull button -->
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-gray-500">Last pull:</span>
+                <span class="text-gray-300"
+                      x-text="kev.status && kev.status.last_pull_timestamp
+                               ? kev.status.last_pull_timestamp : 'Never'"></span>
+                <!-- Status badge -->
+                <template x-if="kev.status">
+                  <span class="px-1.5 py-0.5 rounded-full text-xs font-medium"
+                        :class="{
+                          'bg-green-900 text-green-300': kev.status.badge === 'current',
+                          'bg-yellow-900 text-yellow-300': kev.status.badge === 'stale',
+                          'bg-gray-700 text-gray-400':    kev.status.badge === 'never',
+                        }"
+                        x-text="kev.status.badge === 'current' ? 'Current'
+                               : kev.status.badge === 'stale'   ? 'Stale'
+                               : 'Never pulled'"></span>
+                </template>
+              </div>
+
+              <!-- Pull now button -->
+              <button @click="kevPull()"
+                      :disabled="kev.pulling"
+                      class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
+                             disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5 shrink-0">
+                <svg class="w-3.5 h-3.5" :class="kev.pulling ? 'animate-spin' : ''"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                           0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span x-text="kev.pulling ? 'Pulling…' : 'Pull now'"></span>
+              </button>
+            </div>
+
+            <!-- Pull feedback message -->
+            <template x-if="kev.pullMessage">
+              <div class="text-xs rounded px-3 py-2 mb-3"
+                   :class="kev.pullError
+                     ? 'bg-red-900/30 border border-red-700 text-red-300'
+                     : 'bg-green-900/30 border border-green-700 text-green-300'"
+                   x-text="kev.pullMessage"></div>
+            </template>
+
+            <!-- Auto-pull toggle -->
+            <div class="flex items-center justify-between py-2 border-t border-surface-600">
+              <div>
+                <p class="text-xs text-gray-300">Auto-pull</p>
+                <p class="text-xs text-gray-600">Automatically sync the catalog on a schedule</p>
+              </div>
+              <button @click="kevSettings.auto_pull = !kevSettings.auto_pull; saveKevSettings()"
+                      :class="kevSettings.auto_pull ? 'bg-emerald-600' : 'bg-surface-600'"
+                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                             transition-colors focus:outline-none cursor-pointer">
+                <span :class="kevSettings.auto_pull ? 'translate-x-4' : 'translate-x-0'"
+                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+              </button>
+            </div>
+
+            <!-- Frequency selector -->
+            <div class="flex items-center justify-between py-2 border-t border-surface-600">
+              <div>
+                <p class="text-xs" :class="kevSettings.auto_pull ? 'text-gray-300' : 'text-gray-600'">
+                  Pull frequency
+                </p>
+                <p class="text-xs text-gray-600">How often to sync from CISA</p>
+              </div>
+              <select x-model.number="kevSettings.frequency_hours"
+                      @change="saveKevSettings()"
+                      :disabled="!kevSettings.auto_pull"
+                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs
+                             text-gray-300 focus:outline-none focus:border-emerald-500 transition
+                             disabled:opacity-40 disabled:cursor-not-allowed">
+                <option value="6">Every 6 hours</option>
+                <option value="12">Every 12 hours</option>
+                <option value="24">Daily</option>
+                <option value="168">Weekly</option>
+              </select>
+            </div>
+          </div><!-- end sync card -->
+
+          <!-- ── Alert Settings card ── -->
+          <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
+            <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0
+                         00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0
+                         .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+              Alert Settings
+            </h3>
+
+            <!-- Alert on new KEV match -->
+            <div class="flex items-center justify-between py-2">
+              <div>
+                <p class="text-xs text-gray-300">Alert on new KEV match</p>
+                <p class="text-xs text-gray-600">Level 15 Wazuh alert when a host CVE enters the catalog</p>
+              </div>
+              <button @click="kevSettings.alert_on_match = !kevSettings.alert_on_match"
+                      :class="kevSettings.alert_on_match ? 'bg-emerald-600' : 'bg-surface-600'"
+                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                             transition-colors focus:outline-none cursor-pointer">
+                <span :class="kevSettings.alert_on_match ? 'translate-x-4' : 'translate-x-0'"
+                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+              </button>
+            </div>
+
+            <!-- Alert on overdue remediation -->
+            <div class="flex items-center justify-between py-2 border-t border-surface-600">
+              <div>
+                <p class="text-xs text-gray-300">Alert on overdue remediation</p>
+                <p class="text-xs text-gray-600">Notify when a matched KEV passes its CISA due date</p>
+              </div>
+              <button @click="kevSettings.alert_on_overdue = !kevSettings.alert_on_overdue"
+                      :class="kevSettings.alert_on_overdue ? 'bg-emerald-600' : 'bg-surface-600'"
+                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                             transition-colors focus:outline-none cursor-pointer">
+                <span :class="kevSettings.alert_on_overdue ? 'translate-x-4' : 'translate-x-0'"
+                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+              </button>
+            </div>
+
+            <!-- Ransomware-linked KEVs only -->
+            <div class="flex items-center justify-between py-2 border-t border-surface-600">
+              <div>
+                <p class="text-xs text-gray-300">Ransomware-linked KEVs only</p>
+                <p class="text-xs text-gray-600">Filter alerts to CVEs confirmed in ransomware campaigns</p>
+              </div>
+              <button @click="kevSettings.ransomware_only = !kevSettings.ransomware_only"
+                      :class="kevSettings.ransomware_only ? 'bg-orange-600' : 'bg-surface-600'"
+                      class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                             transition-colors focus:outline-none cursor-pointer">
+                <span :class="kevSettings.ransomware_only ? 'translate-x-4' : 'translate-x-0'"
+                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+              </button>
+            </div>
+
+            <!-- Save button + feedback -->
+            <div class="flex items-center justify-between mt-3 pt-3 border-t border-surface-600">
+              <template x-if="kevSettings.message">
+                <span class="text-xs"
+                      :class="kevSettings.error ? 'text-red-400' : 'text-green-400'"
+                      x-text="kevSettings.message"></span>
+              </template>
+              <div x-show="!kevSettings.message"></div>
+              <button @click="saveKevSettings()"
+                      :disabled="kevSettings.saving"
+                      class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40
+                             disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" :class="kevSettings.saving ? 'animate-spin' : ''"
+                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M5 13l4 4L19 7"/>
+                </svg>
+                <span x-text="kevSettings.saving ? 'Saving…' : 'Save settings'"></span>
+              </button>
+            </div>
+          </div><!-- end alert settings card -->
+
+        </div><!-- end KEV panel -->
+
+        <!-- ══ Rule Categories (existing) ══════════════════════════════════ -->
+        <div class="flex items-center justify-between mb-3 gap-3">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Detection Rules</h3>
           <button disabled
                   class="px-3 py-1.5 rounded bg-emerald-900/40 border border-emerald-800 text-emerald-400 text-xs
                          opacity-50 cursor-not-allowed flex items-center gap-1.5">
@@ -776,9 +1003,7 @@
           </button>
         </div>
 
-        <!-- Rule categories -->
         <div class="space-y-3">
-
           <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
             <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
               <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">ElastAlert2</span>
@@ -792,7 +1017,6 @@
               <p class="text-xs">No rules configured</p>
             </div>
           </div>
-
           <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
             <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
               <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Sigma</span>
@@ -806,7 +1030,6 @@
               <p class="text-xs">No rules configured</p>
             </div>
           </div>
-
           <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
             <div class="px-4 py-2 bg-surface-700 border-b border-surface-600 flex items-center justify-between">
               <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Wazuh Custom Rules</span>
@@ -820,9 +1043,7 @@
               <p class="text-xs">No rules configured</p>
             </div>
           </div>
-
         </div>
-        <p class="text-xs text-gray-600 mt-4 text-center">Backend integration coming soon. Use the AI assistant to ask about detection rule syntax and configuration.</p>
 
       </div><!-- end config tab -->
 
@@ -1370,6 +1591,15 @@ function dashboard() {
       loading: false, error: null, _loaded: false,
       agents: [], totalVulns: 0,
     },
+    kev: {
+      loading: false, pulling: false, error: null,
+      pullMessage: null, pullError: false, status: null,
+    },
+    kevSettings: {
+      auto_pull: true, frequency_hours: 24,
+      alert_on_match: true, alert_on_overdue: true, ransomware_only: false,
+      saving: false, message: null, error: false,
+    },
     showModelSettings: false,
     modelSettings: {
       activeModel: '', models: [], providers: {},
@@ -1733,6 +1963,71 @@ function dashboard() {
     clearChat() {
       this.chat.messages = [];
       this.chat.input = '';
+    },
+
+    async loadKevStatus() {
+      this.kev.loading = true;
+      this.kev.error = null;
+      try {
+        const r = await fetch('/api/kev/status');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        this.kev.status = data;
+        if (data.settings) {
+          this.kevSettings = { ...this.kevSettings, ...data.settings };
+        }
+      } catch(e) {
+        this.kev.error = `Failed to load KEV status: ${e.message}`;
+      } finally {
+        this.kev.loading = false;
+      }
+    },
+
+    async kevPull() {
+      this.kev.pulling = true;
+      this.kev.pullMessage = null;
+      this.kev.pullError = false;
+      try {
+        const r = await fetch('/api/kev/pull', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        this.kev.pullMessage = `Synced ${data.total} CVEs successfully.`;
+        this.kev.pullError = false;
+        await this.loadKevStatus();
+      } catch(e) {
+        this.kev.pullMessage = `Pull failed: ${e.message}`;
+        this.kev.pullError = true;
+      } finally {
+        this.kev.pulling = false;
+      }
+    },
+
+    async saveKevSettings() {
+      this.kevSettings.saving = true;
+      this.kevSettings.message = null;
+      this.kevSettings.error = false;
+      try {
+        const r = await fetch('/api/settings/kev', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            auto_pull: this.kevSettings.auto_pull,
+            frequency_hours: this.kevSettings.frequency_hours,
+            alert_on_match: this.kevSettings.alert_on_match,
+            alert_on_overdue: this.kevSettings.alert_on_overdue,
+            ransomware_only: this.kevSettings.ransomware_only,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        this.kevSettings.message = 'Settings saved.';
+        this.kevSettings.error = false;
+      } catch(e) {
+        this.kevSettings.message = `Save failed: ${e.message}`;
+        this.kevSettings.error = true;
+      } finally {
+        this.kevSettings.saving = false;
+      }
     },
 
     clearDetChat() {
