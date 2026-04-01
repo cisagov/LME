@@ -1588,6 +1588,148 @@
         </div>
       </div>
 
+      <!-- Local Model Configuration -->
+      <div class="border-t border-surface-600 pt-5">
+        <h3 class="text-white font-medium mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+          Local Model (llama.cpp)
+          <span class="text-xs font-normal px-2 py-0.5 rounded-full"
+                :class="localModels.status.status === 'ready' ? 'bg-green-900/50 text-green-400' :
+                         localModels.status.status === 'switching' ? 'bg-yellow-900/50 text-yellow-400' :
+                         localModels.status.status === 'error' ? 'bg-red-900/50 text-red-400' :
+                         'bg-gray-800 text-gray-500'"
+                x-text="localModels.status.status === 'switching' ? 'Restarting...' :
+                         localModels.status.status === 'error' ? 'Error' :
+                         localModels.status.status === 'ready' ? 'Running' : 'Unknown'"></span>
+        </h3>
+
+        <!-- Status banner for errors -->
+        <template x-if="localModels.status.status === 'error' && localModels.status.error">
+          <div class="mb-3 p-2 rounded bg-red-900/30 border border-red-800 text-red-300 text-xs"
+               x-text="localModels.status.error"></div>
+        </template>
+
+        <!-- Available GGUF models -->
+        <div class="space-y-2 mb-4">
+          <template x-if="localModels.models.length === 0">
+            <p class="text-gray-500 text-sm">No .gguf models found in /opt/lme/llama-models/</p>
+          </template>
+          <template x-for="m in localModels.models" :key="m.filename">
+            <div class="flex items-center justify-between p-3 rounded-lg border group transition"
+                 :class="m.filename === localModels.activeModel ? 'border-green-700 bg-green-900/20' : 'border-surface-600 bg-surface-900 hover:border-surface-500'">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                     :class="m.filename === localModels.activeModel ? 'bg-green-900/50' : 'bg-surface-700'">
+                  <svg class="w-4 h-4" :class="m.filename === localModels.activeModel ? 'text-green-400' : 'text-gray-500'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium truncate" :class="m.filename === localModels.activeModel ? 'text-green-300' : 'text-gray-300'"
+                     x-text="m.filename"></p>
+                  <p class="text-xs text-gray-500" x-text="m.size_mb + ' MB'"></p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span x-show="m.filename === localModels.activeModel"
+                      class="px-2 py-0.5 rounded-full bg-green-900/50 text-green-400 text-xs">Active</span>
+                <button x-show="m.filename !== localModels.activeModel"
+                        @click="switchLocalModel(m.filename)"
+                        :disabled="localModels.switching"
+                        class="px-3 py-1.5 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed">
+                  <span x-show="!localModels.switching">Switch</span>
+                  <span x-show="localModels.switching">Switching...</span>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Download in progress -->
+        <template x-if="localModels.downloads.length > 0">
+          <div class="mb-4 space-y-2">
+            <template x-for="d in localModels.downloads" :key="d.filename">
+              <div class="p-3 rounded-lg bg-blue-900/20 border border-blue-800">
+                <div class="flex items-center gap-3 mb-1">
+                  <svg class="w-4 h-4 text-blue-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  <span class="text-sm text-blue-300 font-medium" x-text="d.filename"></span>
+                </div>
+                <div class="ml-7 flex items-center gap-2">
+                  <div class="flex-1 bg-blue-950 rounded-full h-2 overflow-hidden">
+                    <div class="bg-blue-500 h-2 rounded-full animate-pulse" style="width: 100%"></div>
+                  </div>
+                  <span class="text-xs text-blue-400 whitespace-nowrap"
+                        x-text="d.downloaded_mb >= 1024 ? (d.downloaded_mb / 1024).toFixed(1) + ' GB' : d.downloaded_mb + ' MB'"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- Download new model -->
+        <div class="border border-surface-600 rounded-lg p-3 bg-surface-900">
+          <p class="text-xs text-gray-400 mb-2 font-medium">Download new model</p>
+          <!-- Search bar -->
+          <div class="flex gap-2 mb-3">
+            <input x-model="localModels.searchQuery" type="text"
+                   placeholder="e.g. google/gemma-3-1b-it, mistral-7b, phi-3-mini"
+                   @keydown.enter="searchModels()"
+                   class="flex-1 bg-surface-800 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+            <button @click="searchModels()"
+                    :disabled="!localModels.searchQuery || localModels.searching"
+                    class="px-4 py-2 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition whitespace-nowrap">
+              <span x-show="!localModels.searching">Search</span>
+              <span x-show="localModels.searching">Searching...</span>
+            </button>
+          </div>
+
+          <!-- Search results -->
+          <template x-if="localModels.searchResults.length > 0">
+            <div class="space-y-3 max-h-64 overflow-y-auto">
+              <template x-for="repo in localModels.searchResults" :key="repo.repo_id">
+                <div class="border border-surface-500 rounded-lg p-3 bg-surface-800">
+                  <p class="text-sm text-purple-300 font-medium mb-2" x-text="repo.repo_id"></p>
+                  <div class="space-y-1.5">
+                    <template x-for="f in repo.files" :key="f.filename">
+                      <div class="flex items-center justify-between px-2 py-1.5 rounded hover:bg-surface-700 transition group">
+                        <div class="min-w-0 flex-1">
+                          <span class="text-xs text-gray-300 truncate block" x-text="f.filename"></span>
+                          <span class="text-xs text-gray-500">
+                            <span x-show="f.size_mb" x-text="f.size_mb >= 1024 ? (f.size_mb / 1024).toFixed(1) + ' GB' : f.size_mb + ' MB'"></span>
+                            <span x-show="f.quant" class="ml-1 px-1.5 py-0.5 rounded bg-surface-600 text-gray-400" x-text="f.quant"></span>
+                          </span>
+                        </div>
+                        <button @click="downloadSearchResult(repo.repo_id, f.filename)"
+                                :disabled="localModels.downloading"
+                                class="ml-2 px-3 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition opacity-0 group-hover:opacity-100 shrink-0">
+                          Download
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <template x-if="localModels.searchDone && localModels.searchResults.length === 0">
+            <p class="text-xs text-gray-500 py-2">No GGUF models found. Try a different name like "owner/model-name".</p>
+          </template>
+
+          <p x-show="localModels.downloadMessage" x-text="localModels.downloadMessage"
+             class="mt-2 text-xs" :class="localModels.downloadError ? 'text-red-400' : 'text-green-400'"></p>
+        </div>
+
+        <!-- Message -->
+        <p x-show="localModels.message" x-text="localModels.message"
+           class="mt-3 text-xs" :class="localModels.messageError ? 'text-red-400' : 'text-green-400'"></p>
+      </div>
+
       <!-- Info box -->
       <div class="bg-blue-950/30 border border-blue-900/50 rounded-lg p-3 text-xs text-blue-300/80">
         <p class="font-medium text-blue-300 mb-1">How it works</p>
@@ -1595,6 +1737,8 @@
           <li><strong>Use</strong> instantly switches which model the AI Assistant uses</li>
           <li><strong>Add/Remove</strong> updates the LiteLLM proxy config — restart the LiteLLM service to apply</li>
           <li>By default, the local llama.cpp model is used (no API key needed)</li>
+          <li><strong>Switch</strong> (local models) changes the .gguf model and restarts llama.cpp automatically</li>
+          <li><strong>Search + Download</strong> finds GGUF models on HuggingFace — just type a model name like "google/gemma-3-1b-it"</li>
         </ul>
       </div>
     </div>
@@ -1657,6 +1801,14 @@ function dashboard() {
       activeModel: '', models: [], providers: {},
       saving: false, message: '', error: false,
     },
+    localModels: {
+      models: [], activeModel: '', status: {},
+      switching: false, message: '', messageError: false,
+      downloads: [], downloading: false,
+      searchQuery: '', searching: false, searchResults: [], searchDone: false,
+      downloadMessage: '', downloadError: false,
+      _pollTimer: null,
+    },
 
     pastedText: '',
     submitResponse: '',
@@ -1695,7 +1847,7 @@ function dashboard() {
     },
 
     async init() {
-      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh(), this.loadModels()]);
+      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh(), this.loadModels(), this.loadLocalModels()]);
     },
 
     async loadHealth() {
@@ -1705,6 +1857,17 @@ function dashboard() {
       } catch(e) {
         this.health = { elasticsearch: 'error', litellm: 'error' };
       }
+    },
+
+    _retryHealth(maxRetries, intervalMs) {
+      let retries = 0;
+      const timer = setInterval(async () => {
+        await this.loadHealth();
+        retries++;
+        if (this.health.litellm === 'ok' || retries >= maxRetries) {
+          clearInterval(timer);
+        }
+      }, intervalMs);
     },
 
     async loadKibana() {
@@ -1975,6 +2138,195 @@ function dashboard() {
         this.modelSettings.message = e.message;
         this.modelSettings.error = true;
       }
+    },
+
+    // ── Local model management ──────────────────────────────────────────
+    async loadLocalModels() {
+      try {
+        const r = await fetch('/api/local-models');
+        const data = await r.json();
+        this.localModels.models = data.models;
+        this.localModels.activeModel = data.active_model;
+        this.localModels.status = data.status || {};
+      } catch(e) {
+        console.error('Failed to load local models:', e);
+      }
+      // Also check for in-progress downloads
+      await this.checkDownloads();
+    },
+
+    async switchLocalModel(filename) {
+      if (!confirm(`Switch llama.cpp to "${filename}"?\n\nThis will restart the llama.cpp container. AI chat will be briefly unavailable.`)) return;
+      this.localModels.switching = true;
+      this.localModels.message = '';
+      // Clear stale status so poll doesn't see old "ready"
+      this.localModels.status = { status: 'switching', model: filename };
+      try {
+        const r = await fetch('/api/local-models/switch', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ model: filename }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.localModels.message = data.message;
+        this.localModels.messageError = false;
+        // Update the header model name immediately
+        if (data.display_name) {
+          this.modelSettings.activeModel = data.display_name;
+        }
+        // Poll for status updates while switching — pass filename so we know what to wait for
+        this._pollLocalModelStatus(filename);
+      } catch(e) {
+        this.localModels.message = e.message;
+        this.localModels.messageError = true;
+        this.localModels.switching = false;
+      }
+    },
+
+    async _fetchLocalModelsNoCache() {
+      // Cache-busting fetch for status polling
+      const r = await fetch('/api/local-models?_t=' + Date.now());
+      return await r.json();
+    },
+
+    _pollLocalModelStatus(requestedFilename) {
+      if (this.localModels._pollTimer) clearInterval(this.localModels._pollTimer);
+      let attempts = 0;
+      console.log('[model-switch] polling for:', requestedFilename);
+      this.localModels._pollTimer = setInterval(async () => {
+        attempts++;
+        try {
+          const data = await this._fetchLocalModelsNoCache();
+          this.localModels.models = data.models;
+          this.localModels.activeModel = data.active_model;
+          this.localModels.status = data.status || {};
+          const st = data.status?.status || '';
+          const statusModel = data.status?.model || '';
+          console.log(`[model-switch] poll #${attempts}: status=${st} model=${statusModel} wanted=${requestedFilename}`);
+          // Only stop polling when status is "ready" for the model we actually requested
+          const isForOurRequest = statusModel === requestedFilename;
+          if (isForOurRequest && st === 'ready') {
+            clearInterval(this.localModels._pollTimer);
+            this.localModels._pollTimer = null;
+            this.localModels.switching = false;
+            this.localModels.message = `Now running ${requestedFilename}`;
+            this.localModels.messageError = false;
+            await this.loadModels();
+            this._retryHealth(8, 3000);
+          } else if (isForOurRequest && st === 'error') {
+            clearInterval(this.localModels._pollTimer);
+            this.localModels._pollTimer = null;
+            this.localModels.switching = false;
+            this.localModels.message = data.status?.error || 'Switch failed';
+            this.localModels.messageError = true;
+          } else if (attempts > 30) {
+            clearInterval(this.localModels._pollTimer);
+            this.localModels._pollTimer = null;
+            this.localModels.switching = false;
+            this.localModels.message = 'Switch is taking longer than expected. Refresh to check status.';
+            this.localModels.messageError = true;
+          }
+        } catch(e) {
+          console.error('[model-switch] poll error:', e);
+        }
+      }, 3000);
+    },
+
+    async searchModels() {
+      this.localModels.searching = true;
+      this.localModels.searchResults = [];
+      this.localModels.searchDone = false;
+      this.localModels.downloadMessage = '';
+      try {
+        const r = await fetch('/api/local-models/search', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ query: this.localModels.searchQuery }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Search failed');
+        this.localModels.searchResults = data.results;
+        this.localModels.searchDone = true;
+      } catch(e) {
+        this.localModels.downloadMessage = e.message;
+        this.localModels.downloadError = true;
+        this.localModels.searchDone = true;
+      } finally {
+        this.localModels.searching = false;
+      }
+    },
+
+    async downloadSearchResult(repoId, filename) {
+      this.localModels.downloading = true;
+      this.localModels.downloadMessage = '';
+      this.localModels.downloadError = false;
+      this.localModels._downloadingFilename = filename;
+      try {
+        const r = await fetch('/api/local-models/download', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ repo_id: repoId, filename }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.localModels.downloadMessage = `Downloading ${filename}...`;
+        this.localModels.downloadError = false;
+        this._pollDownloads(filename);
+      } catch(e) {
+        this.localModels.downloadMessage = e.message;
+        this.localModels.downloadError = true;
+        this.localModels.downloading = false;
+      }
+    },
+
+    async checkDownloads() {
+      try {
+        const r = await fetch('/api/local-models/downloads');
+        const data = await r.json();
+        this.localModels.downloads = data.downloads;
+        // Update message with progress if we have data
+        if (data.downloads.length > 0) {
+          const d = data.downloads[0];
+          const sizeTxt = d.downloaded_mb >= 1024
+            ? (d.downloaded_mb / 1024).toFixed(1) + ' GB'
+            : d.downloaded_mb + ' MB';
+          this.localModels.downloadMessage = `Downloading ${d.filename}... (${sizeTxt} so far)`;
+        }
+      } catch(e) {
+        // ignore
+      }
+    },
+
+    _pollDownloads(filename) {
+      const timer = setInterval(async () => {
+        await this.checkDownloads();
+        if (this.localModels.downloads.length === 0) {
+          clearInterval(timer);
+          this.localModels.downloading = false;
+          // Check if the file now exists in models list
+          await this.loadLocalModels();
+          const found = this.localModels.models.find(m => m.filename === filename);
+          if (found) {
+            const sizeTxt = found.size_mb >= 1024
+              ? (found.size_mb / 1024).toFixed(1) + ' GB'
+              : found.size_mb + ' MB';
+            this.localModels.downloadMessage = `${filename} downloaded successfully (${sizeTxt}). You can now switch to it.`;
+            this.localModels.downloadError = false;
+          } else {
+            this.localModels.downloadMessage = `Download of ${filename} may have failed — file not found.`;
+            this.localModels.downloadError = true;
+          }
+        }
+      }, 3000);
+      setTimeout(() => {
+        clearInterval(timer);
+        if (this.localModels.downloading) {
+          this.localModels.downloading = false;
+          this.localModels.downloadMessage = 'Download timed out or is still running in the background. Refresh to check.';
+          this.localModels.downloadError = true;
+        }
+      }, 30 * 60 * 1000);
     },
 
     async loadVulns() {

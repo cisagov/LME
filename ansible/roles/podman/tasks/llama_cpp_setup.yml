@@ -253,6 +253,15 @@
     mode: '0755'
   become: yes
 
+- name: Copy llama model switch script
+  copy:
+    src: "{{ clone_directory }}/scripts/switch_llama_model.py"
+    dest: /opt/lme/scripts/switch_llama_model.py
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
 - name: Copy LLM keys systemd service and path units
   copy:
     src: "{{ clone_directory }}/systemd/{{ item }}"
@@ -263,6 +272,8 @@
   loop:
     - lme-llm-keys.service
     - lme-llm-keys.path
+    - lme-llama-model.service
+    - lme-llama-model.path
   become: yes
 
 - name: Reload systemd daemon for llama.cpp and LiteLLM
@@ -314,6 +325,23 @@
 - name: Enable and start LLM keys path watcher
   systemd:
     name: lme-llm-keys.path
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Create initial llama model config (records the default model)
+  copy:
+    content: '{"model": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf"}'
+    dest: /opt/lme/config/llama-cpp-model.json
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+    force: no
+  become: yes
+
+- name: Enable and start llama model switch path watcher
+  systemd:
+    name: lme-llama-model.path
     enabled: yes
     state: started
   become: yes

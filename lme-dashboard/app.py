@@ -45,6 +45,12 @@ LLM_KEYS_PATH = os.getenv("LLM_KEYS_PATH", "/opt/lme/config/llm_keys.enc")
 VAULT_PASS_FILE = os.getenv("VAULT_PASS_FILE", "/etc/lme/pass.sh")
 LLM_KEYS_TRIGGER = os.getenv("LLM_KEYS_TRIGGER", "/opt/lme/config/.llm-keys-updated")
 
+# ── Local model config paths ────────────────────────────────────────────────
+LLAMA_MODELS_DIR = os.getenv("LLAMA_MODELS_DIR", "/opt/lme/llama-models")
+LLAMA_MODEL_CONFIG = os.getenv("LLAMA_MODEL_CONFIG", "/opt/lme/config/llama-cpp-model.json")
+LLAMA_MODEL_TRIGGER = os.getenv("LLAMA_MODEL_TRIGGER", "/opt/lme/config/.llama-model-updated")
+LLAMA_MODEL_STATUS = os.getenv("LLAMA_MODEL_STATUS", "/opt/lme/config/llama-cpp-status.json")
+
 # ── KEV config paths ─────────────────────────────────────────────────────────
 KEV_CATALOG_PATH = os.getenv("KEV_CATALOG_PATH", "/opt/lme/config/wazuh_cluster/kev_catalog.json")
 KEV_HISTORY_PATH = os.getenv("KEV_HISTORY_PATH", "/opt/lme/config/kev_history.json")
@@ -1113,6 +1119,319 @@ async def set_active_model(req: SetActiveModelRequest):
     """Set which model the dashboard uses for chat/analysis."""
     _active_model["name"] = req.model_name
     return {"status": "ok", "active_model": req.model_name}
+
+
+# ── Local model management ──────────────────────────────────────────────────
+
+def _get_active_local_model() -> str:
+    """Read the currently configured local model from the config file."""
+    try:
+        with open(LLAMA_MODEL_CONFIG, "r") as f:
+            return json.load(f).get("model", "")
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Fall back: parse the quadlet file for the current --model value
+        return ""
+
+
+def _get_local_model_status() -> dict:
+    """Read the status file written by the host-side switch script."""
+    try:
+        with open(LLAMA_MODEL_STATUS, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"status": "unknown"}
+
+
+@app.get("/api/local-models")
+async def list_local_models():
+    """List available .gguf model files and the currently active local model."""
+    models = []
+    try:
+        for entry in sorted(os.listdir(LLAMA_MODELS_DIR)):
+            if entry.lower().endswith(".gguf"):
+                filepath = os.path.join(LLAMA_MODELS_DIR, entry)
+                stat = os.stat(filepath)
+                size_mb = round(stat.st_size / (1024 * 1024), 1)
+                models.append({
+                    "filename": entry,
+                    "size_mb": size_mb,
+                })
+    except FileNotFoundError:
+        pass
+
+    active_model = _get_active_local_model()
+    status = _get_local_model_status()
+
+    return {
+        "models": models,
+        "active_model": active_model,
+        "status": status,
+    }
+
+
+class SwitchLocalModelRequest(BaseModel):
+    model: str  # just the filename, e.g. "LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
+
+
+@app.post("/api/local-models/switch")
+async def switch_local_model(req: SwitchLocalModelRequest):
+    """Request a local model switch. Writes config, updates LiteLLM config, and triggers host-side restart."""
+    filename = req.model
+
+    # Validate: simple filename only, no path traversal
+    if "/" in filename or ".." in filename or not filename.lower().endswith(".gguf"):
+        raise HTTPException(400, "Invalid model filename")
+
+    # Verify the file exists
+    model_path = os.path.join(LLAMA_MODELS_DIR, filename)
+    if not os.path.isfile(model_path):
+        raise HTTPException(404, f"Model file not found: {filename}")
+
+    # Derive a friendly display name from the filename
+    # e.g. "gemma-3-1b-it.Q4_K_M.gguf" → "gemma-3-1b-it"
+    # e.g. "LFM2.5-1.2B-Instruct-Q4_K_M.gguf" → "lfm2.5-1.2b"
+    stem = filename.rsplit(".gguf", 1)[0]  # strip .gguf
+    # Strip quantization suffixes (Q4_K_M, Q8_0, f16, etc.)
+    for sep in [".", "-"]:
+        parts = stem.rsplit(sep, 1)
+        if len(parts) == 2 and parts[1][:1].upper() in ("Q", "F", "B"):
+            stem = parts[0]
+    display_name = stem.lower()
+
+    # Update the local model entry in litellm_config.yaml
+    model_id_for_litellm = f"openai/{filename.rsplit('.gguf', 1)[0]}"
+    config = _read_litellm_config()
+    if "model_list" not in config:
+        config["model_list"] = []
+
+    # Find and update the local model entry (api_base pointing at llama-cpp)
+    found = False
+    for entry in config["model_list"]:
+        params = entry.get("litellm_params", {})
+        api_base = params.get("api_base", "")
+        if "lme-llama-cpp" in api_base:
+            entry["model_name"] = display_name
+            params["model"] = model_id_for_litellm
+            found = True
+            break
+
+    if not found:
+        # Create a new local entry
+        config["model_list"].insert(0, {
+            "model_name": display_name,
+            "litellm_params": {
+                "model": model_id_for_litellm,
+                "api_base": "https://lme-llama-cpp:8080/v1",
+                "api_key": "dummy",
+                "ssl_verify": False,
+            },
+        })
+
+    _write_litellm_config(config)
+
+    # Update the dashboard's active model to the new name
+    _active_model["name"] = display_name
+
+    # Write "switching" status BEFORE triggering, so the UI poll sees it immediately
+    with open(LLAMA_MODEL_STATUS, "w") as f:
+        json.dump({"status": "switching", "model": filename, "error": ""}, f)
+
+    # Write the config file for the host-side switch script
+    with open(LLAMA_MODEL_CONFIG, "w") as f:
+        json.dump({"model": filename}, f)
+
+    # Touch the trigger file so the host-side systemd path unit picks it up
+    Path(LLAMA_MODEL_TRIGGER).touch()
+
+    return {
+        "status": "ok",
+        "message": f"Switching to {filename} — llama.cpp will restart momentarily.",
+        "model": filename,
+        "display_name": display_name,
+    }
+
+
+class SearchModelRequest(BaseModel):
+    query: str  # e.g. "google/gemma-3-1b-it" or "mistral-7b"
+
+
+@app.post("/api/local-models/search")
+async def search_gguf_models(req: SearchModelRequest):
+    """Search HuggingFace for GGUF versions of a model.
+
+    Strategy:
+      1. If query looks like owner/model, search for owner/model-GGUF and check siblings
+      2. Search HuggingFace API with the query + GGUF filter
+      3. For each matching repo, list .gguf files with sizes
+    """
+    query = req.query.strip()
+    if not query:
+        raise HTTPException(400, "Search query is required")
+
+    results = []
+
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as c:
+        # Strategy 1: direct repo with -GGUF suffix variations
+        if "/" in query:
+            base = query.rstrip("/")
+            # Check the repo itself and common GGUF repo patterns
+            candidates = [base, f"{base}-GGUF", f"{base}-gguf"]
+            # Also check popular quantizers
+            model_name = base.split("/", 1)[1] if "/" in base else base
+            for quantizer in ["bartowski", "mradermacher", "QuantFactory"]:
+                candidates.append(f"{quantizer}/{model_name}-GGUF")
+
+            for repo_id in candidates:
+                files = await _list_hf_gguf_files(c, repo_id)
+                if files:
+                    results.append({"repo_id": repo_id, "files": files})
+                if len(results) >= 3:
+                    break
+
+        # Strategy 2: HuggingFace search API
+        if len(results) < 3:
+            search_term = query.split("/")[-1] if "/" in query else query
+            try:
+                r = await c.get(
+                    "https://huggingface.co/api/models",
+                    params={
+                        "search": f"{search_term} GGUF",
+                        "filter": "gguf",
+                        "limit": 5,
+                        "sort": "downloads",
+                        "direction": -1,
+                    },
+                )
+                if r.status_code == 200:
+                    for model in r.json():
+                        repo_id = model.get("modelId", "")
+                        # Skip repos we already found
+                        if any(res["repo_id"] == repo_id for res in results):
+                            continue
+                        files = await _list_hf_gguf_files(c, repo_id)
+                        if files:
+                            results.append({"repo_id": repo_id, "files": files})
+                        if len(results) >= 5:
+                            break
+            except Exception as e:
+                logger.warning(f"HuggingFace search failed: {e}")
+
+    return {"query": query, "results": results}
+
+
+async def _list_hf_gguf_files(client: httpx.AsyncClient, repo_id: str) -> list[dict]:
+    """List .gguf files in a HuggingFace repo with their sizes."""
+    try:
+        r = await client.get(f"https://huggingface.co/api/models/{repo_id}")
+        if r.status_code != 200:
+            return []
+        model_info = r.json()
+        siblings = model_info.get("siblings", [])
+        files = []
+        for s in siblings:
+            fname = s.get("rfilename", "")
+            if fname.lower().endswith(".gguf") and not fname.startswith("."):
+                size_bytes = s.get("size", 0)
+                size_mb = round(size_bytes / (1024 * 1024), 1) if size_bytes else None
+                # Extract quantization tag from filename (e.g. Q4_K_M, Q8_0)
+                quant = ""
+                for part in fname.replace(".gguf", "").split("-"):
+                    if part.startswith("Q") or part.startswith("q") or part in ("f16", "f32", "bf16"):
+                        quant = part
+                        break
+                # Also try underscore-separated
+                if not quant:
+                    for part in fname.replace(".gguf", "").split("_"):
+                        if part.startswith("Q") or part in ("f16", "f32", "bf16"):
+                            quant = part
+                            break
+                files.append({
+                    "filename": fname,
+                    "size_mb": size_mb,
+                    "quant": quant,
+                    "download_url": f"https://huggingface.co/{repo_id}/resolve/main/{fname}",
+                })
+        # Sort by size ascending so smaller quants appear first
+        files.sort(key=lambda f: f["size_mb"] or 9999999)
+        return files
+    except Exception:
+        return []
+
+
+class DownloadModelRequest(BaseModel):
+    repo_id: str    # e.g. "bartowski/gemma-3-1b-it-GGUF"
+    filename: str   # e.g. "gemma-3-1b-it-Q4_K_M.gguf"
+
+
+@app.post("/api/local-models/download")
+async def download_local_model(req: DownloadModelRequest):
+    """Download a specific GGUF file from a HuggingFace repo."""
+    filename = req.filename
+    repo_id = req.repo_id
+
+    # Validate filename
+    if "/" in filename or ".." in filename or not filename.lower().endswith(".gguf"):
+        raise HTTPException(400, "Invalid model filename")
+
+    # Validate repo_id format (owner/model)
+    if "/" not in repo_id or ".." in repo_id:
+        raise HTTPException(400, "Invalid repo ID")
+
+    url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
+    dest_path = os.path.join(LLAMA_MODELS_DIR, filename)
+
+    if os.path.exists(dest_path):
+        raise HTTPException(409, f"Model file already exists: {filename}")
+
+    partial_path = dest_path + ".downloading"
+    if os.path.exists(partial_path):
+        raise HTTPException(409, f"Download already in progress for: {filename}")
+
+    import asyncio
+
+    async def _download():
+        try:
+            async with httpx.AsyncClient(timeout=3600, follow_redirects=True) as c:
+                async with c.stream("GET", url) as resp:
+                    resp.raise_for_status()
+                    with open(partial_path, "wb") as f:
+                        async for chunk in resp.aiter_bytes(chunk_size=1024 * 1024):
+                            f.write(chunk)
+            os.rename(partial_path, dest_path)
+            logger.info(f"Model download complete: {filename} from {repo_id}")
+        except Exception as e:
+            logger.error(f"Model download failed for {filename}: {e}")
+            try:
+                os.unlink(partial_path)
+            except FileNotFoundError:
+                pass
+
+    asyncio.create_task(_download())
+
+    return {
+        "status": "ok",
+        "message": f"Downloading {filename} — this may take a while for large models.",
+        "filename": filename,
+    }
+
+
+@app.get("/api/local-models/downloads")
+async def check_downloads():
+    """Check for in-progress downloads (.downloading files)."""
+    downloads = []
+    try:
+        for entry in os.listdir(LLAMA_MODELS_DIR):
+            if entry.endswith(".downloading"):
+                filepath = os.path.join(LLAMA_MODELS_DIR, entry)
+                stat = os.stat(filepath)
+                downloads.append({
+                    "filename": entry.replace(".downloading", ""),
+                    "downloaded_mb": round(stat.st_size / (1024 * 1024), 1),
+                    "in_progress": True,
+                })
+    except FileNotFoundError:
+        pass
+    return {"downloads": downloads}
 
 
 # ── Static files / SPA ───────────────────────────────────────────────────────
