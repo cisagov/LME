@@ -30,26 +30,26 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ── Config from environment ──────────────────────────────────────────────────
-ES_URL      = os.getenv("ELASTICSEARCH_URL",  "https://lme-elasticsearch:9200")
-ES_USER     = os.getenv("ELASTICSEARCH_USER", "elastic")
-ES_PASS     = os.getenv("ELASTICSEARCH_PASSWORD", "")
-LITELLM_URL = os.getenv("LITELLM_URL",        "https://lme-litellm:4000")
-LITELLM_KEY = os.getenv("LITELLM_API_KEY",    "sk-lme-llama-proxy")
-LITELLM_MDL = os.getenv("LITELLM_MODEL",      "gemma-3-1b")
+ES_URL = os.getenv("ELASTICSEARCH_URL", "https://lme-elasticsearch:9200")
+ES_USER = os.getenv("ELASTICSEARCH_USER", "elastic")
+ES_PASS = os.getenv("ELASTICSEARCH_PASSWORD", "")
+LITELLM_URL = os.getenv("LITELLM_URL", "https://lme-litellm:4000")
+LITELLM_KEY = os.getenv("LITELLM_API_KEY", "sk-lme-llama-proxy")
+LITELLM_MDL = os.getenv("LITELLM_MODEL", "gemma-3-1b")
 
 # Path to LiteLLM config YAML — writable so the UI can manage models
 LITELLM_CONFIG_PATH = os.getenv("LITELLM_CONFIG_PATH", "/opt/lme/config/litellm_config.yaml")
 
 # Encrypted key storage paths
-LLM_KEYS_PATH  = os.getenv("LLM_KEYS_PATH", "/opt/lme/config/llm_keys.enc")
+LLM_KEYS_PATH = os.getenv("LLM_KEYS_PATH", "/opt/lme/config/llm_keys.enc")
 VAULT_PASS_FILE = os.getenv("VAULT_PASS_FILE", "/etc/lme/pass.sh")
 LLM_KEYS_TRIGGER = os.getenv("LLM_KEYS_TRIGGER", "/opt/lme/config/.llm-keys-updated")
 
 # ── KEV config paths ─────────────────────────────────────────────────────────
-KEV_CATALOG_PATH  = os.getenv("KEV_CATALOG_PATH",  "/opt/lme/config/wazuh_cluster/kev_catalog.json")
-KEV_HISTORY_PATH  = os.getenv("KEV_HISTORY_PATH",  "/opt/lme/config/kev_history.json")
-KEV_CONFIG_PATH   = os.getenv("KEV_CONFIG_PATH",   "/opt/lme/config/kev_config.json")
-KEV_SYNC_SCRIPT   = os.getenv("KEV_SYNC_SCRIPT",   "/opt/lme/scripts/kev_sync.py")
+KEV_CATALOG_PATH = os.getenv("KEV_CATALOG_PATH", "/opt/lme/config/wazuh_cluster/kev_catalog.json")
+KEV_HISTORY_PATH = os.getenv("KEV_HISTORY_PATH", "/opt/lme/config/kev_history.json")
+KEV_CONFIG_PATH = os.getenv("KEV_CONFIG_PATH", "/opt/lme/config/kev_config.json")
+KEV_SYNC_SCRIPT = os.getenv("KEV_SYNC_SCRIPT", "/opt/lme/scripts/kev_sync.py")
 
 # Mutable active-model state (updated via UI)
 _active_model = {"name": LITELLM_MDL}
@@ -122,34 +122,39 @@ def _env_var_name(provider: str) -> str:
     """Convert a provider name to an env var name for LiteLLM."""
     return f"LME_LLM_KEY_{provider.upper()}"
 
+
 # httpx clients — both ES and LiteLLM use self-signed certs
 PGVECTOR_HOST = os.getenv("PGVECTOR_HOST", "lme-pgvector")
 PGVECTOR_PORT = int(os.getenv("PGVECTOR_PORT", "5432"))
-PGVECTOR_DB   = os.getenv("PGVECTOR_DB",   "lme_vectors")
+PGVECTOR_DB = os.getenv("PGVECTOR_DB", "lme_vectors")
 PGVECTOR_USER = os.getenv("PGVECTOR_USER", "lme")
 PGVECTOR_PASS = os.getenv("PGVECTOR_PASS", "")
-EMBED_URL     = os.getenv("EMBED_URL",     "http://lme-embeddings:8081")
-RAG_TOP_K     = int(os.getenv("RAG_TOP_K", "10"))
-RAG_MIN_SIM   = float(os.getenv("RAG_MIN_SIM", "0.55"))  # drop chunks below this similarity
+EMBED_URL = os.getenv("EMBED_URL", "http://lme-embeddings:8081")
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "10"))
+RAG_MIN_SIM = float(os.getenv("RAG_MIN_SIM", "0.55"))  # drop chunks below this similarity
 RAG_MIN_CHARS = int(os.getenv("RAG_MIN_CHARS", "200"))   # drop stub/redirect chunks
 
-ES_AUTH     = (ES_USER, ES_PASS)
-VERIFY_SSL  = False          # internal self-signed certs
+ES_AUTH = (ES_USER, ES_PASS)
+VERIFY_SSL = False          # internal self-signed certs
 
 app = FastAPI(title="LME Dashboard", docs_url=None, redoc_url=None)
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def es_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(verify=VERIFY_SSL, timeout=15)
 
+
 def llm_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(verify=VERIFY_SSL, timeout=300)
+
 
 def _severity_order(s: str) -> int:
     return {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(s.lower(), 4)
 
 # ── API routes ────────────────────────────────────────────────────────────────
+
 
 @app.get("/api/health")
 async def health():
@@ -385,10 +390,10 @@ async def vulnerabilities_overview():
             "by_agent": {
                 "terms": {"field": "agent.name", "size": 500},
                 "aggs": {
-                    "agent_id":   {"terms": {"field": "agent.id", "size": 1}},
-                    "os":         {"terms": {"field": "host.os.full", "size": 1}},
+                    "agent_id": {"terms": {"field": "agent.id", "size": 1}},
+                    "os": {"terms": {"field": "host.os.full", "size": 1}},
                     "by_severity": {"terms": {"field": "vulnerability.severity", "size": 10}},
-                    "max_score":  {"max": {"field": "vulnerability.score.base"}},
+                    "max_score": {"max": {"field": "vulnerability.score.base"}},
                     "risk_score": {
                         "weighted_avg": {
                             "value": {"field": "vulnerability.score.base"},
@@ -534,13 +539,16 @@ class KevSettingsRequest(BaseModel):
     alert_on_overdue: bool = True
     ransomware_only: bool = False
 
+
 class ChatMessage(BaseModel):
     role: str
     content: str
 
+
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     stream: bool = False
+
 
 class AnalyzeRequest(BaseModel):
     alert: dict
@@ -723,7 +731,7 @@ async def _retrieve_context(query: str, top_k: int = RAG_TOP_K) -> list[dict]:
             continue
         seen[key] = True
         filtered.append({"url": url, "title": title, "section": section,
-                          "content": content, "similarity": sim})
+                         "content": content, "similarity": sim})
         if len(filtered) >= top_k:
             break
 
@@ -1312,6 +1320,25 @@ async def update_kev_settings(req: KevSettingsRequest):
 
     logger.info("KEV settings updated: %s", settings)
     return {"status": "ok", "settings": settings}
+
+
+class SubmitReportRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/submit_report")
+async def submit_report(req: SubmitReportRequest):
+    """
+    Endpoint to receive pasted text and respond with 'received'.
+    """
+    try:
+        # Log the received text (optional)
+        print(f"Received report: {req.text[:100]}")  # Log first 100 characters
+
+        # Respond with a simple message
+        return {"status": "success", "message": "received"}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to process report: {str(e)}")
 
 
 @app.get("/", response_class=HTMLResponse)

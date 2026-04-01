@@ -761,6 +761,51 @@
       <!-- ── Detection Configuration tab ── -->
       <div x-show="detectionTab === 'config'">
 
+        <!-- Text Input Widget -->
+        <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
+          <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 4v16m8-8H4"/>
+            </svg>
+            Paste Vulnerability Report
+          </h3>
+          <div>
+            <textarea
+              x-model="pastedText"
+              placeholder="Paste your vulnerability report here..."
+              rows="8"
+              class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300
+                     placeholder-gray-600 focus:outline-none focus:border-blue-500 transition resize-none"
+            ></textarea>
+          </div>
+          <div class="mt-3 flex items-center gap-3">
+            <button @click="submitReport()"
+                    :disabled="!pastedText.trim()"
+                    class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
+                           disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                         0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              Submit Report
+            </button>
+            <button @click="clearPastedText()"
+                    class="px-3 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white text-xs transition flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              Clear
+            </button>
+          </div>
+          <div x-show="submitResponse" class="mt-3 text-xs text-gray-300">
+            <h4 class="text-sm font-medium text-white">Response:</h4>
+            <p class="bg-surface-700 rounded p-3 text-gray-400 whitespace-pre-wrap" x-text="submitResponse"></p>
+          </div>
+        </div>
+        <!-- end text input widget -->
         <!-- ══ CISA KEV Panel ══════════════════════════════════════════════ -->
         <div class="mb-6">
 
@@ -1611,6 +1656,35 @@ function dashboard() {
     modelSettings: {
       activeModel: '', models: [], providers: {},
       saving: false, message: '', error: false,
+    },
+
+    pastedText: '',
+    submitResponse: '',
+
+    clearPastedText() {
+      this.pastedText = '';
+      this.submitResponse = '';
+    },
+
+    async submitReport() {
+      try {
+        const response = await fetch('/api/submit_report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: this.pastedText }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Failed to submit report.');
+        }
+
+        const data = await response.json();
+        this.submitResponse = data.message;
+      } catch (error) {
+        console.error('Submission failed:', error);
+        this.submitResponse = `Error: ${error.message}`;
+      }
     },
     get activeModelIsLocal() {
       const m = this.modelSettings.models.find(m => m.model_name === this.modelSettings.activeModel);
