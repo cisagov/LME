@@ -979,7 +979,24 @@ async def vulnerabilities_detail(
     return {"total": total, "returned": len(vulns), "vulnerabilities": vulns}
 
 
-# ── To-Do endpoints ───────────────────────────────────────────────────────────
+# ── To-Do models and endpoints ────────────────────────────────────────────────
+
+class PromoteTodoRequest(BaseModel):
+    source_type: str  # 'kibana'|'wazuh'|'sysmon'|'defender'|'cve'
+    source_id: str
+    source_data: dict
+    machine: str
+    severity: str = ""
+    cve_id: str = ""
+
+
+class UpdateTodoRequest(BaseModel):
+    notes: str = ""
+    status: str = ""
+    tags: list[str] = []
+    priority: int = 0
+    due_date: str = ""
+
 
 @app.post("/api/todos")
 async def promote_todo(req: PromoteTodoRequest):
@@ -1215,24 +1232,7 @@ class KevSettingsRequest(BaseModel):
     ransomware_only: bool = False
 
 
-# ── To-Do models ──────────────────────────────────────────────────────────────
-
-class PromoteTodoRequest(BaseModel):
-    source_type: str  # 'kibana'|'wazuh'|'sysmon'|'defender'|'cve'
-    source_id: str
-    source_data: dict
-    machine: str
-    severity: str = ""
-    cve_id: str = ""
-
-
-class UpdateTodoRequest(BaseModel):
-    notes: str = ""
-    status: str = ""
-    tags: list[str] = []
-    priority: int = 0
-    due_date: str = ""
-
+# ── Chat / LLM models ─────────────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):
     role: str
