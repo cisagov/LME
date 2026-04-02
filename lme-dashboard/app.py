@@ -1632,6 +1632,24 @@ async def list_local_models():
     }
 
 
+@app.delete("/api/local-models/{filename}")
+async def delete_local_model(filename: str):
+    """Delete a .gguf model file from disk."""
+    if "/" in filename or ".." in filename or not filename.lower().endswith(".gguf"):
+        raise HTTPException(400, "Invalid model filename")
+
+    active = _get_active_local_model()
+    if filename == active:
+        raise HTTPException(409, "Cannot delete the currently active model. Switch to another model first.")
+
+    filepath = os.path.join(LLAMA_MODELS_DIR, filename)
+    if not os.path.isfile(filepath):
+        raise HTTPException(404, f"Model file not found: {filename}")
+
+    os.remove(filepath)
+    return {"status": "ok", "message": f"Deleted {filename}"}
+
+
 class SwitchLocalModelRequest(BaseModel):
     model: str  # just the filename, e.g. "LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
 
