@@ -2395,6 +2395,133 @@ async def toggle_kibana_rules(req: ToggleRuleRequest):
     return results
 
 
+# ── Prebuilt Elastic Rules ────────────────────────────────────────────────────
+
+
+def _kibana_internal_headers():
+    h = _kibana_headers()
+    h["elastic-api-version"] = "1"
+    return h
+
+
+@app.get("/api/rules/prebuilt/status")
+async def prebuilt_rules_status():
+    """Check how many prebuilt Elastic rules are available / installed."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+    async with llm_client() as c:
+        try:
+            r = await c.get(
+                f"{KIBANA_URL}/internal/detection_engine/prebuilt_rules/status",
+                auth=ES_AUTH,
+                headers=_kibana_internal_headers(),
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Kibana unreachable: {e}")
+    data = r.json()
+    stats = data.get("stats", {})
+    return {
+        "rules_installed": stats.get("num_prebuilt_rules_installed", 0),
+        "rules_not_installed": stats.get("num_prebuilt_rules_to_install", 0),
+        "rules_not_updated": stats.get("num_prebuilt_rules_to_upgrade", 0),
+        "rules_total_in_package": stats.get("num_prebuilt_rules_total_in_package", 0),
+    }
+
+
+@app.post("/api/rules/prebuilt/install")
+async def install_prebuilt_rules():
+    """Install all available prebuilt Elastic detection rules."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+    async with llm_client() as c:
+        try:
+            r = await c.post(
+                f"{KIBANA_URL}/internal/detection_engine/prebuilt_rules/installation/_perform",
+                auth=ES_AUTH,
+                headers=_kibana_internal_headers(),
+                json={"mode": "ALL_RULES"},
+                timeout=180,
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Kibana prebuilt install failed: {e}")
+    data = r.json()
+    summary = data.get("summary", {})
+    return {
+        "rules_installed": summary.get("succeeded", 0),
+        "rules_skipped": summary.get("skipped", 0),
+        "rules_failed": summary.get("failed", 0),
+    }
+
+
+@app.post("/api/rules/prebuilt/upgrade")
+async def upgrade_prebuilt_rules():
+    """Upgrade all outdated prebuilt Elastic detection rules."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+    async with llm_client() as c:
+        try:
+            r = await c.post(
+                f"{KIBANA_URL}/internal/detection_engine/prebuilt_rules/upgrade/_perform",
+                auth=ES_AUTH,
+                headers=_kibana_internal_headers(),
+                json={"mode": "ALL_RULES"},
+                timeout=180,
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Kibana prebuilt upgrade failed: {e}")
+    data = r.json()
+    summary = data.get("summary", {})
+    return {
+        "rules_updated": summary.get("succeeded", 0),
+        "rules_skipped": summary.get("skipped", 0),
+        "rules_failed": summary.get("failed", 0),
+    }
+
+
+class BulkActionRequest(BaseModel):
+    action: str  # "enable" or "disable"
+    query: str = ""
+    ids: list[str] = []
+
+
+@app.post("/api/rules/kibana/bulk-action")
+async def bulk_action_kibana_rules(req: BulkActionRequest):
+    """Bulk enable/disable rules by IDs or KQL query."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+    if req.action not in ("enable", "disable"):
+        raise HTTPException(400, "action must be 'enable' or 'disable'")
+
+    body: dict = {"action": req.action}
+    if req.ids:
+        body["ids"] = req.ids
+    elif req.query:
+        body["query"] = req.query
+    else:
+        raise HTTPException(400, "Provide ids or query")
+
+    async with llm_client() as c:
+        try:
+            r = await c.post(
+                f"{KIBANA_URL}/api/detection_engine/rules/_bulk_action",
+                auth=ES_AUTH,
+                headers=_kibana_headers(),
+                json=body,
+                timeout=120,
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Bulk action failed: {e}")
+
+    data = r.json()
+    succeeded = len(data) if isinstance(data, list) else data.get("success_count", 0)
+    errors = [] if isinstance(data, list) else data.get("errors", [])[:5]
+    return {"succeeded": succeeded, "errors": errors}
+
+
 # ── Sigma Rule Conversion (wraps convert_sigma_to_kibana.sh) ─────────────────
 
 SIGMA_SCRIPT = os.getenv("SIGMA_SCRIPT", "/opt/lme/scripts/sigma/convert_sigma_to_kibana.sh")
@@ -2490,6 +2617,16 @@ async def sigma_upload(req: SigmaUploadRequest):
             raise HTTPException(502, f"Kibana upload failed: {e}")
 
     result = r.json()
+
+    # Clean up the ndjson file after successful upload
+    try:
+        ndjson_file.unlink()
+        # Remove output dir if empty
+        if work_dir.is_dir() and not any(work_dir.iterdir()):
+            work_dir.rmdir()
+    except OSError:
+        pass  # non-critical cleanup
+
     return {
         "status": "ok",
         "platform": req.platform,
