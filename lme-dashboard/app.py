@@ -2499,6 +2499,136 @@ async def sigma_upload(req: SigmaUploadRequest):
     }
 
 
+@app.post("/api/rules/sigma/upload-yaml")
+async def sigma_upload_yaml(files: list[UploadFile] = File(...)):
+    """Convert one or more Sigma YAML rules and upload to Kibana."""
+    import tempfile
+
+    windows_files: list[tuple[str, bytes]] = []
+    other_files: list[tuple[str, bytes]] = []
+    parse_errors: list[dict] = []
+
+    for upload in files:
+        fname = Path(upload.filename).name
+        if not fname.endswith((".yml", ".yaml")):
+            parse_errors.append({"filename": fname, "error": "Only .yml/.yaml files accepted"})
+            continue
+        content = await upload.read()
+        try:
+            data = yaml.safe_load(content)
+            if not isinstance(data, dict):
+                raise ValueError("Not a YAML mapping")
+        except Exception as e:
+            parse_errors.append({"filename": fname, "error": f"Invalid YAML: {e}"})
+            continue
+        product = (data.get("logsource") or {}).get("product", "").lower()
+        if product == "windows":
+            windows_files.append((fname, content))
+        else:
+            other_files.append((fname, content))
+
+    if not windows_files and not other_files:
+        raise HTTPException(400, detail={"errors": parse_errors})
+
+    all_ndjson = b""
+    convert_errors: list[dict] = []
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        groups = [
+            (windows_files, ["-p", "ecs_windows"]),
+            (other_files, ["--without-pipeline"]),
+        ]
+        for group, pipeline_args in groups:
+            if not group:
+                continue
+            file_paths = []
+            for fname, content in group:
+                fp = tmppath / fname
+                fp.write_bytes(content)
+                file_paths.append(str(fp))
+            cmd = (
+                ["sigma", "convert", "-t", "lucene", "-f", "siem_rule_ndjson", "--skip-unsupported"]
+                + pipeline_args
+                + file_paths
+            )
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=60,
+                                     env={**os.environ, "PATH": f"{Path.home()/'.local/bin'}:{os.environ.get('PATH', '')}"})
+                if res.stdout.strip():
+                    chunk = res.stdout.encode()
+                    if not chunk.endswith(b"\n"):
+                        chunk += b"\n"
+                    all_ndjson += chunk
+                if res.returncode != 0 and not res.stdout.strip():
+                    convert_errors.append({"error": res.stderr.strip()[-300:]})
+            except subprocess.TimeoutExpired:
+                convert_errors.append({"error": "sigma convert timed out"})
+            except FileNotFoundError:
+                raise HTTPException(
+                    500,
+                    "sigma-cli not found. Install it with: pipx install sigma-cli && sigma plugin install elasticsearch",
+                )
+
+    if not all_ndjson.strip():
+        raise HTTPException(400, "No rules could be converted — check that the files are valid Sigma rules and sigma-cli is installed.")
+
+    async with llm_client() as c:
+        try:
+            r = await c.post(
+                f"{KIBANA_URL}/api/detection_engine/rules/_import?overwrite=false",
+                auth=ES_AUTH,
+                headers={"kbn-xsrf": "true"},
+                files={"file": ("sigma_upload.ndjson", all_ndjson, "application/x-ndjson")},
+                timeout=120,
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Kibana upload failed: {e}")
+
+    kibana = r.json()
+    return {
+        "status": "ok",
+        "success_count": kibana.get("success_count", 0),
+        "rules_count": kibana.get("rules_count", 0),
+        "errors": (kibana.get("errors", []) + parse_errors + convert_errors)[:5],
+    }
+
+
+@app.post("/api/rules/sigma/upload-file")
+async def sigma_upload_file(file: UploadFile = File(...)):
+    """Upload a Sigma NDJSON file directly to Kibana (manual upload)."""
+    fname = Path(file.filename).name
+    if not fname.endswith(".ndjson"):
+        raise HTTPException(400, "Only .ndjson files are accepted")
+
+    content = await file.read()
+    if not content.strip():
+        raise HTTPException(400, "Uploaded file is empty")
+
+    async with llm_client() as c:
+        try:
+            r = await c.post(
+                f"{KIBANA_URL}/api/detection_engine/rules/_import?overwrite=false",
+                auth=ES_AUTH,
+                headers={"kbn-xsrf": "true"},
+                files={"file": (fname, content, "application/x-ndjson")},
+                timeout=120,
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Kibana upload failed: {e}")
+
+    result = r.json()
+    return {
+        "status": "ok",
+        "filename": fname,
+        "success_count": result.get("success_count", 0),
+        "rules_count": result.get("rules_count", 0),
+        "errors": result.get("errors", [])[:5],
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return (STATIC_DIR / "index.html").read_text()
