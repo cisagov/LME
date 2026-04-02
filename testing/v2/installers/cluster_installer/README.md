@@ -149,14 +149,15 @@ Install sshpass and copy key to cluster nodes:
 
 ```bash
 sudo apt-get update && sudo apt-get install -y sshpass
-sshpass -p 'PASSWORD' ssh-copy-id -o StrictHostKeyChecking=no lme-user@10.1.0.10
-sshpass -p 'PASSWORD' ssh-copy-id -o StrictHostKeyChecking=no lme-user@10.1.0.11
+sshpass -p 'PASSWORD_FROM_ABOVE' ssh-copy-id -o StrictHostKeyChecking=no lme-user@10.1.0.10
+sshpass -p 'PASSWORD_FROM_ABOVE' ssh-copy-id -o StrictHostKeyChecking=no lme-user@10.1.0.11
 ```
 
 Test passwordless SSH:
 
 ```bash
 ssh lme-user@10.1.0.10 "hostname"
+ssh lme-user@10.1.0.11 "hostname"
 ```
 
 ### 4. Clone Repo and Checkout Branch
