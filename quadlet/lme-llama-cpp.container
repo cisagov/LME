@@ -10,6 +10,9 @@ WantedBy=default.target lme.service
 
 [Service]
 Restart=always
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=10
 TimeoutStartSec=300
 
 [Container]
