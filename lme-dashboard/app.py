@@ -979,6 +979,232 @@ async def vulnerabilities_detail(
     return {"total": total, "returned": len(vulns), "vulnerabilities": vulns}
 
 
+# ── To-Do endpoints ───────────────────────────────────────────────────────────
+
+@app.post("/api/todos")
+async def promote_todo(req: PromoteTodoRequest):
+    """Promote an alert or vulnerability to the To-Do tab."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    _init_todos_table()  # ensure table exists
+
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO todos
+                (source_type, source_id, source_snapshot, machine, severity, cve_id, status)
+                VALUES (%s, %s, %s, %s, %s, %s, 'pending')
+                ON CONFLICT (source_type, source_id, machine) DO UPDATE
+                SET updated_at = NOW()
+                RETURNING id, created_at, updated_at, status
+            """, (
+                req.source_type,
+                req.source_id,
+                json.dumps(req.source_data),
+                req.machine,
+                req.severity or None,
+                req.cve_id or None,
+            ))
+            result = cur.fetchone()
+        conn.commit()
+        conn.close()
+
+        if result:
+            return {
+                "status": "ok",
+                "id": result[0],
+                "message": "Promoted to To-Do list",
+                "is_new": (result[1] == result[2]),  # created_at == updated_at means new
+            }
+        raise HTTPException(500, "Failed to promote item")
+    except Exception as e:
+        logger.error(f"Promote todo error: {e}")
+        raise HTTPException(502, f"Database error: {str(e)[:100]}")
+
+
+@app.get("/api/todos")
+async def list_todos(status: str = ""):
+    """List todos grouped by machine."""
+    if not ES_PASS:
+        raise HTTPException(503, "ELASTICSEARCH_PASSWORD not configured")
+
+    _init_todos_table()
+
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            query = "SELECT id, created_at, updated_at, source_type, source_id, source_snapshot, machine, severity, cve_id, status, notes, tags, priority, due_date FROM todos WHERE 1=1"
+            params = []
+
+            if status:
+                query += " AND status = %s"
+                params.append(status)
+
+            query += " ORDER BY machine ASC, priority DESC, created_at DESC"
+            cur.execute(query, params)
+            rows = cur.fetchall()
+        conn.close()
+
+        # Group by machine
+        grouped = {}
+        for row in rows:
+            todo_id, created_at, updated_at, source_type, source_id, source_snapshot, machine, severity, cve_id, status, notes, tags, priority, due_date = row
+            if machine not in grouped:
+                grouped[machine] = []
+
+            try:
+                source_data = json.loads(source_snapshot) if source_snapshot else {}
+            except:
+                source_data = {}
+
+            grouped[machine].append({
+                "id": todo_id,
+                "created_at": created_at.isoformat() if created_at else "",
+                "updated_at": updated_at.isoformat() if updated_at else "",
+                "source_type": source_type,
+                "source_id": source_id,
+                "source_data": source_data,
+                "machine": machine,
+                "severity": severity,
+                "cve_id": cve_id,
+                "status": status,
+                "notes": notes or "",
+                "tags": tags or [],
+                "priority": priority or 0,
+                "due_date": due_date.isoformat() if due_date else "",
+            })
+
+        return {
+            "status": "ok",
+            "grouped": grouped,
+            "total": len(rows),
+        }
+    except Exception as e:
+        logger.error(f"List todos error: {e}")
+        raise HTTPException(502, f"Database error: {str(e)[:100]}")
+
+
+@app.patch("/api/todos/{todo_id}")
+async def update_todo(todo_id: int, req: UpdateTodoRequest):
+    """Update a todo item."""
+    _init_todos_table()
+
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            # Build dynamic update query
+            updates = ["updated_at = NOW()"]
+            params = []
+
+            if req.notes is not None:
+                updates.append("notes = %s")
+                params.append(req.notes)
+            if req.status:
+                updates.append("status = %s")
+                params.append(req.status)
+            if req.tags is not None:
+                updates.append("tags = %s")
+                params.append(req.tags)
+            if req.priority is not None:
+                updates.append("priority = %s")
+                params.append(req.priority)
+            if req.due_date:
+                updates.append("due_date = %s")
+                params.append(req.due_date if req.due_date else None)
+
+            params.append(todo_id)
+
+            query = f"UPDATE todos SET {', '.join(updates)} WHERE id = %s RETURNING id, status"
+            cur.execute(query, params)
+            result = cur.fetchone()
+        conn.commit()
+        conn.close()
+
+        if result:
+            return {"status": "ok", "id": result[0], "todo_status": result[1]}
+        raise HTTPException(404, "Todo not found")
+    except Exception as e:
+        logger.error(f"Update todo error: {e}")
+        raise HTTPException(502, f"Database error: {str(e)[:100]}")
+
+
+@app.delete("/api/todos/{todo_id}")
+async def delete_todo(todo_id: int):
+    """Delete a todo item."""
+    _init_todos_table()
+
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM todos WHERE id = %s RETURNING id", (todo_id,))
+            result = cur.fetchone()
+        conn.commit()
+        conn.close()
+
+        if result:
+            return {"status": "ok", "message": "Deleted"}
+        raise HTTPException(404, "Todo not found")
+    except Exception as e:
+        logger.error(f"Delete todo error: {e}")
+        raise HTTPException(502, f"Database error: {str(e)[:100]}")
+
+
+@app.get("/api/todos/{todo_id}/related")
+async def get_related_todos(todo_id: int):
+    """Get other machines affected by the same CVE or alert."""
+    _init_todos_table()
+
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            # First, get the todo's cve_id or source_id
+            cur.execute("SELECT cve_id, source_id, source_type FROM todos WHERE id = %s", (todo_id,))
+            result = cur.fetchone()
+            if not result:
+                raise HTTPException(404, "Todo not found")
+
+            cve_id, source_id, source_type = result
+
+            # Find related todos
+            if cve_id:
+                # Find all machines with the same CVE
+                cur.execute(
+                    "SELECT id, machine, severity, status, priority FROM todos WHERE cve_id = %s AND id != %s ORDER BY machine",
+                    (cve_id, todo_id)
+                )
+            else:
+                # Find all machines with the same alert source
+                cur.execute(
+                    "SELECT id, machine, severity, status, priority FROM todos WHERE source_type = %s AND source_id = %s AND id != %s ORDER BY machine",
+                    (source_type, source_id, todo_id)
+                )
+
+            rows = cur.fetchall()
+        conn.close()
+
+        related = [
+            {
+                "id": row[0],
+                "machine": row[1],
+                "severity": row[2],
+                "status": row[3],
+                "priority": row[4],
+            }
+            for row in rows
+        ]
+
+        return {
+            "status": "ok",
+            "related": related,
+            "count": len(related),
+        }
+    except Exception as e:
+        logger.error(f"Get related todos error: {e}")
+        raise HTTPException(502, f"Database error: {str(e)[:100]}")
+
+
 # ── Chat / LLM endpoints ──────────────────────────────────────────────────────
 
 class KevSettingsRequest(BaseModel):
@@ -987,6 +1213,25 @@ class KevSettingsRequest(BaseModel):
     alert_on_match: bool = True
     alert_on_overdue: bool = True
     ransomware_only: bool = False
+
+
+# ── To-Do models ──────────────────────────────────────────────────────────────
+
+class PromoteTodoRequest(BaseModel):
+    source_type: str  # 'kibana'|'wazuh'|'sysmon'|'defender'|'cve'
+    source_id: str
+    source_data: dict
+    machine: str
+    severity: str = ""
+    cve_id: str = ""
+
+
+class UpdateTodoRequest(BaseModel):
+    notes: str = ""
+    status: str = ""
+    tags: list[str] = []
+    priority: int = 0
+    due_date: str = ""
 
 
 class ChatMessage(BaseModel):
@@ -1129,6 +1374,37 @@ def _pg_conn():
         user=PGVECTOR_USER, password=PGVECTOR_PASS,
         connect_timeout=5,
     )
+
+
+def _init_todos_table():
+    """Create todos table if it doesn't exist."""
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS todos (
+                    id SERIAL PRIMARY KEY,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    source_type TEXT NOT NULL,
+                    source_id TEXT NOT NULL,
+                    source_snapshot JSONB,
+                    machine TEXT NOT NULL,
+                    severity TEXT,
+                    cve_id TEXT,
+                    status TEXT DEFAULT 'pending',
+                    notes TEXT,
+                    tags TEXT[] DEFAULT ARRAY[]::TEXT[],
+                    priority INTEGER DEFAULT 0,
+                    due_date TIMESTAMP,
+                    UNIQUE(source_type, source_id, machine)
+                )
+            """)
+            conn.commit()
+        conn.close()
+        logger.info("Todos table initialized")
+    except Exception as e:
+        logger.warning(f"Failed to initialize todos table: {e}")
 
 
 async def _embed_query(query: str) -> list[float]:

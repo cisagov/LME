@@ -155,6 +155,18 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
+  <button @click="mainView = 'todos'; if(!todos._loaded) loadTodos()"
+          :class="mainView === 'todos' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+    </svg>
+    To Do
+    <span x-show="todos.total > 0" x-cloak
+          class="ml-1 bg-purple-900 text-purple-300 text-xs px-1.5 py-0.5 rounded-full"
+          x-text="todos.total"></span>
+  </button>
   <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules(); if (!kibanaRules._loaded) loadKibanaRules(); if (!sigma._loaded) loadSigmaStatus()"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
@@ -430,6 +442,14 @@
                 </div>
                 <!-- actions -->
                 <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="promoteTodo('kibana', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
+                          title="Add to To-Do list"
+                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Promote
+                  </button>
                   <button @click="analyzeAlert(alert, 'kibana')"
                           class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -532,6 +552,14 @@
                   </template>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="promoteTodo('wazuh', alert.id, alert._raw, alert.agent_name || 'unknown', alert.severity)"
+                          title="Add to To-Do list"
+                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Promote
+                  </button>
                   <button @click="analyzeAlert(alert, 'wazuh')"
                           class="px-2 py-1 rounded bg-orange-900/50 text-orange-300 hover:bg-orange-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -630,6 +658,14 @@
                   </p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="promoteTodo('sysmon', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
+                          title="Add to To-Do list"
+                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Promote
+                  </button>
                   <button @click="analyzeAlert(alert, 'sysmon')"
                           class="px-2 py-1 rounded bg-red-900/50 text-red-300 hover:bg-red-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -724,6 +760,14 @@
                      x-text="alert.path"></p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="promoteTodo('defender', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
+                          title="Add to To-Do list"
+                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Promote
+                  </button>
                   <button @click="analyzeAlert(alert, 'defender')"
                           class="px-2 py-1 rounded bg-green-900/50 text-green-300 hover:bg-green-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1743,6 +1787,7 @@
                     <th class="px-3 py-2 font-medium w-40">Package</th>
                     <th class="px-3 py-2 font-medium">Description</th>
                     <th class="px-3 py-2 font-medium w-24">Detected</th>
+                    <th class="px-3 py-2 font-medium w-20"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1775,10 +1820,17 @@
                         <div class="line-clamp-2" x-text="vuln.description"></div>
                       </td>
                       <td class="px-3 py-2 text-gray-500" x-text="fmtTime(vuln.detected_at)"></td>
+                      <td class="px-3 py-2">
+                        <button @click="promoteTodo('cve', vuln.cve_id, vuln, vulnDetail.agentId, vuln.severity, vuln.cve_id)"
+                                title="Add to To-Do list"
+                                class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition whitespace-nowrap">
+                          Promote
+                        </button>
+                      </td>
                     </tr>
                   </template>
                   <tr x-show="agent._expanded && !vulnDetail.loading && vulnDetail.vulns.length === 0">
-                    <td colspan="6" class="px-5 py-4 text-center text-gray-500">No vulnerabilities found for this filter.</td>
+                    <td colspan="7" class="px-5 py-4 text-center text-gray-500">No vulnerabilities found for this filter.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1795,6 +1847,186 @@
     </div>
   </div>
 </div><!-- end vulnerabilities view -->
+
+<!-- ── To-Do View ──────────────────────────────────────────────────────────── -->
+<div x-show="mainView === 'todos'" x-cloak class="h-[calc(100vh-97px)] overflow-y-auto">
+  <div class="max-w-6xl mx-auto p-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-xl font-semibold text-white">To-Do List</h2>
+        <p class="text-gray-500 text-xs mt-1">Remediation tracking — grouped by machine</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span x-show="todos.total > 0" class="text-xs text-gray-500">
+          <span x-text="todos.total"></span> item(s)
+        </span>
+        <button @click="loadTodos()" class="px-3 py-1.5 rounded bg-surface-700 text-gray-300 hover:bg-surface-600 text-xs flex items-center gap-1.5">
+          <svg class="w-3 h-3" :class="todos.loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Promote message -->
+    <div x-show="todos.promoteMessage" x-cloak
+         :class="todos.promoteError ? 'bg-red-900/30 border-red-800 text-red-300' : 'bg-green-900/30 border-green-800 text-green-300'"
+         class="border rounded-lg p-3 mb-4 text-sm" x-text="todos.promoteMessage"></div>
+
+    <!-- Loading -->
+    <div x-show="todos.loading && !todos._loaded" class="text-center py-12 text-gray-500">
+      <svg class="w-6 h-6 animate-spin inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      <p class="mt-2">Loading to-dos...</p>
+    </div>
+
+    <!-- Error -->
+    <div x-show="todos.error" class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-4 text-red-300 text-sm" x-text="todos.error"></div>
+
+    <!-- Empty state -->
+    <div x-show="todos._loaded && todos.total === 0" class="text-center py-16">
+      <svg class="w-12 h-12 mx-auto text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+      </svg>
+      <p class="text-gray-400">No to-do items. Promote alerts or vulnerabilities to get started.</p>
+    </div>
+
+    <!-- Grouped todos -->
+    <div x-show="todos._loaded && todos.total > 0" class="space-y-6">
+      <template x-for="(machineItems, machine) in todos.grouped" :key="machine">
+        <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+
+          <!-- Machine header -->
+          <div class="px-5 py-3 bg-surface-900 border-b border-surface-600 flex items-center justify-between">
+            <h3 class="text-white font-medium flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zm-9-2a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              <span x-text="machine"></span>
+              <span class="text-xs bg-surface-700 text-gray-400 px-2 py-0.5 rounded" x-text="machineItems.length + ' item(s)'"></span>
+            </h3>
+          </div>
+
+          <!-- Machine items -->
+          <div class="divide-y divide-surface-700">
+            <template x-for="item in machineItems" :key="item.id">
+              <div class="px-5 py-3">
+
+                <!-- Summary row -->
+                <div class="flex items-start justify-between gap-3 cursor-pointer" @click="toggleTodoDetail(item.id)">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span :class="severityBadge(item.severity)" class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase" x-text="item.severity || 'unknown'"></span>
+                      <span class="text-gray-400 text-xs bg-surface-700 px-1.5 py-0.5 rounded" x-text="item.source_type"></span>
+                      <span x-show="item.cve_id" class="text-blue-400 text-xs font-mono" x-text="item.cve_id"></span>
+                      <span x-show="!item.cve_id" class="text-gray-500 text-xs truncate" x-text="item.source_id.slice(0, 20) + '...'"></span>
+                    </div>
+                    <div class="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                      <span x-text="'Status: ' + item.status"></span>
+                      <template x-if="item.due_date">
+                        <span class="text-yellow-400" x-text="'Due: ' + item.due_date.slice(0, 10)"></span>
+                      </template>
+                    </div>
+                  </div>
+                  <svg class="w-4 h-4 text-gray-500 transition-transform shrink-0" :class="todoDetail.expandedId === item.id ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </div>
+
+                <!-- Expanded detail -->
+                <div x-show="todoDetail.expandedId === item.id" x-cloak class="mt-3 pt-3 border-t border-surface-700 space-y-3">
+
+                  <!-- Notes -->
+                  <div>
+                    <label class="text-xs text-gray-500 block mb-1">Notes</label>
+                    <textarea @change="updateTodo(item.id, { notes: $event.target.value })"
+                              :value="item.notes"
+                              placeholder="Add notes about progress, blockers, next steps..."
+                              class="w-full bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 resize-none" rows="2"></textarea>
+                  </div>
+
+                  <!-- Status, Priority, Due Date row -->
+                  <div class="grid grid-cols-3 gap-3">
+                    <div>
+                      <label class="text-xs text-gray-500 block mb-1">Status</label>
+                      <select @change="updateTodo(item.id, { status: $event.target.value })"
+                              :value="item.status"
+                              class="w-full bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                        <option value="pending">Pending</option>
+                        <option value="remediated">Remediated</option>
+                        <option value="ignored">Ignored</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="text-xs text-gray-500 block mb-1">Priority</label>
+                      <select @change="updateTodo(item.id, { priority: parseInt($event.target.value) })"
+                              :value="item.priority || 0"
+                              class="w-full bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                        <option value="0">Normal</option>
+                        <option value="1">High</option>
+                        <option value="2">Critical</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="text-xs text-gray-500 block mb-1">Due Date</label>
+                      <input type="date" @change="updateTodo(item.id, { due_date: $event.target.value })"
+                             :value="item.due_date ? item.due_date.slice(0, 10) : ''"
+                             class="w-full bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
+                    </div>
+                  </div>
+
+                  <!-- Tags -->
+                  <div>
+                    <label class="text-xs text-gray-500 block mb-1">Tags (comma-separated)</label>
+                    <input type="text" @change="updateTodo(item.id, { tags: $event.target.value.split(',').map(t => t.trim()).filter(t => t) })"
+                           :value="item.tags.join(', ')"
+                           placeholder="e.g. blocked, vendor-response, patch-pending"
+                           class="w-full bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500">
+                  </div>
+
+                  <!-- Correlation -->
+                  <div x-show="todoDetail.expandedId === item.id">
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="text-xs text-gray-500">Affected Machines</label>
+                      <span x-show="todoDetail.relatedLoading" class="text-xs text-gray-600">Loading...</span>
+                    </div>
+                    <template x-if="todoDetail.related.length > 0">
+                      <div class="space-y-1">
+                        <template x-for="related in todoDetail.related" :key="related.id">
+                          <div class="flex items-center justify-between bg-surface-900 px-2 py-1 rounded text-xs">
+                            <span class="text-gray-400" x-text="related.machine"></span>
+                            <span :class="severityBadge(related.severity)" class="px-1 py-0.5 rounded text-xs"  x-text="related.severity"></span>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                    <div x-show="todoDetail.related.length === 0" class="text-xs text-gray-600 py-1">No other machines affected</div>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="flex items-center gap-2 pt-2 border-t border-surface-700">
+                    <button @click="deleteTodo(item.id)"
+                            class="px-2 py-1 rounded bg-red-900/30 text-red-300 hover:bg-red-900/50 text-xs transition">
+                      Delete
+                    </button>
+                    <span class="text-xs text-gray-600">Created: <span x-text="fmtTime(item.created_at)"></span></span>
+                  </div>
+                </div>
+
+              </div>
+            </template>
+          </div>
+
+        </div>
+      </template>
+    </div>
+
+  </div>
+</div><!-- end todo view -->
 
 <!-- ── Settings View ──────────────────────────────────────────────────────── -->
 <div x-show="mainView === 'settings'" x-cloak class="flex h-[calc(100vh-97px)]">
@@ -2373,6 +2605,14 @@ function dashboard() {
     vulns: {
       loading: false, error: null, _loaded: false,
       agents: [], totalVulns: 0,
+    },
+    todos: {
+      loading: false, error: null, _loaded: false,
+      grouped: {}, total: 0,
+      promoteMessage: null, promoteError: false,
+    },
+    todoDetail: {
+      expandedId: null, relatedLoading: false, related: [],
     },
     kev: {
       loading: false, pulling: false, error: null,
@@ -3478,6 +3718,112 @@ function dashboard() {
       if (this.vulnDetail.loading || !this.vulnDetail.hasMore) return;
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
         this.loadAgentVulns(this.vulnDetail.agentId, this.vulnDetail.sevFilter, true);
+      }
+    },
+
+    // ── To-Do methods ──────────────────────────────────────────────────────
+
+    async loadTodos() {
+      this.todos.loading = true;
+      this.todos.error = null;
+      try {
+        const r = await fetch('/api/todos');
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.todos.grouped = data.grouped;
+        this.todos.total = data.total;
+        this.todos._loaded = true;
+      } catch(e) {
+        this.todos.error = `Failed to load todos: ${e.message}`;
+      } finally {
+        this.todos.loading = false;
+      }
+    },
+
+    async promoteTodo(sourceType, sourceId, sourceData, machine, severity = '', cveId = '') {
+      this.todos.promoteMessage = null;
+      this.todos.promoteError = false;
+      try {
+        const r = await fetch('/api/todos', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            source_type: sourceType,
+            source_id: sourceId,
+            source_data: sourceData,
+            machine,
+            severity,
+            cve_id: cveId,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Promote failed');
+        this.todos.promoteMessage = data.is_new ? 'Added to To-Do list' : 'Already in To-Do list';
+        this.todos.promoteError = false;
+        // Reload todos if we're on that tab
+        if (this.mainView === 'todos') {
+          await this.loadTodos();
+        }
+      } catch(e) {
+        this.todos.promoteMessage = `Error: ${e.message}`;
+        this.todos.promoteError = true;
+      }
+    },
+
+    async updateTodo(id, updates) {
+      try {
+        const r = await fetch(`/api/todos/${id}`, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(updates),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Update failed');
+        await this.loadTodos();
+      } catch(e) {
+        console.error('Failed to update todo:', e);
+        alert(`Error updating: ${e.message}`);
+      }
+    },
+
+    async deleteTodo(id) {
+      if (!confirm('Delete this to-do item?')) return;
+      try {
+        const r = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Delete failed');
+        await this.loadTodos();
+      } catch(e) {
+        console.error('Failed to delete todo:', e);
+        alert(`Error deleting: ${e.message}`);
+      }
+    },
+
+    async loadRelatedTodos(id) {
+      this.todoDetail.relatedLoading = true;
+      try {
+        const r = await fetch(`/api/todos/${id}/related`);
+        const data = await r.json();
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        this.todoDetail.related = data.related;
+      } catch(e) {
+        console.error('Failed to load related todos:', e);
+        this.todoDetail.related = [];
+      } finally {
+        this.todoDetail.relatedLoading = false;
+      }
+    },
+
+    toggleTodoDetail(id) {
+      if (this.todoDetail.expandedId === id) {
+        this.todoDetail.expandedId = null;
+        this.todoDetail.related = [];
+      } else {
+        this.todoDetail.expandedId = id;
+        this.loadRelatedTodos(id);
       }
     },
 
