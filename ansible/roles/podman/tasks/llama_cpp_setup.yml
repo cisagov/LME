@@ -25,7 +25,7 @@
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     if ! podman secret ls | grep -q pgvector; then
       password=$(</dev/urandom tr -dc A-Za-z0-9 | head -c30)
-      echo -n $password | podman secret create --driver shell pgvector -
+      echo -n $password | podman secret create --driver file pgvector -
     fi
   args:
     executable: /bin/bash
@@ -153,7 +153,7 @@
     source /root/.profile
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     if ! podman secret ls | grep -q llm-keys; then
-      echo -n '# empty' | podman secret create --driver shell llm-keys -
+      echo -n '# empty' | podman secret create --driver file llm-keys -
     fi
   args:
     executable: /bin/bash
