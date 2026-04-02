@@ -155,7 +155,7 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
-  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules(); if (!kibanaRules._loaded) loadKibanaRules(); if (!sigma._loaded) loadSigmaStatus()"
+  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules(); if (!kibanaRules._loaded) loadKibanaRules(); if (!sigma._loaded) loadSigmaStatus(); if (!prebuilt.status) loadPrebuiltStatus()"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1116,6 +1116,39 @@
           </p>
         </div><!-- end ElastAlert2 section -->
 
+        <!-- ══ Import Elastic Prebuilt Rules ══════════════════════════════ -->
+        <div class="mb-4 flex items-center gap-3">
+          <button @click="installPrebuiltRules()" :disabled="prebuilt.installing || (prebuilt.status && prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0)"
+                  class="px-4 py-2 rounded bg-yellow-600 hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-medium transition flex items-center gap-2">
+            <template x-if="prebuilt.installing">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            </template>
+            <template x-if="!prebuilt.installing">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </template>
+            <span x-text="prebuilt.installing ? 'Importing… this may take a minute' : 'Import Elastic Prebuilt Rules'"></span>
+          </button>
+          <template x-if="prebuilt.status">
+            <span class="text-xs text-gray-500">
+              <span x-text="prebuilt.status.rules_installed + ' installed'"></span>
+              <template x-if="prebuilt.status.rules_not_installed > 0">
+                <span class="text-yellow-400" x-text="' · ' + prebuilt.status.rules_not_installed + ' available'"></span>
+              </template>
+              <template x-if="prebuilt.status.rules_not_updated > 0">
+                <span class="text-blue-400" x-text="' · ' + prebuilt.status.rules_not_updated + ' updates'"></span>
+              </template>
+              <template x-if="prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0">
+                <span class="text-green-400"> · Up to date</span>
+              </template>
+            </span>
+          </template>
+          <template x-if="prebuilt.message">
+            <span class="text-xs" :class="prebuilt.error ? 'text-red-400' : 'text-green-400'" x-text="prebuilt.message"></span>
+          </template>
+        </div>
+
         <!-- ══ Kibana Detection Rules ════════════════════════════════════════ -->
         <div class="mb-6">
           <div class="flex items-center justify-between gap-2 mb-3">
@@ -1155,7 +1188,30 @@
             </div>
           </div>
 
-          <!-- Bulk actions bar -->
+          <!-- Bulk enable/disable by OS -->
+          <div class="flex items-center gap-3 mb-2 px-1 flex-wrap">
+            <span class="text-[10px] text-gray-500 uppercase tracking-wider">Bulk by OS:</span>
+            <template x-for="tag in ['OS: Windows', 'OS: Linux', 'OS: macOS']" :key="tag">
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-400" x-text="tag.replace('OS: ', '')"></span>
+                <button @click="bulkActionByTag('enable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-green-800 hover:bg-green-700 text-white transition">Enable All</button>
+                <button @click="bulkActionByTag('disable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-red-800 hover:bg-red-700 text-white transition">Disable All</button>
+              </div>
+            </template>
+            <template x-for="tag in ['Sigma Windows', 'Sigma Linux', 'Sigma macOS']" :key="tag">
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-400" x-text="tag"></span>
+                <button @click="bulkActionByTag('enable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-green-800 hover:bg-green-700 text-white transition">Enable All</button>
+                <button @click="bulkActionByTag('disable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-red-800 hover:bg-red-700 text-white transition">Disable All</button>
+              </div>
+            </template>
+          </div>
+
+          <!-- Bulk actions bar (selected rules) -->
           <div x-show="kibanaRules.selected.size > 0" x-cloak
                class="flex items-center gap-3 mb-2 px-3 py-2 bg-blue-900/20 border border-blue-800 rounded-lg text-xs">
             <span class="text-blue-300 font-medium" x-text="kibanaRules.selected.size + ' selected'"></span>
@@ -2396,6 +2452,10 @@ function dashboard() {
       _pollTimer: null,
     },
 
+    prebuilt: {
+      loading: false, installing: false,
+      status: null, message: '', error: false,
+    },
     kibanaRules: {
       loading: false, rules: [], total: 0,
       page: 1, perPage: 50,
@@ -2428,6 +2488,57 @@ function dashboard() {
     clearPastedText() {
       this.pastedText = '';
       this.submitResponse = '';
+    },
+
+    async loadPrebuiltStatus() {
+      this.prebuilt.loading = true;
+      try {
+        const r = await fetch('/api/rules/prebuilt/status');
+        if (r.ok) this.prebuilt.status = await r.json();
+      } catch(e) { console.error('Prebuilt status failed:', e); }
+      finally { this.prebuilt.loading = false; }
+    },
+
+    async installPrebuiltRules() {
+      this.prebuilt.installing = true;
+      this.prebuilt.message = '';
+      this.prebuilt.error = false;
+      try {
+        const r = await fetch('/api/rules/prebuilt/install', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        const parts = [];
+        if (data.rules_installed > 0) parts.push(`${data.rules_installed} rules installed`);
+        if (data.rules_skipped > 0) parts.push(`${data.rules_skipped} skipped`);
+        if (data.rules_failed > 0) parts.push(`${data.rules_failed} failed`);
+        this.prebuilt.message = parts.length ? parts.join(', ') : 'All prebuilt rules are already installed';
+        await this.loadPrebuiltStatus();
+        await this.loadKibanaRules();
+      } catch(e) {
+        this.prebuilt.message = `Import failed: ${e.message}`;
+        this.prebuilt.error = true;
+      } finally {
+        this.prebuilt.installing = false;
+      }
+    },
+
+    async bulkActionByTag(action, tag) {
+      const label = tag.replace('OS: ', '').replace('Sigma ', 'Sigma ');
+      if (!confirm(`${action === 'enable' ? 'Enable' : 'Disable'} ALL ${label} rules?`)) return;
+      this.kibanaRules.loading = true;
+      try {
+        const r = await fetch('/api/rules/kibana/bulk-action', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action, query: `alert.attributes.tags:"${tag}"` }),
+        });
+        if (!r.ok) { const d = await r.json(); throw new Error(d.detail || `HTTP ${r.status}`); }
+        await this.loadKibanaRules();
+      } catch(e) {
+        console.error('Bulk action failed:', e);
+        alert(`Bulk action failed: ${e.message}`);
+        this.kibanaRules.loading = false;
+      }
     },
 
     async loadKibanaRules() {
