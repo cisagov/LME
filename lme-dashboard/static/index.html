@@ -65,10 +65,22 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
+
+    /* calendar icon visibility on dark background */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1) brightness(1.2);
+      cursor: pointer;
+    }
   </style>
 </head>
 
 <body class="dark h-full text-gray-300 font-mono text-sm antialiased" x-data="dashboard()" x-init="init()">
+
+<!-- ── Toast Notification ──────────────────────────────────────────────────── -->
+<div x-show="todos.toastMessage" x-cloak x-transition
+     :class="todos.toastError ? 'bg-red-900 border-red-700 text-red-300' : 'bg-green-900 border-green-700 text-green-300'"
+     class="fixed bottom-6 right-6 z-50 border rounded-lg px-4 py-3 text-sm shadow-xl"
+     x-text="todos.toastMessage"></div>
 
 <!-- ── Header ─────────────────────────────────────────────────────────────── -->
 <header class="bg-surface-800 border-b border-surface-600 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
@@ -155,7 +167,7 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
-  <button @click="mainView = 'todos'; if(!todos._loaded) loadTodos()"
+  <button @click="mainView = 'todos'; loadTodos()"
           :class="mainView === 'todos' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -443,12 +455,18 @@
                 <!-- actions -->
                 <div class="flex items-center gap-1.5 shrink-0">
                   <button @click="promoteTodo('kibana', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
-                          title="Add to To-Do list"
-                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          :disabled="todos.promotedKeys['kibana:' + alert.id]"
+                          :title="todos.promotedKeys['kibana:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
+                          :class="todos.promotedKeys['kibana:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
+                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
+                    <svg x-show="!todos.promotedKeys['kibana:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Promote
+                    <svg x-show="todos.promotedKeys['kibana:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span x-show="!todos.promotedKeys['kibana:' + alert.id]">Promote</span>
+                    <span x-show="todos.promotedKeys['kibana:' + alert.id]">Promoted</span>
                   </button>
                   <button @click="analyzeAlert(alert, 'kibana')"
                           class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition flex items-center gap-1">
@@ -553,12 +571,18 @@
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                   <button @click="promoteTodo('wazuh', alert.id, alert._raw, alert.agent_name || 'unknown', alert.severity)"
-                          title="Add to To-Do list"
-                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          :disabled="todos.promotedKeys['wazuh:' + alert.id]"
+                          :title="todos.promotedKeys['wazuh:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
+                          :class="todos.promotedKeys['wazuh:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
+                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
+                    <svg x-show="!todos.promotedKeys['wazuh:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Promote
+                    <svg x-show="todos.promotedKeys['wazuh:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span x-show="!todos.promotedKeys['wazuh:' + alert.id]">Promote</span>
+                    <span x-show="todos.promotedKeys['wazuh:' + alert.id]">Promoted</span>
                   </button>
                   <button @click="analyzeAlert(alert, 'wazuh')"
                           class="px-2 py-1 rounded bg-orange-900/50 text-orange-300 hover:bg-orange-800 text-xs transition flex items-center gap-1">
@@ -659,12 +683,18 @@
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                   <button @click="promoteTodo('sysmon', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
-                          title="Add to To-Do list"
-                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          :disabled="todos.promotedKeys['sysmon:' + alert.id]"
+                          :title="todos.promotedKeys['sysmon:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
+                          :class="todos.promotedKeys['sysmon:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
+                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
+                    <svg x-show="!todos.promotedKeys['sysmon:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Promote
+                    <svg x-show="todos.promotedKeys['sysmon:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span x-show="!todos.promotedKeys['sysmon:' + alert.id]">Promote</span>
+                    <span x-show="todos.promotedKeys['sysmon:' + alert.id]">Promoted</span>
                   </button>
                   <button @click="analyzeAlert(alert, 'sysmon')"
                           class="px-2 py-1 rounded bg-red-900/50 text-red-300 hover:bg-red-800 text-xs transition flex items-center gap-1">
@@ -761,12 +791,18 @@
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                   <button @click="promoteTodo('defender', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
-                          title="Add to To-Do list"
-                          class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          :disabled="todos.promotedKeys['defender:' + alert.id]"
+                          :title="todos.promotedKeys['defender:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
+                          :class="todos.promotedKeys['defender:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
+                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
+                    <svg x-show="!todos.promotedKeys['defender:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Promote
+                    <svg x-show="todos.promotedKeys['defender:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span x-show="!todos.promotedKeys['defender:' + alert.id]">Promote</span>
+                    <span x-show="todos.promotedKeys['defender:' + alert.id]">Promoted</span>
                   </button>
                   <button @click="analyzeAlert(alert, 'defender')"
                           class="px-2 py-1 rounded bg-green-900/50 text-green-300 hover:bg-green-800 text-xs transition flex items-center gap-1">
@@ -1821,10 +1857,19 @@
                       </td>
                       <td class="px-3 py-2 text-gray-500" x-text="fmtTime(vuln.detected_at)"></td>
                       <td class="px-3 py-2">
-                        <button @click="promoteTodo('cve', vuln.cve_id, vuln, vulnDetail.agentId, vuln.severity, vuln.cve_id)"
-                                title="Add to To-Do list"
-                                class="px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs transition whitespace-nowrap">
-                          Promote
+                        <button @click="promoteTodo('cve', vuln.cve_id, vuln, vulnDetail.agentName || vulnDetail.agentId, vuln.severity, vuln.cve_id)"
+                                :disabled="todos.promotedKeys['cve:' + vuln.cve_id]"
+                                :title="todos.promotedKeys['cve:' + vuln.cve_id] ? 'Already in To-Do list' : 'Add to To-Do list'"
+                                :class="todos.promotedKeys['cve:' + vuln.cve_id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
+                                class="px-2 py-1 rounded text-xs transition whitespace-nowrap flex items-center gap-1">
+                          <svg x-show="!todos.promotedKeys['cve:' + vuln.cve_id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                          </svg>
+                          <svg x-show="todos.promotedKeys['cve:' + vuln.cve_id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                          </svg>
+                          <span x-show="!todos.promotedKeys['cve:' + vuln.cve_id]">Promote</span>
+                          <span x-show="todos.promotedKeys['cve:' + vuln.cve_id]">Promoted</span>
                         </button>
                       </td>
                     </tr>
@@ -1928,7 +1973,7 @@
                     <div class="mt-1 flex items-center gap-2 text-xs text-gray-500">
                       <span x-text="'Status: ' + item.status"></span>
                       <template x-if="item.due_date">
-                        <span class="text-yellow-400" x-text="'Due: ' + item.due_date.slice(0, 10)"></span>
+                        <span :class="dueDateClass(item.due_date, item.status)" x-text="'Due: ' + item.due_date.slice(0, 10)"></span>
                       </template>
                     </div>
                   </div>
@@ -1981,11 +2026,53 @@
 
                   <!-- Tags -->
                   <div>
-                    <label class="text-xs text-gray-500 block mb-1">Tags (comma-separated)</label>
-                    <input type="text" @change="updateTodo(item.id, { tags: $event.target.value.split(',').map(t => t.trim()).filter(t => t) })"
-                           :value="item.tags.join(', ')"
-                           placeholder="e.g. blocked, vendor-response, patch-pending"
-                           class="w-full bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500">
+                    <label class="text-xs text-gray-500 block mb-1">Tags</label>
+                    <!-- Existing tags as chips -->
+                    <div x-show="item.tags.length > 0" class="flex flex-wrap gap-2 mb-2">
+                      <template x-for="tag in item.tags" :key="tag">
+                        <span class="inline-flex items-center gap-1 bg-purple-900/30 text-purple-300 px-2 py-1 rounded text-xs border border-purple-700/50">
+                          <span x-text="tag"></span>
+                          <button @click="updateTodo(item.id, { tags: item.tags.filter(t => t !== tag) })"
+                                  class="text-purple-400 hover:text-purple-200 font-bold text-sm">×</button>
+                        </span>
+                      </template>
+                    </div>
+                    <!-- Tag input -->
+                    <div class="flex gap-2">
+                      <input type="text"
+                             :value="todos.tagInputs[item.id] || ''"
+                             @input="todos.tagInputs[item.id] = $event.target.value"
+                             @keydown.enter="(ev) => {
+                               const val = todos.tagInputs[item.id] || '';
+                               if (val.trim()) {
+                                 const newTags = [...item.tags, val.trim()];
+                                 updateTodo(item.id, { tags: newTags });
+                                 todos.tagInputs[item.id] = '';
+                               }
+                             }"
+                             @keydown.comma="(ev) => {
+                               const val = todos.tagInputs[item.id] || '';
+                               if (val.trim()) {
+                                 const newTags = [...item.tags, val.trim()];
+                                 updateTodo(item.id, { tags: newTags });
+                                 todos.tagInputs[item.id] = '';
+                                 ev.preventDefault();
+                               }
+                             }"
+                             placeholder="Add tag (Enter to save)"
+                             class="flex-1 bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500">
+                      <button @click="(ev) => {
+                        const val = todos.tagInputs[item.id] || '';
+                        if (val.trim()) {
+                          const newTags = [...item.tags, val.trim()];
+                          updateTodo(item.id, { tags: newTags });
+                          todos.tagInputs[item.id] = '';
+                        }
+                      }"
+                              class="px-2 py-1 rounded bg-surface-700 text-gray-300 hover:bg-surface-600 text-xs transition whitespace-nowrap">
+                        Add
+                      </button>
+                    </div>
                   </div>
 
                   <!-- Correlation -->
@@ -2610,6 +2697,8 @@ function dashboard() {
       loading: false, error: null, _loaded: false,
       grouped: {}, total: 0,
       promoteMessage: null, promoteError: false,
+      promotedKeys: {}, toastMessage: null, toastError: false,
+      tagInputs: {},
     },
     todoDetail: {
       expandedId: null, relatedLoading: false, related: [],
@@ -3680,13 +3769,13 @@ function dashboard() {
       }
     },
 
-    vulnDetail: { vulns: [], loading: false, sevFilter: '', agentId: null, total: 0, hasMore: false },
+    vulnDetail: { vulns: [], loading: false, sevFilter: '', agentId: null, agentName: null, total: 0, hasMore: false },
     _vulnPageSize: 50,
 
     async toggleAgentDetail(agent) {
       agent._expanded = !agent._expanded;
       if (agent._expanded) {
-        this.vulnDetail = { vulns: [], loading: false, sevFilter: '', agentId: agent.agent_id, total: 0, hasMore: false };
+        this.vulnDetail = { vulns: [], loading: false, sevFilter: '', agentId: agent.agent_id, agentName: agent.agent_name, total: 0, hasMore: false };
         await this.loadAgentVulns(agent.agent_id, '', false);
       }
     },
@@ -3694,7 +3783,7 @@ function dashboard() {
     async loadAgentVulns(agentId, sevFilter, append) {
       const offset = append ? this.vulnDetail.vulns.length : 0;
       if (!append) {
-        this.vulnDetail = { vulns: [], loading: true, sevFilter, agentId, total: 0, hasMore: false };
+        this.vulnDetail = { vulns: [], loading: true, sevFilter, agentId, agentName: this.vulnDetail.agentName, total: 0, hasMore: false };
       } else {
         this.vulnDetail = { ...this.vulnDetail, loading: true };
       }
@@ -3736,6 +3825,14 @@ function dashboard() {
         this.todos.grouped = data.grouped;
         this.todos.total = data.total;
         this.todos._loaded = true;
+        // Build promotedKeys from todos data
+        this.todos.promotedKeys = {};
+        for (const machine in data.grouped) {
+          for (const item of data.grouped[machine]) {
+            const key = item.source_type + ':' + item.source_id;
+            this.todos.promotedKeys[key] = true;
+          }
+        }
       } catch(e) {
         this.todos.error = `Failed to load todos: ${e.message}`;
       } finally {
@@ -3744,9 +3841,8 @@ function dashboard() {
     },
 
     async promoteTodo(sourceType, sourceId, sourceData, machine, severity = '', cveId = '') {
-      this.todos.promoteMessage = null;
-      this.todos.promoteError = false;
       try {
+        const key = sourceType + ':' + sourceId;
         const r = await fetch('/api/todos', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -3761,20 +3857,40 @@ function dashboard() {
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || 'Promote failed');
-        this.todos.promoteMessage = data.is_new ? 'Added to To-Do list' : 'Already in To-Do list';
-        this.todos.promoteError = false;
+        // Mark as promoted optimistically
+        this.$set(this.todos.promotedKeys, key, true);
+        // Show toast
+        this.todos.toastMessage = data.is_new ? '✓ Added to To-Do list' : '✓ Already in To-Do list';
+        this.todos.toastError = false;
+        // Auto-dismiss toast after 2.5s
+        setTimeout(() => {
+          this.todos.toastMessage = null;
+        }, 2500);
         // Reload todos if we're on that tab
         if (this.mainView === 'todos') {
           await this.loadTodos();
         }
       } catch(e) {
-        this.todos.promoteMessage = `Error: ${e.message}`;
-        this.todos.promoteError = true;
+        this.todos.toastMessage = `✗ Error: ${e.message}`;
+        this.todos.toastError = true;
+        setTimeout(() => {
+          this.todos.toastMessage = null;
+        }, 3000);
       }
     },
 
     async updateTodo(id, updates) {
       try {
+        // Optimistic update: find and update the local item first
+        let found = null;
+        for (const machine in this.todos.grouped) {
+          found = this.todos.grouped[machine].find(item => item.id === id);
+          if (found) {
+            Object.assign(found, updates);
+            break;
+          }
+        }
+        // Then make the server call
         const r = await fetch(`/api/todos/${id}`, {
           method: 'PATCH',
           headers: {'Content-Type': 'application/json'},
@@ -3782,10 +3898,12 @@ function dashboard() {
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || 'Update failed');
-        await this.loadTodos();
+        // Success - no need to reload, local update is good
       } catch(e) {
         console.error('Failed to update todo:', e);
         alert(`Error updating: ${e.message}`);
+        // Reload on error to restore correct state
+        await this.loadTodos();
       }
     },
 
@@ -4004,6 +4122,18 @@ function dashboard() {
         low:      'bg-green-900 text-green-300',
         unknown:  'bg-surface-700 text-gray-400',
       }[sev] || 'bg-surface-700 text-gray-400';
+    },
+
+    dueDateClass(dueDate, status) {
+      if (!dueDate) return '';
+      const due = new Date(dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (status === 'remediated') return 'text-green-400';
+      if (status === 'ignored') return 'text-gray-500';
+      if (due < today && status === 'pending') return 'text-red-400';
+      if (status === 'pending') return 'text-yellow-400';
+      return '';
     },
   };
 }
