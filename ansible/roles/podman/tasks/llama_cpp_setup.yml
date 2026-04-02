@@ -299,24 +299,6 @@
     daemon_reload: yes
   become: yes
 
-- name: Enable and start llama.cpp service
-  systemd:
-    name: lme-llama-cpp.service
-    enabled: yes
-    state: started
-  become: yes
-  when: model_download is succeeded
-
-# Removed wait for llama.cpp - not needed
-
-- name: Enable and start LiteLLM service
-  systemd:
-    name: lme-litellm.service
-    enabled: yes
-    state: started
-  become: yes
-  when: model_download is succeeded
-
 - name: Enable and start pgvector service
   systemd:
     name: lme-pgvector.service
@@ -331,6 +313,46 @@
     state: started
   become: yes
   when: embed_model_download is succeeded
+
+- name: Run LME documentation ingestion into pgvector
+  shell: |
+    source /root/.profile
+    sudo -i podman run --rm --network lme \
+      --secret pgvector,type=env,target=PGVECTOR_PASS \
+      -v {{ clone_directory }}/scripts:/scripts:z \
+      python:3.11-slim bash -c \
+      "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py --reset"
+  args:
+    executable: /bin/bash
+  become: yes
+  when: embed_model_download is succeeded
+  register: ingest_result
+  retries: 5
+  delay: 30
+  until: ingest_result is not failed
+
+- name: Enable and start llama.cpp service
+  systemd:
+    name: lme-llama-cpp.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+  ignore_errors: yes
+  register: llama_cpp_start
+
+- name: Wait for llama.cpp to be ready
+  pause:
+    seconds: 5
+  when: llama_cpp_start is succeeded
+
+- name: Enable and start LiteLLM service
+  systemd:
+    name: lme-litellm.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
 
 - name: Enable and start LME Dashboard service
   systemd:
@@ -363,23 +385,6 @@
     enabled: yes
     state: started
   become: yes
-
-- name: Run LME documentation ingestion into pgvector
-  shell: |
-    source /root/.profile
-    sudo -i podman run --rm --network lme \
-      --secret pgvector,type=env,target=PGVECTOR_PASS \
-      -v {{ clone_directory }}/scripts:/scripts:z \
-      python:3.11-slim bash -c \
-      "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py --reset"
-  args:
-    executable: /bin/bash
-  become: yes
-  when: embed_model_download is succeeded
-  register: ingest_result
-  retries: 5
-  delay: 30
-  until: ingest_result is not failed
 
 - name: Display llama.cpp setup success message
   debug:

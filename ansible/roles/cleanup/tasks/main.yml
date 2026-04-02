@@ -40,7 +40,7 @@
   block:
     - name: Update all existing indices to have 0 replicas
       uri:
-        url: "{{ local_es_url }}/_settings"
+        url: "{{ local_es_url }}/_settings?expand_wildcards=all"
         method: PUT
         user: "{{ elastic_username }}"
         password: "{{ elastic_password }}"
@@ -59,7 +59,7 @@
 
     - name: Update any remaining data streams to have 0 replicas
       uri:
-        url: "{{ local_es_url }}/.ds-*/_settings"
+        url: "{{ local_es_url }}/.ds-*/_settings?expand_wildcards=all"
         method: PUT
         user: "{{ elastic_username }}"
         password: "{{ elastic_password }}"

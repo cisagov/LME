@@ -163,7 +163,7 @@ PGVECTOR_PORT = int(os.getenv("PGVECTOR_PORT", "5432"))
 PGVECTOR_DB = os.getenv("PGVECTOR_DB", "lme_vectors")
 PGVECTOR_USER = os.getenv("PGVECTOR_USER", "lme")
 PGVECTOR_PASS = os.getenv("PGVECTOR_PASS", "")
-EMBED_URL = os.getenv("EMBED_URL", "http://lme-embeddings:8081")
+EMBED_URL = os.getenv("EMBED_URL", "https://lme-embeddings:8081")
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "10"))
 RAG_MIN_SIM = float(os.getenv("RAG_MIN_SIM", "0.55"))  # drop chunks below this similarity
 RAG_MIN_CHARS = int(os.getenv("RAG_MIN_CHARS", "200"))   # drop stub/redirect chunks
@@ -440,7 +440,7 @@ async def wazuh_alerts(
 
     query = {
         "size": size,
-        "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
+        "sort": [{"rule.level": {"order": "desc"}}, {"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
         "query": {
             "bool": {
                 "filter": filters,
@@ -465,9 +465,9 @@ async def wazuh_alerts(
     }
 
     if search_after:
-        parts = search_after.split(",", 1)
-        if len(parts) == 2:
-            query["search_after"] = [parts[0], parts[1]]
+        parts = search_after.split(",", 2)
+        if len(parts) == 3:
+            query["search_after"] = [int(parts[0]), parts[1], parts[2]]
 
     async with es_client() as c:
         try:
@@ -526,8 +526,8 @@ async def wazuh_alerts(
     next_cursor = ""
     if hits:
         last_sort = hits[-1].get("sort", [])
-        if len(last_sort) >= 2:
-            next_cursor = f"{last_sort[0]},{last_sort[1]}"
+        if len(last_sort) >= 3:
+            next_cursor = f"{last_sort[0]},{last_sort[1]},{last_sort[2]}"
 
     return {"total": total, "returned": len(alerts), "alerts": alerts, "next_cursor": next_cursor}
 
@@ -592,7 +592,18 @@ async def sysmon_alerts(
 
     query = {
         "size": size,
-        "sort": [{"@timestamp": {"order": "desc"}}, {"_doc": {"order": "desc"}}],
+        "sort": [
+            {"_script": {
+                "type": "number",
+                "order": "desc",
+                "script": {
+                    "lang": "painless",
+                    "source": "def eid = doc['winlog.event_id'].size() > 0 ? doc['winlog.event_id'].value : ''; if (['8','10','25'].contains(eid)) return 3; if (['6','9','19','20','21','255'].contains(eid)) return 2; if (['15','17','18'].contains(eid)) return 1; return 0;"
+                }
+            }},
+            {"@timestamp": {"order": "desc"}},
+            {"_doc": {"order": "desc"}},
+        ],
         "query": {
             "bool": {
                 "filter": filters,
@@ -613,9 +624,9 @@ async def sysmon_alerts(
     }
 
     if search_after:
-        parts = search_after.split(",", 1)
-        if len(parts) == 2:
-            query["search_after"] = [parts[0], parts[1]]
+        parts = search_after.split(",", 2)
+        if len(parts) == 3:
+            query["search_after"] = [int(parts[0]), parts[1], parts[2]]
 
     async with es_client() as c:
         try:
@@ -677,8 +688,8 @@ async def sysmon_alerts(
     next_cursor = ""
     if hits:
         last_sort = hits[-1].get("sort", [])
-        if len(last_sort) >= 2:
-            next_cursor = f"{last_sort[0]},{last_sort[1]}"
+        if len(last_sort) >= 3:
+            next_cursor = f"{last_sort[0]},{last_sort[1]},{last_sort[2]}"
 
     return {"total": total, "returned": len(alerts), "alerts": alerts, "next_cursor": next_cursor}
 
@@ -1375,6 +1386,78 @@ async def chat_rag_stream(req: RagChatRequest):
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+# ── Documentation ingestion ──────────────────────────────────────────────────
+
+@app.get("/api/docs/status")
+async def docs_status():
+    """Return the number of indexed doc chunks."""
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM docs_chunks")
+            count = cur.fetchone()[0]
+            cur.execute("SELECT max(created_at) FROM docs_chunks")
+            last = cur.fetchone()[0]
+        conn.close()
+        return {
+            "chunk_count": count,
+            "last_ingested": last.isoformat() if last else None,
+        }
+    except Exception:
+        return {"chunk_count": 0, "last_ingested": None}
+
+
+@app.post("/api/docs/ingest")
+async def ingest_docs():
+    """Wipe docs_chunks and re-scrape LME documentation into pgvector."""
+    import subprocess
+
+    script = "/app/scripts/ingest_docs.py"
+    if not os.path.isfile(script):
+        script = os.path.join(os.path.dirname(__file__), "scripts", "ingest_docs.py")
+    if not os.path.isfile(script):
+        raise HTTPException(404, "ingest_docs.py not found in container")
+
+    env = os.environ.copy()
+    env["PGVECTOR_PASS"] = PGVECTOR_PASS
+    env["PGVECTOR_HOST"] = PGVECTOR_HOST
+    env["PGVECTOR_PORT"] = str(PGVECTOR_PORT)
+    env["PGVECTOR_DB"] = PGVECTOR_DB
+    env["PGVECTOR_USER"] = PGVECTOR_USER
+    env["EMBED_URL"] = EMBED_URL
+
+    try:
+        result = subprocess.run(
+            ["python3", script, "--reset"],
+            env=env, capture_output=True, text=True, timeout=600,
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(504, "Documentation ingestion timed out (10 min)")
+    except Exception as e:
+        raise HTTPException(500, f"Failed to run ingestion: {e}")
+
+    output = (result.stdout + result.stderr)[-3000:]
+
+    if result.returncode != 0:
+        raise HTTPException(500, f"Ingestion failed:\n{output}")
+
+    # Get updated count
+    try:
+        conn = _pg_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM docs_chunks")
+            count = cur.fetchone()[0]
+        conn.close()
+    except Exception:
+        count = 0
+
+    return {
+        "status": "ok",
+        "chunks_indexed": count,
+        "output": output,
+    }
 
 
 # ── Model management endpoints ───────────────────────────────────────────────
@@ -2094,6 +2177,76 @@ async def kev_status():
 async def kev_history(n: int = Query(20, ge=1, le=100)):
     """Return the last n KEV sync log entries."""
     return {"history": _read_kev_history(n)}
+
+
+@app.get("/api/kev/matched")
+async def kev_matched():
+    """Return KEV CVEs that match vulnerabilities found in the environment."""
+    catalog = _read_kev_catalog()
+    kev_cves = catalog.get("cves", {})
+    if not kev_cves or not ES_PASS:
+        return {"matched": [], "total": 0}
+
+    kev_ids = list(kev_cves.keys())
+
+    # Find which KEV CVEs exist in the vuln index, grouped by CVE
+    query = {
+        "size": 0,
+        "query": {"terms": {"vulnerability.id": kev_ids}},
+        "aggs": {
+            "by_cve": {
+                "terms": {"field": "vulnerability.id", "size": 500},
+                "aggs": {
+                    "severity": {"terms": {"field": "vulnerability.severity", "size": 1}},
+                    "cvss": {"max": {"field": "vulnerability.score.base"}},
+                    "agents": {"terms": {"field": "agent.name", "size": 50}},
+                    "latest": {"max": {"field": "vulnerability.detected_at"}},
+                },
+            }
+        },
+    }
+
+    try:
+        async with es_client() as c:
+            r = await c.post(f"{ES_URL}/{VULN_INDEX}/_search", auth=ES_AUTH, json=query)
+            r.raise_for_status()
+    except Exception as e:
+        raise HTTPException(502, f"Elasticsearch unreachable: {e}")
+
+    data = r.json()
+    buckets = data.get("aggregations", {}).get("by_cve", {}).get("buckets", [])
+
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    matched = []
+    for b in buckets:
+        cve_id = b["key"]
+        kev_info = kev_cves.get(cve_id, {})
+        due_date = kev_info.get("dueDate", "")
+        sev_buckets = b.get("severity", {}).get("buckets", [])
+        severity = sev_buckets[0]["key"] if sev_buckets else ""
+        agent_buckets = b.get("agents", {}).get("buckets", [])
+        matched.append({
+            "cve_id": cve_id,
+            "severity": severity,
+            "cvss": b.get("cvss", {}).get("value"),
+            "vendor": kev_info.get("vendorProject", ""),
+            "product": kev_info.get("product", ""),
+            "name": kev_info.get("vulnerabilityName", ""),
+            "description": kev_info.get("shortDescription", ""),
+            "date_added": kev_info.get("dateAdded", ""),
+            "due_date": due_date,
+            "overdue": bool(due_date and due_date < now_str),
+            "ransomware": kev_info.get("knownRansomwareCampaignUse", "Unknown"),
+            "required_action": kev_info.get("requiredAction", ""),
+            "affected_hosts": [a["key"] for a in agent_buckets],
+            "host_count": len(agent_buckets),
+            "detected_at": b.get("latest", {}).get("value_as_string", ""),
+        })
+
+    # Sort: overdue first, then by due date ascending
+    matched.sort(key=lambda x: (not x["overdue"], x["due_date"] or "9999"))
+
+    return {"matched": matched, "total": len(matched)}
 
 
 @app.patch("/api/settings/kev")

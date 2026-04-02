@@ -155,7 +155,7 @@
           class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
           x-text="vulns.totalVulns"></span>
   </button>
-  <button @click="mainView = 'detection'; if (!kev.status) loadKevStatus(); if (!eaRules._loaded) loadEaRules(); if (!kibanaRules._loaded) loadKibanaRules(); if (!sigma._loaded) loadSigmaStatus(); if (!prebuilt.status) loadPrebuiltStatus()"
+  <button @click="mainView = 'detection'; if (!kibanaRules._loaded) loadKibanaRules(); if (!sigma._loaded) loadSigmaStatus(); if (!prebuilt.status) loadPrebuiltStatus()"
           :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -834,200 +834,166 @@
   <!-- LEFT: sub-tabs + content -->
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
+    <!-- Sub-tab bar -->
+    <div class="bg-surface-800 border-b border-surface-600 px-4 flex items-center gap-1 h-10">
+      <button @click="detTab = 'rules'"
+              :class="detTab === 'rules' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+        Rules
+      </button>
+      <button @click="detTab = 'elastalert'; if (!eaRules._loaded) loadEaRules()"
+              :class="detTab === 'elastalert' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
+                   01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        ElastAlert
+        <span class="text-xs text-gray-500 font-mono" x-text="'(' + eaRules.rules.length + ')'"></span>
+      </button>
+      <button @click="detTab = 'kev'; if (!kev.status) loadKevStatus(); if (!kevMatched._loaded) loadKevMatched()"
+              :class="detTab === 'kev' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
+                   4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        KEVs
+        <template x-if="kev.status && kev.status.matched_cves > 0">
+          <span class="ml-1 bg-orange-900 text-orange-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="kev.status.matched_cves"></span>
+        </template>
+      </button>
+    </div>
+
     <!-- Content area -->
     <div class="flex-1 overflow-y-auto px-4 py-4">
 
-      <div>
-
-        <!-- ══ ElastAlert2 Rules ══════════════════════════════════════════════ -->
-        <div class="mb-6">
-
-          <!-- Panel header + actions -->
-          <div class="flex items-center justify-between gap-2 mb-3">
-            <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
-                         01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
-              <h2 class="text-sm font-semibold text-white">ElastAlert2 Rules</h2>
-              <span class="text-xs text-gray-500 font-mono" x-text="`(${eaRules.rules.length})`"></span>
-            </div>
-            <div class="flex items-center gap-2">
-              <!-- Refresh -->
-              <button @click="loadEaRules()"
-                      :disabled="eaRules.loading"
-                      class="p-1.5 rounded hover:bg-surface-700 text-gray-500 hover:text-gray-300 transition disabled:opacity-40"
-                      title="Refresh">
-                <svg class="w-3.5 h-3.5" :class="eaRules.loading ? 'animate-spin' : ''"
-                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
-                           0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-              </button>
-              <!-- Paste YAML -->
-              <button @click="eaRules.showPasteModal = true; eaRules.pasteMessage = null"
-                      class="px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 border border-surface-500
-                             text-gray-300 text-xs transition flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0
-                           00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-                Paste YAML
-              </button>
-              <!-- Upload -->
-              <label class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 text-white text-xs
-                            transition flex items-center gap-1.5 cursor-pointer"
-                     :class="eaRules.uploading ? 'opacity-60 pointer-events-none' : ''">
-                <svg class="w-3.5 h-3.5" :class="eaRules.uploading ? 'animate-spin' : ''"
-                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <span x-text="eaRules.uploading ? 'Uploading…' : 'Upload File'"></span>
-                <input type="file" accept=".yml,.yaml" multiple class="hidden"
-                       @change="uploadEaRules($event)">
-              </label>
-            </div>
-          </div>
-
-          <!-- Upload feedback -->
-          <template x-if="eaRules.uploadMessage">
-            <div class="text-xs rounded px-3 py-2 mb-3"
-                 :class="eaRules.uploadError
-                   ? 'bg-red-900/30 border border-red-700 text-red-300'
-                   : 'bg-green-900/30 border border-green-700 text-green-300'"
-                 x-text="eaRules.uploadMessage"></div>
-          </template>
-
-          <!-- Error state -->
-          <template x-if="eaRules.error">
-            <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-3"
-                 x-text="eaRules.error"></div>
-          </template>
-
-          <!-- Loading -->
-          <template x-if="eaRules.loading && !eaRules.rules.length">
-            <div class="flex items-center gap-2 text-gray-500 text-xs py-4">
-              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-              Loading rules…
-            </div>
-          </template>
-
-          <!-- Rules list -->
-          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
-            <template x-if="!eaRules.loading && eaRules.rules.length === 0">
-              <div class="flex flex-col items-center justify-center py-10 text-gray-600">
-                <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
-                           01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                <p class="text-sm">No rules yet — upload a file or paste YAML to get started.</p>
-              </div>
-            </template>
-            <template x-for="(rule, idx) in eaRules.rules" :key="rule.filename">
-              <div :class="idx > 0 ? 'border-t border-surface-600' : ''">
-                <!-- Row header — click to expand -->
-                <div class="flex items-center justify-between px-4 py-3 gap-3 cursor-pointer hover:bg-surface-700/50 transition"
-                     @click="toggleEaRule(rule.filename)">
-                  <div class="min-w-0 flex items-center gap-2">
-                    <!-- Chevron -->
-                    <svg class="w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform"
-                         :class="eaRules.expanded === rule.filename ? 'rotate-90' : ''"
-                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                    <div class="min-w-0">
-                      <p class="text-sm text-white truncate" x-text="rule.name"></p>
-                      <div class="flex items-center gap-2 mt-0.5">
-                        <span class="text-xs font-mono text-gray-500" x-text="rule.filename"></span>
-                        <template x-if="rule.type !== 'unknown'">
-                          <span class="px-1.5 py-0.5 rounded text-xs bg-surface-700 text-gray-400"
-                                x-text="rule.type"></span>
-                        </template>
-                        <template x-if="rule.index">
-                          <span class="text-xs text-gray-600 truncate" x-text="rule.index"></span>
-                        </template>
-                      </div>
-                    </div>
-                  </div>
-                  <button @click.stop="deleteEaRule(rule.filename)"
-                          :disabled="eaRules.deleting === rule.filename"
-                          class="shrink-0 p-1.5 rounded hover:bg-red-900/40 text-gray-600 hover:text-red-400
-                                 transition disabled:opacity-40" title="Delete rule">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5
-                               4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                  </button>
-                </div>
-                <!-- Expanded YAML -->
-                <div x-show="eaRules.expanded === rule.filename"
-                     class="border-t border-surface-600 bg-surface-900 px-4 py-3">
-                  <template x-if="eaRules.loadingYaml === rule.filename">
-                    <div class="flex items-center gap-2 text-gray-500 text-xs py-2">
-                      <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                      </svg>
-                      Loading…
-                    </div>
-                  </template>
-                  <template x-if="eaRules.loadingYaml !== rule.filename && eaRules.yamlCache[rule.filename] !== undefined">
-                    <pre class="text-xs text-gray-300 font-mono whitespace-pre-wrap break-words leading-relaxed"
-                         x-text="eaRules.yamlCache[rule.filename]"></pre>
-                  </template>
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <p class="text-xs text-gray-600 mt-2">
-            Rules are written to <span class="font-mono">/opt/lme/config/elastalert2/rules/</span> and picked up by ElastAlert2 within 5 minutes.
-          </p>
-        </div><!-- end ElastAlert2 section -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- RULES TAB                                                         -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div x-show="detTab === 'rules'">
 
         <!-- ══ Import Elastic Prebuilt Rules ══════════════════════════════ -->
-        <div class="mb-4 flex items-center gap-3">
-          <button @click="installPrebuiltRules()" :disabled="prebuilt.installing || (prebuilt.status && prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0)"
-                  class="px-4 py-2 rounded bg-yellow-600 hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-medium transition flex items-center gap-2">
-            <template x-if="prebuilt.installing">
-              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-            </template>
-            <template x-if="!prebuilt.installing">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-              </svg>
-            </template>
-            <span x-text="prebuilt.installing ? 'Importing… this may take a minute' : 'Import Elastic Prebuilt Rules'"></span>
-          </button>
-          <template x-if="prebuilt.status">
-            <span class="text-xs text-gray-500">
-              <span x-text="prebuilt.status.rules_installed + ' installed'"></span>
-              <template x-if="prebuilt.status.rules_not_installed > 0">
-                <span class="text-yellow-400" x-text="' · ' + prebuilt.status.rules_not_installed + ' available'"></span>
+        <div class="mb-4 bg-surface-800 border border-surface-600 rounded-lg p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <h3 class="text-sm font-semibold text-white">Elastic Prebuilt Rules</h3>
+              <template x-if="prebuilt.status">
+                <span class="text-xs text-gray-500">
+                  <span x-text="prebuilt.status.rules_installed + ' installed'"></span>
+                  <template x-if="prebuilt.status.rules_not_installed > 0">
+                    <span class="text-yellow-400" x-text="' · ' + prebuilt.status.rules_not_installed + ' available'"></span>
+                  </template>
+                  <template x-if="prebuilt.status.rules_not_updated > 0">
+                    <span class="text-blue-400" x-text="' · ' + prebuilt.status.rules_not_updated + ' updates'"></span>
+                  </template>
+                  <template x-if="prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0">
+                    <span class="text-green-400"> · Up to date</span>
+                  </template>
+                </span>
               </template>
-              <template x-if="prebuilt.status.rules_not_updated > 0">
-                <span class="text-blue-400" x-text="' · ' + prebuilt.status.rules_not_updated + ' updates'"></span>
-              </template>
-              <template x-if="prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0">
-                <span class="text-green-400"> · Up to date</span>
-              </template>
-            </span>
-          </template>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="installPrebuiltRules()" :disabled="prebuilt.installing || (prebuilt.status && prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0)"
+                      class="px-3 py-1.5 rounded bg-yellow-600 hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-medium transition flex items-center gap-2">
+                <template x-if="prebuilt.installing">
+                  <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                </template>
+                <span x-text="prebuilt.installing ? 'Importing…' : 'Import Prebuilt'"></span>
+              </button>
+            </div>
+          </div>
           <template x-if="prebuilt.message">
-            <span class="text-xs" :class="prebuilt.error ? 'text-red-400' : 'text-green-400'" x-text="prebuilt.message"></span>
+            <p class="text-xs mt-2" :class="prebuilt.error ? 'text-red-400' : 'text-green-400'" x-text="prebuilt.message"></p>
           </template>
         </div>
 
-        <!-- ══ Kibana Detection Rules ════════════════════════════════════════ -->
+        <!-- ══ Sigma Rules Import ═════════════════════════════════════════ -->
+        <div class="mb-4 bg-surface-800 border border-surface-600 rounded-lg p-4">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-semibold text-white">Sigma Rules</h3>
+              <span class="text-xs text-gray-500">Download latest SigmaHQ rules, convert, and import into Kibana</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="sigmaConvert()" :disabled="sigma.converting"
+                      class="px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center gap-1.5">
+                <template x-if="sigma.converting">
+                  <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                </template>
+                <template x-if="!sigma.converting">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                  </svg>
+                </template>
+                <span x-text="sigma.converting ? 'Downloading…' : 'Download & Convert'"></span>
+              </button>
+              <label class="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
+                     :class="sigma.fileUploading ? 'opacity-60 pointer-events-none' : ''">
+                <svg class="w-3.5 h-3.5" :class="sigma.fileUploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <span x-text="sigma.fileUploading ? 'Uploading…' : 'Upload NDJSON'"></span>
+                <input type="file" accept=".ndjson" class="hidden" @change="sigmaUploadFile($event)">
+              </label>
+              <label class="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
+                     :class="sigma.yamlUploading ? 'opacity-60 pointer-events-none' : ''">
+                <svg class="w-3.5 h-3.5" :class="sigma.yamlUploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <span x-text="sigma.yamlUploading ? 'Converting…' : 'Upload YAML'"></span>
+                <input type="file" accept=".yml,.yaml" multiple class="hidden" @change="sigmaUploadYaml($event)">
+              </label>
+            </div>
+          </div>
+          <template x-if="sigma.message">
+            <div class="mb-3 px-3 py-2 rounded text-xs"
+                 :class="sigma.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="sigma.message"></div>
+          </template>
+          <template x-if="sigma.fileMessage">
+            <div class="mb-3 px-3 py-2 rounded text-xs"
+                 :class="sigma.fileError ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="sigma.fileMessage"></div>
+          </template>
+          <template x-if="sigma.totalRules > 0">
+            <div>
+              <div class="grid grid-cols-3 gap-3">
+                <template x-for="(info, platform) in sigma.platforms" :key="platform">
+                  <div class="bg-surface-700 border border-surface-600 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm font-medium text-white capitalize" x-text="platform"></span>
+                      <span class="text-xs text-gray-500" x-text="info.rule_count + ' rules'"></span>
+                    </div>
+                    <div x-show="info.modified" class="text-[10px] text-gray-600 mb-2" x-text="'Converted: ' + (info.modified ? new Date(info.modified).toLocaleString() : '')"></div>
+                    <button @click="sigmaUpload(platform)" :disabled="sigma.uploading === platform"
+                            class="w-full px-2 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center justify-center gap-1">
+                      <template x-if="sigma.uploading === platform">
+                        <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      </template>
+                      <span x-text="sigma.uploading === platform ? 'Uploading…' : 'Upload to Kibana'"></span>
+                    </button>
+                  </div>
+                </template>
+              </div>
+              <p class="mt-2 text-[10px] text-gray-600 italic">Rules are imported disabled by default. Enable individually in the rules table below.</p>
+            </div>
+          </template>
+          <template x-if="!sigma.converting && sigma.totalRules === 0 && !sigma.message">
+            <div class="text-center text-xs text-gray-500 py-3">
+              No converted rules found. Click "Download & Convert" to fetch the latest Sigma rules from SigmaHQ.
+            </div>
+          </template>
+        </div>
+
+        <!-- ══ Kibana Detection Rules Table ═══════════════════════════════ -->
         <div class="mb-6">
           <div class="flex items-center justify-between gap-2 mb-3">
             <div class="flex items-center gap-2">
@@ -1089,7 +1055,7 @@
             </template>
           </div>
 
-          <!-- Bulk actions bar (selected rules) -->
+          <!-- Bulk actions bar -->
           <div x-show="kibanaRules.selected.size > 0" x-cloak
                class="flex items-center gap-3 mb-2 px-3 py-2 bg-blue-900/20 border border-blue-800 rounded-lg text-xs">
             <span class="text-blue-300 font-medium" x-text="kibanaRules.selected.size + ' selected'"></span>
@@ -1101,7 +1067,6 @@
                     class="px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 text-gray-300 transition ml-auto">Clear Selection</button>
           </div>
 
-          <!-- loading -->
           <template x-if="kibanaRules.loading">
             <div class="flex items-center justify-center h-20 text-gray-500 text-xs">
               <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -1109,7 +1074,6 @@
             </div>
           </template>
 
-          <!-- rules table -->
           <template x-if="!kibanaRules.loading && kibanaRules.rules.length > 0">
             <div>
               <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
@@ -1117,50 +1081,30 @@
                   <thead class="bg-surface-700 text-gray-400 uppercase tracking-wider">
                     <tr>
                       <th class="px-2 py-2 w-8">
-                        <input type="checkbox"
-                               :checked="kibanaRules.selected.size === kibanaRules.rules.length && kibanaRules.rules.length > 0"
-                               @change="toggleSelectAll()"
-                               class="rounded bg-surface-600 border-surface-500 text-blue-600 focus:ring-0 cursor-pointer">
+                        <input type="checkbox" :checked="kibanaRules.selected.size === kibanaRules.rules.length && kibanaRules.rules.length > 0"
+                               @change="toggleSelectAll()" class="rounded bg-surface-600 border-surface-500 text-blue-600 focus:ring-0 cursor-pointer">
                       </th>
                       <th class="px-2 py-2 text-left w-10">On</th>
-                      <th class="px-3 py-2 text-left cursor-pointer hover:text-gray-200 transition select-none"
-                          @click="sortKibanaRules('name')">
-                        Rule Name
-                        <span x-show="kibanaRules.sortField === 'name'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
-                      </th>
-                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none"
-                          @click="sortKibanaRules('severity')">
-                        Severity
-                        <span x-show="kibanaRules.sortField === 'severity'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
-                      </th>
-                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none"
-                          @click="sortKibanaRules('risk_score')">
-                        Risk
-                        <span x-show="kibanaRules.sortField === 'risk_score'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
-                      </th>
-                      <th class="px-3 py-2 text-left w-24 cursor-pointer hover:text-gray-200 transition select-none"
-                          @click="sortKibanaRules('enabled')">
-                        Status
-                        <span x-show="kibanaRules.sortField === 'enabled'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span>
-                      </th>
+                      <th class="px-3 py-2 text-left cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('name')">
+                        Rule Name <span x-show="kibanaRules.sortField === 'name'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
+                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('severity')">
+                        Severity <span x-show="kibanaRules.sortField === 'severity'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
+                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('risk_score')">
+                        Risk <span x-show="kibanaRules.sortField === 'risk_score'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
+                      <th class="px-3 py-2 text-left w-24 cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('enabled')">
+                        Status <span x-show="kibanaRules.sortField === 'enabled'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-surface-700">
                     <template x-for="rule in kibanaRules.rules" :key="rule.id">
-                      <tr class="hover:bg-surface-700/50 transition"
-                          :class="kibanaRules.selected.has(rule.id) ? 'bg-blue-900/10' : ''">
+                      <tr class="hover:bg-surface-700/50 transition" :class="kibanaRules.selected.has(rule.id) ? 'bg-blue-900/10' : ''">
                         <td class="px-2 py-1.5">
-                          <input type="checkbox"
-                                 :checked="kibanaRules.selected.has(rule.id)"
-                                 @change="toggleSelectRule(rule.id)"
+                          <input type="checkbox" :checked="kibanaRules.selected.has(rule.id)" @change="toggleSelectRule(rule.id)"
                                  class="rounded bg-surface-600 border-surface-500 text-blue-600 focus:ring-0 cursor-pointer">
                         </td>
                         <td class="px-2 py-1.5">
-                          <button @click="toggleKibanaRule(rule)"
-                                  class="relative w-8 h-4 rounded-full transition-colors"
-                                  :class="rule.enabled ? 'bg-blue-600' : 'bg-surface-600'">
-                            <span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform"
-                                  :class="rule.enabled ? 'translate-x-4' : ''"></span>
+                          <button @click="toggleKibanaRule(rule)" class="relative w-8 h-4 rounded-full transition-colors" :class="rule.enabled ? 'bg-blue-600' : 'bg-surface-600'">
+                            <span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform" :class="rule.enabled ? 'translate-x-4' : ''"></span>
                           </button>
                         </td>
                         <td class="px-3 py-1.5">
@@ -1168,21 +1112,17 @@
                           <div class="text-gray-600 truncate max-w-md text-[10px]" x-text="rule.description"></div>
                         </td>
                         <td class="px-3 py-1.5">
-                          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase"
-                                :class="severityBadge(rule.severity)"
-                                x-text="rule.severity"></span>
+                          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase" :class="severityBadge(rule.severity)" x-text="rule.severity"></span>
                         </td>
                         <td class="px-3 py-1.5 text-gray-500" x-text="rule.risk_score"></td>
                         <td class="px-3 py-1.5">
-                          <span class="text-[10px]" :class="rule.enabled ? 'text-green-400' : 'text-gray-600'"
-                                x-text="rule.enabled ? 'Active' : 'Disabled'"></span>
+                          <span class="text-[10px]" :class="rule.enabled ? 'text-green-400' : 'text-gray-600'" x-text="rule.enabled ? 'Active' : 'Disabled'"></span>
                         </td>
                       </tr>
                     </template>
                   </tbody>
                 </table>
               </div>
-              <!-- pagination -->
               <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
                 <span x-text="'Showing ' + ((kibanaRules.page-1)*kibanaRules.perPage+1) + '-' + Math.min(kibanaRules.page*kibanaRules.perPage, kibanaRules.total) + ' of ' + kibanaRules.total"></span>
                 <div class="flex gap-2">
@@ -1198,156 +1138,223 @@
           <template x-if="!kibanaRules.loading && kibanaRules.rules.length === 0">
             <div class="text-center py-6 text-gray-600 text-xs">No matching rules</div>
           </template>
-        </div><!-- end Kibana Rules section -->
+        </div>
+      </div><!-- end Rules tab -->
 
-        <!-- ══ Sigma Rules (SigmaHQ → Kibana) ════════════════════════════════ -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- ELASTALERT TAB                                                    -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div x-show="detTab === 'elastalert'" x-cloak>
         <div class="mb-6">
           <div class="flex items-center justify-between gap-2 mb-3">
+            <h2 class="text-sm font-semibold text-white">ElastAlert2 Rules</h2>
             <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-purple-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-              </svg>
-              <h2 class="text-sm font-semibold text-white">Sigma Rules</h2>
-              <span class="text-xs text-gray-500">Download latest SigmaHQ rules, convert, and import into Kibana</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <button @click="sigmaConvert()" :disabled="sigma.converting"
-                      class="px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center gap-1.5">
-                <template x-if="sigma.converting">
-                  <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                </template>
-                <template x-if="!sigma.converting">
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                  </svg>
-                </template>
-                <span x-text="sigma.converting ? 'Downloading & converting…' : 'Download & Convert Latest'"></span>
+              <button @click="loadEaRules()" :disabled="eaRules.loading"
+                      class="p-1.5 rounded hover:bg-surface-700 text-gray-500 hover:text-gray-300 transition disabled:opacity-40" title="Refresh">
+                <svg class="w-3.5 h-3.5" :class="eaRules.loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
               </button>
-              <label class="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
-                     :class="sigma.fileUploading ? 'opacity-60 pointer-events-none' : ''">
-                <svg class="w-3.5 h-3.5" :class="sigma.fileUploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button @click="eaRules.showPasteModal = true; eaRules.pasteMessage = null"
+                      class="px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 border border-surface-500 text-gray-300 text-xs transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Paste YAML
+              </button>
+              <label class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 text-white text-xs transition flex items-center gap-1.5 cursor-pointer"
+                     :class="eaRules.uploading ? 'opacity-60 pointer-events-none' : ''">
+                <svg class="w-3.5 h-3.5" :class="eaRules.uploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
-                <span x-text="sigma.fileUploading ? 'Uploading…' : 'Upload NDJSON'"></span>
-                <input type="file" accept=".ndjson" class="hidden" @change="sigmaUploadFile($event)">
-              </label>
-              <label class="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
-                     :class="sigma.yamlUploading ? 'opacity-60 pointer-events-none' : ''">
-                <svg class="w-3.5 h-3.5" :class="sigma.yamlUploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                </svg>
-                <span x-text="sigma.yamlUploading ? 'Converting…' : 'Upload YAML'"></span>
-                <input type="file" accept=".yml,.yaml" multiple class="hidden" @change="sigmaUploadYaml($event)">
+                <span x-text="eaRules.uploading ? 'Uploading…' : 'Upload File'"></span>
+                <input type="file" accept=".yml,.yaml" multiple class="hidden" @change="uploadEaRules($event)">
               </label>
             </div>
           </div>
-
-          <!-- message -->
-          <template x-if="sigma.message">
-            <div class="mb-3 px-3 py-2 rounded text-xs"
-                 :class="sigma.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
-                 x-text="sigma.message"></div>
+          <template x-if="eaRules.uploadMessage">
+            <div class="text-xs rounded px-3 py-2 mb-3"
+                 :class="eaRules.uploadError ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="eaRules.uploadMessage"></div>
           </template>
-          <template x-if="sigma.fileMessage">
-            <div class="mb-3 px-3 py-2 rounded text-xs"
-                 :class="sigma.fileError ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
-                 x-text="sigma.fileMessage"></div>
+          <template x-if="eaRules.error">
+            <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-3" x-text="eaRules.error"></div>
           </template>
-
-          <!-- Platform cards -->
-          <template x-if="sigma.totalRules > 0">
-            <div>
-              <div class="grid grid-cols-3 gap-3">
-                <template x-for="(info, platform) in sigma.platforms" :key="platform">
-                  <div class="bg-surface-800 border border-surface-600 rounded-lg p-3">
-                    <div class="flex items-center justify-between mb-2">
-                      <span class="text-sm font-medium text-white capitalize" x-text="platform"></span>
-                      <span class="text-xs text-gray-500" x-text="info.rule_count + ' rules'"></span>
-                    </div>
-                    <div x-show="info.modified" class="text-[10px] text-gray-600 mb-2" x-text="'Converted: ' + (info.modified ? new Date(info.modified).toLocaleString() : '')"></div>
-                    <button @click="sigmaUpload(platform)" :disabled="sigma.uploading === platform"
-                            class="w-full px-2 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center justify-center gap-1">
-                      <template x-if="sigma.uploading === platform">
-                        <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                      </template>
-                      <span x-text="sigma.uploading === platform ? 'Uploading…' : 'Upload to Kibana'"></span>
-                    </button>
-                  </div>
-                </template>
+          <template x-if="eaRules.loading && !eaRules.rules.length">
+            <div class="flex items-center gap-2 text-gray-500 text-xs py-4">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              Loading rules…
+            </div>
+          </template>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+            <template x-if="!eaRules.loading && eaRules.rules.length === 0">
+              <div class="flex flex-col items-center justify-center py-10 text-gray-600">
+                <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <p class="text-sm">No rules yet — upload a file or paste YAML to get started.</p>
               </div>
-              <p class="mt-2 text-[10px] text-gray-600 italic">All rules are imported disabled by default. Review and enable individually in the Kibana Rules section above.</p>
+            </template>
+            <template x-for="(rule, idx) in eaRules.rules" :key="rule.filename">
+              <div :class="idx > 0 ? 'border-t border-surface-600' : ''">
+                <div class="flex items-center justify-between px-4 py-3 gap-3 cursor-pointer hover:bg-surface-700/50 transition" @click="toggleEaRule(rule.filename)">
+                  <div class="min-w-0 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform" :class="eaRules.expanded === rule.filename ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <div class="min-w-0">
+                      <p class="text-sm text-white truncate" x-text="rule.name"></p>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-xs font-mono text-gray-500" x-text="rule.filename"></span>
+                        <template x-if="rule.type !== 'unknown'"><span class="px-1.5 py-0.5 rounded text-xs bg-surface-700 text-gray-400" x-text="rule.type"></span></template>
+                        <template x-if="rule.index"><span class="text-xs text-gray-600 truncate" x-text="rule.index"></span></template>
+                      </div>
+                    </div>
+                  </div>
+                  <button @click.stop="deleteEaRule(rule.filename)" :disabled="eaRules.deleting === rule.filename"
+                          class="shrink-0 p-1.5 rounded hover:bg-red-900/40 text-gray-600 hover:text-red-400 transition disabled:opacity-40" title="Delete rule">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                </div>
+                <div x-show="eaRules.expanded === rule.filename" class="border-t border-surface-600 bg-surface-900 px-4 py-3">
+                  <template x-if="eaRules.loadingYaml === rule.filename">
+                    <div class="flex items-center gap-2 text-gray-500 text-xs py-2">
+                      <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      Loading…
+                    </div>
+                  </template>
+                  <template x-if="eaRules.loadingYaml !== rule.filename && eaRules.yamlCache[rule.filename] !== undefined">
+                    <pre class="text-xs text-gray-300 font-mono whitespace-pre-wrap break-words leading-relaxed" x-text="eaRules.yamlCache[rule.filename]"></pre>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+          <p class="text-xs text-gray-600 mt-2">Rules are written to <span class="font-mono">/opt/lme/config/elastalert2/rules/</span> and picked up by ElastAlert2 within 5 minutes.</p>
+        </div>
+      </div><!-- end ElastAlert tab -->
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- KEV TAB                                                           -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div x-show="detTab === 'kev'" x-cloak>
+
+        <!-- Summary cards -->
+        <div class="grid grid-cols-4 gap-3 mb-4">
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total KEVs</p>
+            <p class="text-2xl font-semibold text-white" x-text="kev.status ? kev.status.total_kev : '—'"></p>
+            <p class="text-xs text-gray-600 mt-0.5">in CISA catalog</p>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Matched</p>
+            <p class="text-2xl font-semibold" :class="kev.status && kev.status.matched_cves > 0 ? 'text-orange-400' : 'text-white'"
+               x-text="kev.status ? kev.status.matched_cves : '—'"></p>
+            <p class="text-xs text-gray-600 mt-0.5">found in your environment</p>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Overdue</p>
+            <p class="text-2xl font-semibold" :class="kev.status && kev.status.overdue_count > 0 ? 'text-red-400' : 'text-white'"
+               x-text="kev.status ? kev.status.overdue_count : '—'"></p>
+            <p class="text-xs text-gray-600 mt-0.5">past CISA remediation deadline</p>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Last Sync</p>
+            <p class="text-sm font-semibold text-white mt-1" x-text="kev.status && kev.status.last_pull_timestamp ? fmtTime(kev.status.last_pull_timestamp) : 'Never'"></p>
+            <div class="flex items-center gap-2 mt-1">
+              <button @click="kevPull()" :disabled="kev.pulling"
+                      class="px-2 py-0.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-[10px] transition">
+                <span x-text="kev.pulling ? 'Syncing…' : 'Sync Now'"></span>
+              </button>
+              <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener"
+                 class="text-[10px] text-blue-500 hover:text-blue-400 transition">CISA Catalog</a>
+            </div>
+          </div>
+        </div>
+
+        <template x-if="kev.pullMessage">
+          <div class="mb-3 px-3 py-2 rounded text-xs"
+               :class="kev.pullError ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+               x-text="kev.pullMessage"></div>
+        </template>
+
+        <!-- Matched KEVs table -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-white">Matched KEVs in Your Environment</h3>
+            <button @click="loadKevMatched()" class="text-gray-400 hover:text-white transition">
+              <svg class="w-4 h-4" :class="kevMatched.loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </button>
+          </div>
+
+          <template x-if="kevMatched.loading">
+            <div class="flex items-center justify-center h-20 text-gray-500 text-xs">
+              <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              Loading matched KEVs…
             </div>
           </template>
 
-          <template x-if="!sigma.converting && sigma.totalRules === 0 && !sigma.message">
-            <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 text-center text-xs text-gray-500">
-              No converted rules found. Click "Download & Convert Latest" to fetch the latest Sigma rules from SigmaHQ and convert them for Kibana.
+          <template x-if="!kevMatched.loading && kevMatched.items.length === 0">
+            <div class="bg-green-900/20 border border-green-800 rounded-lg p-6 text-center">
+              <svg class="w-10 h-10 mx-auto mb-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <p class="text-sm text-green-300 font-medium">No known exploited vulnerabilities found in your environment</p>
+              <p class="text-xs text-gray-500 mt-1">Your systems have no CVEs matching the CISA KEV catalog</p>
             </div>
           </template>
-        </div><!-- end Sigma section -->
 
-      <!-- KEV Overview -->
-      <div class="flex items-center gap-2 mb-4 mt-4">
-        <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
-                   4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
-        <h2 class="text-sm font-semibold text-white">CISA KEV Overview</h2>
-        <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
-           target="_blank" rel="noopener"
-           class="text-xs text-blue-500 hover:text-blue-400 transition ml-1">CISA Catalog ↗</a>
-      </div>
-      <div class="grid grid-cols-3 gap-3 mb-6">
-        <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total KEVs</p>
-          <p class="text-2xl font-semibold text-white"
-             x-text="kev.status ? kev.status.total_kev : '—'"></p>
-          <p class="text-xs text-gray-600 mt-0.5">in catalog</p>
+          <template x-if="!kevMatched.loading && kevMatched.items.length > 0">
+            <div class="space-y-2">
+              <template x-for="item in kevMatched.items" :key="item.cve_id">
+                <div class="bg-surface-800 border rounded-lg overflow-hidden"
+                     :class="item.overdue ? 'border-red-700' : 'border-surface-600'">
+                  <div class="px-4 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <a :href="'https://nvd.nist.gov/vuln/detail/' + item.cve_id" target="_blank" rel="noopener"
+                             class="text-sm font-semibold text-blue-400 hover:text-blue-300" x-text="item.cve_id"></a>
+                          <span x-show="item.overdue" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-300 uppercase">Overdue</span>
+                          <span x-show="item.ransomware === 'Known'" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-900 text-purple-300 uppercase">Ransomware</span>
+                          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase" :class="severityBadge(item.severity)" x-text="item.severity || 'N/A'"></span>
+                          <span x-show="item.cvss" class="text-xs text-gray-500" x-text="'CVSS ' + (item.cvss ? item.cvss.toFixed(1) : '')"></span>
+                        </div>
+                        <p class="text-xs text-white mt-1" x-text="item.name"></p>
+                        <p class="text-xs text-gray-500 mt-0.5" x-text="item.vendor + ' — ' + item.product"></p>
+                      </div>
+                      <div class="text-right shrink-0">
+                        <p class="text-[10px] text-gray-500">Due Date</p>
+                        <p class="text-xs font-semibold" :class="item.overdue ? 'text-red-400' : 'text-yellow-400'" x-text="item.due_date || 'N/A'"></p>
+                        <p class="text-[10px] text-gray-600 mt-0.5" x-text="'Added ' + item.date_added"></p>
+                      </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2 leading-relaxed line-clamp-2" x-text="item.description"></p>
+                    <div class="flex items-center justify-between mt-2">
+                      <div class="flex items-center gap-1 flex-wrap">
+                        <span class="text-[10px] text-gray-500 mr-1">Affected hosts:</span>
+                        <template x-for="host in item.affected_hosts" :key="host">
+                          <span class="px-1.5 py-0.5 rounded bg-orange-900/40 text-orange-300 text-[10px]" x-text="host"></span>
+                        </template>
+                        <span x-show="item.host_count === 0" class="text-[10px] text-gray-600">None detected</span>
+                      </div>
+                      <span class="text-[10px] text-gray-600" x-text="item.host_count + ' host(s)'"></span>
+                    </div>
+                    <div class="mt-2 px-3 py-2 bg-surface-700 rounded text-[10px] text-gray-400 leading-relaxed">
+                      <span class="text-gray-500 font-semibold">Required Action:</span>
+                      <span x-text="item.required_action"></span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
         </div>
-        <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">CVEs Matched</p>
-          <p class="text-2xl font-semibold"
-             :class="kev.status && kev.status.matched_cves > 0 ? 'text-orange-400' : 'text-white'"
-             x-text="kev.status ? kev.status.matched_cves : '—'"></p>
-          <p class="text-xs text-gray-600 mt-0.5">in environment</p>
-        </div>
-        <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
-          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Overdue</p>
-          <p class="text-2xl font-semibold"
-             :class="kev.status && kev.status.overdue_count > 0 ? 'text-red-400' : 'text-white'"
-             x-text="kev.status ? kev.status.overdue_count : '—'"></p>
-          <p class="text-xs text-gray-600 mt-0.5">past CISA due date</p>
-        </div>
-      </div>
-
-      <!-- Paste Vulnerability Report -->
-      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
-        <h3 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
-          <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
-          Paste Vulnerability Report
-        </h3>
-        <textarea x-model="pastedText" placeholder="Paste your vulnerability report here..."
-                  rows="6"
-                  class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300
-                         placeholder-gray-600 focus:outline-none focus:border-blue-500 transition resize-none"></textarea>
-        <div class="mt-3 flex items-center gap-3">
-          <button @click="submitReport()" :disabled="!pastedText.trim()"
-                  class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
-                         disabled:cursor-not-allowed text-white text-xs transition">Submit Report</button>
-          <button @click="clearPastedText()"
-                  class="px-3 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white text-xs transition">Clear</button>
-        </div>
-        <div x-show="submitResponse" class="mt-3 text-xs text-gray-300">
-          <h4 class="text-sm font-medium text-white">Response:</h4>
-          <p class="bg-surface-700 rounded p-3 text-gray-400 whitespace-pre-wrap" x-text="submitResponse"></p>
-        </div>
-      </div>
-
-      </div><!-- end content -->
+      </div><!-- end KEV tab -->
 
     </div><!-- end content area -->
   </div><!-- end left panel -->
@@ -2202,12 +2209,34 @@
 <div class="w-80 xl:w-96 shrink-0 bg-surface-800 border-l border-surface-600 flex flex-col">
   <div class="px-4 py-3 border-b border-surface-600 flex items-center justify-between">
     <div class="flex items-center gap-2 text-sm font-medium text-white">
-      <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168
-                 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5
-                 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5
-                 18c-1.746 0-3.332.477-4.5 1.253"/>
+      <!-- Lumberjack mascot -->
+      <svg class="w-6 h-6" viewBox="0 0 48 48" fill="none">
+        <!-- Beanie hat -->
+        <path d="M15 17Q15 9 24 9Q33 9 33 17Z" fill="#DC2626"/>
+        <circle cx="24" cy="8" r="2.5" fill="#EF4444"/>
+        <rect x="14" y="16" width="20" height="3" rx="1.5" fill="#991B1B"/>
+        <!-- Face -->
+        <circle cx="24" cy="24" r="8" fill="#FBBF24"/>
+        <!-- Eyes -->
+        <circle cx="21" cy="22.5" r="1.3" fill="#1E293B"/>
+        <circle cx="27" cy="22.5" r="1.3" fill="#1E293B"/>
+        <!-- Smile -->
+        <path d="M21.5 26Q24 29 26.5 26" stroke="#92400E" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <!-- Beard -->
+        <path d="M17 26C17 33 24 35.5 24 35.5C24 35.5 31 33 31 26" fill="#92400E"/>
+        <!-- Body (flannel plaid) -->
+        <rect x="15" y="35" width="18" height="13" rx="3" fill="#DC2626"/>
+        <line x1="18" y1="35" x2="18" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+        <line x1="24" y1="35" x2="24" y2="48" stroke="#1E293B" stroke-width="3" opacity="0.45"/>
+        <line x1="30" y1="35" x2="30" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+        <line x1="15" y1="38" x2="33" y2="38" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+        <line x1="15" y1="44" x2="33" y2="44" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+        <line x1="15" y1="41" x2="33" y2="41" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+        <line x1="21" y1="35" x2="21" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+        <line x1="27" y1="35" x2="27" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+        <!-- Axe -->
+        <line x1="35" y1="28" x2="42" y2="14" stroke="#A16207" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M40 11L46 15L43 19Z" fill="#94A3B8"/>
       </svg>
       LME Docs Assistant
     </div>
@@ -2233,12 +2262,27 @@
   <div class="flex-1 overflow-y-auto px-3 py-3 space-y-3" x-ref="chatScroll">
     <template x-if="chat.messages.length === 0">
       <div class="text-center text-gray-600 text-xs mt-6 space-y-1">
-        <svg class="w-8 h-8 mx-auto mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4
-                   12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072
-                   0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0
-                   11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        <!-- Lumberjack mascot (large) -->
+        <svg class="w-16 h-16 mx-auto mb-3" viewBox="0 0 48 48" fill="none">
+          <path d="M15 17Q15 9 24 9Q33 9 33 17Z" fill="#DC2626"/>
+          <circle cx="24" cy="8" r="2.5" fill="#EF4444"/>
+          <rect x="14" y="16" width="20" height="3" rx="1.5" fill="#991B1B"/>
+          <circle cx="24" cy="24" r="8" fill="#FBBF24"/>
+          <circle cx="21" cy="22.5" r="1.3" fill="#1E293B"/>
+          <circle cx="27" cy="22.5" r="1.3" fill="#1E293B"/>
+          <path d="M21.5 26Q24 29 26.5 26" stroke="#92400E" stroke-width="1" fill="none" stroke-linecap="round"/>
+          <path d="M17 26C17 33 24 35.5 24 35.5C24 35.5 31 33 31 26" fill="#92400E"/>
+          <rect x="15" y="35" width="18" height="13" rx="3" fill="#DC2626"/>
+          <line x1="18" y1="35" x2="18" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+          <line x1="24" y1="35" x2="24" y2="48" stroke="#1E293B" stroke-width="3" opacity="0.45"/>
+          <line x1="30" y1="35" x2="30" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+          <line x1="15" y1="38" x2="33" y2="38" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+          <line x1="15" y1="44" x2="33" y2="44" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+          <line x1="15" y1="41" x2="33" y2="41" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+          <line x1="21" y1="35" x2="21" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+          <line x1="27" y1="35" x2="27" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+          <line x1="35" y1="28" x2="42" y2="14" stroke="#A16207" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M40 11L46 15L43 19Z" fill="#94A3B8"/>
         </svg>
         <p>Ask me anything about LME</p>
         <p class="text-gray-700 mt-2">Installation, configuration, troubleshooting, and more</p>
@@ -2341,6 +2385,7 @@ function dashboard() {
     mainView: 'alerts',
     settingsSection: 'models',
     autoRefresh: false,
+    detTab: 'rules',
     _refreshTimer: null,
 
     health: { elasticsearch: null, litellm: null },
@@ -2405,6 +2450,9 @@ function dashboard() {
       loading: false, installing: false,
       status: null, message: '', error: false,
     },
+    kevMatched: {
+      loading: false, _loaded: false, items: [],
+    },
     kibanaRules: {
       loading: false, rules: [], total: 0,
       page: 1, perPage: 50,
@@ -2431,13 +2479,6 @@ function dashboard() {
       expanded: null, yamlCache: {}, loadingYaml: null,
     },
 
-    pastedText: '',
-    submitResponse: '',
-
-    clearPastedText() {
-      this.pastedText = '';
-      this.submitResponse = '';
-    },
 
     async loadDocsStatus() {
       try {
@@ -2818,26 +2859,6 @@ function dashboard() {
       }
     },
 
-    async submitReport() {
-      try {
-        const response = await fetch('/api/submit_report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: this.pastedText }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.detail || 'Failed to submit report.');
-        }
-
-        const data = await response.json();
-        this.submitResponse = data.message;
-      } catch (error) {
-        console.error('Submission failed:', error);
-        this.submitResponse = `Error: ${error.message}`;
-      }
-    },
     get activeModelIsLocal() {
       const m = this.modelSettings.models.find(m => m.model_name === this.modelSettings.activeModel);
       return !m || m.provider === 'local' || m.provider === '';
@@ -3598,6 +3619,22 @@ function dashboard() {
         this.kev.error = `Failed to load KEV status: ${e.message}`;
       } finally {
         this.kev.loading = false;
+      }
+    },
+
+    async loadKevMatched() {
+      this.kevMatched.loading = true;
+      this.kevMatched._loaded = true;
+      try {
+        const r = await fetch('/api/kev/matched');
+        if (r.ok) {
+          const data = await r.json();
+          this.kevMatched.items = data.matched || [];
+        }
+      } catch(e) {
+        console.error('Failed to load KEV matched:', e);
+      } finally {
+        this.kevMatched.loading = false;
       }
     },
 
