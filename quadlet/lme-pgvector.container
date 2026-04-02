@@ -10,7 +10,10 @@ WantedBy=default.target lme.service
 
 [Service]
 Restart=always
-TimeoutStartSec=60
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=10
+TimeoutStartSec=90
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 
 [Container]
