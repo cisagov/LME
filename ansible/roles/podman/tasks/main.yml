@@ -213,4 +213,4 @@
 # Include llama.cpp setup tasks (conditional)
 - name: Setup llama.cpp for podman
   include_tasks: llama_cpp_setup.yml
-  when: install_llm | default(false)
+  when: install_llm | default(true)
