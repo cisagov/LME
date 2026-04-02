@@ -92,7 +92,10 @@
                11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29
                9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
     </svg>
-    <span class="text-white font-semibold tracking-wide">LME Security Dashboard</span>
+    <div>
+      <span class="text-white font-semibold tracking-wide">LME Security Dashboard</span>
+      <div class="text-gray-500 text-xs mt-0.5">v2.3.3</div>
+    </div>
   </div>
 
   <!-- status pills -->
@@ -454,20 +457,20 @@
                 </div>
                 <!-- actions -->
                 <div class="flex items-center gap-1.5 shrink-0">
-                  <button @click="promoteTodo('kibana', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
-                          :disabled="todos.promotedKeys['kibana:' + alert.id]"
-                          :title="todos.promotedKeys['kibana:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
-                          :class="todos.promotedKeys['kibana:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
-                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
-                    <svg x-show="!todos.promotedKeys['kibana:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <svg x-show="todos.promotedKeys['kibana:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    <span x-show="!todos.promotedKeys['kibana:' + alert.id]">Promote</span>
-                    <span x-show="todos.promotedKeys['kibana:' + alert.id]">Promoted</span>
-                  </button>
+                  <div :class="todos.promotedKeys['kibana:' + alert.id] ? 'bg-green-900/50 text-green-300' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800'"
+                       class="px-2 py-1 rounded text-xs transition cursor-pointer">
+                    <button type="button" @click="promoteTodo('kibana', alert.id, alert, alert.host || 'unknown', alert.severity)"
+                            class="flex items-center gap-1 w-full">
+                      <svg x-show="!todos.promotedKeys['kibana:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      <svg x-show="todos.promotedKeys['kibana:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                      </svg>
+                      <span x-show="!todos.promotedKeys['kibana:' + alert.id]">Promote</span>
+                      <span x-show="todos.promotedKeys['kibana:' + alert.id]">Promoted</span>
+                    </button>
+                  </div>
                   <button @click="analyzeAlert(alert, 'kibana')"
                           class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -570,20 +573,20 @@
                   </template>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                  <button @click="promoteTodo('wazuh', alert.id, alert._raw, alert.agent_name || 'unknown', alert.severity)"
-                          :disabled="todos.promotedKeys['wazuh:' + alert.id]"
-                          :title="todos.promotedKeys['wazuh:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
-                          :class="todos.promotedKeys['wazuh:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
-                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
-                    <svg x-show="!todos.promotedKeys['wazuh:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <svg x-show="todos.promotedKeys['wazuh:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    <span x-show="!todos.promotedKeys['wazuh:' + alert.id]">Promote</span>
-                    <span x-show="todos.promotedKeys['wazuh:' + alert.id]">Promoted</span>
-                  </button>
+                  <div :class="todos.promotedKeys['wazuh:' + alert.id] ? 'bg-green-900/50 text-green-300' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800'"
+                       class="px-2 py-1 rounded text-xs transition cursor-pointer">
+                    <button type="button" @click="promoteTodo('wazuh', alert.id, alert, alert.agent_name || 'unknown', alert.severity)"
+                            class="flex items-center gap-1 w-full">
+                      <svg x-show="!todos.promotedKeys['wazuh:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      <svg x-show="todos.promotedKeys['wazuh:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                      </svg>
+                      <span x-show="!todos.promotedKeys['wazuh:' + alert.id]">Promote</span>
+                      <span x-show="todos.promotedKeys['wazuh:' + alert.id]">Promoted</span>
+                    </button>
+                  </div>
                   <button @click="analyzeAlert(alert, 'wazuh')"
                           class="px-2 py-1 rounded bg-orange-900/50 text-orange-300 hover:bg-orange-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -682,20 +685,20 @@
                   </p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                  <button @click="promoteTodo('sysmon', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
-                          :disabled="todos.promotedKeys['sysmon:' + alert.id]"
-                          :title="todos.promotedKeys['sysmon:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
-                          :class="todos.promotedKeys['sysmon:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
-                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
-                    <svg x-show="!todos.promotedKeys['sysmon:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <svg x-show="todos.promotedKeys['sysmon:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    <span x-show="!todos.promotedKeys['sysmon:' + alert.id]">Promote</span>
-                    <span x-show="todos.promotedKeys['sysmon:' + alert.id]">Promoted</span>
-                  </button>
+                  <div :class="todos.promotedKeys['sysmon:' + alert.id] ? 'bg-green-900/50 text-green-300' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800'"
+                       class="px-2 py-1 rounded text-xs transition cursor-pointer">
+                    <button type="button" @click="promoteTodo('sysmon', alert.id, alert, alert.host || 'unknown', alert.severity)"
+                            class="flex items-center gap-1 w-full">
+                      <svg x-show="!todos.promotedKeys['sysmon:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      <svg x-show="todos.promotedKeys['sysmon:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                      </svg>
+                      <span x-show="!todos.promotedKeys['sysmon:' + alert.id]">Promote</span>
+                      <span x-show="todos.promotedKeys['sysmon:' + alert.id]">Promoted</span>
+                    </button>
+                  </div>
                   <button @click="analyzeAlert(alert, 'sysmon')"
                           class="px-2 py-1 rounded bg-red-900/50 text-red-300 hover:bg-red-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -790,20 +793,20 @@
                      x-text="alert.path"></p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                  <button @click="promoteTodo('defender', alert.id, alert._raw, alert.host || 'unknown', alert.severity)"
-                          :disabled="todos.promotedKeys['defender:' + alert.id]"
-                          :title="todos.promotedKeys['defender:' + alert.id] ? 'Already in To-Do list' : 'Add to To-Do list'"
-                          :class="todos.promotedKeys['defender:' + alert.id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
-                          class="px-2 py-1 rounded text-xs transition flex items-center gap-1">
-                    <svg x-show="!todos.promotedKeys['defender:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    <svg x-show="todos.promotedKeys['defender:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    <span x-show="!todos.promotedKeys['defender:' + alert.id]">Promote</span>
-                    <span x-show="todos.promotedKeys['defender:' + alert.id]">Promoted</span>
-                  </button>
+                  <div :class="todos.promotedKeys['defender:' + alert.id] ? 'bg-green-900/50 text-green-300' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800'"
+                       class="px-2 py-1 rounded text-xs transition cursor-pointer">
+                    <button type="button" @click="promoteTodo('defender', alert.id, alert, alert.host || 'unknown', alert.severity)"
+                            class="flex items-center gap-1 w-full">
+                      <svg x-show="!todos.promotedKeys['defender:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      <svg x-show="todos.promotedKeys['defender:' + alert.id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                      </svg>
+                      <span x-show="!todos.promotedKeys['defender:' + alert.id]">Promote</span>
+                      <span x-show="todos.promotedKeys['defender:' + alert.id]">Promoted</span>
+                    </button>
+                  </div>
                   <button @click="analyzeAlert(alert, 'defender')"
                           class="px-2 py-1 rounded bg-green-900/50 text-green-300 hover:bg-green-800 text-xs transition flex items-center gap-1">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1857,20 +1860,20 @@
                       </td>
                       <td class="px-3 py-2 text-gray-500" x-text="fmtTime(vuln.detected_at)"></td>
                       <td class="px-3 py-2">
-                        <button @click="promoteTodo('cve', vuln.cve_id, vuln, vulnDetail.agentName || vulnDetail.agentId, vuln.severity, vuln.cve_id)"
-                                :disabled="todos.promotedKeys['cve:' + vuln.cve_id]"
-                                :title="todos.promotedKeys['cve:' + vuln.cve_id] ? 'Already in To-Do list' : 'Add to To-Do list'"
-                                :class="todos.promotedKeys['cve:' + vuln.cve_id] ? 'bg-green-900/50 text-green-300 cursor-default' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800 cursor-pointer'"
-                                class="px-2 py-1 rounded text-xs transition whitespace-nowrap flex items-center gap-1">
-                          <svg x-show="!todos.promotedKeys['cve:' + vuln.cve_id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                          </svg>
-                          <svg x-show="todos.promotedKeys['cve:' + vuln.cve_id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                          </svg>
-                          <span x-show="!todos.promotedKeys['cve:' + vuln.cve_id]">Promote</span>
-                          <span x-show="todos.promotedKeys['cve:' + vuln.cve_id]">Promoted</span>
-                        </button>
+                        <div :class="todos.promotedKeys['cve:' + vuln.cve_id] ? 'bg-green-900/50 text-green-300' : 'bg-purple-900/50 text-purple-300 hover:bg-purple-800'"
+                             class="px-2 py-1 rounded text-xs transition cursor-pointer whitespace-nowrap">
+                          <button type="button" @click="promoteTodo('cve', vuln.cve_id, vuln, vulnDetail.agentName || vulnDetail.agentId, vuln.severity, vuln.cve_id)"
+                                  class="flex items-center gap-1 w-full">
+                            <svg x-show="!todos.promotedKeys['cve:' + vuln.cve_id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            <svg x-show="todos.promotedKeys['cve:' + vuln.cve_id]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span x-show="!todos.promotedKeys['cve:' + vuln.cve_id]">Promote</span>
+                            <span x-show="todos.promotedKeys['cve:' + vuln.cve_id]">Promoted</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </template>
@@ -1941,12 +1944,13 @@
     </div>
 
     <!-- Grouped todos -->
-    <div x-show="todos._loaded && todos.total > 0" class="space-y-6">
+    <div x-show="todos._loaded && todos.total > 0" class="space-y-4">
       <template x-for="(machineItems, machine) in todos.grouped" :key="machine">
         <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
 
-          <!-- Machine header -->
-          <div class="px-5 py-3 bg-surface-900 border-b border-surface-600 flex items-center justify-between">
+          <!-- Machine header (clickable) -->
+          <button @click="todos._expandedMachines[machine] = !todos._expandedMachines[machine]"
+                  class="w-full px-5 py-4 bg-surface-900 border-b border-surface-600 flex items-center justify-between hover:bg-surface-700/50 transition text-left">
             <h3 class="text-white font-medium flex items-center gap-2">
               <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zm-9-2a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -1954,23 +1958,43 @@
               <span x-text="machine"></span>
               <span class="text-xs bg-surface-700 text-gray-400 px-2 py-0.5 rounded" x-text="machineItems.length + ' item(s)'"></span>
             </h3>
-          </div>
+            <svg class="w-4 h-4 text-gray-500 transition-transform" :class="todos._expandedMachines[machine] ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
 
-          <!-- Machine items -->
-          <div class="divide-y divide-surface-700">
-            <template x-for="item in machineItems" :key="item.id">
-              <div class="px-5 py-3">
+          <!-- Machine items (only show when expanded) -->
+          <div x-show="todos._expandedMachines[machine]" class="divide-y divide-surface-700">
+            <!-- Status sections -->
+            <template x-for="(statusItems, status) in groupTodosByStatus(machineItems)" :key="status">
+              <div x-show="statusItems.length > 0">
+                <!-- Status header (collapsible) -->
+                <button @click="todos._expandedStatuses = todos._expandedStatuses || {}; todos._expandedStatuses[machine + ':' + status] = !todos._expandedStatuses[machine + ':' + status]"
+                        class="w-full px-5 py-2 bg-surface-900/50 flex items-center justify-between hover:bg-surface-800/50 transition text-left border-b border-surface-700">
+                  <h4 class="text-xs font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                    <span :class="status === 'remediated' ? 'bg-green-900 text-green-300' : status === 'ignored' ? 'bg-gray-700 text-gray-300' : status === 'in-progress' ? 'bg-blue-900 text-blue-300' : 'bg-yellow-900 text-yellow-300'"
+                          class="px-2 py-0.5 rounded text-xs" x-text="status"></span>
+                    <span class="text-gray-500" x-text="'(' + statusItems.length + ')'"></span>
+                  </h4>
+                  <svg class="w-3 h-3 text-gray-500 transition-transform" :class="todos._expandedStatuses && todos._expandedStatuses[machine + ':' + status] ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
 
-                <!-- Summary row -->
-                <div class="flex items-start justify-between gap-3 cursor-pointer" @click="toggleTodoDetail(item.id)">
+                <!-- Status items -->
+                <div x-show="todos._expandedStatuses && todos._expandedStatuses[machine + ':' + status]" class="divide-y divide-surface-700">
+                  <template x-for="item in statusItems" :key="item.id">
+                    <div class="px-5 py-3">
+
+                      <!-- Summary row -->
+                      <div class="flex items-start justify-between gap-3 cursor-pointer" @click="toggleTodoDetail(item.id)">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span :class="severityBadge(item.severity)" class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase" x-text="item.severity || 'unknown'"></span>
-                      <span :class="item.status === 'remediated' ? 'bg-green-900 text-green-300' : item.status === 'ignored' ? 'bg-gray-700 text-gray-300' : 'bg-yellow-900 text-yellow-300'"
+                      <span :class="severityBadge((item.severity || '').toLowerCase())" class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase" x-text="item.severity || 'unknown'"></span>
+                      <span :class="item.status === 'remediated' ? 'bg-green-900 text-green-300' : item.status === 'ignored' ? 'bg-gray-700 text-gray-300' : item.status === 'in-progress' ? 'bg-blue-900 text-blue-300' : 'bg-yellow-900 text-yellow-300'"
                             class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase" x-text="item.status"></span>
                       <span class="text-gray-400 text-xs bg-surface-700 px-1.5 py-0.5 rounded" x-text="item.source_type"></span>
-                      <span x-show="item.cve_id" class="text-blue-400 text-xs font-mono" x-text="item.cve_id"></span>
-                      <span x-show="!item.cve_id" class="text-gray-500 text-xs truncate" x-text="item.source_id.slice(0, 20) + '...'"></span>
+                      <span class="text-gray-300 text-xs truncate max-w-xs" x-text="getTodoTitle(item)"></span>
                     </div>
                     <div class="mt-1 flex items-center gap-2 text-xs text-gray-500">
                       <span x-text="'Status: ' + item.status"></span>
@@ -2004,6 +2028,7 @@
                               :value="item.status"
                               class="w-full bg-surface-900 border border-surface-600 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-purple-500">
                         <option value="pending">Pending</option>
+                        <option value="in-progress">In Progress</option>
                         <option value="remediated">Remediated</option>
                         <option value="ignored">Ignored</option>
                       </select>
@@ -2088,7 +2113,7 @@
                         <template x-for="related in todoDetail.related" :key="related.id">
                           <div class="flex items-center justify-between bg-surface-900 px-2 py-1 rounded text-xs">
                             <span class="text-gray-400" x-text="related.machine"></span>
-                            <span :class="severityBadge(related.severity)" class="px-1 py-0.5 rounded text-xs"  x-text="related.severity"></span>
+                            <span :class="severityBadge((related.severity || '').toLowerCase())" class="px-1 py-0.5 rounded text-xs"  x-text="related.severity"></span>
                           </div>
                         </template>
                       </div>
@@ -2106,6 +2131,9 @@
                   </div>
                 </div>
 
+                    </div>
+                  </template>
+                </div>
               </div>
             </template>
           </div>
@@ -2700,7 +2728,7 @@ function dashboard() {
       grouped: {}, total: 0,
       promoteMessage: null, promoteError: false,
       promotedKeys: {}, toastMessage: null, toastError: false,
-      tagInputs: {},
+      tagInputs: {}, _expandedMachines: {}, _expandedStatuses: {},
     },
     todoDetail: {
       expandedId: null, relatedLoading: false, related: [],
@@ -3093,7 +3121,7 @@ function dashboard() {
     },
 
     async init() {
-      await Promise.all([this.loadHealth(), this.loadHosts(), this.loadKibana(), this.loadWazuh(), this.loadSysmon(), this.loadDefender(), this.loadModels(), this.loadLocalModels()]);
+      await Promise.all([this.loadHealth(), this.loadHosts(), this.loadKibana(), this.loadWazuh(), this.loadSysmon(), this.loadDefender(), this.loadModels(), this.loadLocalModels(), this.loadTodos()]);
     },
 
     async loadHealth() {
@@ -3400,7 +3428,7 @@ function dashboard() {
       this.chat.input = '';
       this.chat.messages.push({ role: 'user', content: text });
       this.chat.thinking = true;
-      this.$nextTick(() => this.scrollToMessage(this.chat.messages.length - 1));
+      setTimeout(() => this.scrollToMessage(this.chat.messages.length - 1), 0);
 
       const endpoint = this.chat.ragMode ? '/api/chat/rag/stream' : '/api/chat/stream';
 
@@ -3785,7 +3813,8 @@ function dashboard() {
     async loadAgentVulns(agentId, sevFilter, append) {
       const offset = append ? this.vulnDetail.vulns.length : 0;
       if (!append) {
-        this.vulnDetail = { vulns: [], loading: true, sevFilter, agentId, agentName: this.vulnDetail.agentName, total: 0, hasMore: false };
+        const agentName = this.vulnDetail.agentName;
+        this.vulnDetail = { vulns: [], loading: true, sevFilter, agentId, agentName, total: 0, hasMore: false };
       } else {
         this.vulnDetail = { ...this.vulnDetail, loading: true };
       }
@@ -3797,7 +3826,7 @@ function dashboard() {
         const data = await r.json();
         const newVulns = append ? [...this.vulnDetail.vulns, ...data.vulnerabilities] : data.vulnerabilities;
         const hasMore = newVulns.length < data.total;
-        this.vulnDetail = { vulns: newVulns, loading: false, sevFilter, agentId, total: data.total, hasMore };
+        this.vulnDetail = { vulns: newVulns, loading: false, sevFilter, agentId, agentName: this.vulnDetail.agentName, total: data.total, hasMore };
       } catch(e) {
         console.error('Failed to load agent vulns:', e);
         this.vulnDetail = { ...this.vulnDetail, loading: false };
@@ -3825,16 +3854,20 @@ function dashboard() {
         }
         const data = await r.json();
         this.todos.grouped = data.grouped;
-        this.todos.total = data.total;
         this.todos._loaded = true;
-        // Build promotedKeys from todos data
+        // Build promotedKeys and count active items (pending/in-progress)
         this.todos.promotedKeys = {};
+        let activeCount = 0;
         for (const machine in data.grouped) {
           for (const item of data.grouped[machine]) {
             const key = item.source_type + ':' + item.source_id;
             this.todos.promotedKeys[key] = true;
+            if (item.status === 'pending' || item.status === 'in-progress') {
+              activeCount++;
+            }
           }
         }
+        this.todos.total = activeCount;
       } catch(e) {
         this.todos.error = `Failed to load todos: ${e.message}`;
       } finally {
@@ -4110,6 +4143,47 @@ function dashboard() {
         low:      'border-green-800',
         unknown:  'border-surface-600',
       }[sev] || 'border-surface-600';
+    },
+
+    groupTodosByStatus(items) {
+      const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, unknown: 4 };
+      const statuses = ['pending', 'in-progress', 'remediated', 'ignored'];
+      const result = {};
+
+      statuses.forEach(status => {
+        const itemsForStatus = items.filter(i => i.status === status);
+        result[status] = itemsForStatus.sort((a, b) =>
+          (severityOrder[(a.severity || '').toLowerCase()] || 5) -
+          (severityOrder[(b.severity || '').toLowerCase()] || 5)
+        );
+      });
+      return result;
+    },
+
+    getTodoTitle(item) {
+      if (item.cve_id) return item.cve_id;
+      if (item.source_data) {
+        // For alerts - check various possible fields
+        if (typeof item.source_data === 'string') {
+          return item.source_data.slice(0, 50);
+        }
+
+        // Try common alert fields
+        if (item.source_data.rule_name) return item.source_data.rule_name;
+        if (item.source_data['kibana.alert.rule.name']) return item.source_data['kibana.alert.rule.name'];
+        if (item.source_data.description) return item.source_data.description;
+        if (item.source_data['kibana.alert.reason']) return item.source_data['kibana.alert.reason'];
+
+        // For Wazuh alerts
+        if (item.source_data.rule_name) return item.source_data.rule_name;
+        if (item.source_data.rule?.description) return item.source_data.rule.description;
+        if (item.source_data.rule?.name) return item.source_data.rule.name;
+
+        // Fallback
+        if (item.source_data.message) return item.source_data.message;
+        if (item.source_data['rule.name']) return item.source_data['rule.name'];
+      }
+      return item.source_id.slice(0, 30);
     },
 
     severityBadge(sev) {
