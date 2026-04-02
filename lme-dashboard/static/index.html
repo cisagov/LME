@@ -1966,6 +1966,8 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                       <span :class="severityBadge(item.severity)" class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase" x-text="item.severity || 'unknown'"></span>
+                      <span :class="item.status === 'remediated' ? 'bg-green-900 text-green-300' : item.status === 'ignored' ? 'bg-gray-700 text-gray-300' : 'bg-yellow-900 text-yellow-300'"
+                            class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase" x-text="item.status"></span>
                       <span class="text-gray-400 text-xs bg-surface-700 px-1.5 py-0.5 rounded" x-text="item.source_type"></span>
                       <span x-show="item.cve_id" class="text-blue-400 text-xs font-mono" x-text="item.cve_id"></span>
                       <span x-show="!item.cve_id" class="text-gray-500 text-xs truncate" x-text="item.source_id.slice(0, 20) + '...'"></span>
@@ -3857,8 +3859,6 @@ function dashboard() {
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || 'Promote failed');
-        // Mark as promoted optimistically
-        this.$set(this.todos.promotedKeys, key, true);
         // Show toast
         this.todos.toastMessage = data.is_new ? '✓ Added to To-Do list' : '✓ Already in To-Do list';
         this.todos.toastError = false;
@@ -3866,10 +3866,8 @@ function dashboard() {
         setTimeout(() => {
           this.todos.toastMessage = null;
         }, 2500);
-        // Reload todos if we're on that tab
-        if (this.mainView === 'todos') {
-          await this.loadTodos();
-        }
+        // Always reload todos to update list and promoted state
+        await this.loadTodos();
       } catch(e) {
         this.todos.toastMessage = `✗ Error: ${e.message}`;
         this.todos.toastError = true;
