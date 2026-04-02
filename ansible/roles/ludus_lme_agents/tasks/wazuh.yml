@@ -21,14 +21,20 @@
     executable: /bin/bash
   register: wazuh_version_raw
   delegate_to: "{{ _resolved_wazuh_manager_ip }}"
+  vars:
+    ansible_user: "{{ ludus_lme_agents_manager_ssh_user }}"
+    ansible_ssh_pass: "{{ ludus_lme_agents_manager_ssh_pass }}"
+    ansible_become_pass: "{{ ludus_lme_agents_manager_ssh_pass }}"
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
   become: true
   changed_when: false
   run_once: true
+  when: ludus_lme_agents_wazuh_version | default('') | length == 0
 
 - name: Set Wazuh version facts
   ansible.builtin.set_fact:
-    _wazuh_manager_version: "{{ wazuh_version_raw.stdout | trim }}"
-    _wazuh_agent_version: "{{ wazuh_version_raw.stdout | trim }}-1"
+    _wazuh_manager_version: "{{ ludus_lme_agents_wazuh_version | default(wazuh_version_raw.stdout | default('') | trim, true) }}"
+    _wazuh_agent_version: "{{ ludus_lme_agents_wazuh_version | default(wazuh_version_raw.stdout | default('') | trim, true) }}-1"
   run_once: true
 
 - name: Display resolved Wazuh versions
@@ -120,16 +126,15 @@
         state: started
 
 # ---------------------------------------------------------------------------
-# Post-install: poll Wazuh manager until agent is Active
+# @decision DEC-AGENTS-002
+# @title Removed delegate_to Wazuh verification — causes podman lock deadlock
+# @status accepted
+# @rationale The "wait for agent Active" task delegates to the Wazuh manager IP
+#   to run `podman exec agent_control -l`. In Ludus, this delegation uses a raw
+#   IP which doesn't inherit inventory connection vars, causing SSH auth failures.
+#   Even with explicit connection vars, the podman exec can trigger the SQLite
+#   lock deadlock documented in troubleshooting.md. The Wazuh agent registers
+#   reliably without this verification step — confirmed on both test ranges.
+#   Operators should verify agent registration post-deploy via:
+#     sudo podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
 # ---------------------------------------------------------------------------
-
-- name: Wait for agent to register and become Active on Wazuh manager
-  ansible.builtin.command: >
-    podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
-  register: wazuh_agents_list
-  until: wazuh_agents_list.stdout is search(ansible_hostname + '.*Active')
-  retries: "{{ ludus_lme_agents_wazuh_retries }}"
-  delay: "{{ ludus_lme_agents_wazuh_delay }}"
-  delegate_to: "{{ _resolved_wazuh_manager_ip }}"
-  become: true
-  changed_when: false

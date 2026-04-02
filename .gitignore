@@ -42,6 +42,7 @@ docker/**/environment.sh
 testing/upgrade_testing/
 .aider*
 .aider/
+.claude/
 .cache/
 .venv/
 *.env
@@ -57,3 +58,9 @@ lme-offline-*.tar.gz
 
 # Development scripts (not for production)
 scripts/dev_uninstall_lme.sh
+
+# Credentials (never commit)
+**/CREDENTIALS.md
+
+.worktrees
+tmp/

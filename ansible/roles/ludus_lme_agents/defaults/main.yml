@@ -27,6 +27,15 @@ ludus_lme_agents_agent_arch: "x86_64"
 # IP of the Wazuh manager. Defaults to the LME server IP.
 ludus_lme_agents_wazuh_manager_ip: "{{ ludus_lme_agents_server_ip }}"
 
+# SSH credentials for delegating tasks to the LME/Wazuh manager.
+# Required when delegate_to uses a raw IP (Ludus default: localuser/password).
+ludus_lme_agents_manager_ssh_user: "localuser"
+ludus_lme_agents_manager_ssh_pass: "password"
+
+# Wazuh manager version. If set, skips the delegate_to query to the manager.
+# Format: "4.9.1" (without leading 'v').
+ludus_lme_agents_wazuh_version: ""
+
 # How long to wait for Wazuh agents to become Active on the manager.
 ludus_lme_agents_wazuh_retries: 30
 ludus_lme_agents_wazuh_delay: 10
