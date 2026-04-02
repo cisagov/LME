@@ -745,6 +745,7 @@
       no_log: true
       ignore_errors: yes
 
+
     - name: Wait for cluster health to stabilize
       uri:
         url: "{{ local_es_url }}/_cluster/health?wait_for_status=yellow&timeout=120s"
