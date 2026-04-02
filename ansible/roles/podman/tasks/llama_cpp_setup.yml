@@ -1,6 +1,24 @@
 ---
 # Llama.cpp setup tasks for podman role
 
+- name: Ensure /opt/lme/lme-dashboard directory exists
+  file:
+    path: /opt/lme/lme-dashboard
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy dashboard app to /opt/lme/lme-dashboard
+  copy:
+    src: "{{ clone_directory }}/lme-dashboard/"
+    dest: /opt/lme/lme-dashboard/
+    owner: root
+    group: root
+    mode: preserve
+  become: yes
+
 - name: Create pgvector secret password
   shell: |
     source /root/.profile
