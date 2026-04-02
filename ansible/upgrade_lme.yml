@@ -822,7 +822,7 @@
             {{ podman_cmd }} run --rm --network lme \
               --secret pgvector,type=env,target=PGVECTOR_PASS \
               -v {{ clone_directory }}/scripts:/scripts:z \
-              python:3.11-slim bash -c \
+              docker.io/library/python:3.11-slim bash -c \
               "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py --reset"
           args:
             executable: /bin/bash
