@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 700" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4ade80"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="700" rx="16" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="550" y="42" text-anchor="middle" fill="#f8fafc" font-size="24" font-weight="700">Data Privacy - What the LLM Sees vs What It Never Sees</text>
+  <text x="550" y="67" fill="#94a3b8" font-size="13" text-anchor="middle">Log data never leaves your infrastructure. The LLM only translates the question - it never touches actual logs.</text>
+
+  <!-- ====== SECURITY BOUNDARY LINE ====== -->
+  <line x1="550" y1="90" x2="550" y2="680" stroke="#ef4444" stroke-width="2" stroke-dasharray="8,6" opacity="0.6"/>
+  <rect x="490" y="82" width="120" height="24" rx="6" fill="#ef4444" opacity="0.15"/>
+  <text x="550" y="98" text-anchor="middle" fill="#ef4444" font-size="12" font-weight="700">SECURITY BOUNDARY</text>
+
+  <!-- ====== LEFT SIDE: What LLM Sees ====== -->
+  <text x="280" y="130" text-anchor="middle" fill="#fbbf24" font-size="18" font-weight="700">What the LLM Receives</text>
+  <text x="280" y="150" text-anchor="middle" fill="#64748b" font-size="11">(This is ALL that gets sent to the model - local or cloud)</text>
+
+  <!-- System Prompt Box -->
+  <rect x="40" y="170" width="480" height="195" rx="12" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="60" y="198" fill="#c084fc" font-size="14" font-weight="600">System Prompt (hardcoded template)</text>
+  <text x="60" y="218" fill="#64748b" font-size="10">Contains NO log data, NO credentials, NO infrastructure details</text>
+
+  <rect x="55" y="230" width="450" height="120" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="70" y="252" fill="#94a3b8" font-size="11">"You translate natural language questions into</text>
+  <text x="70" y="268" fill="#94a3b8" font-size="11"> log search parameters..."</text>
+  <text x="70" y="290" fill="#94a3b8" font-size="11">Rules: output 4 lines - message, start, end, host</text>
+  <text x="70" y="312" fill="#94a3b8" font-size="11">Examples:</text>
+  <text x="70" y="328" fill="#4ade80" font-size="11">  Q: Did anyone run sudo commands? -> message: sudo</text>
+  <text x="70" y="344" fill="#4ade80" font-size="11">  Q: Any RDP connections? -> message: Network connection detected RDP</text>
+
+  <!-- User Question Box -->
+  <rect x="40" y="385" width="480" height="70" rx="12" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+  <text x="60" y="413" fill="#60a5fa" font-size="14" font-weight="600">User's Question (just the text)</text>
+  <rect x="55" y="425" width="450" height="22" rx="4" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="70" y="441" fill="#fbbf24" font-size="12" font-style="italic">"did lme-user logon to win10-endpoint2 today"</text>
+
+  <!-- LLM Output Box -->
+  <rect x="40" y="475" width="480" height="110" rx="12" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+  <text x="60" y="503" fill="#4ade80" font-size="14" font-weight="600">LLM Output (just keywords + timestamps)</text>
+  <text x="60" y="520" fill="#64748b" font-size="10">No log content, no search results, no sensitive data</text>
+  <rect x="55" y="530" width="450" height="42" rx="4" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="70" y="548" fill="#4ade80" font-size="11" font-family="monospace">message: logged on lme-user OR session opened lme-user</text>
+  <text x="70" y="564" fill="#4ade80" font-size="11" font-family="monospace">start: 2026-04-03T00:00:00Z  end: 2026-04-03T23:59:59Z  host: win10-endpoint2</text>
+
+  <!-- Arrow from prompt to LLM output -->
+  <path d="M 280 455 L 280 473" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Summary left -->
+  <rect x="40" y="605" width="480" height="70" rx="12" fill="#22c55e" opacity="0.08" stroke="#22c55e" stroke-width="1"/>
+  <text x="280" y="632" text-anchor="middle" fill="#4ade80" font-size="13" font-weight="700">SAFE TO SEND TO ANY MODEL (LOCAL OR CLOUD)</text>
+  <text x="280" y="652" text-anchor="middle" fill="#4ade80" font-size="11">Only generic keywords and timestamps cross the boundary</text>
+  <text x="280" y="668" text-anchor="middle" fill="#4ade80" font-size="11">No PII, no log content, no credentials, no IPs</text>
+
+  <!-- ====== RIGHT SIDE: What LLM Never Sees ====== -->
+  <text x="820" y="130" text-anchor="middle" fill="#ef4444" font-size="18" font-weight="700">What the LLM NEVER Sees</text>
+  <text x="820" y="150" text-anchor="middle" fill="#64748b" font-size="11">(Stays on your infrastructure - never sent to any model)</text>
+
+  <!-- Elasticsearch Data -->
+  <rect x="580" y="170" width="490" height="145" rx="12" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+  <rect x="950" y="175" width="22" height="22" rx="4" fill="#ef4444" opacity="0.2"/>
+  <text x="961" y="191" text-anchor="middle" fill="#ef4444" font-size="16">X</text>
+  <text x="600" y="198" fill="#ef4444" font-size="14" font-weight="600">Actual Log Data (Elasticsearch)</text>
+  <rect x="595" y="210" width="460" height="90" rx="6" fill="#0f172a" stroke="#ef4444" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="610" y="232" fill="#f87171" font-size="11" font-family="monospace">An account was successfully logged on.</text>
+  <text x="610" y="248" fill="#f87171" font-size="11" font-family="monospace">  Security ID: S-1-5-21-246561305...</text>
+  <text x="610" y="264" fill="#f87171" font-size="11" font-family="monospace">  Account Name: lme-user</text>
+  <text x="610" y="280" fill="#f87171" font-size="11" font-family="monospace">  Logon Type: 7  Source IP: 10.0.0.50</text>
+  <text x="610" y="296" fill="#f87171" font-size="11" font-family="monospace">  Workstation: WIN10-ENDPOINT2</text>
+
+  <!-- Credentials -->
+  <rect x="580" y="330" width="490" height="75" rx="12" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+  <rect x="950" y="335" width="22" height="22" rx="4" fill="#ef4444" opacity="0.2"/>
+  <text x="961" y="351" text-anchor="middle" fill="#ef4444" font-size="16">X</text>
+  <text x="600" y="358" fill="#ef4444" font-size="14" font-weight="600">Credentials &amp; Infrastructure</text>
+  <text x="610" y="380" fill="#f87171" font-size="11" font-family="monospace">ES password, API keys, TLS certificates</text>
+  <text x="610" y="396" fill="#f87171" font-size="11" font-family="monospace">Internal IPs, hostnames, network topology</text>
+
+  <!-- Query Results -->
+  <rect x="580" y="420" width="490" height="75" rx="12" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+  <rect x="950" y="425" width="22" height="22" rx="4" fill="#ef4444" opacity="0.2"/>
+  <text x="961" y="441" text-anchor="middle" fill="#ef4444" font-size="16">X</text>
+  <text x="600" y="448" fill="#ef4444" font-size="14" font-weight="600">Search Results</text>
+  <text x="610" y="470" fill="#f87171" font-size="11">The actual matching log entries are fetched AFTER the LLM</text>
+  <text x="610" y="486" fill="#f87171" font-size="11">call, directly from ES to the dashboard. LLM never sees results.</text>
+
+  <!-- User Identity -->
+  <rect x="580" y="510" width="490" height="75" rx="12" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+  <rect x="950" y="515" width="22" height="22" rx="4" fill="#ef4444" opacity="0.2"/>
+  <text x="961" y="531" text-anchor="middle" fill="#ef4444" font-size="16">X</text>
+  <text x="600" y="538" fill="#ef4444" font-size="14" font-weight="600">Security Context</text>
+  <text x="610" y="560" fill="#f87171" font-size="11">SIDs, session IDs, authentication tokens</text>
+  <text x="610" y="576" fill="#f87171" font-size="11">Source/destination IPs, MAC addresses, process GUIDs</text>
+
+  <!-- Summary right -->
+  <rect x="580" y="605" width="490" height="70" rx="12" fill="#ef4444" opacity="0.08" stroke="#ef4444" stroke-width="1"/>
+  <text x="820" y="632" text-anchor="middle" fill="#f87171" font-size="13" font-weight="700">PROTECTED - NEVER LEAVES YOUR ENVIRONMENT</text>
+  <text x="820" y="652" text-anchor="middle" fill="#f87171" font-size="11">Dashboard queries ES directly using internal credentials</text>
+  <text x="820" y="668" text-anchor="middle" fill="#f87171" font-size="11">All sensitive data stays behind the security boundary</text>
+
+  <!-- ====== Flow arrows showing data path ====== -->
+  <!-- Arrow: question goes left to LLM -->
+  <path d="M 280 365 L 280 383" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Blocked arrow: no data goes right to LLM -->
+  <line x1="565" y1="250" x2="535" y2="250" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <rect x="530" y="237" width="28" height="26" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="2"/>
+  <text x="544" y="255" text-anchor="middle" fill="#ef4444" font-size="16" font-weight="700">X</text>
+
+  <line x1="565" y1="370" x2="535" y2="370" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <rect x="530" y="357" width="28" height="26" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="2"/>
+  <text x="544" y="375" text-anchor="middle" fill="#ef4444" font-size="16" font-weight="700">X</text>
+
+  <line x1="565" y1="460" x2="535" y2="460" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <rect x="530" y="447" width="28" height="26" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="2"/>
+  <text x="544" y="465" text-anchor="middle" fill="#ef4444" font-size="16" font-weight="700">X</text>
+
+  <line x1="565" y1="550" x2="535" y2="550" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <rect x="530" y="537" width="28" height="26" rx="5" fill="#0f172a" stroke="#ef4444" stroke-width="2"/>
+  <text x="544" y="555" text-anchor="middle" fill="#ef4444" font-size="16" font-weight="700">X</text>
+</svg>

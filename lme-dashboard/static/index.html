@@ -164,6 +164,15 @@
     </svg>
     Detection Engineering
   </button>
+  <button @click="mainView = 'nlsearch'"
+          :class="mainView === 'nlsearch' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+    </svg>
+    Log Search
+  </button>
   <button @click="mainView = 'settings'; loadModels(); loadLocalModels(); if (!kev.status) loadKevStatus()"
           :class="mainView === 'settings' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
           class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
@@ -1623,6 +1632,106 @@
   </div>
 </div><!-- end vulnerabilities view -->
 
+<!-- ── Natural Language Log Search View ────────────────────────────────────── -->
+<div x-show="mainView === 'nlsearch'" x-cloak class="h-full overflow-y-auto">
+  <div class="max-w-5xl mx-auto p-6 space-y-4">
+
+    <!-- Search input -->
+    <div class="bg-surface-800 rounded-lg border border-surface-600 p-5">
+      <h2 class="text-lg font-semibold text-white mb-3">Natural Language Log Search</h2>
+      <p class="text-gray-400 text-xs mb-4">Ask questions about your Elastic agent logs in plain English. The LLM extracts search terms and time ranges to query the <code class="text-blue-400">message</code> field across all <code class="text-blue-400">logs-*</code> indices.</p>
+      <form @submit.prevent="nlDoSearch()" class="flex gap-3">
+        <input x-model="nlSearch.input" type="text"
+               placeholder="e.g. any failed ssh logins today? ... who ran sudo in the last hour? ... show powershell errors this week"
+               class="flex-1 bg-surface-900 border border-surface-600 rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+               :disabled="nlSearch.loading" />
+        <button type="submit"
+                :disabled="nlSearch.loading || !nlSearch.input.trim()"
+                class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-surface-700 disabled:text-gray-600 text-white text-sm font-medium rounded-lg transition flex items-center gap-2">
+          <svg x-show="nlSearch.loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Search
+        </button>
+      </form>
+    </div>
+
+    <!-- Interpretation card -->
+    <template x-if="nlSearch.searchTerms">
+      <div class="bg-surface-800 rounded-lg border border-surface-600 p-4 flex flex-wrap items-center gap-4 text-xs">
+        <div>
+          <span class="text-gray-500">Query:</span>
+          <span class="text-blue-400 ml-1" x-text="nlSearch.esQuery"></span>
+        </div>
+        <div>
+          <span class="text-gray-500">Time:</span>
+          <span class="text-green-400 ml-1" x-text="nlSearch.timeStart ? new Date(nlSearch.timeStart).toLocaleString() + ' - ' + new Date(nlSearch.timeEnd).toLocaleString() : 'all'"></span>
+        </div>
+        <div>
+          <span class="text-gray-500">Hits:</span>
+          <span class="text-yellow-400 ml-1 font-semibold" x-text="nlSearch.total"></span>
+        </div>
+      </div>
+    </template>
+
+    <!-- Error -->
+    <template x-if="nlSearch.error">
+      <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 text-red-300 text-sm" x-text="nlSearch.error"></div>
+    </template>
+
+    <!-- Results -->
+    <template x-if="nlSearch.results.length > 0">
+      <div class="space-y-1">
+        <template x-for="(r, i) in nlSearch.results" :key="i">
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3 hover:border-surface-500 transition">
+            <div class="flex items-start gap-3">
+              <div class="shrink-0 text-xs text-gray-500 w-44 pt-0.5" x-text="new Date(r.timestamp).toLocaleString()"></div>
+              <div class="flex-1 min-w-0">
+                <pre class="text-xs text-gray-300 whitespace-pre-wrap break-all font-mono leading-relaxed" x-text="r.message"></pre>
+              </div>
+            </div>
+            <div class="flex gap-4 mt-1.5 text-[10px] text-gray-600">
+              <span x-text="r.index"></span>
+              <span x-show="r.host" x-text="'host: ' + r.host"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- No results -->
+    <template x-if="!nlSearch.loading && nlSearch.searchTerms && nlSearch.results.length === 0 && !nlSearch.error">
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-8 text-center text-gray-500">
+        No logs matched your query.
+      </div>
+    </template>
+
+    <!-- Example queries -->
+    <template x-if="!nlSearch.searchTerms && !nlSearch.loading">
+      <div class="bg-surface-800 rounded-lg border border-surface-600 p-5">
+        <h3 class="text-sm font-medium text-gray-400 mb-3">Example queries</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <template x-for="ex in [
+            'Any failed SSH logins today?',
+            'Show me sudo commands by lme-user in the last hour',
+            'Were there any authentication failures this week?',
+            'Show PowerShell script executions today',
+            'Any process creation events in the last 30 minutes?',
+            'Who logged in between 2pm and 4pm?'
+          ]" :key="ex">
+            <button @click="nlSearch.input = ex; nlDoSearch()"
+                    class="text-left text-xs text-gray-400 hover:text-blue-400 bg-surface-900 rounded px-3 py-2 border border-surface-700 hover:border-blue-600 transition">
+              <span x-text="ex"></span>
+            </button>
+          </template>
+        </div>
+      </div>
+    </template>
+
+  </div>
+</div><!-- end nlsearch view -->
+
 <!-- ── Settings View ──────────────────────────────────────────────────────── -->
 <div x-show="mainView === 'settings'" x-cloak class="flex h-full">
 
@@ -2443,6 +2552,11 @@ function dashboard() {
       _pollTimer: null,
     },
 
+    nlSearch: {
+      input: '', loading: false, error: null,
+      searchTerms: '', esQuery: '', timeStart: '', timeEnd: '',
+      total: 0, results: [],
+    },
     docsIndex: {
       status: null, ingesting: false, message: '', error: false,
     },
@@ -3682,6 +3796,36 @@ function dashboard() {
         this.kevSettings.error = true;
       } finally {
         this.kevSettings.saving = false;
+      }
+    },
+
+    async nlDoSearch() {
+      const q = this.nlSearch.input.trim();
+      if (!q) return;
+      this.nlSearch.loading = true;
+      this.nlSearch.error = null;
+      this.nlSearch.results = [];
+      this.nlSearch.searchTerms = '';
+      this.nlSearch.total = 0;
+      try {
+        const r = await fetch('/api/nl-search', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({query: q}),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        if (data.error) throw new Error(data.error);
+        this.nlSearch.searchTerms = data.search_terms;
+        this.nlSearch.esQuery = data.es_query;
+        this.nlSearch.timeStart = data.time_start;
+        this.nlSearch.timeEnd = data.time_end;
+        this.nlSearch.total = data.total;
+        this.nlSearch.results = data.results;
+      } catch(e) {
+        this.nlSearch.error = `Search failed: ${e.message}`;
+      } finally {
+        this.nlSearch.loading = false;
       }
     },
 

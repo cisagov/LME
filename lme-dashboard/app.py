@@ -14,7 +14,7 @@ import base64
 import hashlib
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -2934,6 +2934,292 @@ async def sigma_upload_file(file: UploadFile = File(...)):
         "success_count": result.get("success_count", 0),
         "rules_count": result.get("rules_count", 0),
         "errors": result.get("errors", [])[:5],
+    }
+
+
+# ── Natural Language Search ──────────────────────────────────────────────────
+
+_NL_SEARCH_SYSTEM_PROMPT = """You translate natural language questions into log search parameters.
+
+You are searching the "message" field of security logs. Your job is to figure out what words
+would ACTUALLY appear in log messages, not just repeat what the user said.
+
+Think about it like this: if a user says "did anyone login", logs don't say "login" — they say
+"session opened" or "Logon" or "authentication". You must translate the user's intent into the
+actual log vocabulary.
+
+IMPORTANT: Always include ALL parts of the user's question. If they mention a username, include it.
+If they mention an action AND a person, include BOTH. Never drop parts of the question.
+
+Output exactly 4 lines in this format, nothing else:
+message: <keywords that would appear in actual log messages>
+start: <ISO 8601 timestamp>
+end: <ISO 8601 timestamp>
+host: <agent/host name, or * for all hosts>
+
+Rules:
+- Today is {today}, right now is {now}
+- If no time given, use today: {today}T00:00:00Z to {today}T23:59:59Z
+- Words separated by spaces mean ALL must appear (AND)
+- Use OR between alternative terms
+- If the user mentions a specific machine/endpoint/host, put it in host. Otherwise use *
+- Translate the user's words into log vocabulary:
+  "sudo commands" -> "sudo" (just the word sudo, nothing else)
+  "login/logged in/logged on" -> "session opened OR logged on" (use OR to cover both Linux and Windows)
+  "failed login/SSH failure" -> "authentication failure" or "Failed password"
+  "processes/programs ran" -> "Process Create"
+  "network activity" -> "Network connection detected"
+  "errors" -> "error OR warning OR failed OR failure"
+
+Examples:
+
+Q: Did anyone run sudo commands today?
+message: sudo
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: *
+
+Q: Did lme-user login today?
+message: session opened lme-user OR logged on lme-user
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: *
+
+Q: Did lme-user logon to win10-endpoint2 today?
+message: logged on lme-user OR session opened lme-user
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: win10-endpoint2
+
+Q: Did anyone log on to win10-endpoint2 today?
+message: logged on OR session opened
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: win10-endpoint2
+
+Q: Show me failed SSH attempts on ubuntu-vm2 yesterday morning
+message: authentication failure
+start: {yesterday}T00:00:00Z
+end: {yesterday}T12:00:00Z
+host: ubuntu-vm2
+
+Q: Any RDP connections in the last hour?
+message: Network connection detected RDP
+start: {one_hour_ago}
+end: {now}
+host: *
+
+Q: Did admin run powershell today?
+message: powershell.exe admin
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: *
+
+Q: Was there a brute force attempt?
+message: Failed password OR authentication failure
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: *
+
+Q: Show me process creation events on win10-endpoint2
+message: Process Create
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: win10-endpoint2
+
+Q: any errors or warnings in the last 30 minutes?
+message: error OR warning OR failed OR failure
+start: {thirty_min_ago}
+end: {now}
+host: *
+
+Q: show me network connections from the last hour
+message: Network connection detected
+start: {one_hour_ago}
+end: {now}
+host: *
+
+Q: Were there any root sessions opened?
+message: session opened root
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: *
+
+Q: Did elastic authentication fail?
+message: failed to authenticate user
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: *
+
+Q: show me all events today
+message: *
+start: {today}T00:00:00Z
+end: {today}T23:59:59Z
+host: *"""
+
+
+class NLSearchRequest(BaseModel):
+    query: str
+
+
+def _build_nl_system_prompt() -> str:
+    """Build the NL search system prompt with current timestamps."""
+    now = datetime.now(timezone.utc)
+    return _NL_SEARCH_SYSTEM_PROMPT.format(
+        today=now.strftime("%Y-%m-%d"),
+        yesterday=(now - timedelta(days=1)).strftime("%Y-%m-%d"),
+        now=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        one_hour_ago=(now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        thirty_min_ago=(now - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        week_ago=(now - timedelta(days=7)).strftime("%Y-%m-%d"),
+    )
+
+
+def _parse_nl_response(content: str):
+    """Parse the LLM response into search terms, time range, and host."""
+    import re
+    search = ""
+    time_start = ""
+    time_end = ""
+    host = ""
+    for line in content.strip().splitlines():
+        line = line.strip()
+        # Try new format: message: / start: / end: / host:
+        m_msg = re.match(r"message:\s*(.+)", line, re.IGNORECASE)
+        m_start = re.match(r"start:\s*(.+)", line, re.IGNORECASE)
+        m_end = re.match(r"end:\s*(.+)", line, re.IGNORECASE)
+        m_host = re.match(r"host:\s*(.+)", line, re.IGNORECASE)
+        # Also accept old format as fallback
+        m_search = re.match(r"SEARCH:\s*(.+)", line, re.IGNORECASE)
+        m_time = re.match(r"TIME:\s*([^,]+),\s*(.+)", line, re.IGNORECASE)
+        if (m_msg or m_search) and not search:
+            search = (m_msg or m_search).group(1).strip()
+        if m_start and not time_start:
+            time_start = m_start.group(1).strip()
+        if m_end and not time_end:
+            time_end = m_end.group(1).strip()
+        if m_host and not host:
+            host = m_host.group(1).strip()
+        if m_time and not time_start:
+            time_start = m_time.group(1).strip()
+            time_end = m_time.group(2).strip()
+    return search, time_start, time_end, host
+
+
+@app.post("/api/nl-search")
+async def nl_search(req: NLSearchRequest):
+    """Natural language search across Elastic agent logs using the message field."""
+    # Step 1: Ask the LLM to extract search terms and time range
+    system_prompt = _build_nl_system_prompt()
+    payload = {
+        "model": _active_model["name"],
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": req.query},
+        ],
+        "temperature": 0.0,
+        "max_tokens": 2048,
+    }
+    async with llm_client() as c:
+        try:
+            r = await c.post(
+                f"{LITELLM_URL}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {LITELLM_KEY}",
+                         "Content-Type": "application/json"},
+                json=payload,
+            )
+            r.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"LLM unreachable: {e}")
+
+    msg = r.json()["choices"][0]["message"]
+    llm_content = msg.get("content") or ""
+    # Thinking models may put the answer in reasoning_content instead
+    if not llm_content.strip():
+        llm_content = msg.get("reasoning_content") or ""
+    # Also check provider_specific_fields as a fallback
+    if not llm_content.strip():
+        psf = msg.get("provider_specific_fields") or {}
+        llm_content = psf.get("reasoning_content") or ""
+    search_terms, time_start, time_end, host = _parse_nl_response(llm_content)
+
+    if not search_terms:
+        return {"error": "Could not extract search terms", "llm_raw": llm_content,
+                "results": [], "total": 0}
+
+    # Step 2: Build the query from the extracted keywords
+    # Split on OR first to get alternative groups, then AND words within each group
+    or_groups = [g.strip() for g in search_terms.split(" OR ")]
+    if len(or_groups) > 1:
+        # Multiple alternatives: OR them together, AND words within each
+        parts = []
+        for group in or_groups:
+            words = group.split()
+            if len(words) > 1:
+                parts.append("(" + " AND ".join(words) + ")")
+            else:
+                parts.append(words[0])
+        es_query_string = " OR ".join(parts)
+    else:
+        # Single group: AND all words together
+        es_query_string = " AND ".join(search_terms.split())
+
+    # Build ES query — exclude noise from our own podman exec / curl commands
+    must_clauses = [
+        {"query_string": {"default_field": "message", "query": es_query_string}},
+    ]
+    must_not_clauses = [
+        {"match_phrase": {"message": "podman exec"}},
+        {"match_phrase": {"message": "command continued"}},
+    ]
+    if time_start and time_end:
+        must_clauses.append({"range": {"@timestamp": {"gte": time_start, "lte": time_end}}})
+    if host and host != "*":
+        must_clauses.append({"term": {"agent.name": host}})
+
+    es_body = {
+        "size": 50,
+        "_source": ["message", "@timestamp", "host.name", "user.name", "agent.name"],
+        "query": {"bool": {"must": must_clauses, "must_not": must_not_clauses}},
+        "sort": [{"@timestamp": {"order": "desc"}}],
+    }
+
+    # Step 3: Execute the search
+    async with es_client() as c:
+        try:
+            resp = await c.post(
+                f"{ES_URL}/logs-*/_search",
+                auth=ES_AUTH,
+                json=es_body,
+            )
+            resp.raise_for_status()
+        except Exception as e:
+            raise HTTPException(502, f"Elasticsearch error: {e}")
+
+    data = resp.json()
+    hits = data.get("hits", {})
+    results = []
+    for h in hits.get("hits", []):
+        src = h.get("_source", {})
+        msg = src.get("message", "")
+        # Clean up escaped characters for readability
+        msg = msg.replace("\\\\", "\\").replace("\\/", "/")
+        results.append({
+            "timestamp": src.get("@timestamp", ""),
+            "message": msg,
+            "host": src.get("host", {}).get("name", "") if isinstance(src.get("host"), dict) else "",
+            "index": h.get("_index", ""),
+        })
+
+    return {
+        "query": req.query,
+        "search_terms": search_terms,
+        "es_query": es_query_string,
+        "host_filter": host if host and host != "*" else None,
+        "time_start": time_start,
+        "time_end": time_end,
+        "total": hits.get("total", {}).get("value", 0),
+        "results": results,
     }
 
 

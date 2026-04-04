@@ -31,7 +31,95 @@
     executable: /bin/bash
   become: yes
 
-- name: Pull llama.cpp container image
+# ── GPU Detection ──────────────────────────────────────────────────────────────
+- name: Detect NVIDIA GPU
+  shell: lspci | grep -qi nvidia
+  register: gpu_detect
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Set GPU availability fact
+  set_fact:
+    has_nvidia_gpu: "{{ gpu_detect.rc == 0 }}"
+
+- name: Display GPU detection result
+  debug:
+    msg: "NVIDIA GPU {{ 'detected' if has_nvidia_gpu else 'not detected' }} — using {{ 'CUDA (GPU-accelerated)' if has_nvidia_gpu else 'CPU-only' }} llama.cpp image"
+
+# ── NVIDIA Driver & Container Toolkit (GPU only) ─────────────────────────────
+- name: Install NVIDIA driver prerequisites
+  apt:
+    name:
+      - ubuntu-drivers-common
+      - pciutils
+    state: present
+    update_cache: yes
+  become: yes
+  when: has_nvidia_gpu and ansible_os_family == "Debian"
+
+- name: Auto-install recommended NVIDIA driver
+  shell: ubuntu-drivers install --gpgpu
+  args:
+    executable: /bin/bash
+  register: nvidia_driver_install
+  become: yes
+  when: has_nvidia_gpu and ansible_os_family == "Debian"
+  failed_when: false
+
+- name: Check if NVIDIA driver is loaded
+  shell: nvidia-smi
+  register: nvidia_smi_check
+  changed_when: false
+  failed_when: false
+  become: yes
+  when: has_nvidia_gpu
+
+- name: Install NVIDIA Container Toolkit repository
+  shell: |
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+      gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+      tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    apt-get update
+  args:
+    executable: /bin/bash
+    creates: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+  become: yes
+  when: has_nvidia_gpu and ansible_os_family == "Debian"
+
+- name: Install NVIDIA Container Toolkit
+  apt:
+    name: nvidia-container-toolkit
+    state: present
+  become: yes
+  when: has_nvidia_gpu and ansible_os_family == "Debian"
+
+- name: Configure NVIDIA Container Toolkit for Podman (rootful CDI)
+  shell: |
+    nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+  args:
+    executable: /bin/bash
+  become: yes
+  when: has_nvidia_gpu
+  failed_when: false
+
+# ── Pull llama.cpp container image ────────────────────────────────────────────
+- name: Pull llama.cpp container image (CUDA)
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull ghcr.io/ggml-org/llama.cpp:server-cuda
+  args:
+    executable: /bin/bash
+  register: pull_llama_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_llama_result is not failed
+  when: not (offline_mode | default(false)) and has_nvidia_gpu
+
+- name: Pull llama.cpp container image (CPU)
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     podman pull ghcr.io/ggml-org/llama.cpp:server
@@ -42,9 +130,22 @@
   retries: 3
   delay: 5
   until: pull_llama_result is not failed
-  when: not (offline_mode | default(false))
+  when: not (offline_mode | default(false)) and not has_nvidia_gpu
 
-- name: Tag llama.cpp container image
+- name: Tag llama.cpp container image (CUDA)
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag ghcr.io/ggml-org/llama.cpp:server-cuda localhost/llama-cpp:LME_LATEST
+  args:
+    executable: /bin/bash
+  register: tag_llama_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: tag_llama_result is not failed
+  when: not (offline_mode | default(false)) and has_nvidia_gpu
+
+- name: Tag llama.cpp container image (CPU)
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     podman image tag ghcr.io/ggml-org/llama.cpp:server localhost/llama-cpp:LME_LATEST
@@ -55,7 +156,7 @@
   retries: 3
   delay: 5
   until: tag_llama_result is not failed
-  when: not (offline_mode | default(false))
+  when: not (offline_mode | default(false)) and not has_nvidia_gpu
 
 - name: Pull LiteLLM container image
   shell: |
@@ -133,6 +234,21 @@
   delay: 10
   until: model_download is not failed
 
+- name: Download Gemma 4 E2B model for GPU systems (Q4_K_M quantization)
+  get_url:
+    url: https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf
+    dest: /opt/lme/llama-models/gemma-4-E2B-it-Q4_K_M.gguf
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+    timeout: 600
+  become: yes
+  when: not (offline_mode | default(false)) and has_nvidia_gpu
+  register: gemma_model_download
+  retries: 3
+  delay: 10
+  until: gemma_model_download is not failed
+
 - name: Download nomic-embed-text-v1.5 model (Q4_K_M quantization)
   get_url:
     url: https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q4_K_M.gguf
@@ -159,7 +275,17 @@
     executable: /bin/bash
   become: yes
 
-- name: Copy llama.cpp quadlet file to /etc/containers/systemd
+- name: Copy llama.cpp quadlet file to /etc/containers/systemd (GPU)
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-llama-cpp-gpu.container"
+    dest: /etc/containers/systemd/lme-llama-cpp.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+  when: has_nvidia_gpu
+
+- name: Copy llama.cpp quadlet file to /etc/containers/systemd (CPU)
   copy:
     src: "{{ clone_directory }}/quadlet/lme-llama-cpp.container"
     dest: /etc/containers/systemd/lme-llama-cpp.container
@@ -167,6 +293,7 @@
     group: "root"
     mode: '0644'
   become: yes
+  when: not has_nvidia_gpu
 
 - name: Copy LiteLLM config file to /opt/lme/config
   copy:
@@ -369,7 +496,18 @@
     state: started
   become: yes
 
-- name: Create initial llama model config (records the default model)
+- name: Create initial llama model config - GPU (Gemma 4 E2B)
+  copy:
+    content: '{"model": "gemma-4-E2B-it-Q4_K_M.gguf"}'
+    dest: /opt/lme/config/llama-cpp-model.json
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+    force: no
+  become: yes
+  when: has_nvidia_gpu
+
+- name: Create initial llama model config - CPU (LFM2.5 1.2B)
   copy:
     content: '{"model": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf"}'
     dest: /opt/lme/config/llama-cpp-model.json
@@ -378,6 +516,7 @@
     mode: '0644'
     force: no
   become: yes
+  when: not has_nvidia_gpu
 
 - name: Enable and start llama model switch path watcher
   systemd:
@@ -389,15 +528,17 @@
 - name: Display llama.cpp setup success message
   debug:
     msg: |
-      Llama.cpp server with Gemma 3 1B model has been installed and started!
+      Llama.cpp server has been installed and started!
+
+      GPU detected: {{ has_nvidia_gpu }}
+      Mode: {{ 'CUDA GPU-accelerated' if has_nvidia_gpu else 'CPU-only' }}
+      Default model: {{ 'Gemma 4 E2B (gemma-4-E2B-it-Q4_K_M.gguf)' if has_nvidia_gpu else 'LFM2.5 1.2B (LFM2.5-1.2B-Instruct-Q4_K_M.gguf)' }}
 
       LME Security Dashboard:        http://{{ ansible_default_ipv4.address }}:8502
       LiteLLM Proxy (HTTPS):         https://{{ ansible_default_ipv4.address }}:4000
       Direct llama.cpp (HTTP only):  http://{{ ansible_default_ipv4.address }}:8080
 
       API Key for LiteLLM: sk-lme-llama-proxy
-      Model name: lfm2.5-1.2b
-      Model file: LiquidAI/LFM2.5-1.2B-Instruct-GGUF (pulled from HuggingFace at startup)
   when: model_download is succeeded
 
 - name: Display llama.cpp offline mode message

@@ -1,0 +1,31 @@
+# lme-llama-cpp.container (GPU-accelerated)
+[Unit]
+Description=Llama.cpp Server Container Service (CUDA GPU)
+Requires=lme-network.service
+After=lme-network.service
+PartOf=lme.service
+
+[Install]
+WantedBy=default.target lme.service
+
+[Service]
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=10
+TimeoutStartSec=300
+
+[Container]
+ContainerName=lme-llama-cpp
+Image=localhost/llama-cpp:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-llama-cpp --device nvidia.com/gpu=all
+Volume=/opt/lme/llama-models:/models:Z
+Volume=lme_certs:/certs:ro
+Environment=HOST=0.0.0.0
+Environment=PORT=8080
+Exec=--host 0.0.0.0 --port 8080 --model /models/gemma-4-E2B-it-Q4_K_M.gguf --ssl-cert-file /certs/llama-cpp/llama-cpp.crt --ssl-key-file /certs/llama-cpp/llama-cpp.key -ngl 99
+HealthCmd=curl -fsk https://localhost:8080/health
+HealthInterval=30s
+HealthTimeout=30s
+HealthRetries=3

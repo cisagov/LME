@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 820" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#60a5fa"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4ade80"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#fb923c"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="820" rx="16" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="550" y="45" text-anchor="middle" fill="#f8fafc" font-size="24" font-weight="700">Natural Language Log Search - Architecture</text>
+  <text x="550" y="70" text-anchor="middle" fill="#94a3b8" font-size="13">LME Dashboard - How a natural language question becomes Elasticsearch results</text>
+
+  <!-- ============ STEP 1: User Input ============ -->
+  <rect x="40" y="100" width="300" height="120" rx="12" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+  <circle cx="65" cy="125" r="14" fill="#3b82f6" opacity="0.2"/>
+  <text x="65" y="130" text-anchor="middle" fill="#3b82f6" font-size="14" font-weight="700">1</text>
+  <text x="88" y="130" fill="#f8fafc" font-size="15" font-weight="600">User Input</text>
+  <text x="60" y="155" fill="#94a3b8" font-size="11">Natural language question typed in the UI</text>
+  <rect x="55" y="168" width="270" height="38" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="65" y="192" fill="#fbbf24" font-size="12" font-style="italic">"did lme-user logon to win10-endpoint2 today"</text>
+
+  <!-- Arrow 1->2 -->
+  <line x1="340" y1="160" x2="400" y2="160" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="370" y="150" text-anchor="middle" fill="#60a5fa" font-size="10">POST</text>
+  <text x="370" y="175" text-anchor="middle" fill="#60a5fa" font-size="9">/api/nl-search</text>
+
+  <!-- ============ STEP 2: System Prompt + LLM ============ -->
+  <rect x="410" y="95" width="310" height="200" rx="12" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+  <circle cx="435" cy="120" r="14" fill="#8b5cf6" opacity="0.2"/>
+  <text x="435" y="125" text-anchor="middle" fill="#8b5cf6" font-size="14" font-weight="700">2</text>
+  <text x="458" y="125" fill="#f8fafc" font-size="15" font-weight="600">LLM Translation</text>
+  <text x="425" y="148" fill="#94a3b8" font-size="11">System prompt with rigid template + few-shot examples</text>
+  <text x="425" y="165" fill="#94a3b8" font-size="11">teaches model to translate intent to log vocabulary</text>
+
+  <!-- LLM Box -->
+  <rect x="425" y="178" width="280" height="105" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="440" y="198" fill="#c084fc" font-size="11" font-weight="600">LLM Output (4 rigid lines):</text>
+  <text x="440" y="218" fill="#4ade80" font-size="11" font-family="monospace">message: logged on lme-user OR</text>
+  <text x="440" y="233" fill="#4ade80" font-size="11" font-family="monospace">         session opened lme-user</text>
+  <text x="440" y="250" fill="#4ade80" font-size="11" font-family="monospace">start: 2026-04-03T00:00:00Z</text>
+  <text x="440" y="265" fill="#4ade80" font-size="11" font-family="monospace">end:   2026-04-03T23:59:59Z</text>
+  <text x="440" y="280" fill="#4ade80" font-size="11" font-family="monospace">host:  win10-endpoint2</text>
+
+  <!-- Model label -->
+  <rect x="600" y="100" width="115" height="22" rx="4" fill="#8b5cf6" opacity="0.15"/>
+  <text x="657" y="115" text-anchor="middle" fill="#c084fc" font-size="10">lfm2.5-1.2b-instruct</text>
+
+  <!-- Arrow 2->3 -->
+  <line x1="565" y1="295" x2="565" y2="340" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="580" y="322" fill="#60a5fa" font-size="10">parse</text>
+
+  <!-- ============ STEP 3: Parser ============ -->
+  <rect x="410" y="345" width="310" height="100" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+  <circle cx="435" cy="370" r="14" fill="#f59e0b" opacity="0.2"/>
+  <text x="435" y="375" text-anchor="middle" fill="#f59e0b" font-size="14" font-weight="700">3</text>
+  <text x="458" y="375" fill="#f8fafc" font-size="15" font-weight="600">Response Parser</text>
+  <text x="425" y="398" fill="#94a3b8" font-size="11">_parse_nl_response() extracts 4 fields</text>
+  <text x="425" y="415" fill="#94a3b8" font-size="11">using regex: message, start, end, host</text>
+  <text x="425" y="432" fill="#94a3b8" font-size="11">Case-insensitive, supports fallback formats</text>
+
+  <!-- Arrow 3->4 -->
+  <line x1="565" y1="445" x2="565" y2="490" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ STEP 4: Query Builder ============ -->
+  <rect x="350" y="495" width="430" height="130" rx="12" fill="#1e293b" stroke="#fb923c" stroke-width="2"/>
+  <circle cx="375" cy="520" r="14" fill="#fb923c" opacity="0.2"/>
+  <text x="375" y="525" text-anchor="middle" fill="#fb923c" font-size="14" font-weight="700">4</text>
+  <text x="398" y="525" fill="#f8fafc" font-size="15" font-weight="600">Elasticsearch Query Builder</text>
+  <text x="365" y="548" fill="#94a3b8" font-size="11">Code builds the query - LLM never touches ES syntax</text>
+
+  <rect x="365" y="558" width="400" height="55" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="375" y="576" fill="#fb923c" font-size="10" font-family="monospace">bool.must: [</text>
+  <text x="390" y="590" fill="#fb923c" font-size="10" font-family="monospace">query_string: "(logged AND on AND lme-user) OR (session AND opened AND lme-user)"</text>
+  <text x="390" y="604" fill="#fb923c" font-size="10" font-family="monospace">range: @timestamp gte/lte  |  term: agent.name = win10-endpoint2 ]</text>
+
+  <!-- Arrow 4->5 -->
+  <line x1="565" y1="625" x2="565" y2="660" stroke="#fb923c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+
+  <!-- ============ STEP 5: Elasticsearch ============ -->
+  <rect x="410" y="665" width="310" height="65" rx="12" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="435" cy="690" r="14" fill="#22c55e" opacity="0.2"/>
+  <text x="435" y="695" text-anchor="middle" fill="#22c55e" font-size="14" font-weight="700">5</text>
+  <text x="458" y="695" fill="#f8fafc" font-size="15" font-weight="600">Elasticsearch</text>
+  <text x="425" y="718" fill="#94a3b8" font-size="11">Searches logs-* indices, returns top 50 hits</text>
+
+  <!-- Arrow 5->6 -->
+  <line x1="565" y1="730" x2="565" y2="760" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- ============ STEP 6: Results ============ -->
+  <rect x="410" y="762" width="310" height="45" rx="12" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+  <circle cx="435" cy="785" r="14" fill="#22c55e" opacity="0.2"/>
+  <text x="435" y="790" text-anchor="middle" fill="#22c55e" font-size="14" font-weight="700">6</text>
+  <text x="458" y="790" fill="#f8fafc" font-size="15" font-weight="600">Results to UI</text>
+  <text x="620" y="790" fill="#4ade80" font-size="12">10 hits - lme-user logons</text>
+
+  <!-- ============ RIGHT SIDE: Design Decisions ============ -->
+  <rect x="790" y="100" width="280" height="340" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="810" y="128" fill="#f8fafc" font-size="14" font-weight="700">Key Design Decisions</text>
+
+  <circle cx="810" cy="155" r="4" fill="#3b82f6"/>
+  <text x="822" y="159" fill="#cbd5e1" font-size="11" font-weight="600">LLM only extracts, never builds queries</text>
+  <text x="822" y="173" fill="#64748b" font-size="10">Prevents invalid ES syntax from small model</text>
+
+  <circle cx="810" cy="198" r="4" fill="#8b5cf6"/>
+  <text x="822" y="202" fill="#cbd5e1" font-size="11" font-weight="600">Rigid 4-line template output</text>
+  <text x="822" y="216" fill="#64748b" font-size="10">message / start / end / host - nothing else</text>
+
+  <circle cx="810" cy="241" r="4" fill="#f59e0b"/>
+  <text x="822" y="245" fill="#cbd5e1" font-size="11" font-weight="600">Few-shot examples teach log vocabulary</text>
+  <text x="822" y="259" fill="#64748b" font-size="10">"login" -> "session opened" OR "logged on"</text>
+  <text x="822" y="273" fill="#64748b" font-size="10">"sudo commands" -> "sudo"</text>
+
+  <circle cx="810" cy="298" r="4" fill="#22c55e"/>
+  <text x="822" y="302" fill="#cbd5e1" font-size="11" font-weight="600">OR covers Linux + Windows vocabulary</text>
+  <text x="822" y="316" fill="#64748b" font-size="10">Split on " OR " first, AND within groups</text>
+
+  <circle cx="810" cy="341" r="4" fill="#fb923c"/>
+  <text x="822" y="345" fill="#cbd5e1" font-size="11" font-weight="600">host: field filters on agent.name</text>
+  <text x="822" y="359" fill="#64748b" font-size="10">Separates "where" from "what" in the query</text>
+
+  <circle cx="810" cy="384" r="4" fill="#ef4444"/>
+  <text x="822" y="388" fill="#cbd5e1" font-size="11" font-weight="600">Noise filtering via must_not</text>
+  <text x="822" y="402" fill="#64748b" font-size="10">Excludes podman exec, command continued</text>
+
+  <circle cx="810" cy="422" r="4" fill="#06b6d4"/>
+  <text x="822" y="426" fill="#cbd5e1" font-size="11" font-weight="600">Thinking model support</text>
+  <text x="822" y="440" fill="#64748b" font-size="10">Falls back to reasoning_content if content empty</text>
+
+  <!-- ============ BOTTOM RIGHT: Fields Searched ============ -->
+  <rect x="790" y="460" width="280" height="135" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="810" y="488" fill="#f8fafc" font-size="14" font-weight="700">Fields Used</text>
+
+  <text x="810" y="512" fill="#4ade80" font-size="11" font-family="monospace">message</text>
+  <text x="890" y="512" fill="#94a3b8" font-size="11">Full-text search (keywords)</text>
+
+  <text x="810" y="532" fill="#4ade80" font-size="11" font-family="monospace">@timestamp</text>
+  <text x="890" y="532" fill="#94a3b8" font-size="11">Time range filter</text>
+
+  <text x="810" y="552" fill="#4ade80" font-size="11" font-family="monospace">agent.name</text>
+  <text x="890" y="552" fill="#94a3b8" font-size="11">Host/endpoint filter</text>
+
+  <text x="810" y="578" fill="#64748b" font-size="10">Indices: logs-* (all Elastic agent logs)</text>
+
+  <!-- ============ LEFT SIDE: LiteLLM ============ -->
+  <rect x="40" y="260" width="300" height="100" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="60" y="288" fill="#f8fafc" font-size="14" font-weight="700">LiteLLM Proxy</text>
+  <text x="60" y="310" fill="#94a3b8" font-size="11">Unified API for local + cloud models</text>
+  <rect x="60" y="320" width="120" height="22" rx="4" fill="#22c55e" opacity="0.15"/>
+  <text x="70" y="336" fill="#4ade80" font-size="10">Local: llama-cpp</text>
+  <rect x="190" y="320" width="120" height="22" rx="4" fill="#3b82f6" opacity="0.15"/>
+  <text x="200" y="336" fill="#60a5fa" font-size="10">Cloud: nemotron</text>
+
+  <!-- Arrow from LiteLLM to LLM -->
+  <line x1="340" y1="300" x2="408" y2="240" stroke="#60a5fa" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow)"/>
+
+  <!-- ============ LEFT SIDE: Translation Table ============ -->
+  <rect x="40" y="400" width="300" height="210" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="60" y="428" fill="#f8fafc" font-size="14" font-weight="700">Vocabulary Translation</text>
+  <text x="60" y="445" fill="#64748b" font-size="10">User says -> Log message contains</text>
+
+  <text x="60" y="468" fill="#fbbf24" font-size="11">"login"</text>
+  <text x="150" y="468" fill="#64748b" font-size="11">-></text>
+  <text x="170" y="468" fill="#4ade80" font-size="11">session opened OR logged on</text>
+
+  <text x="60" y="490" fill="#fbbf24" font-size="11">"sudo commands"</text>
+  <text x="150" y="490" fill="#64748b" font-size="11">-></text>
+  <text x="170" y="490" fill="#4ade80" font-size="11">sudo</text>
+
+  <text x="60" y="512" fill="#fbbf24" font-size="11">"failed SSH"</text>
+  <text x="150" y="512" fill="#64748b" font-size="11">-></text>
+  <text x="170" y="512" fill="#4ade80" font-size="11">authentication failure</text>
+
+  <text x="60" y="534" fill="#fbbf24" font-size="11">"processes"</text>
+  <text x="150" y="534" fill="#64748b" font-size="11">-></text>
+  <text x="170" y="534" fill="#4ade80" font-size="11">Process Create</text>
+
+  <text x="60" y="556" fill="#fbbf24" font-size="11">"network activity"</text>
+  <text x="150" y="556" fill="#64748b" font-size="11">-></text>
+  <text x="170" y="556" fill="#4ade80" font-size="11">Network connection detected</text>
+
+  <text x="60" y="578" fill="#fbbf24" font-size="11">"errors"</text>
+  <text x="150" y="578" fill="#64748b" font-size="11">-></text>
+  <text x="170" y="578" fill="#4ade80" font-size="11">error OR warning OR failure</text>
+
+  <text x="60" y="600" fill="#fbbf24" font-size="11">"RDP connections"</text>
+  <text x="150" y="600" fill="#64748b" font-size="11">-></text>
+  <text x="170" y="600" fill="#4ade80" font-size="11">Network connection detected RDP</text>
+</svg>
