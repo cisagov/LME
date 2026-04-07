@@ -111,10 +111,10 @@ BEFORE (single-node)             AFTER (cluster)
 
 6. **Run the conversion playbook**:
    ```bash
-   cd /path/to/LME
-   sudo ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml
+   cd /path/to/LME 
+   ./scripts/convert_to_cluster.sh --skip-inventory 
    ```
-   This playbook:
+   This script:
    - Stops the LME service on the master
    - Re-renders the ES quadlet with cluster settings (seed hosts, publish host,
      transport port 9300, `cluster.initial_master_nodes`)
