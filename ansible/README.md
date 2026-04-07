@@ -234,7 +234,8 @@ Convert an existing single-node LME installation into a multi-node Elasticsearch
 
 ```bash
 # Option 1: Use the wrapper script (generates inventory interactively, then runs playbook)
-sudo bash scripts/convert_to_cluster.sh
+# Run as a normal user (not sudo); passwordless sudo must work for ansible become (or run sudo -v first).
+bash scripts/convert_to_cluster.sh
 
 # Option 2: Run the playbook directly (inventory must already exist)
 ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml

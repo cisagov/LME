@@ -159,7 +159,6 @@
         name: backup_lme
       vars:
         skip_prompts: true
-        skip_service_restart: true
       when: backup_choice in ['y', 'yes']
 
     - name: Record existing indices for post-conversion verification
