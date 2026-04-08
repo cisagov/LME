@@ -314,7 +314,10 @@ path.repo:
     - /usr/share/elasticsearch/snapshots
 ```
 
-Then create a Quadlet drop-in so the container mounts the NFS share:
+Then create a Quadlet drop-in so the container mounts the NFS share, and
+restart Elasticsearch. Run these commands on **every node** (master and all
+data nodes) -- without the drop-in, a node's ES container will not see the
+shared snapshot directory even though the host-level mount exists:
 
 ```bash
 sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
@@ -326,9 +329,8 @@ sudo systemctl daemon-reload
 sudo systemctl restart lme-elasticsearch
 ```
 
-Repeat on every node. Once all nodes have restarted, the shared
-`/mnt/es-snapshots` directory is available inside each container at
-`/usr/share/elasticsearch/snapshots`.
+Once all nodes have restarted, the shared `/mnt/es-snapshots` directory is
+available inside each container at `/usr/share/elasticsearch/snapshots`.
 
 #### Using an External NFS Server
 
