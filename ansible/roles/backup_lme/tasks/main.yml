@@ -327,7 +327,7 @@
 - name: Wait for containers to stop
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+    podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
   args:
     executable: /bin/bash
   register: running_containers

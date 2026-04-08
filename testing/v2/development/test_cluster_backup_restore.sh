@@ -170,6 +170,23 @@ docker_exec_as_lme_user "$MASTER_CONTAINER" "
 "
 pass "cluster_backup_lme.yml completed"
 
+echo "  Waiting for Elasticsearch to become ready after backup (service was restarted)..."
+for attempt in $(seq 1 30); do
+    if docker_exec "$MASTER_CONTAINER" "
+        source /root/.profile 2>/dev/null || true
+        source /opt/lme/scripts/extract_secrets.sh -q 2>/dev/null
+        curl -sk --max-time 5 -u \"elastic:\$elastic\" https://localhost:9200/_cluster/health?wait_for_status=yellow\&timeout=5s >/dev/null 2>&1
+    " 2>/dev/null; then
+        echo "  Elasticsearch is ready (attempt ${attempt})"
+        break
+    fi
+    if [ "$attempt" -eq 30 ]; then
+        fail "Elasticsearch did not become ready within 5 minutes after backup"
+        exit 1
+    fi
+    sleep 10
+done
+
 SNAPSHOT_STATE_RAW=$(docker_exec "$MASTER_CONTAINER" "
     source /root/.profile 2>/dev/null || true
     source /opt/lme/scripts/extract_secrets.sh -q 2>/dev/null
@@ -271,6 +288,23 @@ docker_exec_as_lme_user "$MASTER_CONTAINER" "
       ${ANSIBLE_OPTS}
 "
 pass "restore_lme_master.yml completed"
+
+echo "  Waiting for Elasticsearch to become ready after master restore..."
+for attempt in $(seq 1 30); do
+    if docker_exec "$MASTER_CONTAINER" "
+        source /root/.profile 2>/dev/null || true
+        source /opt/lme/scripts/extract_secrets.sh -q 2>/dev/null
+        curl -sk --max-time 5 -u \"elastic:\$elastic\" https://localhost:9200/_cluster/health?wait_for_status=yellow\&timeout=5s >/dev/null 2>&1
+    " 2>/dev/null; then
+        echo "  Elasticsearch is ready (attempt ${attempt})"
+        break
+    fi
+    if [ "$attempt" -eq 30 ]; then
+        fail "Elasticsearch did not become ready within 5 minutes after master restore"
+        exit 1
+    fi
+    sleep 10
+done
 
 CLUSTER_HEALTH_RAW=$(docker_exec "$MASTER_CONTAINER" "
     source /root/.profile 2>/dev/null || true
