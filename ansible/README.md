@@ -8,8 +8,11 @@ This directory contains the Ansible playbooks and roles used to deploy, manage, 
 ansible/
 ├── site.yml              # Main installation playbook
 ├── backup_lme.yml         # Backup operations playbook
+├── cluster_backup_lme.yml # Cluster-safe snapshot + master backup workflow
 ├── change_passwords.yml   # Password change playbook
 ├── convert_to_cluster.yml # Single-node to cluster conversion playbook
+├── restore_elasticsearch_snapshot.yml # Snapshot restore orchestration
+├── restore_lme_master.yml # Restore master/control-plane state from backup
 ├── upgrade_lme.yml        # Upgrade operations playbook  
 ├── rollback_lme.yml       # Rollback operations playbook
 ├── rolling_upgrade.yml    # ES cluster rolling upgrade playbook
@@ -42,9 +45,15 @@ ansible/
 ### Maintenance Operations
 - **`backup_lme.yml`**: Creates backups of LME installation and data
   - Backs up configuration files
-  - Backs up Podman volumes containing data
+  - Backs up Podman volumes containing data for single-node installs
+  - In cluster mode, creates a master/control-plane backup and excludes Elasticsearch data volumes
   - Creates timestamped backup directories
   - Supports automated and interactive modes
+
+- **`cluster_backup_lme.yml`**: Creates a cluster recovery bundle
+  - Creates an Elasticsearch snapshot
+  - Creates a master/control-plane backup on the master
+  - Emits a recovery manifest tying both artifacts together
 
 - **`upgrade_lme.yml`**: Upgrades LME to newer versions
   - Checks current version and upgrade requirements
@@ -57,6 +66,7 @@ ansible/
   - Optional safety backup before rollback
   - Restores configuration and volume data
   - Validates successful rollback
+  - Single-node only; fails fast on clustered installs
 
 - **`change_passwords.yml`**: Changes built-in user passwords across the LME stack
   - Supports `elastic`, `kibana_system`, `wazuh`, and `wazuh_api`
@@ -69,6 +79,16 @@ ansible/
   - Verifies repository accessibility on all cluster nodes
   - Creates timestamped snapshots (can be skipped with `-e create_snapshot=false`)
   - Works with single-node and cluster deployments
+
+- **`restore_elasticsearch_snapshot.yml`**: Restores Elasticsearch data from a snapshot
+  - Registers and verifies the snapshot repository
+  - Restores selected indices or full cluster state
+  - Supports optional index renaming during restore
+
+- **`restore_lme_master.yml`**: Restores master/control-plane state from backup
+  - Restores `/opt/lme`, `/etc/lme`, and `/etc/containers/systemd`
+  - Recreates Podman secrets
+  - Restores non-Elasticsearch volumes by default
 
 - **`rolling_upgrade.yml`**: Performs a rolling upgrade of Elasticsearch across cluster nodes
   - Upgrades one node at a time to maintain cluster availability
@@ -169,6 +189,9 @@ ansible-playbook backup_lme.yml
 
 # Create a backup (automated)
 ansible-playbook backup_lme.yml -e skip_prompts=true
+
+# Cluster-safe backup bundle
+ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
 ```
 
 ### Upgrade Operations
@@ -190,6 +213,9 @@ ansible-playbook rollback_lme.yml
 # 2. Choose whether to create a safety backup
 ```
 
+`rollback_lme.yml` is for single-node installs only. For clusters, use the
+snapshot restore and master restore playbooks documented below.
+
 ### Snapshot Operations
 Register an Elasticsearch snapshot repository, verify it, and optionally create a snapshot. Supports filesystem (`fs`) and S3 repository types.
 
@@ -209,6 +235,21 @@ ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.
 ```
 
 For full details on shared storage requirements and S3 setup, see **[SNAPSHOT_README.md](SNAPSHOT_README.md)**.
+
+### Cluster Recovery
+Cluster recovery uses separate playbooks for Elasticsearch data and master
+state:
+
+```bash
+# Restore Elasticsearch data from snapshot
+ansible-playbook -i ansible/inventory/cluster.yml ansible/restore_elasticsearch_snapshot.yml \
+  -e snapshot_name=<snapshot>
+
+# Restore master/control-plane state
+ansible-playbook ansible/restore_lme_master.yml
+```
+
+For the full workflow, see **[CLUSTER_RECOVERY_README.md](CLUSTER_RECOVERY_README.md)**.
 
 ### Password Changes
 Change built-in user passwords (elastic, kibana_system, wazuh, wazuh_api). Requires a running LME installation and ansible-vault password configured at `/etc/lme/pass.sh`.
@@ -312,4 +353,5 @@ Override default values:
 ansible-playbook site.yml -e clone_directory=/custom/path
 ```
 
-For detailed information about backup, upgrade, and rollback operations, see the respective README files for each operation. 
+For detailed information about backup, cluster recovery, upgrade, and rollback
+operations, see the respective README files in this directory.

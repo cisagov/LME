@@ -64,6 +64,42 @@
       debug:
         msg: "Using podman from: {{ podman_cmd }}"
 
+    - name: Check Elasticsearch quadlet for cluster mode
+      shell: |
+        if [ ! -f /etc/containers/systemd/lme-elasticsearch.container ]; then
+          echo "unknown"
+        elif grep -q 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container; then
+          echo "single-node"
+        else
+          echo "cluster"
+        fi
+      args:
+        executable: /bin/bash
+      register: rollback_install_mode_check
+      changed_when: false
+
+    - name: Fail fast on cluster installations
+      fail:
+        msg: |
+          rollback_lme.yml is supported only for single-node installations.
+
+          This host appears to be part of an Elasticsearch cluster. Restoring local Podman volumes from
+          rollback_lme.yml would not provide a safe or complete cluster recovery path.
+
+          Supported cluster recovery workflow:
+          1. Create or locate an Elasticsearch snapshot:
+             ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
+          2. Restore master/control-plane state if needed:
+             ansible-playbook ansible/restore_lme_master.yml
+          3. Restore Elasticsearch data from snapshot (full restore with defaults requires confirmation):
+             ansible-playbook -i ansible/inventory/cluster.yml ansible/restore_elasticsearch_snapshot.yml -e snapshot_name=<snapshot> -e confirm_full_cluster_restore=true
+
+          See:
+          - ansible/CLUSTER_RECOVERY_README.md
+          - ansible/SNAPSHOT_README.md
+          - ansible/BACKUP_README.md
+      when: rollback_install_mode_check.stdout | trim == 'cluster'
+
     - name: Include SELinux variable setup
       include_role:
         name: base

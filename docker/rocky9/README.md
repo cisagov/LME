@@ -178,15 +178,15 @@ docker compose -f docker-compose-cluster.yml up -d --build
 ```
 
 The script supports flags for incremental work:
-- `--skip-master` — skip the master `site.yml` install (useful when re-running only the cluster phase)
-- `--skip-cluster` — skip the `elasticsearch.yml` cluster phase
-- `-d` / `--debug` — verbose Ansible output
+- `--skip-master` - skip the master `site.yml` install (useful when re-running only the cluster phase)
+- `--skip-cluster` - skip the `elasticsearch.yml` cluster phase
+- `-d` / `--debug` - verbose Ansible output
 
 ### Rocky Linux 9 Cluster Requirements
 
 Deploying a cluster on Rocky Linux 9 may require some workarounds that are **not needed on Ubuntu**. If you are building your own cluster installer or following the manual steps in [CLUSTER_INSTALL.md](../../testing/v2/development/CLUSTER_INSTALL.md), be aware of these items:
 
-#### 1. SSH — PAM Blocks All Users by Default on Some Containers
+#### 1. SSH - PAM Blocks All Users by Default on Some Containers
 
 The cluster uses `lme-user` (with passwordless sudo) for SSH between nodes, the same as the Ubuntu cluster install. However, some container base images have PAM `sshd` configuration that blocks SSH for users in containers without SELinux. The fix is to replace the `account` lines in `/etc/pam.d/sshd` on each cluster child node:
 

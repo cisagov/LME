@@ -11,6 +11,7 @@ services:
     hostname: node1
     working_dir: /home/lme-user/LME
     volumes:
+      - node1-podman-storage:/var/lib/containers
       - ../../../../LME:/home/lme-user/LME
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
@@ -58,6 +59,7 @@ services:
     hostname: node2
     working_dir: /root/LME
     volumes:
+      - node2-podman-storage:/var/lib/containers
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
       - SYS_ADMIN
@@ -98,6 +100,7 @@ services:
     hostname: node3
     working_dir: /root/LME
     volumes:
+      - node3-podman-storage:/var/lib/containers
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
       - SYS_ADMIN
@@ -136,6 +139,8 @@ services:
         GROUP_ID: "${HOST_GID:-1001}"
     container_name: lme_cluster_nfs
     hostname: nfs
+    # Cap RAM: NFS export + large tar writes to this volume can spike memory; keep dev host stable.
+    mem_limit: 2g
     cap_add:
       - SYS_ADMIN
     security_opt:
@@ -161,6 +166,9 @@ services:
       - lme-cluster-network
 
 volumes:
+  node1-podman-storage:
+  node2-podman-storage:
+  node3-podman-storage:
   nfs-export:
 
 networks:

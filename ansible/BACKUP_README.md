@@ -10,6 +10,14 @@ The LME backup system creates comprehensive backups of your entire LME installat
 - Container image references and versions
 - Security certificates and vault data
 
+For clustered deployments, use a two-layer recovery model:
+- `ansible/cluster_backup_lme.yml` for the supported cluster backup workflow
+- `ansible/backup_lme.yml` for host/master recovery state on an individual node
+
+When `backup_lme.yml` detects a cluster installation, it excludes Elasticsearch
+data volumes and records that Elasticsearch snapshots are required for cluster
+data recovery.
+
 ## ⚠️ Space Requirements
 
 **CRITICAL: Ensure you have sufficient disk space before running any backup operations.**
@@ -175,6 +183,25 @@ cd ~/LME/ansible
 ansible-playbook backup_lme.yml -e skip_prompts=true
 ```
 
+### Cluster Backup Bundle
+Use this for multi-node Elasticsearch clusters:
+```bash
+cd ~/LME
+ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
+```
+
+This creates:
+- An Elasticsearch snapshot for cluster data
+- A master/control-plane backup bundle on the LME master
+- A `cluster_recovery_manifest.yml` file linking both artifacts
+
+When shared storage is mounted at `/mnt/es-snapshots`, the workflow also exports
+the master recovery bundle to:
+
+```bash
+/mnt/es-snapshots/lme-master-backups/<timestamp>
+```
+
 ## What Gets Backed Up
 
 ### 1. LME Installation Directory
@@ -203,6 +230,14 @@ All LME-related volumes are backed up:
 - `lme_elastalert2_logs` - ElastAlert logs
 - `lme_backups` - Internal backup storage
 
+For **cluster installs**, `backup_lme.yml` excludes:
+- `lme_esdata*`
+- `lme_backups`
+
+This keeps the host-level backup focused on master/control-plane recovery
+instead of implying a local filesystem copy is a cluster-wide Elasticsearch
+backup.
+
 ### 4. Backup Metadata
 - Backup timestamp and version information
 - Volume manifest with contents listing
@@ -224,7 +259,8 @@ All LME-related volumes are backed up:
 3. **Data backup**
    - Creates timestamped backup directory
    - Copies LME installation files
-   - Backs up all Podman volumes with data verification
+   - Backs up all Podman volumes with data verification for single-node installs
+   - In cluster mode, backs up only non-Elasticsearch local volumes
 
 4. **Service restoration**
    - Restarts LME services
@@ -279,6 +315,14 @@ else
 fi
 ```
 
+### Cluster Backup With Shared Snapshot Storage
+```bash
+cd ~/LME
+ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml \
+  -e es_snapshot_fs_location=/usr/share/elasticsearch/snapshots \
+  -e es_snapshot_repo=lme_nfs_backups
+```
+
 ### Scheduled Backups
 Add to crontab for regular backups:
 ```bash
@@ -310,6 +354,11 @@ ls -la "/var/lib/containers/storage/backups/$LATEST_BACKUP/volumes/"
 
 # Verify LME installation backup
 ls -la "/var/lib/containers/storage/backups/$LATEST_BACKUP/lme/"
+```
+
+For cluster-aware backups, also verify:
+```bash
+ls -la "/var/lib/containers/storage/backups/$LATEST_BACKUP/" | grep -E "cluster_recovery_manifest|cluster_recovery_note"
 ```
 
 ## Troubleshooting
@@ -344,7 +393,31 @@ sudo podman kill $(sudo podman ps -q --filter name=lme)
 ansible-playbook backup_lme.yml
 ```
 
-#### 3. Permission Errors
+#### 3. Elasticsearch Fails to Start After Backup (Exit 125 / Dependent Containers)
+**Error**: `lme-elasticsearch.service` fails with exit code 125 and Podman
+reports "container has dependent containers which must be removed first"
+**Cause**: Stale stopped containers (e.g. `lme-kibana`, `lme-setup-accts`)
+still reference `lme-elasticsearch` via Podman `--requires` or
+`UserNS=container:` dependencies. Podman cannot recreate
+`lme-elasticsearch` until those dependents are removed.
+**Solution**:
+```bash
+# Remove all lme-* containers in dependency order (dependents first)
+for c in lme-fleet-server lme-fleet-distribution lme-elastalert2 \
+         lme-wazuh-manager lme-kibana lme-setup-accts lme-setup-certs \
+         lme-elasticsearch; do
+  sudo podman rm -f "$c" 2>/dev/null || true
+done
+
+# Restart LME
+sudo systemctl start lme
+```
+
+The `backup_lme` role handles this automatically by removing all `lme-*`
+containers before restarting services. If the issue persists, run the manual
+commands above.
+
+#### 4. Permission Errors
 **Error**: Permission denied accessing volumes
 **Solution**:
 ```bash
@@ -355,7 +428,7 @@ sudo ansible-playbook backup_lme.yml
 sudo ls -la /var/lib/containers/storage/volumes/
 ```
 
-#### 4. Backup Directory Already Exists
+#### 5. Backup Directory Already Exists
 **Error**: Backup directory for today already exists
 **Solution**:
 - The playbook will prompt to overwrite
@@ -417,9 +490,9 @@ ls -1t | tail -n +8 | xargs -r rm -rf
 ### Backup Testing
 Regularly test your backups by:
 1. Creating a test backup
-2. Performing a rollback operation
-3. Verifying all services work correctly
-4. Rolling back to original state
+2. For single-node, performing a rollback operation
+3. For clusters, testing `restore_lme_master.yml` and `restore_elasticsearch_snapshot.yml`
+4. Verifying all services work correctly
 
 ### Documentation
 - Document your backup procedures
@@ -430,3 +503,4 @@ Regularly test your backups by:
 
 - **[Upgrade Operations](UPGRADE_README.md)**: Upgrading LME with backup integration
 - **[Rollback Operations](ROLLBACK_README.md)**: Restoring from backups
+- **[Cluster Recovery](CLUSTER_RECOVERY_README.md)**: Cluster-safe backup and restore workflows

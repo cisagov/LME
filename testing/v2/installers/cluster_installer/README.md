@@ -8,7 +8,7 @@ Manual testing workflow for multi-node LME cluster installations using Ansible.
 - SSH key pair (`~/.ssh/id_rsa` and `~/.ssh/id_rsa.pub`)
 - `jq` and `sshpass` installed locally
 
-## 0. Set Environment Variables
+## Environment Variables
 
 Create `exporter.txt` in the installers directory with your settings:
 
@@ -23,7 +23,7 @@ export BRANCH="your-branch-name"  # git rev-parse --abbrev-ref HEAD
 export CLUSTER_SIZE=3  # Optional, defaults to 3
 ```
 
-## 1. Run the Automated Script (Recommended)
+## Automated Setup (Recommended)
 
 The script automates all steps below. Run from the cluster_installer directory:
 
@@ -59,7 +59,7 @@ from `cluster_installer/`, use `output/${RESOURCE_GROUP}.password.txt` and
 `output/${RESOURCE_GROUP}.machines.json` so edits (for example cluster recovery)
 do not diverge from stale copies in the parent directory.
 
-## 2. Test Snapshots (Optional)
+## Test Snapshots (Optional)
 
 After the cluster is running (with NFS), test the snapshot playbooks:
 
@@ -74,7 +74,7 @@ With debug or single-node mode:
 ./test_snapshot.sh --single-node   # Skip cluster/NFS tests
 ```
 
-## 3. Test Password Change (Optional)
+## Test Password Change (Optional)
 
 After the cluster is running, you can test the `change_passwords.yml` playbook:
 
@@ -90,6 +90,28 @@ With a specific resource group or debug output:
 ```
 
 The test looks up `${RESOURCE_GROUP}.password.txt` and `${RESOURCE_GROUP}.machines.json` in `output/` first, then the parent installers directory. Prefer keeping the canonical copies in `output/` when you edit them. It runs the same steps as the Docker-based `testing/v2/development/test_change_passwords.sh`: change elastic password, verify it works, verify secrets on nodes, then restore the original password.
+
+## Test Cluster Backup and Recovery (Optional)
+
+After the cluster is running, you can validate the composed recovery workflow:
+
+```bash
+./test_cluster_backup_restore.sh
+```
+
+With a specific resource group or debug output:
+
+```bash
+./test_cluster_backup_restore.sh -r my-cluster-rg
+./test_cluster_backup_restore.sh -d
+```
+
+This test creates a temporary index, runs `ansible/cluster_backup_lme.yml`,
+restores the test index with `ansible/restore_elasticsearch_snapshot.yml`, then
+replays `ansible/restore_lme_master.yml` against the fresh master backup bundle.
+When shared storage is mounted, the master restore step uses the latest export
+under `/mnt/es-snapshots/lme-master-backups` (a `<timestamp>.tar.gz` tarball, or
+a legacy directory tree with the same contents).
 
 ## Manual Steps (Alternative)
 
@@ -230,6 +252,92 @@ cd ~/LME && ./install.sh --cluster
 This handles ansible installation, Galaxy collections, inventory validation, SSH connectivity
 checks, running `site.yml` on the master (cluster mode), and `elasticsearch.yml` on all cluster
 nodes. Use `--debug` for verbose output.
+
+### 9. Set Up NFS
+
+NFS provides shared snapshot storage across all Elasticsearch nodes. The master
+acts as the NFS server and every node (including master) mounts the share at
+`/mnt/es-snapshots`.
+
+#### 9a. Configure NFS Server on Master
+
+On master, install the NFS server, create the export directory, and publish it
+to every node in the cluster:
+
+```bash
+sudo apt-get install -y nfs-kernel-server
+sudo mkdir -p /srv/es-snapshots
+sudo chmod 777 /srv/es-snapshots
+```
+
+Write `/etc/exports` with an entry for each node's private IP. For a 3-node
+cluster with IPs `10.1.0.5`, `10.1.0.10`, and `10.1.0.11`:
+
+```bash
+echo '/srv/es-snapshots 10.1.0.5(rw,sync,no_subtree_check,no_root_squash) 10.1.0.10(rw,sync,no_subtree_check,no_root_squash) 10.1.0.11(rw,sync,no_subtree_check,no_root_squash)' \
+    | sudo tee /etc/exports
+sudo exportfs -ra
+sudo systemctl start nfs-kernel-server
+```
+
+#### 9b. Mount Snapshot Storage on All Nodes
+
+**Master** -- use a bind mount (avoids NFS self-mount hangs):
+
+```bash
+sudo mkdir -p /mnt/es-snapshots
+sudo mount --bind /srv/es-snapshots /mnt/es-snapshots
+echo '/srv/es-snapshots /mnt/es-snapshots none bind 0 0' | sudo tee -a /etc/fstab
+```
+
+**Each data node** -- install the NFS client and mount the master's export:
+
+```bash
+sudo apt-get install -y nfs-common
+sudo mkdir -p /mnt/es-snapshots
+sudo mount -t nfs -o vers=4.1,proto=tcp,hard,timeo=600,retrans=2 \
+    10.1.0.5:/srv/es-snapshots /mnt/es-snapshots
+echo '10.1.0.5:/srv/es-snapshots /mnt/es-snapshots nfs vers=4.1,proto=tcp,hard,timeo=600,retrans=2,_netdev,nofail 0 0' \
+    | sudo tee -a /etc/fstab
+```
+
+Replace `10.1.0.5` with the master's private IP.
+
+#### 9c. Configure Elasticsearch for Snapshot Storage
+
+On **every node**, add the snapshot path to `path.repo` in
+`/opt/lme/config/elasticsearch.yml` (below the existing `backups` entry):
+
+```yaml
+path.repo:
+    - /usr/share/elasticsearch/backups
+    - /usr/share/elasticsearch/snapshots
+```
+
+Then create a Quadlet drop-in so the container mounts the NFS share:
+
+```bash
+sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
+cat <<'EOF' | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
+[Container]
+Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart lme-elasticsearch
+```
+
+Repeat on every node. Once all nodes have restarted, the shared
+`/mnt/es-snapshots` directory is available inside each container at
+`/usr/share/elasticsearch/snapshots`.
+
+#### Using an External NFS Server
+
+If you already have a dedicated NFS server, you can skip step 9a entirely and
+point every node (including the master) at the external server instead. In that
+case all nodes use the NFS client mount from step 9b -- there is no bind mount
+on the master since it is no longer the NFS server. Replace `10.1.0.5` in the
+mount commands and fstab entries with the external server's IP and export path.
+Step 9c (Elasticsearch configuration) stays the same on every node.
 
 ## Cleanup
 

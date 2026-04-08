@@ -186,7 +186,7 @@ fi
 # Test 3: Idempotency (run snapshot playbook a second time)
 # =========================================================================
 echo ""
-echo -e "${YELLOW}Test 3: Idempotency — running snapshot playbook again${NC}"
+echo -e "${YELLOW}Test 3: Idempotency - running snapshot playbook again${NC}"
 
 docker_exec_as_lme_user "$MASTER_CONTAINER" "
     cd ~/LME && \
@@ -205,7 +205,7 @@ SNAPSHOT_STATE=$(docker_exec "$MASTER_CONTAINER" "
 ")
 
 if [ "$SNAPSHOT_STATE" = "SUCCESS" ]; then
-    pass "Second run succeeded — idempotent (snapshot 'test-snapshot-2' state: SUCCESS)"
+    pass "Second run succeeded - idempotent (snapshot 'test-snapshot-2' state: SUCCESS)"
 else
     fail "Second run snapshot state is '$SNAPSHOT_STATE', expected SUCCESS"
 fi
@@ -253,7 +253,7 @@ fi
 # =========================================================================
 if [ "$SINGLE_NODE_ONLY" = "false" ]; then
     echo ""
-    echo -e "${YELLOW}Test 5: Cluster — verify cluster health${NC}"
+    echo -e "${YELLOW}Test 5: Cluster - verify cluster health${NC}"
 
     # Check node count in cluster health
     NODE_COUNT=$(docker_exec "$MASTER_CONTAINER" "
@@ -270,7 +270,7 @@ if [ "$SINGLE_NODE_ONLY" = "false" ]; then
 
     # --- NFS-backed snapshot tests ---
     echo ""
-    echo -e "${YELLOW}Test 5b: NFS — verify mounts and shared snapshot repository${NC}"
+    echo -e "${YELLOW}Test 5b: NFS - verify mounts and shared snapshot repository${NC}"
 
     # Verify NFS is mounted on all nodes
     NFS_OK=true
@@ -288,7 +288,7 @@ if [ "$SINGLE_NODE_ONLY" = "false" ]; then
     if [ "$NFS_OK" = "true" ]; then
         # Create snapshot using NFS-backed repo
         echo ""
-        echo -e "${YELLOW}Test 5c: NFS — create snapshot on shared NFS repository${NC}"
+        echo -e "${YELLOW}Test 5c: NFS - create snapshot on shared NFS repository${NC}"
 
         docker_exec_as_lme_user "$MASTER_CONTAINER" "
             cd ~/LME && \
@@ -321,7 +321,7 @@ if [ "$SINGLE_NODE_ONLY" = "false" ]; then
             fail "No snapshot data found on NFS server"
         fi
     else
-        echo -e "  ${YELLOW}INFO${NC}: Skipping NFS snapshot tests — NFS mounts not available"
+        echo -e "  ${YELLOW}INFO${NC}: Skipping NFS snapshot tests - NFS mounts not available"
     fi
 else
     echo ""

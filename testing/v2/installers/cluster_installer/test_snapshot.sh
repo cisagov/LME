@@ -214,7 +214,7 @@ fi
 # Test 3: Idempotency (run snapshot playbook a second time)
 # =========================================================================
 echo ""
-echo -e "${YELLOW}Test 3: Idempotency — running snapshot playbook again${NC}"
+echo -e "${YELLOW}Test 3: Idempotency - running snapshot playbook again${NC}"
 
 ssh_master "cd ~/LME && \
     ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp \
@@ -231,7 +231,7 @@ SCRIPT
 )
 
 if [ "$SNAPSHOT_STATE" = "SUCCESS" ]; then
-    pass "Second run succeeded — idempotent (snapshot 'test-snapshot-2' state: SUCCESS)"
+    pass "Second run succeeded - idempotent (snapshot 'test-snapshot-2' state: SUCCESS)"
 else
     fail "Second run snapshot state is '$SNAPSHOT_STATE', expected SUCCESS"
 fi
@@ -271,7 +271,7 @@ fi
 # =========================================================================
 if [ "$SINGLE_NODE_ONLY" = "false" ]; then
     echo ""
-    echo -e "${YELLOW}Test 5: Cluster — verify cluster health${NC}"
+    echo -e "${YELLOW}Test 5: Cluster - verify cluster health${NC}"
 
     NODE_COUNT=$(ssh_master "sudo bash -s" << 'SCRIPT'
 source /opt/lme/scripts/extract_secrets.sh -q 2>/dev/null
@@ -287,7 +287,7 @@ SCRIPT
 
     # --- NFS-backed snapshot tests (master = NFS server) ---
     echo ""
-    echo -e "${YELLOW}Test 5b: NFS — verify mounts and shared snapshot repository${NC}"
+    echo -e "${YELLOW}Test 5b: NFS - verify mounts and shared snapshot repository${NC}"
 
     NFS_OK=true
     node_num=1
@@ -303,7 +303,7 @@ SCRIPT
 
     if [ "$NFS_OK" = "true" ]; then
         echo ""
-        echo -e "${YELLOW}Test 5c: NFS — create snapshot on shared NFS repository${NC}"
+        echo -e "${YELLOW}Test 5c: NFS - create snapshot on shared NFS repository${NC}"
 
         ssh_master "cd ~/LME && \
             ANSIBLE_LOCAL_TEMP=/tmp/ansible-tmp \
@@ -334,7 +334,7 @@ SCRIPT
             fail "No snapshot data found on NFS server"
         fi
     else
-        echo -e "  ${YELLOW}INFO${NC}: Skipping NFS snapshot tests — NFS mounts not available"
+        echo -e "  ${YELLOW}INFO${NC}: Skipping NFS snapshot tests - NFS mounts not available"
     fi
 else
     echo ""

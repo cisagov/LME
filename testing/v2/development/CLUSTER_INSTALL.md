@@ -2,7 +2,7 @@
 
 This guide covers manual installation of LME (Logging Made Easy) on an existing cluster of servers.
 
-For **local multi-node testing with Docker**, use `docker-compose-cluster.yml` and the helper script **`install_cluster.sh`** in this directory. That script configures SSH between containers, **mounts NFS on every node before LME install (Phase 2.5)**, runs `./install.sh --cluster` (equivalent to Steps 1–4 below when applied inside the master container), then **Phase 4** wires Elasticsearch into that mount and restarts it. **`./install.sh --cluster` alone**—whether on real hosts or in the master container—does **not** set up NFS; you need that extra step (or your own shared storage) if you want **multi-node filesystem snapshot repositories** to work. See [Local Docker cluster (development)](#local-docker-cluster-development) below.
+For **local multi-node testing with Docker**, use `docker-compose-cluster.yml` and the helper script **`install_cluster.sh`** in this directory. That script configures SSH between containers, **mounts NFS on every node before LME install (Phase 2.5)**, runs `./install.sh --cluster` (equivalent to Steps 1-4 below when applied inside the master container), then **Phase 4** wires Elasticsearch into that mount and restarts it. **`./install.sh --cluster` alone**-whether on real hosts or in the master container-does **not** set up NFS; you need that extra step (or your own shared storage) if you want **multi-node filesystem snapshot repositories** to work. See [Local Docker cluster (development)](#local-docker-cluster-development) below.
 
 ## Overview
 
@@ -175,11 +175,11 @@ The script will:
 - Run `elasticsearch.yml` on all cluster nodes
 
 **Options:**
-- `--cluster-inventory PATH` — use a custom inventory file (default: `ansible/inventory/cluster.yml`)
-- `--cluster-master-only` — only run `site.yml` on the master (skip cluster node deployment)
-- `--cluster-nodes-only` — only run `elasticsearch.yml` on cluster nodes (skip master install)
-- `--debug` — enable verbose Ansible output
-- `LME_CLUSTER=true` — environment variable equivalent of `--cluster`
+- `--cluster-inventory PATH` - use a custom inventory file (default: `ansible/inventory/cluster.yml`)
+- `--cluster-master-only` - only run `site.yml` on the master (skip cluster node deployment)
+- `--cluster-nodes-only` - only run `elasticsearch.yml` on cluster nodes (skip master install)
+- `--debug` - enable verbose Ansible output
+- `LME_CLUSTER=true` - environment variable equivalent of `--cluster`
 
 **Note:** `--cluster` and `--offline` cannot be used together. Offline cluster
 installation is not supported at this time.
@@ -188,7 +188,7 @@ installation is not supported at this time.
 
 Elasticsearch **filesystem** snapshot repositories on a **multi-node** cluster require the **same** directory to be visible on **every** data node (shared disk or NFS). LME’s `ansible/snapshot_elasticsearch.yml` can register such a repo when `path.repo` and the mount layout allow it.
 
-This guide’s Steps 1–4 do **not** configure NFS or other shared storage; that is an infrastructure choice. If you use NFS, mount it consistently on all nodes at the path you expose to the Elasticsearch containers (for example under `/opt/lme` or a dedicated mount bound into the container). The **Docker development** flow automates a minimal NFS server + client mounts in **`install_cluster.sh`** Phase 2.5 (before install), then connects Elasticsearch in Phase 4.
+This guide’s Steps 1-4 do **not** configure NFS or other shared storage; that is an infrastructure choice. If you use NFS, mount it consistently on all nodes at the path you expose to the Elasticsearch containers (for example under `/opt/lme` or a dedicated mount bound into the container). The **Docker development** flow automates a minimal NFS server + client mounts in **`install_cluster.sh`** Phase 2.5 (before install), then connects Elasticsearch in Phase 4.
 
 ### Local Docker cluster (development)
 
@@ -201,8 +201,14 @@ docker compose -f docker-compose-cluster.yml up -d --build
 # Optional: ./install_cluster.sh --skip-nfs   # skip NFS phases if you only need the stack, not shared snapshot paths
 ```
 
+- `docker-compose-cluster.yml` now gives `node1`, `node2`, and `node3` separate
+  Docker-backed `/var/lib/containers` mounts. Podman volumes and backup data
+  therefore persist across container recreation for each node independently.
+- If you need a completely clean Docker dev cluster, use
+  `docker compose -f docker-compose-cluster.yml down -v` before bringing it back
+  up.
 - **`install_cluster.sh`** complements this document: it prepares the dev environment, **mounts NFS before LME install**, ends with the same logical install as Step 4, then **hooks Elasticsearch to that mount** (needed for **`test_snapshot.sh`** in default cluster mode and for realistic snapshot testing).
-- To match this guide **literally** inside Docker (manual Steps 1–4 only, no NFS), run those commands on **`lme_cluster_node1`** after setting up SSH to the other containers yourself; snapshot playbooks that assume a **shared** repo across nodes will not verify until shared storage is added (e.g. run `./install_cluster.sh --skip-master --skip-cluster` to run only the NFS phases, or full `install_cluster.sh`).
+- To match this guide **literally** inside Docker (manual Steps 1-4 only, no NFS), run those commands on **`lme_cluster_node1`** after setting up SSH to the other containers yourself; snapshot playbooks that assume a **shared** repo across nodes will not verify until shared storage is added (e.g. run `./install_cluster.sh --skip-master --skip-cluster` to run only the NFS phases, or full `install_cluster.sh`).
 
 ## Verification
 
@@ -342,7 +348,9 @@ NFS snapshot reconfiguration.
 
 - [Elasticsearch Cluster Documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-discovery.html)
 - [LME Official Documentation](https://github.com/cisagov/LME)
-- [Cluster Node Recovery](CLUSTER_NODE_RECOVERY.md) — Single node failure recovery procedure
-- **Docker dev cluster:** `docker-compose-cluster.yml` and **`install_cluster.sh`** (this directory) — see [Local Docker cluster (development)](#local-docker-cluster-development)
+- [Cluster Node Recovery](CLUSTER_NODE_RECOVERY.md) - Single node failure recovery procedure
+- **Docker dev cluster:** `docker-compose-cluster.yml` and **`install_cluster.sh`** (this directory) - see [Local Docker cluster (development)](#local-docker-cluster-development)
 - **Docker snapshot tests:** `test_snapshot.sh` (this directory; default mode expects NFS from `install_cluster.sh`)
+- **Docker cluster recovery test:** `test_cluster_backup_restore.sh` (this directory; validates cluster backup, snapshot restore, and master restore)
+- **Cluster recovery QA checklist:** `CLUSTER_RECOVERY_QA_CHECKLIST.md`
 - For automated Azure deployment, see: `testing/v2/installers/cluster_installer/setup_cluster.sh`

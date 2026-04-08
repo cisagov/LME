@@ -886,6 +886,16 @@ jobs:
             ./test_change_passwords.sh --ansible-only -r ${RG}
           "
 
+      - name: "Post-recovery: Run cluster backup/recovery test"
+        run: |
+          cd testing/v2/development
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/cluster_installer && \
+            ./test_cluster_backup_restore.sh -r ${RG}
+          "
+
       - name: Cleanup Azure resources
         if: always()
         env:

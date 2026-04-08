@@ -198,17 +198,17 @@ docker compose -f docker-compose-cluster.yml up -d --build
 ```
 
 The script supports flags for incremental work:
-- `--skip-master` — skip the master `site.yml` install (useful when re-running only the cluster phase)
-- `--skip-cluster` — skip the `elasticsearch.yml` cluster phase
-- `-d` / `--debug` — verbose Ansible output
+- `--skip-master` - skip the master `site.yml` install (useful when re-running only the cluster phase)
+- `--skip-cluster` - skip the `elasticsearch.yml` cluster phase
+- `-d` / `--debug` - verbose Ansible output
 
 ### RHEL9-Specific Cluster Requirements
 
 Deploying a cluster on RHEL9/UBI9 requires several workarounds that are **not needed on Ubuntu**. If you are building your own cluster installer or following the manual steps in [CLUSTER_INSTALL.md](../../testing/v2/development/CLUSTER_INSTALL.md), be aware of these items:
 
-#### 1. SSH — PAM Blocks All Users by Default on UBI9
+#### 1. SSH - PAM Blocks All Users by Default on UBI9
 
-The cluster uses `lme-user` (with passwordless sudo) for SSH between nodes, the same as the Ubuntu cluster install. However, UBI9's default PAM `sshd` configuration includes `pam_sepermit.so`, `pam_nologin.so`, and `pam_unix.so` account checks that block SSH for **all users** (not just root) in containers without SELinux — even with key-based authentication and a valid account.
+The cluster uses `lme-user` (with passwordless sudo) for SSH between nodes, the same as the Ubuntu cluster install. However, UBI9's default PAM `sshd` configuration includes `pam_sepermit.so`, `pam_nologin.so`, and `pam_unix.so` account checks that block SSH for **all users** (not just root) in containers without SELinux - even with key-based authentication and a valid account.
 
 The fix is to replace the `account` lines in `/etc/pam.d/sshd` on each cluster child node:
 
@@ -219,11 +219,11 @@ sed -i '/^password/i account    required     pam_permit.so' /etc/pam.d/sshd
 systemctl restart sshd
 ```
 
-No password needs to be set and no root SSH changes are needed. The `lme-user` account can remain locked — only key-based authentication is used.
+No password needs to be set and no root SSH changes are needed. The `lme-user` account can remain locked - only key-based authentication is used.
 
 On Ubuntu, `lme-user` SSH works out of the box with no PAM changes.
 
-#### 2. Ansible Installation — Not Available via dnf on UBI9
+#### 2. Ansible Installation - Not Available via dnf on UBI9
 
 The EPEL `ansible-core` package is not available in the UBI9 base repositories (it requires a full RHEL subscription to access). Install via pip instead:
 

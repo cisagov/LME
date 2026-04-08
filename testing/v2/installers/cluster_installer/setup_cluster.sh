@@ -16,6 +16,7 @@ NC='\033[0m' # No Color
 DEBUG_MODE="false"
 SKIP_NFS="false"
 NFS_ONLY="false"
+RSYNC_LOCAL="false"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -32,6 +33,10 @@ while [[ $# -gt 0 ]]; do
             NFS_ONLY="true"
             shift
             ;;
+        --rsync)
+            RSYNC_LOCAL="true"
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -39,6 +44,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -d, --debug    Enable debug mode for verbose ansible output"
             echo "  --skip-nfs     Skip NFS setup (master as NFS server, nodes as clients)"
             echo "  --nfs-only     Run only NFS setup (cluster must already be installed)"
+            echo "  --rsync        Rsync local working tree to master after git checkout"
             echo "  -h, --help     Show this help message"
             exit 0
             ;;
@@ -359,6 +365,19 @@ ssh "${LME_USER}@${MASTER_IP}" "git clone https://github.com/cisagov/LME.git ~/L
 ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && git checkout ${BRANCH}"
 echo -e "${GREEN}Repo cloned and checked out to ${BRANCH}${NC}"
 
+if [ "$RSYNC_LOCAL" = "true" ]; then
+    echo -e "${YELLOW}Rsyncing local changes to master...${NC}"
+    LOCAL_REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+    rsync -az --delete \
+        --exclude='.git' \
+        --exclude='venv' \
+        --exclude='__pycache__' \
+        --exclude='*.pyc' \
+        --exclude='testing/v2/installers/venv' \
+        "${LOCAL_REPO_ROOT}/" "${LME_USER}@${MASTER_IP}:~/LME/"
+    echo -e "${GREEN}Local changes synced to master${NC}"
+fi
+
 # Create lme-environment.env file with master's private IP
 echo -e "${YELLOW}Creating lme-environment.env on master...${NC}"
 MASTER_PRIVATE_IP=$(jq -r '.linux_vms[0].private_ip' "${RESOURCE_GROUP}.machines.json")
@@ -461,17 +480,30 @@ else
     ssh "${LME_USER}@${MASTER_IP}" "sudo exportfs -ra && sudo systemctl start nfs-kernel-server"
     echo -e "${GREEN}NFS server configured on master${NC}"
 
-    # 6b: Install NFS client and mount on all nodes (master + cluster nodes)
+    # 6b: Mount snapshot storage on all nodes
+    # Master gets a local bind mount (avoids NFS self-mount hangs);
+    # data nodes get a real NFS client mount with explicit options.
     ALL_NODE_IPS=$(jq -r '.linux_vms[] | "\(.ip_address)|\(.private_ip)"' "${RESOURCE_GROUP}.machines.json")
     node_num=1
     for node_info in $ALL_NODE_IPS; do
         node_pub_ip="${node_info%%|*}"
+        node_priv_ip="${node_info##*|}"
+
+        if [ "$node_priv_ip" = "$MASTER_PRIVATE_IP" ]; then
+            echo -e "${YELLOW}Bind-mounting /srv/es-snapshots on master (${node_pub_ip})...${NC}"
+            ssh "${LME_USER}@${node_pub_ip}" "sudo mkdir -p /mnt/es-snapshots /srv/es-snapshots"
+            ssh "${LME_USER}@${node_pub_ip}" "mountpoint -q /mnt/es-snapshots || sudo mount --bind /srv/es-snapshots /mnt/es-snapshots"
+            ssh "${LME_USER}@${node_pub_ip}" "grep -q '/srv/es-snapshots /mnt/es-snapshots' /etc/fstab || echo '/srv/es-snapshots /mnt/es-snapshots none bind 0 0' | sudo tee -a /etc/fstab"
+            echo -e "  ${GREEN}Bind mount on master${NC}"
+            ((node_num++))
+            continue
+        fi
+
         echo -e "${YELLOW}Mounting NFS on node${node_num} (${node_pub_ip})...${NC}"
         ssh "${LME_USER}@${node_pub_ip}" "sudo apt-get install -y nfs-common"
         ssh "${LME_USER}@${node_pub_ip}" "sudo mkdir -p /mnt/es-snapshots"
-        ssh "${LME_USER}@${node_pub_ip}" "sudo mount -t nfs ${MASTER_PRIVATE_IP}:/srv/es-snapshots /mnt/es-snapshots"
-        # Add to fstab for persistence
-        ssh "${LME_USER}@${node_pub_ip}" "grep -q '/mnt/es-snapshots' /etc/fstab || echo '${MASTER_PRIVATE_IP}:/srv/es-snapshots /mnt/es-snapshots nfs defaults 0 0' | sudo tee -a /etc/fstab"
+        ssh "${LME_USER}@${node_pub_ip}" "sudo mount -t nfs -o vers=4.1,proto=tcp,hard,timeo=600,retrans=2 ${MASTER_PRIVATE_IP}:/srv/es-snapshots /mnt/es-snapshots"
+        ssh "${LME_USER}@${node_pub_ip}" "grep -q '/mnt/es-snapshots' /etc/fstab || echo '${MASTER_PRIVATE_IP}:/srv/es-snapshots /mnt/es-snapshots nfs vers=4.1,proto=tcp,hard,timeo=600,retrans=2,_netdev,nofail 0 0' | sudo tee -a /etc/fstab"
         echo -e "  ${GREEN}NFS mounted on node${node_num}${NC}"
         ((node_num++))
     done

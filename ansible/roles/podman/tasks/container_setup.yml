@@ -28,7 +28,7 @@
 # Set lme_skip_secret_creation=true in elasticsearch.yml for cluster deployments.
 - name: Skip secret creation (cluster node - secrets from master)
   debug:
-    msg: "Skipping secret creation - this is a cluster node. Secrets will be copied from master via secrets_distribution."
+    msg: "Skipping secret creation. Secrets will be copied from master via secrets_distribution."
   when: lme_skip_secret_creation | default(false)
 
 - name: set service user passwords

@@ -93,7 +93,7 @@ When a node leaves the cluster, Elasticsearch detects the departure and begins
 - The cluster status changes to **`yellow`** because replica shards that were on
   the failed node no longer exist and cannot be reassigned until a new node
   joins.
-- All data remains available — reads and writes continue against the surviving
+- All data remains available - reads and writes continue against the surviving
   nodes.
 
 Observe the degraded state:
@@ -118,7 +118,7 @@ Bring the replacement container up with the same hostname and network identity:
 docker compose -f docker-compose-cluster.yml up -d --build --force-recreate "$FAILED_NODE_SERVICE"
 ```
 
-The new container starts with a fresh filesystem — SSH, Ansible artifacts, and
+The new container starts with a fresh filesystem - SSH, Ansible artifacts, and
 NFS mounts are all gone.
 
 Wait for systemd and package manager readiness before proceeding:
@@ -216,7 +216,7 @@ Once Elasticsearch starts on the replacement node and connects to the cluster:
 2. The cluster discovers the returning node via `discovery.seed_hosts` (any
    surviving member may participate; this does not depend on which node is the
    Elasticsearch cluster coordinator).
-3. Elasticsearch begins **automatic shard rebalancing** — replica shards that
+3. Elasticsearch begins **automatic shard rebalancing** - replica shards that
    were unassigned are allocated to the new node, and the cluster rebalances
    primary/replica placement across all three nodes.
 4. The cluster status transitions from `yellow` back to **`green`** once all
@@ -351,7 +351,7 @@ successful.
 
 **`node1` (the LME master)** hosts Kibana, Fleet, Wazuh, and is the Ansible control node that holds
 the source certificates and vault files. Recovering `node1` requires restoring
-from backup or rebuilding the full stack — it cannot be handled with the
+from backup or rebuilding the full stack - it cannot be handled with the
 `--limit` approach described here.
 
 That is separate from **Elasticsearch’s elected cluster coordinator**: if `node2`
@@ -387,8 +387,8 @@ The `elasticsearch.yml` playbook handles certificate and secret distribution
 automatically via the `certs` and `secrets_distribution` roles. The replacement
 node receives:
 
-- `/etc/lme/pass.sh` — vault password file
-- `/etc/lme/vault/` — encrypted secret files
+- `/etc/lme/pass.sh` - vault password file
+- `/etc/lme/vault/` - encrypted secret files
 - TLS certificates from the LME master’s `lme_certs` volume
 - Podman shell driver configuration for secret access
 
@@ -396,7 +396,7 @@ No manual certificate or secret handling is needed when using the same hostname.
 
 ## Related Documentation
 
-- [CLUSTER_INSTALL.md](CLUSTER_INSTALL.md) — Full cluster installation guide
-- [converting_to_cluster.md](converting_to_cluster.md) — Single-node to cluster conversion
-- [install_cluster.sh](install_cluster.sh) — Automated Docker cluster bootstrap script
-- [Elasticsearch Cluster Formation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-discovery.html) — Official cluster discovery docs
+- [CLUSTER_INSTALL.md](CLUSTER_INSTALL.md) - Full cluster installation guide
+- [converting_to_cluster.md](converting_to_cluster.md) - Single-node to cluster conversion
+- [install_cluster.sh](install_cluster.sh) - Automated Docker cluster bootstrap script
+- [Elasticsearch Cluster Formation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-discovery.html) - Official cluster discovery docs

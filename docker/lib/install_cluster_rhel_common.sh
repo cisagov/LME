@@ -3,8 +3,8 @@
 # LME_CLUSTER_LABEL, and LME_CLUSTER_ENV_PROFILE are set by the wrapper.
 #
 # LME_CLUSTER_ENV_PROFILE:
-#   extended — prefer eth0, then fallbacks; remove stale /opt/lme/lme-environment.env (Rocky)
-#   simple   — eth0 only; no /opt/lme removal (RHEL9)
+#   extended - prefer eth0, then fallbacks; remove stale /opt/lme/lme-environment.env (Rocky)
+#   simple   - eth0 only; no /opt/lme removal (RHEL9)
 
 if [[ -z "${MASTER_CONTAINER:-}" || -z "${NODE2_CONTAINER:-}" || -z "${NODE3_CONTAINER:-}" || -z "${LME_CLUSTER_LABEL:-}" || -z "${SCRIPT_DIR:-}" || -z "${LME_CLUSTER_ENV_PROFILE:-}" ]]; then
     echo "install_cluster_rhel_common.sh: SCRIPT_DIR, MASTER_CONTAINER, NODE2_CONTAINER, NODE3_CONTAINER, LME_CLUSTER_LABEL, and LME_CLUSTER_ENV_PROFILE must be set before sourcing" >&2

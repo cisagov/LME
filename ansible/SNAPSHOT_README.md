@@ -9,6 +9,9 @@ Elasticsearch snapshots provide point-in-time backups of your cluster's indices 
 - Scheduled data backups
 - Disaster recovery in cluster environments
 
+For a full cluster recovery bundle, pair snapshots with the master backup flow in
+`ansible/cluster_backup_lme.yml`.
+
 The `snapshot_elasticsearch.yml` playbook supports two repository types:
 - **`fs` (filesystem)**: Default. Uses the `lme_backups` Podman volume already mounted on each node.
 - **`s3`**: Uses an S3-compatible object store (AWS S3, MinIO, etc.). Requires the `repository-s3` Elasticsearch plugin.
@@ -17,7 +20,7 @@ The `snapshot_elasticsearch.yml` playbook supports two repository types:
 
 ### Filesystem (`fs`) Repositories
 
-For **single-node** installations, no extra setup is required — the `lme_backups` volume is already configured and `path.repo` is set in `elasticsearch.yml`.
+For **single-node** installations, no extra setup is required - the `lme_backups` volume is already configured and `path.repo` is set in `elasticsearch.yml`.
 
 For **multi-node clusters**, the `lme_backups` Podman volume is local to each node and is **not shared**. You must provide shared storage so all nodes can access the same repository path. The most common approach is NFS:
 
@@ -95,6 +98,19 @@ ansible-playbook -i ansible/inventory/cluster.yml ansible/snapshot_elasticsearch
 
 A warning will be displayed reminding you that `fs` repositories require shared storage in multi-node clusters.
 
+### Cluster backup bundle
+
+```bash
+ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
+```
+
+When `/mnt/es-snapshots` is mounted on the master, this workflow also exports a
+copy of the master recovery bundle to:
+
+```bash
+/mnt/es-snapshots/lme-master-backups/<timestamp>
+```
+
 ### S3 repository
 
 ```bash
@@ -133,7 +149,7 @@ ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.
 
 The `rolling_upgrade.yml` playbook includes pre-upgrade checks (`tasks/pre_upgrade_checks.yml`) that create a snapshot before upgrading. This is enabled by default.
 
-To skip only the snapshot (other checks—cluster health, disk space, etc.—still run):
+To skip only the snapshot (other checks-cluster health, disk space, etc.-still run):
 
 ```bash
 ansible-playbook -i ansible/inventory/cluster.yml ansible/rolling_upgrade.yml -e create_pre_upgrade_snapshot=false
@@ -166,7 +182,32 @@ The Elasticsearch process runs as UID 1000 inside the container. Ensure the back
 
 ## Restoring Snapshots
 
-LME does not include a playbook or script for restoring Elasticsearch snapshots. Restoration is done via the Elasticsearch snapshot restore API.
+LME includes `ansible/restore_elasticsearch_snapshot.yml` to orchestrate
+repository registration, verification, and snapshot restore.
+
+### Playbook-driven restore
+
+```bash
+ansible-playbook -i ansible/inventory/cluster.yml ansible/restore_elasticsearch_snapshot.yml \
+  -e snapshot_name=SNAPSHOT_NAME \
+  -e confirm_full_cluster_restore=true
+```
+
+Example: restore a single index under a new name
+
+```bash
+ansible-playbook -i ansible/inventory/cluster.yml ansible/restore_elasticsearch_snapshot.yml \
+  -e snapshot_name=SNAPSHOT_NAME \
+  -e restore_mode=live_cluster \
+  -e restore_indices=lme-recovery-test \
+  -e rename_pattern='(.+)' \
+  -e rename_replacement='restored-$1'
+```
+
+Restore mode rules:
+- `fresh_cluster` is the default and is intended for full rebuild/restore targets
+- `live_cluster` is limited to targeted restores and requires `include_global_state=false`
+- Full-cluster restore (`indices='*'` with global state) requires `-e confirm_full_cluster_restore=true`
 
 ### Manual restore
 
@@ -198,5 +239,6 @@ Replace `SNAPSHOT_NAME` with your snapshot name (e.g. `test-snapshot-1`). Use `w
 ## Related Operations
 
 - **[Backup Operations](BACKUP_README.md)**: Full LME backup (stops services, copies volumes)
+- **[Cluster Recovery](CLUSTER_RECOVERY_README.md)**: Cluster-safe backup and restore workflow
 - **[Upgrade Operations](UPGRADE_README.md)**: Upgrading LME with pre-upgrade snapshot
 - **[Rollback Operations](ROLLBACK_README.md)**: Restoring from backups

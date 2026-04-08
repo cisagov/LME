@@ -5,6 +5,38 @@
   set_fact:
     backup_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
 
+- name: Check Elasticsearch quadlet for cluster mode
+  shell: |
+    if [ ! -f /etc/containers/systemd/lme-elasticsearch.container ]; then
+      echo "unknown"
+    elif grep -q 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container; then
+      echo "single-node"
+    else
+      echo "cluster"
+    fi
+  args:
+    executable: /bin/bash
+  register: lme_backup_install_mode_check
+  become: yes
+  changed_when: false
+
+- name: Set backup mode facts
+  set_fact:
+    lme_backup_install_mode: "{{ lme_backup_install_mode_check.stdout | trim }}"
+    lme_backup_is_cluster_install: "{{ lme_backup_install_mode_check.stdout | trim == 'cluster' }}"
+    lme_backup_mode_label: "{{ 'cluster-control-plane' if (lme_backup_install_mode_check.stdout | trim == 'cluster') else 'single-node-full' }}"
+
+- name: Display backup mode
+  debug:
+    msg: >-
+      Backup mode: {{ lme_backup_mode_label }}.
+      {% if lme_backup_is_cluster_install %}
+      Cluster mode detected. This backup will exclude Elasticsearch data volumes and is only suitable for
+      master/control-plane recovery. Use snapshot_elasticsearch.yml or cluster_backup_lme.yml for cluster data protection.
+      {% else %}
+      Single-node mode detected. Full local volumes will be backed up.
+      {% endif %}
+
 - name: Get Podman graphroot location
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
@@ -124,6 +156,7 @@
     mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme"
     mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_lme"
     mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_containers_systemd"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/volumes"
     
     # Copy the LME installation
     {{ cp_preserve_cmd }} "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme/"
@@ -207,6 +240,30 @@
 - name: Display volumes to backup
   debug:
     msg: "Found {{ podman_volumes.stdout_lines | length }} LME volumes to backup"
+
+- name: Set cluster backup volume filters
+  set_fact:
+    lme_backup_excluded_volumes: >-
+      {{
+        ((podman_volumes.stdout_lines | default([])) | select('match', '^lme_esdata.*') | list)
+        + ((podman_volumes.stdout_lines | default([])) | select('equalto', 'lme_backups') | list)
+        if lme_backup_is_cluster_install else []
+      }}
+    lme_backup_selected_volumes: >-
+      {{
+        ((podman_volumes.stdout_lines | default([]))
+          | reject('match', '^lme_esdata.*')
+          | reject('equalto', 'lme_backups')
+          | list)
+        if lme_backup_is_cluster_install else (podman_volumes.stdout_lines | default([]))
+      }}
+
+- name: Display effective backup volume scope
+  debug:
+    msg: |
+      Effective backup scope:
+      - Selected volumes: {{ lme_backup_selected_volumes | join(', ') if lme_backup_selected_volumes | length > 0 else 'None' }}
+      - Excluded volumes: {{ lme_backup_excluded_volumes | join(', ') if lme_backup_excluded_volumes | length > 0 else 'None' }}
   
 - name: Get current LME version
   shell: |
@@ -224,10 +281,41 @@
     content: |
       Backup started: {{ ansible_date_time.iso8601 }}
       LME version: {{ current_version.stdout }}
+      Backup mode: {{ lme_backup_mode_label }}
+      Installation type detected: {{ lme_backup_install_mode }}
+      Cluster snapshot required for ES data: {{ 'YES' if lme_backup_is_cluster_install else 'NO' }}
+      Excluded volumes: {{ lme_backup_excluded_volumes | join(', ') if lme_backup_excluded_volumes | length > 0 else 'None' }}
       LME installation: PENDING
       Volumes: PENDING
       Service restart: PENDING
   become: yes
+
+- name: Write cluster recovery note for cluster backups
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/cluster_recovery_note.txt"
+    content: |
+      Cluster-aware backup note
+      ========================
+
+      This backup was created on a cluster installation.
+
+      Included:
+      - /opt/lme
+      - /etc/lme
+      - /etc/containers/systemd
+      - Non-Elasticsearch LME Podman volumes on this host
+
+      Excluded:
+      - Elasticsearch data volumes (lme_esdata*)
+      - lme_backups
+
+      To recover cluster data, restore an Elasticsearch snapshot created with:
+        ansible-playbook -i ansible/inventory/cluster.yml ansible/snapshot_elasticsearch.yml
+
+      Or use the composed cluster workflow:
+        ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
+  become: yes
+  when: lme_backup_is_cluster_install
   
 - name: Stop LME service
   systemd:
@@ -290,10 +378,11 @@
     fi
   args:
     executable: /bin/bash
-  loop: "{{ podman_volumes.stdout_lines }}"
+  loop: "{{ lme_backup_selected_volumes }}"
   register: volume_backup
   become: yes
   ignore_errors: yes
+  when: lme_backup_selected_volumes | length > 0
 
 - name: Collect volume backup statuses
   shell: |
@@ -305,6 +394,12 @@
   ignore_errors: yes
   changed_when: false
 
+- name: Set successful volume count when no volumes were selected
+  set_fact:
+    successful_volumes:
+      stdout: "0"
+  when: lme_backup_selected_volumes | length == 0
+
 - name: Find volumes that were empty during backup
   shell: |
     find "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/volumes" -name "backup_status.txt" -exec grep -l "EMPTY" {} \; | xargs -I {} dirname {} | xargs -I {} basename {}
@@ -314,6 +409,12 @@
   become: yes
   ignore_errors: yes
   changed_when: false
+
+- name: Set empty volume list when no volumes were selected
+  set_fact:
+    empty_volumes:
+      stdout_lines: []
+  when: lme_backup_selected_volumes | length == 0
 
 - name: Create expected empty volumes file based on actual empty volumes found
   copy:
@@ -368,16 +469,20 @@
     content: |
       Backup completed: {{ ansible_date_time.iso8601 }}
       LME version: {{ current_version.stdout }}
+      Backup mode: {{ lme_backup_mode_label }}
+      Installation type detected: {{ lme_backup_install_mode }}
+      Cluster snapshot required for ES data: {{ 'YES' if lme_backup_is_cluster_install else 'NO' }}
+      Excluded volumes: {{ lme_backup_excluded_volumes | join(', ') if lme_backup_excluded_volumes | length > 0 else 'None' }}
       
       Backup status:
       - LME installation: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
       - Vault files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
       - Systemd files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
-      - Volumes: {{ successful_volumes.stdout | int }} of {{ podman_volumes.stdout_lines | length }} successful
-      - Failed volumes: {{ volume_backup.results | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0 else 'None' }}
+      - Volumes: {{ successful_volumes.stdout | int }} of {{ lme_backup_selected_volumes | length }} successful
+      - Failed volumes: {{ volume_backup.results | default([]) | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results is defined and (volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0) else 'None' }}
       - Service restart: {{ 'SKIPPED - Services left stopped for rollback' if skip_service_restart | default(false) else ('SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED') }}
       
-      Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == podman_volumes.stdout_lines | length else 'PARTIAL - See details above' }}
+      Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == lme_backup_selected_volumes | length else 'PARTIAL - See details above' }}
   become: yes
   
 - name: Read final backup status

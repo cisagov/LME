@@ -570,7 +570,7 @@ test_wazuh_api() {
 }
 
 # =========================================================================
-# Test 5: password_management.sh — reset_elastic_password.exp (elastic)
+# Test 5: password_management.sh - reset_elastic_password.exp (elastic)
 # =========================================================================
 test_script_elastic() {
     echo ""
@@ -635,7 +635,7 @@ test_script_elastic() {
 }
 
 # =========================================================================
-# Test 6: password_management.sh — reset_elastic_password.exp (kibana_system)
+# Test 6: password_management.sh - reset_elastic_password.exp (kibana_system)
 # =========================================================================
 test_script_kibana_system() {
     echo ""
@@ -691,7 +691,7 @@ test_script_kibana_system() {
 }
 
 # =========================================================================
-# Test 7: password_management.sh — reset_wazuh_password (wazuh)
+# Test 7: password_management.sh - reset_wazuh_password (wazuh)
 # =========================================================================
 test_script_wazuh() {
     echo ""
@@ -782,7 +782,7 @@ test_wazuh_api
 
 if [ "$ANSIBLE_ONLY" = "true" ]; then
     echo ""
-    echo -e "${YELLOW}Skipping Part 2 (password_management.sh expect/TTY scripts) — --ansible-only mode${NC}"
+    echo -e "${YELLOW}Skipping Part 2 (password_management.sh expect/TTY scripts) - --ansible-only mode${NC}"
 else
     echo ""
     echo -e "${YELLOW}========================================${NC}"

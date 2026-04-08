@@ -221,7 +221,7 @@
   tasks:
     - name: Skip Phase 2 (already in cluster mode from previous partial upgrade)
       debug:
-        msg: "Skipping Phase 2 — quadlet is already configured for cluster mode."
+        msg: "Skipping Phase 2 - quadlet is already configured for cluster mode."
       when: hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool
 
     - name: Stop LME service

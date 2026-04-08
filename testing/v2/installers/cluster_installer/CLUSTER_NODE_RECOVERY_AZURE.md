@@ -7,7 +7,7 @@ The scenario:
 
 1. Build a **3-node cluster** plus one spare VM that is not part of the cluster.
 2. **Fail node 3** (es3 / `ubuntu-3`) by deallocating it.
-3. **Replace it with node 4** (`ubuntu-4`) — a fresh VM that has never been in
+3. **Replace it with node 4** (`ubuntu-4`) - a fresh VM that has never been in
    the cluster. This requires updating the Ansible inventory and Elasticsearch
    discovery configuration on all surviving nodes, then running Ansible on the
    new node to join it to the cluster.
@@ -90,7 +90,7 @@ echo "LME master (es1): $MASTER_IP (private: $MASTER_PRIVATE_IP)"
 ## Step 3: Create a 4th VM (Spare Node)
 
 Create a 4th VM in the same resource group and virtual network. This VM will
-not be part of the cluster yet — it is the spare that will replace the failed
+not be part of the cluster yet - it is the spare that will replace the failed
 node later.
 
 ```bash
@@ -395,7 +395,7 @@ Expected: `active`.
 
 ## Step 10: Validate Recovery
 
-Wait 1–2 minutes for shard rebalancing, then verify the cluster is healthy:
+Wait 1-2 minutes for shard rebalancing, then verify the cluster is healthy:
 
 ```bash
 ssh "${LME_USER}@${MASTER_IP}" 'sudo bash -c "
@@ -411,7 +411,7 @@ ssh "${LME_USER}@${MASTER_IP}" 'sudo bash -c "
 
 Expected:
 - `status`: `green`
-- `number_of_nodes`: `3` (es1, es2, es4 — ubuntu-3 is gone)
+- `number_of_nodes`: `3` (es1, es2, es4 - ubuntu-3 is gone)
 - `unassigned_shards`: `0`
 - Shards distributed across all three active nodes
 
@@ -463,7 +463,7 @@ ssh "${LME_USER}@${MASTER_IP}" 'sudo bash -c "
 
 The **LME master** (es1) hosts Kibana, Fleet, Wazuh, and is the Ansible control node
 that holds source certificates and vault files. Recovering es1 requires
-restoring from backup or rebuilding the full stack — it cannot be handled with
+restoring from backup or rebuilding the full stack - it cannot be handled with
 the approach described here.
 
 That is separate from **Elasticsearch’s elected cluster coordinator**: if es2 (or
@@ -496,7 +496,7 @@ az group delete --name "$RESOURCE_GROUP" --yes --no-wait
 
 ## Related Documentation
 
-- [CLUSTER_NODE_RECOVERY.md](../../development/CLUSTER_NODE_RECOVERY.md) — Docker-based development cluster recovery
-- [README.md](README.md) — Cluster installer overview
-- [README_DOCKER.md](README_DOCKER.md) — Docker-based cluster testing
-- [Elasticsearch Cluster Formation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-discovery.html) — Official cluster discovery docs
+- [CLUSTER_NODE_RECOVERY.md](../../development/CLUSTER_NODE_RECOVERY.md) - Docker-based development cluster recovery
+- [README.md](README.md) - Cluster installer overview
+- [README_DOCKER.md](README_DOCKER.md) - Docker-based cluster testing
+- [Elasticsearch Cluster Formation](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-discovery.html) - Official cluster discovery docs

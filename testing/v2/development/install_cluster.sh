@@ -319,6 +319,10 @@ EOF"
     docker_exec "$NFS_CONTAINER" "exportfs -ra"
     docker_exec "$NFS_CONTAINER" "service nfs-kernel-server start || systemctl start nfs-kernel-server"
 
+    # rpc.mountd / nfsd need a short window; immediate client mounts often fail with
+    # "reason given by server: No such file or directory" even when /srv/es-snapshots exists.
+    sleep 5
+
     echo -e "  ${GREEN}✓${NC} NFS server configured and started"
 }
 
@@ -330,15 +334,27 @@ install_nfs_client() {
     echo -e "${YELLOW}Mounting NFS on $node_name...${NC}"
 
     docker_exec "$container" "mkdir -p /mnt/es-snapshots"
-    docker_exec "$container" "mount -t nfs nfs:/srv/es-snapshots /mnt/es-snapshots"
-
-    # Verify mount
-    if docker_exec "$container" "mountpoint -q /mnt/es-snapshots"; then
-        echo -e "  ${GREEN}✓${NC} NFS mounted on $node_name at /mnt/es-snapshots"
-    else
-        echo -e "  ${RED}✗${NC} NFS mount failed on $node_name"
+    # Retry: NFS server inside Docker may not accept mounts for a few seconds after start.
+    local mount_ok=1
+    for _try in 1 2 3 4 5 6 7 8 9 10; do
+        if docker_exec "$container" "mountpoint -q /mnt/es-snapshots" 2>/dev/null; then
+            mount_ok=0
+            break
+        fi
+        if docker_exec "$container" "mount -t nfs nfs:/srv/es-snapshots /mnt/es-snapshots" 2>/dev/null; then
+            if docker_exec "$container" "mountpoint -q /mnt/es-snapshots" 2>/dev/null; then
+                mount_ok=0
+                break
+            fi
+        fi
+        sleep 2
+    done
+    if [ "$mount_ok" -ne 0 ]; then
+        echo -e "  ${RED}✗${NC} NFS mount failed on $node_name after retries"
         return 1
     fi
+
+    echo -e "  ${GREEN}✓${NC} NFS mounted on $node_name at /mnt/es-snapshots"
 }
 
 # Function to configure ES to use NFS-backed snapshot path

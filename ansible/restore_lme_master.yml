@@ -1,0 +1,492 @@
+---
+- name: Restore LME master control-plane state
+  hosts: localhost
+  connection: local
+  become: yes
+  vars:
+    install_user: "{{ ansible_user_id }}"
+    lme_install_dir: "/opt/lme"
+    restore_backup_dir: "{{ restore_backup_dir | default('') }}"
+    restore_backup_search_paths: []
+    restore_es_volumes: false
+    expected_master_containers_min: 4
+    restore_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
+
+  tasks:
+    - name: Determine podman command location
+      shell: |
+        if command -v podman >/dev/null 2>&1; then
+          echo "podman"
+        elif [ -x "/nix/var/nix/profiles/default/bin/podman" ]; then
+          echo "/nix/var/nix/profiles/default/bin/podman"
+        elif [ -x "/usr/local/bin/podman" ]; then
+          echo "/usr/local/bin/podman"
+        else
+          echo "ERROR: podman command not found in any expected location" >&2
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+      register: podman_cmd_result
+
+    - name: Set podman command variable
+      set_fact:
+        podman_cmd: "{{ podman_cmd_result.stdout }}"
+
+    - name: Include SELinux variable setup
+      include_role:
+        name: base
+        tasks_from: selinux_vars.yml
+      tags: selinux
+
+    - name: Get Podman graphroot location
+      shell: |
+        GRAPHROOT=$({{ podman_cmd }} info --format "{{ '{{' }}.Store.GraphRoot{{ '}}' }}")
+        if [ -z "$GRAPHROOT" ]; then
+          echo "/var/lib/containers/storage"
+        else
+          echo "$GRAPHROOT"
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PATH: "{{ ansible_env.PATH }}:/nix/var/nix/profiles/default/bin"
+      register: podman_graphroot
+
+    - name: Set backup base directory
+      set_fact:
+        backup_base_dir: "{{ podman_graphroot.stdout }}"
+
+    - name: Set default backup search paths
+      set_fact:
+        restore_backup_search_paths_default:
+          - "{{ backup_base_dir }}/backups"
+          - "/mnt/es-snapshots/lme-master-backups"
+
+    - name: Resolve backup search paths
+      set_fact:
+        restore_backup_search_paths_resolved: >-
+          {{
+            restore_backup_search_paths
+            if (restore_backup_search_paths | length > 0)
+            else restore_backup_search_paths_default
+          }}
+
+    - name: Check which backup search paths exist
+      stat:
+        path: "{{ item }}"
+      loop: "{{ restore_backup_search_paths_resolved }}"
+      register: restore_backup_search_path_stats
+      when: restore_backup_dir | length == 0
+
+    - name: Set existing backup search paths
+      set_fact:
+        restore_backup_existing_search_paths: "{{ restore_backup_search_path_stats.results | selectattr('stat.exists') | map(attribute='item') | list }}"
+      when: restore_backup_dir | length == 0
+
+    - name: Get list of available backup directories from search paths
+      find:
+        paths: "{{ item }}"
+        patterns: ["20*", "2[0-9][0-9][0-9]-*"]
+        file_type: directory
+      loop: "{{ restore_backup_existing_search_paths | default([]) }}"
+      register: available_backup_dirs_by_path
+      when:
+        - restore_backup_dir | length == 0
+        - restore_backup_existing_search_paths | default([]) | length > 0
+
+    - name: Get list of available backup tarballs from search paths
+      find:
+        paths: "{{ item }}"
+        patterns: "*.tar.gz"
+        file_type: file
+      loop: "{{ restore_backup_existing_search_paths | default([]) }}"
+      register: available_backup_tars_by_path
+      when:
+        - restore_backup_dir | length == 0
+        - restore_backup_existing_search_paths | default([]) | length > 0
+
+    - name: Sort available backup paths
+      set_fact:
+        backup_paths: >-
+          {{
+            (
+              (available_backup_dirs_by_path.results | default([]) | map(attribute='files') | flatten | list)
+              + (available_backup_tars_by_path.results | default([]) | map(attribute='files') | flatten | list)
+            ) | sort(attribute='mtime') | map(attribute='path') | list
+          }}
+      when:
+        - restore_backup_dir | length == 0
+        - restore_backup_existing_search_paths | default([]) | length > 0
+
+    - name: Fail when no backup search paths are available
+      fail:
+        msg: >-
+          No backup search paths were found. Checked:
+          {{ restore_backup_search_paths_resolved | join(', ') }}
+      when:
+        - restore_backup_dir | length == 0
+        - restore_backup_existing_search_paths | default([]) | length == 0
+
+    - name: Fail when no backups are available
+      fail:
+        msg: >-
+          No backups found in {{ restore_backup_existing_search_paths | join(', ') }}. Create a backup first with
+          ansible/backup_lme.yml or ansible/cluster_backup_lme.yml.
+      when:
+        - restore_backup_dir | length == 0
+        - backup_paths | default([]) | length == 0
+
+    - name: Build backup display list
+      set_fact:
+        backup_display_list: "{{ backup_display_list | default([]) + [item | basename] }}"
+      loop: "{{ backup_paths | default([]) }}"
+      when: restore_backup_dir | length == 0
+
+    - name: Show backup list
+      debug:
+        msg: "{{ dict(range(1, backup_display_list | length + 1) | zip(backup_display_list)) }}"
+      when:
+        - restore_backup_dir | length == 0
+        - backup_display_list | default([]) | length > 0
+
+    - name: Prompt for backup selection
+      pause:
+        prompt: |
+          Please enter the number of the backup to restore master state from (1-{{ backup_paths | length }}):
+          Note: Backups are sorted by date, with the newest backup at the bottom.
+      register: backup_selection
+      when: restore_backup_dir | length == 0
+
+    - name: Validate backup selection
+      fail:
+        msg: "Invalid selection. Please enter a number between 1 and {{ backup_paths | length }}"
+      when:
+        - restore_backup_dir | length == 0
+        - backup_selection.user_input | int < 1 or backup_selection.user_input | int > backup_paths | length
+
+    - name: Set selected backup path from prompt
+      set_fact:
+        selected_backup_dir: "{{ backup_paths[backup_selection.user_input | int - 1] }}"
+      when: restore_backup_dir | length == 0
+
+    - name: Set selected backup path from restore_backup_dir
+      set_fact:
+        selected_backup_dir: "{{ restore_backup_dir }}"
+      when: restore_backup_dir | length > 0
+
+    - name: Verify selected backup exists
+      stat:
+        path: "{{ selected_backup_dir }}"
+      register: backup_stat
+
+    - name: Fail if selected backup is missing
+      fail:
+        msg: "Selected backup does not exist: {{ selected_backup_dir }}"
+      when: not backup_stat.stat.exists
+
+    - name: Detect tarball backup archive
+      set_fact:
+        restore_backup_is_tarball: >-
+          {{
+            backup_stat.stat.exists
+            and (backup_stat.stat.isreg | default(false))
+            and (selected_backup_dir | basename | regex_search('\.tar\.gz$') is not none)
+          }}
+
+    - name: Expand tarball backup to local staging directory
+      when: restore_backup_is_tarball | bool
+      block:
+        - name: Create staging directory for tarball extraction
+          tempfile:
+            state: directory
+            suffix: lme_restore
+          register: restore_tar_staging
+
+        - name: Extract tarball to staging directory
+          command:
+            argv:
+              - tar
+              - -xzf
+              - "{{ selected_backup_dir }}"
+              - -C
+              - "{{ restore_tar_staging.path }}"
+
+        - name: Discover extracted backup root directory
+          find:
+            paths: "{{ restore_tar_staging.path }}"
+            file_type: directory
+            recurse: false
+          register: restore_extracted_dirs
+
+        - name: Fail if tarball archive layout is unexpected
+          assert:
+            that:
+              - restore_extracted_dirs.files | length == 1
+            fail_msg: >-
+              Expected exactly one top-level directory in tarball backup; found {{ restore_extracted_dirs.files | length }}.
+
+        - name: Point backup path at extracted backup contents
+          set_fact:
+            selected_backup_dir: "{{ restore_extracted_dirs.files[0].path }}"
+            restore_tar_staging_cleanup: "{{ restore_tar_staging.path }}"
+
+    - name: Display restore mode
+      debug:
+        msg: >-
+          Restoring LME master state from {{ selected_backup_dir }}.
+          Elasticsearch volumes will {{ 'also be restored' if restore_es_volumes | bool else 'be skipped (recommended for clusters)' }}.
+
+    - name: Stop LME service if present
+      systemd:
+        name: lme
+        state: stopped
+      ignore_errors: yes
+
+    - name: Wait for containers to stop
+      shell: |
+        {{ podman_cmd }} ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: running_containers
+      until: running_containers.stdout_lines | length == 0
+      retries: 24
+      delay: 5
+      ignore_errors: yes
+
+    # Tar streaming avoids NFS "Operation not supported" on cp -a preserving metadata
+    - name: Restore LME installation and system state from backup
+      shell: |
+        mkdir -p {{ lme_install_dir }}
+        if [ -d "{{ selected_backup_dir }}/lme" ]; then
+          (cd "{{ selected_backup_dir }}/lme" && tar cf - .) | (cd "{{ lme_install_dir }}" && tar xf -)
+        fi
+
+        if [ -d "{{ selected_backup_dir }}/etc_lme" ]; then
+          mkdir -p /etc/lme
+          (cd "{{ selected_backup_dir }}/etc_lme" && tar cf - .) | (cd /etc/lme && tar xf -)
+          chmod 700 /etc/lme /etc/lme/vault 2>/dev/null || true
+          chmod 600 /etc/lme/vault/* 2>/dev/null || true
+          chmod 700 /etc/lme/pass.sh 2>/dev/null || true
+          chown -R root:root /etc/lme
+        fi
+
+        if [ -d "{{ selected_backup_dir }}/etc_containers_systemd" ]; then
+          mkdir -p /etc/containers/systemd
+          (cd "{{ selected_backup_dir }}/etc_containers_systemd" && tar cf - .) | (cd /etc/containers/systemd && tar xf -)
+          chmod 644 /etc/containers/systemd/* 2>/dev/null || true
+          chown root:root /etc/containers/systemd/* 2>/dev/null || true
+        fi
+      args:
+        executable: /bin/bash
+      register: restore_files_result
+
+    - name: Restore SELinux contexts for restored paths
+      command: restorecon -Rv "{{ item }}"
+      loop:
+        - "{{ lme_install_dir }}"
+        - "/etc/lme"
+        - "/etc/containers/systemd"
+      when:
+        - selinux_active | default(false)
+      changed_when: false
+
+    - name: Reload systemd daemon after restoring quadlets
+      systemd:
+        daemon_reload: yes
+
+    - name: Restore Podman secrets from backup vault files
+      shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        export ANSIBLE_VAULT_PASSWORD_FILE="{{ selected_backup_dir }}/etc_lme/pass.sh"
+
+        for secret_id in $(podman secret ls --format "{{ '{{' }}.ID{{ '}}' }}"); do
+          podman secret rm "$secret_id" 2>/dev/null || true
+        done
+
+        MAPPING_FILE="{{ selected_backup_dir }}/secret_mapping.txt"
+        BACKUP_VAULT_DIR="{{ selected_backup_dir }}/etc_lme/vault"
+
+        if [ -f "$MAPPING_FILE" ] && [ -d "$BACKUP_VAULT_DIR" ]; then
+          while IFS='=' read -r secret_name vault_file_id; do
+            if [[ "$secret_name" =~ ^#.*$ ]] || [[ -z "$secret_name" ]]; then
+              continue
+            fi
+
+            BACKUP_VAULT_FILE="$BACKUP_VAULT_DIR/$vault_file_id"
+            if [ -f "$BACKUP_VAULT_FILE" ]; then
+              SECRET_VALUE=$(ansible-vault view "$BACKUP_VAULT_FILE")
+              if [ $? -eq 0 ] && [ -n "$SECRET_VALUE" ]; then
+                echo "$SECRET_VALUE" | podman secret create --driver shell --replace "$secret_name" -
+              fi
+            fi
+          done < "$MAPPING_FILE"
+        fi
+      args:
+        executable: /bin/bash
+      register: restore_secrets_result
+
+    - name: Check for containers.txt file
+      stat:
+        path: "{{ lme_install_dir }}/config/containers.txt"
+      register: containers_file
+
+    - name: Read containers list from file
+      slurp:
+        path: "{{ lme_install_dir }}/config/containers.txt"
+      register: containers_content
+      when: containers_file.stat.exists
+
+    - name: Set containers list variable
+      set_fact:
+        container_list: "{{ (containers_content.content | b64decode).strip().split('\n') | select('match', '^[^#].*') | list }}"
+      when: containers_file.stat.exists and containers_content is defined
+
+    - name: Pull restored containers
+      shell: |
+        {{ podman_cmd }} pull {{ item }}
+      args:
+        executable: /bin/bash
+      loop: "{{ container_list | default([]) }}"
+      register: pull_result
+      retries: 3
+      delay: 5
+      until: pull_result is not failed
+      ignore_errors: yes
+      when: containers_file.stat.exists and container_list is defined and container_list | length > 0
+
+    - name: Tag restored containers
+      shell: |
+        {{ podman_cmd }} image tag {{ item }} {{ item.split('/')[-1].split(':')[0] }}:LME_LATEST
+      args:
+        executable: /bin/bash
+      loop: "{{ container_list | default([]) }}"
+      register: tag_result
+      retries: 3
+      delay: 5
+      until: tag_result is not failed
+      ignore_errors: yes
+      when: containers_file.stat.exists and container_list is defined and container_list | length > 0
+
+    - name: Check whether backup includes volume directory
+      stat:
+        path: "{{ selected_backup_dir }}/volumes"
+      register: volume_backup_dir
+
+    - name: Get list of backed-up volume directories
+      find:
+        paths: "{{ selected_backup_dir }}/volumes"
+        file_type: directory
+      register: volume_dirs
+      when: volume_backup_dir.stat.exists
+
+    - name: Set volume selection facts
+      set_fact:
+        restore_all_volume_names: "{{ volume_dirs.files | map(attribute='path') | map('basename') | list }}"
+        restore_selected_volume_names: >-
+          {{
+            (volume_dirs.files | map(attribute='path') | map('basename') | list)
+            | reject('equalto', 'lme_backups')
+            | reject('match', '^lme_esdata.*')
+            | list
+            if not (restore_es_volumes | bool) else
+            ((volume_dirs.files | map(attribute='path') | map('basename') | list)
+              | reject('equalto', 'lme_backups')
+              | list)
+          }}
+      when: volume_backup_dir.stat.exists
+
+    - name: Display selected restore volumes
+      debug:
+        msg:
+          - "Volume restore candidates: {{ restore_all_volume_names | default([]) | join(', ') if restore_all_volume_names is defined and restore_all_volume_names | length > 0 else 'None' }}"
+          - "Volume restore selection: {{ restore_selected_volume_names | default([]) | join(', ') if restore_selected_volume_names is defined and restore_selected_volume_names | length > 0 else 'None' }}"
+      when: volume_backup_dir.stat.exists
+
+    - name: Remove existing selected volumes
+      shell: |
+        if {{ podman_cmd }} volume exists "{{ item }}"; then
+          {{ podman_cmd }} volume rm "{{ item }}"
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ restore_selected_volume_names | default([]) }}"
+      when:
+        - volume_backup_dir.stat.exists
+        - restore_selected_volume_names | default([]) | length > 0
+
+    - name: Recreate selected volumes
+      shell: |
+        {{ podman_cmd }} volume create "{{ item }}"
+      args:
+        executable: /bin/bash
+      loop: "{{ restore_selected_volume_names | default([]) }}"
+      when:
+        - volume_backup_dir.stat.exists
+        - restore_selected_volume_names | default([]) | length > 0
+
+    - name: Restore selected volume data
+      shell: |
+        VOLUME_PATH=$({{ podman_cmd }} volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
+        BACKUP_DIR="{{ selected_backup_dir }}/volumes/{{ item }}/data"
+
+        if [ -d "$BACKUP_DIR" ]; then
+          (cd "$BACKUP_DIR" && tar cf - .) | (cd "$VOLUME_PATH" && tar xf -)
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ restore_selected_volume_names | default([]) }}"
+      register: volume_restore_result
+      when:
+        - volume_backup_dir.stat.exists
+        - restore_selected_volume_names | default([]) | length > 0
+
+    - name: Restore SELinux contexts for restored volumes
+      shell: |
+        VOLUME_PATH=$({{ podman_cmd }} volume inspect "{{ item }}" --format "{{ '{{' }}.Mountpoint{{ '}}' }}")
+        restorecon -Rv "$VOLUME_PATH"
+      args:
+        executable: /bin/bash
+      loop: "{{ restore_selected_volume_names | default([]) }}"
+      when:
+        - volume_backup_dir.stat.exists
+        - restore_selected_volume_names | default([]) | length > 0
+        - selinux_active | default(false)
+      changed_when: false
+
+    - name: Start LME service
+      systemd:
+        name: lme
+        state: started
+      register: service_start_result
+
+    - name: Wait for containers to start
+      shell: |
+        {{ podman_cmd }} ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: started_containers
+      until: started_containers.stdout_lines | length >= expected_master_containers_min
+      retries: 24
+      delay: 10
+
+    - name: Display master restore summary
+      debug:
+        msg:
+          - "============================================"
+          - "  Master Restore Complete"
+          - "============================================"
+          - "Backup source: {{ selected_backup_dir }}"
+          - "Restored Elasticsearch volumes: {{ restore_es_volumes | bool }}"
+          - "Restored non-ES volumes: {{ restore_selected_volume_names | default([]) | join(', ') if restore_selected_volume_names is defined and restore_selected_volume_names | length > 0 else 'None' }}"
+          - "LME service started: {{ 'yes' if service_start_result is success else 'no' }}"
+          - "Running containers detected: {{ started_containers.stdout_lines | length if started_containers.stdout_lines is defined else 0 }}"
+
+  post_tasks:
+    - name: Remove tarball staging directory
+      file:
+        path: "{{ restore_tar_staging_cleanup }}"
+        state: absent
+      when: restore_tar_staging_cleanup is defined
