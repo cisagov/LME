@@ -112,9 +112,11 @@
     status_code: 200
   register: es_health
   until: >
-    es_health.status == 200 and 
+    es_health.status == 200 and
     es_health.json.status in ["green", "yellow"] and
-    es_health.json.number_of_nodes == 1
+    (es_health.json.number_of_nodes | int) ==
+    (1 if not (lme_cluster_mode | default(false))
+     else (es_cluster_seed_hosts | default([]) | length | int))
   retries: 60
   delay: 20
   no_log: "{{ not debug_mode }}"

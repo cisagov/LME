@@ -323,7 +323,22 @@
     state: stopped
   become: yes
   register: service_stop_result
-  
+
+- name: Explicitly stop all LME container services
+  # systemctl stop lme propagates via PartOf, but WantedBy=default.target can cause
+  # systemd to restart units immediately. Explicit stops suppress Restart=always.
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    for svc in lme-kibana lme-fleet-server lme-elastalert lme-wazuh-manager lme-fleet-distribution lme-elasticsearch lme-setup-accts lme-setup-certs; do
+      if systemctl is-active --quiet "${svc}.service" 2>/dev/null; then
+        systemctl stop "${svc}.service" 2>/dev/null || true
+      fi
+    done
+  args:
+    executable: /bin/bash
+  become: yes
+  ignore_errors: yes
+
 - name: Wait for containers to stop
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
@@ -336,7 +351,23 @@
   retries: 24
   delay: 10
   ignore_errors: yes
-  
+
+- name: Force-remove any orphaned LME containers before restart
+  # Podman tracks --requires dependencies at the container level. If any lme-* container
+  # remains (even stopped/exited), podman run --replace on lme-elasticsearch will fail
+  # with exit 125 if a dependent container (e.g. lme-kibana) is still present and running.
+  # Remove all stopped lme-* containers to give podman a clean slate on restart.
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    STALE=$(podman ps -a --filter name=lme --format "{{ '{{' }}.Names{{ '}}' }}" 2>/dev/null || true)
+    if [ -n "$STALE" ]; then
+      echo "$STALE" | xargs -r podman rm -f 2>/dev/null || true
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+  ignore_errors: yes
+
 - name: Display any running containers
   debug:
     msg: "Warning: The following containers are still running and may not be backed up properly: {{ running_containers.stdout_lines }}"
