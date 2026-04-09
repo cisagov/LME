@@ -102,7 +102,7 @@ jobs:
               'export RESOURCE_GROUP=pipe-${{ env.UNIQUE_ID }}' \
               'export PUBLIC_IP=${{ env.IP_ADDRESS }}/32' \
               'export VM_SIZE=Standard_D8_v4' \
-              'export LOCATION=${{ inputs.azure_region || '\''centralus'\'' }}' \
+              'export LOCATION=${{ inputs.azure_region || 'centralus' }}' \
               'export AUTO_SHUTDOWN_TIME=23:00' \
               'export LME_USER=lme-user' \
               'export BRANCH=${{ env.BRANCH_NAME }}' \
