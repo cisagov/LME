@@ -333,8 +333,8 @@
   register: running_containers
   become: yes
   until: running_containers.stdout_lines | length == 0
-  retries: 12
-  delay: 5
+  retries: 24
+  delay: 10
   ignore_errors: yes
   
 - name: Display any running containers

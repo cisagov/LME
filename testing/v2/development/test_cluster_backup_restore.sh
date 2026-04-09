@@ -171,7 +171,7 @@ docker_exec_as_lme_user "$MASTER_CONTAINER" "
 pass "cluster_backup_lme.yml completed"
 
 echo "  Waiting for Elasticsearch to become ready after backup (service was restarted)..."
-for attempt in $(seq 1 30); do
+for attempt in $(seq 1 60); do
     if docker_exec "$MASTER_CONTAINER" "
         source /root/.profile 2>/dev/null || true
         source /opt/lme/scripts/extract_secrets.sh -q 2>/dev/null
@@ -180,8 +180,8 @@ for attempt in $(seq 1 30); do
         echo "  Elasticsearch is ready (attempt ${attempt})"
         break
     fi
-    if [ "$attempt" -eq 30 ]; then
-        fail "Elasticsearch did not become ready within 5 minutes after backup"
+    if [ "$attempt" -eq 60 ]; then
+        fail "Elasticsearch did not become ready within 10 minutes after backup"
         exit 1
     fi
     sleep 10

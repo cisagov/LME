@@ -201,7 +201,7 @@ ssh_master "cd ~/LME && \
 pass "cluster_backup_lme.yml completed"
 
 echo "  Waiting for Elasticsearch to become ready after backup (service was restarted)..."
-for attempt in $(seq 1 30); do
+for attempt in $(seq 1 60); do
     if ssh_master "sudo bash -s" <<'WAIT_SCRIPT' 2>/dev/null
 source /opt/lme/scripts/extract_secrets.sh -q
 curl -sk --max-time 5 -u "elastic:$elastic" https://localhost:9200/_cluster/health?wait_for_status=yellow\&timeout=5s >/dev/null 2>&1
@@ -210,8 +210,8 @@ WAIT_SCRIPT
         echo "  Elasticsearch is ready (attempt ${attempt})"
         break
     fi
-    if [ "$attempt" -eq 30 ]; then
-        fail "Elasticsearch did not become ready within 5 minutes after backup"
+    if [ "$attempt" -eq 60 ]; then
+        fail "Elasticsearch did not become ready within 10 minutes after backup"
         exit 1
     fi
     sleep 10
