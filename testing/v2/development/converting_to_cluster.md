@@ -58,7 +58,6 @@ BEFORE (single-node)             AFTER (cluster)
 | Transport port | Not exposed | 9300 published |
 | Certificates | Only localhost/127.0.0.1 SANs | All node IPs in SANs |
 | Secrets | Local only | Distributed to all nodes |
-| Data volume | `lme_esdata01` | Master: `lme_esdata01`, data nodes: `lme_esdata_<node_name>` |
 | Node name | `lme-elasticsearch` | Per-host from inventory |
 | Quadlet file | Rendered with single-node vars | Rendered with cluster vars |
 
@@ -198,15 +197,6 @@ from the `lme_certs` volume before re-running the cert setup unit. This is safe
 because all services are stopped during conversion and the new certs are distributed
 to all nodes.
 
-### Data Volume Naming
-
-Single-node installs use `lme_esdata01` as the data volume name. The Elasticsearch
-container template now ensures the master node (identified by
-`ansible_connection=local`) **always** uses `lme_esdata01`, regardless of whether
-`es_node_name` is set. Only remote data nodes use the `lme_esdata_<es_node_name>`
-convention. This keeps the master volume name consistent across fresh single-node
-installs, fresh cluster installs, and single-node-to-cluster conversions.
-
 ### Discovery Type Transition
 
 Elasticsearch requires a full stop before changing from `discovery.type=single-node`
@@ -241,8 +231,6 @@ it in place for simplicity since it only names the master node.
 
 - [x] New playbook: `ansible/convert_to_cluster.yml`
 - [x] New wrapper script: `scripts/convert_to_cluster.sh`
-- [x] Update `ansible/templates/lme-elasticsearch.container.j2` so the master
-      node (`ansible_connection=local`) always uses `lme_esdata01`
 - [x] Update `ansible/roles/certs/tasks/main.yml` to support force regeneration
       via `lme_force_cert_regen` variable
 - [x] Update `ansible/upgrade_lme.yml` to detect cluster mode and warn users

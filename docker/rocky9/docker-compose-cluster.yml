@@ -11,6 +11,7 @@ services:
     hostname: node1
     working_dir: /home/lme-user/LME
     volumes:
+      - node1-podman-storage:/var/lib/containers
       - ../../:/home/lme-user/LME
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
@@ -59,6 +60,7 @@ services:
     hostname: node2
     working_dir: /root/LME
     volumes:
+      - node2-podman-storage:/var/lib/containers
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
       - SYS_ADMIN
@@ -99,6 +101,7 @@ services:
     hostname: node3
     working_dir: /root/LME
     volumes:
+      - node3-podman-storage:/var/lib/containers
       - /sys/fs/cgroup/systemd:/sys/fs/cgroup/systemd:rw
     cap_add:
       - SYS_ADMIN
@@ -126,6 +129,11 @@ services:
       - "9302:9300"
     networks:
       - lme-rocky9-cluster-network
+
+volumes:
+  node1-podman-storage:
+  node2-podman-storage:
+  node3-podman-storage:
 
 networks:
   lme-rocky9-cluster-network:
