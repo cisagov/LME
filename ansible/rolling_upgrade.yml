@@ -6,8 +6,10 @@
   vars:
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
 
-    # If you have a specific image to pull/tag during upgrade, set this.
-    # Example: es_upgrade_pull_image: docker.io/library/elasticsearch:8.18.8
+    # TODO: This playbook is intentionally blocked before any disruptive steps.
+    # A real rolling upgrade must update the local localhost/elasticsearch:LME_LATEST
+    # tag on each host before restarting Elasticsearch.
+    # Example future value: es_upgrade_pull_image: docker.io/library/elasticsearch:8.18.8
     es_upgrade_pull_image: ""
 
     # Pre-upgrade check settings
@@ -59,6 +61,18 @@
     - name: Run pre-upgrade verification checks
       ansible.builtin.include_tasks: tasks/pre_upgrade_checks.yml
       when: not (skip_pre_checks | default(false) | bool)
+
+    - name: Stop because rolling upgrade implementation is incomplete
+      ansible.builtin.fail:
+        msg: >-
+          rolling_upgrade.yml is intentionally disabled because the host-level image
+          retagging/update flow is incomplete. This playbook would need to refresh the
+          localhost/elasticsearch:LME_LATEST image tag on each Elasticsearch host before
+          any shard-allocation changes or service restarts are safe to attempt.
+          TODO: implement per-host image update/tagging, then re-validate the full
+          rolling-upgrade workflow.
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
 
     - name: Disable shard allocation (primaries only)
       ansible.builtin.uri:
