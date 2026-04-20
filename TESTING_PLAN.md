@@ -205,6 +205,216 @@ Produce a complete credentials reference covering:
 - [ ] Default values and whether they MUST be changed
 - [ ] Which credentials are shared between containers (blast radius if compromised)
 
+
+## 3. Front end testing
+
+### 3.1 Access & Navigation
+- [ ] **Open Detection Engineering view**
+  - [ ] Click “Detection Engineering” top nav switches to detection view
+  - [ ] Sub-tabs visible: **Rules**, **ElastAlert**, **KEVs**
+  - [ ] No console errors on entry
+- [ ] **Sub-tab switching**
+  - [ ] Switch Rules → ElastAlert → KEVs → Rules without UI breaking
+  - [ ] Switching while data is loading doesn’t freeze/stick spinners
+  - [ ] Correct sub-tab stays highlighted
+
+---
+
+### 3.2 Rules Tab — Elastic Prebuilt Rules
+- [ ] **Prebuilt status loads**
+  - [ ] Installed/available/updates counts render
+  - [ ] “Up to date” message appears only when available=0 and updates=0
+  - [ ] Refreshing the tab re-renders correctly (no stale values)
+- [ ] **Import Prebuilt Rules (happy path)**
+  - [ ] Clicking “Import Prebuilt” disables the button and shows spinner
+  - [ ] Success message includes installed/skipped/failed counts
+  - [ ] After import, status refreshes and counts update
+  - [ ] Kibana rules table refreshes after import (new rules appear)
+- [ ] **Import Prebuilt Rules (error handling)**
+  - [ ] Kibana unreachable → UI shows error message and button re-enables
+  - [ ] Timeout/500 → UI shows failure message and no crash
+
+---
+
+### 3.3 Rules Tab — Sigma Rules Workflow
+- [ ] **Sigma status loads**
+  - [ ] No converted rules → “No converted rules found” message shown
+  - [ ] Converted rules exist → platform cards show rule_count + modified time
+- [ ] **Download & Convert**
+  - [ ] Clicking “Download & Convert” shows converting spinner and disables action
+  - [ ] On success: platform outputs appear and total rules count is shown
+  - [ ] On failure: error message appears and UI recovers
+- [ ] **Upload to Kibana (per-platform converted outputs)**
+  - [ ] Upload Windows platform
+    - [ ] Spinner only on Windows card
+    - [ ] Success message shows imported count and error count (if any)
+    - [ ] Kibana rules table refreshes after upload
+    - [ ] Converted file removed after successful upload (Sigma status updates)
+  - [ ] Upload Linux platform (same checks)
+  - [ ] Upload macOS platform (same checks)
+- [ ] **Upload NDJSON file (manual)**
+  - [ ] Upload valid `.ndjson` imports successfully and shows confirmation message
+  - [ ] Upload non-ndjson is rejected (UI shows error)
+  - [ ] Upload empty ndjson rejected (UI shows error)
+- [ ] **Upload YAML (convert + upload)**
+  - [ ] Upload 1 Windows Sigma YAML converts/imports successfully
+  - [ ] Upload mixed Windows + non-Windows YAML converts/imports successfully
+  - [ ] Invalid YAML file produces an error entry and does not crash UI
+  - [ ] sigma-cli missing/backend 500 → UI shows “Upload failed” message
+
+---
+
+### 3.4 Rules Tab — Kibana Detection Rules Table
+- [ ] **Initial table load**
+  - [ ] Table renders rows with: name, description snippet, severity, risk score, enabled status
+  - [ ] Total count displayed and matches returned count
+  - [ ] Loading indicator appears and disappears correctly
+- [ ] **Search**
+  - [ ] Search text triggers debounced reload
+  - [ ] Clearing search restores unfiltered results
+  - [ ] Search resets page to 1
+- [ ] **Enabled filter**
+  - [ ] Filter = All returns both enabled and disabled
+  - [ ] Filter = Enabled returns enabled only
+  - [ ] Filter = Disabled returns disabled only
+- [ ] **Tag filter**
+  - [ ] Filter “OS: Windows” returns only that tag set
+  - [ ] Filter “OS: Linux” returns only that tag set
+  - [ ] Filter “OS: macOS” returns only that tag set
+  - [ ] Filter “Sigma Windows” returns Sigma-tagged Windows rules
+  - [ ] Filter “Sigma Linux” returns Sigma-tagged Linux rules
+  - [ ] Filter “Sigma macOS” returns Sigma-tagged macOS rules
+- [ ] **Sorting**
+  - [ ] Sort by Rule Name toggles asc/desc correctly
+  - [ ] Sort by Severity toggles asc/desc and order looks correct
+  - [ ] Sort by Risk toggles asc/desc and order looks correct
+  - [ ] Sort by Status toggles asc/desc (enabled grouping consistent)
+- [ ] **Pagination**
+  - [ ] Next page loads different results and updates “Showing X–Y of total”
+  - [ ] Prev page returns to prior results
+  - [ ] Prev disabled on page 1
+  - [ ] Next disabled on last page
+- [ ] **Single rule enable/disable**
+  - [ ] Toggling enabled→disabled updates UI
+  - [ ] Toggling disabled→enabled updates UI
+  - [ ] If API fails, UI reverts to original state
+- [ ] **Row selection**
+  - [ ] Selecting a row checkbox adds it to selected set
+  - [ ] Unselecting removes it from selected set
+  - [ ] Select-all selects all visible rules
+  - [ ] Select-all toggles back to clear selection
+  - [ ] Selection clears on reload/filter/sort/page change
+- [ ] **Bulk enable/disable (selected rows)**
+  - [ ] Bulk action bar appears when selection > 0
+  - [ ] “Enable Selected” prompts confirmation
+  - [ ] “Disable Selected” prompts confirmation
+  - [ ] After success: selection clears and table refreshes
+  - [ ] If API fails: table remains stable; error surfaced (console/alert)
+- [ ] **Bulk by OS/Sigma tags**
+  - [ ] “Enable All Windows (Elastic)” prompts confirmation and works
+  - [ ] “Disable All Windows (Elastic)” prompts confirmation and works
+  - [ ] “Enable All Linux (Elastic)” works
+  - [ ] “Disable All Linux (Elastic)” works
+  - [ ] “Enable All macOS (Elastic)” works
+  - [ ] “Disable All macOS (Elastic)” works
+  - [ ] Same checks for Sigma Windows/Linux/macOS tags
+  - [ ] Kibana rejection/unreachable produces visible error and no crash
+
+---
+
+### 3.5 ElastAlert Tab — Rule File Management
+- [ ] **Empty state**
+  - [ ] With no rules present, shows “No rules yet” message
+- [ ] **List rules**
+  - [ ] Rule entries show: filename, name, type, index (when available)
+  - [ ] Refresh button reloads list without duplicating entries
+- [ ] **Expand rule to view YAML**
+  - [ ] Clicking a rule expands and loads YAML
+  - [ ] YAML loads only once (subsequent expand uses cached content)
+  - [ ] If YAML fetch fails, an error message appears in YAML panel
+- [ ] **Upload rule files**
+  - [ ] Upload 1 valid `.yml/.yaml` file succeeds and appears in list
+  - [ ] Upload multiple valid files succeeds and all appear in list
+  - [ ] Upload invalid extension is rejected with error message
+  - [ ] Upload invalid YAML (not a YAML mapping) rejected with error message
+  - [ ] Partial success (some valid, some invalid) shows saved + errors counts
+- [ ] **Paste YAML modal**
+  - [ ] Modal opens and closes correctly (X and Cancel work)
+  - [ ] Paste valid YAML mapping with `name:` field, no filename:
+    - [ ] Backend derives filename and returns it
+    - [ ] Rule appears in list
+    - [ ] Modal auto-closes after success delay
+  - [ ] Paste valid YAML mapping with explicit filename:
+    - [ ] Saved under that filename
+  - [ ] Paste invalid YAML shows validation error and modal stays open
+- [ ] **Delete rule**
+  - [ ] Delete prompts confirmation
+  - [ ] Deleted rule disappears from list
+  - [ ] If deleted rule was expanded, it collapses cleanly
+  - [ ] Cached YAML cleared (re-adding same name doesn’t show stale YAML)
+- [ ] **Security / validation**
+  - [ ] Path traversal filename attempts (e.g., `../x.yml`) are rejected
+  - [ ] Non-yaml filename forced by UI/backend gets rejected or normalized safely
+  - [ ] Large YAML content doesn’t crash the UI (may fail gracefully)
+
+---
+
+### 3.6 KEVs Tab — Known Exploited Vulnerabilities
+- [ ] **KEV status loads**
+  - [ ] “Total KEVs” displays catalog total
+  - [ ] “Matched” displays count of matched CVEs in environment
+  - [ ] “Overdue” displays overdue matched count
+  - [ ] “Last Sync” shows a timestamp or “Never”
+- [ ] **Badge logic**
+  - [ ] If never pulled: badge shows “Never” (or equivalent)
+  - [ ] If pulled < 24h ago: badge shows “Current”
+  - [ ] If pulled > 24h ago or invalid timestamp: badge shows “Stale”
+- [ ] **Sync Now**
+  - [ ] Clicking “Sync Now” shows spinner/disabled state
+  - [ ] Success message includes synced total CVEs
+  - [ ] After sync: status refreshes and last pull time updates
+  - [ ] Failure shows error message and button re-enables
+- [ ] **Matched KEVs list**
+  - [ ] No matches: green “No known exploited vulnerabilities…” empty state card shows
+  - [ ] With matches:
+    - [ ] Each entry shows CVE link, vendor/product/name/description
+    - [ ] Due date shown correctly
+    - [ ] “Overdue” label appears when overdue is true
+    - [ ] Ransomware label appears when ransomware is Known
+    - [ ] Affected hosts chips show and host_count matches chips count
+- [ ] **Sorting**
+  - [ ] Overdue entries appear first
+  - [ ] Then sorted by due date ascending
+- [ ] **Refresh behavior**
+  - [ ] Refresh button reloads matched list without duplicating entries
+- [ ] **Degraded modes**
+  - [ ] ES password missing / ES unreachable: status still returns (or fails gracefully) and UI does not crash
+  - [ ] Catalog missing: total=0 and UI shows “Never”/empty safely
+
+---
+
+### 3.7 Cross-cutting UX & Reliability
+- [ ] **Spinners / disabled states**
+  - [ ] Every long operation disables its initiating button and restores it
+  - [ ] No spinner stays stuck after failures
+- [ ] **Confirmations**
+  - [ ] Bulk enable/disable confirms before action
+  - [ ] Bulk-by-tag confirms before action
+  - [ ] Delete ElastAlert confirms before action
+- [ ] **No console errors**
+  - [ ] No uncaught JS errors during normal use
+  - [ ] No uncaught JS errors during failed API calls
+
+---
+
+### 3.8 Quick Security sanity checks (UI-facing)
+- [ ] **XSS safety**
+  - [ ] Rule names/descriptions/tags render as text (no injected HTML execution)
+  - [ ] ElastAlert YAML content shown in `<pre>` doesn’t execute scripts
+- [ ] **Input validation**
+  - [ ] ElastAlert filename sanitization works (no directories)
+  - [ ] Sigma upload rejects wrong file type and empty content
+
 ---
 
 ## Execution Order
