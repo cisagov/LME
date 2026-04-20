@@ -1,4 +1,5 @@
 *.pdf
+tmp/*
 *.docx
 .DS_Store
 /.idea/

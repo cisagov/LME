@@ -138,15 +138,15 @@ for i in $(seq 1 $NUM_NODES); do
             continue
         fi
 
-        # Check for duplicate IP/hostname
-        local duplicate=false
+        # Check for duplicate IP/hostname (must not use `local` here — not inside a function)
+        duplicate=false
         for existing_ip in "${NODE_IPS[@]}"; do
             if [ "$existing_ip" = "$node_ip" ]; then
                 duplicate=true
                 break
             fi
         done
-        if $duplicate; then
+        if [ "$duplicate" = true ]; then
             echo -e "${RED}'$node_ip' is already used by another node. Each node must have a unique IP/hostname.${NC}"
             continue
         fi
