@@ -210,19 +210,19 @@ Produce a complete credentials reference covering:
 
 ### 3.1 Access & Navigation
 - [ ] **Open Detection Engineering view**
-  - [ ] Click “Detection Engineering” top nav switches to detection view
-  - [ ] Sub-tabs visible: **Rules**, **ElastAlert**, **KEVs**
+  - [x] Click “Detection Engineering” top nav switches to detection view
+  - [x] Sub-tabs visible: **Rules**, **ElastAlert**, **KEVs**
   - [ ] No console errors on entry
 - [ ] **Sub-tab switching**
-  - [ ] Switch Rules → ElastAlert → KEVs → Rules without UI breaking
+  - [x] Switch Rules → ElastAlert → KEVs → Rules without UI breaking
   - [ ] Switching while data is loading doesn’t freeze/stick spinners
-  - [ ] Correct sub-tab stays highlighted
+  - [x] Correct sub-tab stays highlighted
 
 ---
 
 ### 3.2 Rules Tab — Elastic Prebuilt Rules
 - [ ] **Prebuilt status loads**
-  - [ ] Installed/available/updates counts render
+  - [x] Installed/available/updates counts render
   - [ ] “Up to date” message appears only when available=0 and updates=0
   - [ ] Refreshing the tab re-renders correctly (no stale values)
 - [ ] **Import Prebuilt Rules (happy path)**
@@ -241,17 +241,17 @@ Produce a complete credentials reference covering:
   - [ ] No converted rules → “No converted rules found” message shown
   - [ ] Converted rules exist → platform cards show rule_count + modified time
 - [ ] **Download & Convert**
-  - [ ] Clicking “Download & Convert” shows converting spinner and disables action
-  - [ ] On success: platform outputs appear and total rules count is shown
+  - [x] Clicking “Download & Convert” shows converting spinner and disables action
+  - [x] On success: platform outputs appear and total rules count is shown
   - [ ] On failure: error message appears and UI recovers
 - [ ] **Upload to Kibana (per-platform converted outputs)**
   - [ ] Upload Windows platform
-    - [ ] Spinner only on Windows card
-    - [ ] Success message shows imported count and error count (if any)
-    - [ ] Kibana rules table refreshes after upload
-    - [ ] Converted file removed after successful upload (Sigma status updates)
+    - [x] Spinner only on Windows card
+    - [x] Success message shows imported count and error count (if any)
+    - [x] Kibana rules table refreshes after upload
+    - [x] Converted file removed after successful upload (Sigma status updates)
   - [ ] Upload Linux platform (same checks)
-  - [ ] Upload macOS platform (same checks)
+  - [x] Upload macOS platform (same checks)
 - [ ] **Upload NDJSON file (manual)**
   - [ ] Upload valid `.ndjson` imports successfully and shows confirmation message
   - [ ] Upload non-ndjson is rejected (UI shows error)
