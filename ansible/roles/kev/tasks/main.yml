@@ -1,0 +1,190 @@
+---
+# LME KEV (CISA Known Exploited Vulnerabilities) integration role
+
+# ── 1. Directories ──────────────────────────────────────────────────────────
+
+- name: Ensure KEV scripts directory exists
+  ansible.builtin.file:
+    path: "{{ kev_scripts_dir }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Ensure Wazuh integrations directory exists on host
+  ansible.builtin.file:
+    path: "{{ kev_config_dir }}/integrations"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+# ── 2. Install kev_sync.py on host ──────────────────────────────────────────
+
+- name: Copy kev_sync.py to scripts directory
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../scripts/kev_sync.py"
+    dest: "{{ kev_scripts_dir }}/kev_sync.py"
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+# ── 3. Install custom-kev integration into host staging directory ─────────
+
+- name: Copy custom-kev integration script to host staging directory
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../config/wazuh_cluster/integrations/custom-kev"
+    dest: "{{ kev_config_dir }}/integrations/custom-kev"
+    mode: '0750'
+    owner: root
+    group: root
+  become: true
+
+# ── 4. Inject custom-kev into the running Wazuh container ──────────────────
+
+- name: Copy custom-kev into lme-wazuh-manager container
+  ansible.builtin.command: >-
+    podman cp
+    {{ kev_config_dir }}/integrations/custom-kev
+    {{ kev_wazuh_container }}:{{ kev_container_integrations_dir }}/custom-kev
+  become: true
+  changed_when: true
+
+- name: Set custom-kev permissions inside container (executable by ossec user)
+  ansible.builtin.command: >-
+    podman exec {{ kev_wazuh_container }}
+    chmod 0750 {{ kev_container_integrations_dir }}/custom-kev
+  become: true
+  changed_when: true
+
+- name: Set custom-kev ownership inside container
+  ansible.builtin.command: >-
+    podman exec {{ kev_wazuh_container }}
+    chown root:ossec {{ kev_container_integrations_dir }}/custom-kev
+  become: true
+  changed_when: true
+
+# ── 5. Backup and update wazuh_manager.conf ──────────────────────────────
+
+- name: Back up wazuh_manager.conf before modifying
+  ansible.builtin.copy:
+    src: "{{ kev_config_dir }}/wazuh_manager.conf"
+    dest: "{{ kev_config_dir }}/wazuh_manager.conf.bak_kev"
+    remote_src: true
+    mode: '0640'
+    owner: root
+    group: root
+  become: true
+
+- name: Add custom-kev integration block to wazuh_manager.conf
+  ansible.builtin.blockinfile:
+    path: "{{ kev_config_dir }}/wazuh_manager.conf"
+    marker: "  <!-- {mark} LME KEV INTEGRATION -->"
+    insertbefore: "</ossec_config>"
+    block: |
+      <integration>
+        <name>custom-kev</name>
+        <group>{{ kev_vuln_rule_group }}</group>
+        <alert_format>json</alert_format>
+      </integration>
+  become: true
+  notify: Restart wazuh manager
+
+# ── 6. Mount catalog read-only into the container ──────────────────────────
+# Run an initial empty catalog so the container path always exists, then
+# keep it fresh via kev_sync.py.  We use podman cp rather than a live mount
+# because the container is already running; the systemd quadlet bind-mount
+# is the durable solution on next container start.
+
+- name: Create empty KEV catalog placeholder if catalog does not yet exist
+  ansible.builtin.copy:
+    content: '{"generated":null,"total":0,"cves":{}}'
+    dest: "{{ kev_catalog_path }}"
+    mode: '0644'
+    owner: root
+    group: root
+    force: false          # do not overwrite an existing catalog
+  become: true
+
+- name: Copy KEV catalog into lme-wazuh-manager container
+  ansible.builtin.command: >-
+    podman cp
+    {{ kev_catalog_path }}
+    {{ kev_wazuh_container }}:{{ kev_container_catalog_path }}
+  become: true
+  changed_when: true
+
+- name: Set catalog permissions inside container (read-only for ossec)
+  ansible.builtin.command: >-
+    podman exec {{ kev_wazuh_container }}
+    chmod 0640 {{ kev_container_catalog_path }}
+  become: true
+  changed_when: true
+
+- name: Set catalog ownership inside container
+  ansible.builtin.command: >-
+    podman exec {{ kev_wazuh_container }}
+    chown root:ossec {{ kev_container_catalog_path }}
+  become: true
+  changed_when: true
+
+# ── 7. Systemd service and timer ────────────────────────────────────────────
+
+- name: Install lme-kev-sync.service
+  ansible.builtin.copy:
+    src: lme-kev-sync.service
+    dest: /etc/systemd/system/lme-kev-sync.service
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: Reload systemd
+
+- name: Install lme-kev-sync.timer
+  ansible.builtin.template:
+    src: lme-kev-sync.timer.j2
+    dest: /etc/systemd/system/lme-kev-sync.timer
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+  notify: Reload systemd
+
+- name: Flush handlers so systemd is reloaded before enabling timer
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start lme-kev-sync.timer
+  ansible.builtin.systemd:
+    name: lme-kev-sync.timer
+    enabled: true
+    state: started
+    daemon_reload: false
+  become: true
+
+# ── 8. Initial sync ──────────────────────────────────────────────────────────
+
+- name: Run initial KEV sync
+  ansible.builtin.command: >-
+    python3 {{ kev_scripts_dir }}/kev_sync.py
+  environment:
+    KEV_CATALOG_PATH: "{{ kev_catalog_path }}"
+    KEV_HISTORY_PATH: "{{ kev_history_path }}"
+  become: true
+  register: kev_initial_sync
+  changed_when: kev_initial_sync.rc == 0
+  failed_when: kev_initial_sync.rc != 0
+
+- name: Show initial sync output
+  ansible.builtin.debug:
+    msg: "{{ kev_initial_sync.stdout_lines }}"
+
+- name: Copy freshly synced catalog into container
+  ansible.builtin.command: >-
+    podman cp
+    {{ kev_catalog_path }}
+    {{ kev_wazuh_container }}:{{ kev_container_catalog_path }}
+  become: true
+  changed_when: true

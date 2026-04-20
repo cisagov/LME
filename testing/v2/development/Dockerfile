@@ -20,7 +20,9 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
-RUN groupadd -g $GROUP_ID lme-user \
+RUN while getent group $GROUP_ID > /dev/null 2>&1; do GROUP_ID=$((GROUP_ID + 1)); done \
+    && while getent passwd $USER_ID > /dev/null 2>&1; do USER_ID=$((USER_ID + 1)); done \
+    && groupadd -g $GROUP_ID lme-user \
     && useradd -m -u $USER_ID -g lme-user --badnames lme-user \
     && usermod -aG sudo lme-user
 
@@ -128,6 +130,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     cron \
+    nfs-kernel-server \
+    nfs-common \
     freerdp2-x11 \
     pkg-config \
     libcairo2-dev \
@@ -177,9 +181,10 @@ FROM base AS pipeline
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
-    python3.10-venv \
+    python3-venv \
     openssh-client \
     curl \
+    jq \
     ca-certificates \
     lsb-release \
     gnupg \

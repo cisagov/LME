@@ -33,6 +33,11 @@ cd testing/v2/installers
 ./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME
 ```
 
+#### Multiple Linux VMs (default Ubuntu):
+```bash
+./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME -c 4
+```
+
 #### Red Hat Enterprise Linux 9:
 ```bash
 ./azure/build_azure_linux_network.py -g $RESOURCE_GROUP -s $PUBLIC_IP -vs $VM_SIZE -l $LOCATION -ast $AUTO_SHUTDOWN_TIME --use-rhel
@@ -56,6 +61,16 @@ export VM_IP=$(cat $RESOURCE_GROUP.ip.txt)
 export VM_PASSWORD=$(cat $RESOURCE_GROUP.password.txt)
 echo $VM_IP
 echo $VM_PASSWORD
+```
+
+If you created multiple Linux VMs, also review these generated files:
+```bash
+# Consolidated machine details (public + private IPs, names, shared password)
+cat $RESOURCE_GROUP.machines.json
+
+# Public IP files:
+# - First Linux VM (base name): $RESOURCE_GROUP.ip.txt
+# - Windows (if -w used):       $RESOURCE_GROUP.ws1.ip.txt
 ```
 
 ### Installing lme-v2
@@ -127,7 +142,7 @@ Remember to activate venv first:
 source ~/LME/venv/bin/activate
 ```
 
-### Ubuntu 24.04 Setup
+### Ubuntu 22.04 Setup
 ```bash
 ./azure/build_azure_linux_network.py \
     -g $RESOURCE_GROUP \
@@ -136,8 +151,8 @@ source ~/LME/venv/bin/activate
     -l $LOCATION \
     -ast $AUTO_SHUTDOWN_TIME \
     -pub Canonical \
-    -io ubuntu-24_04-lts \
-    -is server \
+    -io 0001-com-ubuntu-server-jammy \
+    -is 22_04-lts-gen2 \
     --no-prompt
 ```
 

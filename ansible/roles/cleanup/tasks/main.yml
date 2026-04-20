@@ -40,7 +40,7 @@
   block:
     - name: Update all existing indices to have 0 replicas
       uri:
-        url: "{{ local_es_url }}/_settings"
+        url: "{{ local_es_url }}/_settings?expand_wildcards=all"
         method: PUT
         user: "{{ elastic_username }}"
         password: "{{ elastic_password }}"
@@ -59,7 +59,7 @@
 
     - name: Update any remaining data streams to have 0 replicas
       uri:
-        url: "{{ local_es_url }}/.ds-*/_settings"
+        url: "{{ local_es_url }}/.ds-*/_settings?expand_wildcards=all"
         method: PUT
         user: "{{ elastic_username }}"
         password: "{{ elastic_password }}"
@@ -73,15 +73,111 @@
       register: datastream_cleanup_result
       no_log: "{{ not debug_mode }}"
       ignore_errors: yes
+
+    - name: Get Wazuh legacy index template
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_legacy_template
+      no_log: "{{ not debug_mode }}"
+
+    - name: Update Wazuh legacy template replica count
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ wazuh_legacy_template.json.wazuh
+             | combine({'settings': {'index': {'number_of_replicas': elasticsearch_number_of_replicas}}}, recursive=True) }}
+        status_code: [200, 201]
+      when: wazuh_legacy_template.status == 200
+      no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
+
+    - name: Get Wazuh composable index templates
+      uri:
+        url: "{{ local_es_url }}/_index_template/wazuh-states-*"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_composable_templates
+      no_log: "{{ not debug_mode }}"
+
+    - name: Update Wazuh composable index template replica counts
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item.name }}"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ item.index_template
+             | combine({'template': {'settings': {'index': {'number_of_replicas': elasticsearch_number_of_replicas}}}}, recursive=True) }}
+        status_code: [200, 201]
+      loop: "{{ wazuh_composable_templates.json.index_templates | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: wazuh_composable_templates.status == 200
+      no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
+
+    - name: Get Kibana system index templates (.items-default, .lists-default)
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item }}"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      loop:
+        - .items-default
+        - .lists-default
+      register: kibana_system_templates
+      no_log: "{{ not debug_mode }}"
+
+    - name: Update Kibana system index template replica counts
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item.item }}"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ item.json.index_templates[0].index_template
+             | combine({'template': {'settings': {'index': {'number_of_replicas': elasticsearch_number_of_replicas}}}}, recursive=True) }}
+        status_code: [200, 201]
+      loop: "{{ kibana_system_templates.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.status == 200
+      no_log: "{{ not debug_mode }}"
+      ignore_errors: yes
   when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
 
 - name: Display cleanup results
   debug:
     msg: |
       Index cleanup completed:
-      - All indices updated to have 0 replicas: {{ 'Yes' if indices_cleanup_result is defined and indices_cleanup_result.status == 200 else 'No' }}
-      - Data streams updated to have 0 replicas: {{ 'Yes' if datastream_cleanup_result is defined and datastream_cleanup_result.status == 200 else 'No' }}
-      - All indices now have 0 replicas for single-node cluster
+      - All indices updated to have {{ elasticsearch_number_of_replicas }} replicas: {{ 'Yes' if indices_cleanup_result is defined and indices_cleanup_result.status == 200 else 'No' }}
+      - Data streams updated to have {{ elasticsearch_number_of_replicas }} replicas: {{ 'Yes' if datastream_cleanup_result is defined and datastream_cleanup_result.status == 200 else 'No' }}
+      - Cluster mode: {{ 'Multi-node cluster' if lme_cluster_mode | default(false) else 'Single-node' }}
   when: es_cleanup_result.status is defined and es_cleanup_result.status == 200
 
 - name: Display LME installation summary and credentials

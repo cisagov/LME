@@ -1,0 +1,26 @@
+---
+# Defaults for the kev role
+
+# Paths on the host
+lme_install_dir: /opt/lme
+kev_scripts_dir: /opt/lme/scripts
+kev_config_dir: /opt/lme/config/wazuh_cluster
+kev_catalog_path: /opt/lme/config/wazuh_cluster/kev_catalog.json
+kev_history_path: /opt/lme/config/kev_history.json
+
+# Container settings
+kev_wazuh_container: lme-wazuh-manager
+kev_container_integrations_dir: /var/ossec/integrations
+kev_container_catalog_path: /var/ossec/integrations/kev_catalog.json
+
+# Systemd timer schedule (OnCalendar syntax).
+# Override to match the UI frequency_hours setting:
+#   6h  → *-*-* 00,06,12,18:00:00
+#   12h → *-*-* 00,12:00:00
+#   24h → daily
+#  168h → weekly
+kev_timer_schedule: "daily"
+
+# Wazuh vulnerability-detector rule group that triggers the integration.
+# Wazuh fires these rules when the vulnerability scanner finds a CVE.
+kev_vuln_rule_group: "vulnerability-detector"

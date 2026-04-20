@@ -1,0 +1,124 @@
+---
+- name: Rolling upgrade Elasticsearch cluster (one node at a time)
+  hosts: elasticsearch
+  become: yes
+  serial: 1
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+    # If you have a specific image to pull/tag during upgrade, set this.
+    # Example: es_upgrade_pull_image: docker.io/library/elasticsearch:8.18.8
+    es_upgrade_pull_image: ""
+
+    # Pre-upgrade check settings
+    disk_space_threshold_percent: "{{ pre_check_disk_threshold | default(85) }}"
+    es_snapshot_repo: lme_backups
+    es_snapshot_repo_type: fs
+    es_snapshot_repo_settings:
+      location: "/usr/share/elasticsearch/backups"
+    snapshot_name: "pre-upgrade-{{ ansible_date_time.iso8601_basic_short }}"
+
+  pre_tasks:
+    - name: Read lme-environment.env
+      ansible.builtin.slurp:
+        src: /opt/lme/lme-environment.env
+      register: lme_env_content
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Set environment variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+      when: item != '' and not item.startswith('#')
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Extract elastic password from vault via existing helper
+      ansible.builtin.shell: |
+        set -a
+        source /root/.profile
+        /opt/lme/scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+      args:
+        executable: /bin/bash
+      register: extract_secrets_vars
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+      no_log: true
+
+    - name: Set elastic credentials
+      ansible.builtin.set_fact:
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://localhost:9200') }}"
+        elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('elastic') }}"
+        elastic_password: "{{ (extract_secrets_vars.stdout_lines | select('match', '^elastic=') | list | first).split('=', 1)[1] }}"
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+      no_log: true
+
+    - name: Run pre-upgrade verification checks
+      ansible.builtin.include_tasks: tasks/pre_upgrade_checks.yml
+      when: not (skip_pre_checks | default(false) | bool)
+
+    - name: Disable shard allocation (primaries only)
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_cluster/settings"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          persistent:
+            cluster.routing.allocation.enable: "primaries"
+        status_code: [200]
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+  tasks:
+    - name: Stop Elasticsearch on this node
+      ansible.builtin.systemd:
+        name: lme-elasticsearch
+        state: stopped
+
+    - name: Pull upgrade image (optional)
+      ansible.builtin.command: "podman pull {{ es_upgrade_pull_image }}"
+      when: es_upgrade_pull_image | length > 0
+
+    - name: Start Elasticsearch on this node
+      ansible.builtin.systemd:
+        name: lme-elasticsearch
+        state: started
+
+    - name: Wait for cluster health (green/yellow)
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_cluster/health"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: health
+      until: health.json.status in ['green', 'yellow']
+      retries: 60
+      delay: 10
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+  post_tasks:
+    - name: Re-enable shard allocation
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_cluster/settings"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          persistent:
+            cluster.routing.allocation.enable: null
+        status_code: [200]
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"

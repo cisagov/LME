@@ -26,9 +26,10 @@ on:
   push:
     branches:
       - develop
-  pull_request:
-    branches:
-      - '*'
+  # TEMPORARILY DISABLED - uncomment when done with escluster testing
+  # pull_request:
+  #   branches:
+  #     - '*'
   
 
 jobs:
@@ -45,7 +46,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v4
       
     - name: Set the environment for docker compose
       run: |

@@ -106,8 +106,8 @@ Once installation is complete:
 - `HOST_IP`: IP address for the container (set in environment.sh)
 
 ### Optional
-- `HOST_UID`: User ID for lme-user (default: 1001)
-- `HOST_GID`: Group ID for lme-user (default: 1001)
+- `HOST_UID`: User ID for lme-user (default: 1000)
+- `HOST_GID`: Group ID for lme-user (default: 1000)
 
 ### Container Environment Variables (Auto-configured)
 The following environment variables are automatically set by docker-compose:
@@ -184,6 +184,118 @@ These scripts:
 - Exit with appropriate status codes for automation
 
 **Note**: These scripts expect an `lme-setup` systemd service to be running. Currently, the automated setup service is disabled in the RHEL9 container configuration, so these scripts are primarily useful for development or if you enable the automated setup service.
+
+## Cluster Installation
+
+LME supports multi-node Elasticsearch clusters. A 3-node cluster can be deployed using the provided Docker Compose and install script in this directory.
+
+### Quick Start (Docker Cluster)
+
+```bash
+cd docker/rhel9
+docker compose -f docker-compose-cluster.yml up -d --build
+./install_cluster.sh
+```
+
+The script supports flags for incremental work:
+- `--skip-master` — skip the master `site.yml` install (useful when re-running only the cluster phase)
+- `--skip-cluster` — skip the `elasticsearch.yml` cluster phase
+- `-d` / `--debug` — verbose Ansible output
+
+### RHEL9-Specific Cluster Requirements
+
+Deploying a cluster on RHEL9/UBI9 requires several workarounds that are **not needed on Ubuntu**. If you are building your own cluster installer or following the manual steps in [CLUSTER_INSTALL.md](../../testing/v2/development/CLUSTER_INSTALL.md), be aware of these items:
+
+#### 1. SSH — PAM Blocks All Users by Default on UBI9
+
+The cluster uses `lme-user` (with passwordless sudo) for SSH between nodes, the same as the Ubuntu cluster install. However, UBI9's default PAM `sshd` configuration includes `pam_sepermit.so`, `pam_nologin.so`, and `pam_unix.so` account checks that block SSH for **all users** (not just root) in containers without SELinux — even with key-based authentication and a valid account.
+
+The fix is to replace the `account` lines in `/etc/pam.d/sshd` on each cluster child node:
+
+```bash
+# Remove the default account lines and add pam_permit.so
+sed -i '/^account/d' /etc/pam.d/sshd
+sed -i '/^password/i account    required     pam_permit.so' /etc/pam.d/sshd
+systemctl restart sshd
+```
+
+No password needs to be set and no root SSH changes are needed. The `lme-user` account can remain locked — only key-based authentication is used.
+
+On Ubuntu, `lme-user` SSH works out of the box with no PAM changes.
+
+#### 2. Ansible Installation — Not Available via dnf on UBI9
+
+The EPEL `ansible-core` package is not available in the UBI9 base repositories (it requires a full RHEL subscription to access). Install via pip instead:
+
+```bash
+dnf install -y python3-pip
+pip3 install ansible-core
+```
+
+**Critical**: pip installs ansible binaries to `/usr/local/bin/`, but `sudo -i` (used by `extract_secrets.sh` at runtime) does not include that path. You must symlink them:
+
+```bash
+for f in /usr/local/bin/ansible*; do ln -sf "$f" /usr/bin/; done
+```
+
+On Ubuntu, `apt-get install -y ansible` works directly and installs to `/usr/bin/`.
+
+#### 3. Ansible on Cluster Child Nodes
+
+Child nodes (es2, es3, ...) never run `install.sh`, so they do not get Ansible installed. However, the podman shell secret driver uses `ansible-vault view` at **container runtime** to decrypt secrets. Without `ansible-vault`, the `lme-setup-certs` service fails and Elasticsearch cannot start.
+
+The `elasticsearch.yml` playbook includes `pre_tasks` that install `ansible-core` on cluster nodes automatically. If you are running the playbook manually, ensure `ansible-vault` is available on every cluster node before starting services.
+
+#### 4. `hostname` Command Not Available
+
+UBI9 minimal images do not include `hostname`. Use `ip` instead to get the node IP:
+
+```bash
+ip -4 -o addr show eth0 | awk '{print $4}' | cut -d/ -f1
+```
+
+#### 5. Ansible Galaxy Collections
+
+The `community.general` and `ansible.posix` collections are required (they provide modules like `timezone`, `sysctl`, etc.). Install them on the master node:
+
+```bash
+cd ~/LME/ansible
+ansible-galaxy collection install -r requirements.yml
+```
+
+Galaxy downloads can fail transiently. If the first attempt fails, retry.
+
+### Cluster Architecture
+
+| Node | Container Name | Role | Exposed Ports |
+|------|---------------|------|---------------|
+| node1 (master) | lme_rhel9_cluster_node1 | Full LME stack | 5601, 443, 8220, 9200, 9300, 1514-1515, 55000, 514/udp, 1516 |
+| node2 | lme_rhel9_cluster_node2 | Elasticsearch only | 9201, 9301 |
+| node3 | lme_rhel9_cluster_node3 | Elasticsearch only | 9202, 9302 |
+
+### Verifying the Cluster
+
+```bash
+# Extract credentials and check health
+docker exec lme_rhel9_cluster_node1 bash -c \
+  "source /nix/var/nix/profiles/default/etc/profile.d/nix.sh; \
+   source /opt/lme/scripts/extract_secrets.sh -q && \
+   curl -sk -u elastic:\$elastic https://localhost:9200/_cluster/health?pretty"
+
+# List nodes
+docker exec lme_rhel9_cluster_node1 bash -c \
+  "source /nix/var/nix/profiles/default/etc/profile.d/nix.sh; \
+   source /opt/lme/scripts/extract_secrets.sh -q && \
+   curl -sk -u elastic:\$elastic https://localhost:9200/_cat/nodes?v"
+```
+
+A healthy cluster shows `"status": "green"`, `"number_of_nodes": 3`, and `"unassigned_shards": 0`.
+
+### Cleanup
+
+```bash
+docker compose -f docker-compose-cluster.yml down -v
+```
 
 ## Development
 

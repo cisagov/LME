@@ -8,6 +8,16 @@
     owner: "{{ install_user }}"
     group: "{{ install_user }}"
     mode: '0644'
+    force: "{{ lme_force_config | default(false) }}"
+  become: yes
+
+- name: Render Elasticsearch config (cluster-aware)
+  template:
+    src: "{{ clone_directory }}/ansible/templates/elasticsearch.yml.j2"
+    dest: /opt/lme/config/elasticsearch.yml
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
   become: yes
 
 # Configure Kibana for offline/air-gapped mode BEFORE starting services
@@ -35,6 +45,15 @@
   copy:
     src: "{{ clone_directory }}/quadlet/"
     dest: /etc/containers/systemd/
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Render Elasticsearch quadlet from template (cluster-aware)
+  template:
+    src: "{{ clone_directory }}/ansible/templates/lme-elasticsearch.container.j2"
+    dest: /etc/containers/systemd/lme-elasticsearch.container
     owner: "root"
     group: "root"
     mode: '0644'
@@ -144,3 +163,4 @@
     state: started
     enabled: yes
   become: yes 
+  when: lme_autostart | default(true) | bool

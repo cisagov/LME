@@ -1,0 +1,412 @@
+---
+# Llama.cpp setup tasks for podman role
+
+- name: Ensure /opt/lme/lme-dashboard directory exists
+  file:
+    path: /opt/lme/lme-dashboard
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy dashboard app to /opt/lme/lme-dashboard
+  copy:
+    src: "{{ clone_directory }}/lme-dashboard/"
+    dest: /opt/lme/lme-dashboard/
+    owner: root
+    group: root
+    mode: preserve
+  become: yes
+
+- name: Create pgvector secret password
+  shell: |
+    source /root/.profile
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    if ! podman secret ls | grep -q pgvector; then
+      password=$(</dev/urandom tr -dc A-Za-z0-9 | head -c30)
+      echo -n $password | podman secret create --driver file pgvector -
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+
+- name: Pull llama.cpp container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull ghcr.io/ggml-org/llama.cpp:server
+  args:
+    executable: /bin/bash
+  register: pull_llama_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_llama_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Tag llama.cpp container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag ghcr.io/ggml-org/llama.cpp:server localhost/llama-cpp:LME_LATEST
+  args:
+    executable: /bin/bash
+  register: tag_llama_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: tag_llama_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Pull LiteLLM container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull ghcr.io/berriai/litellm:main-latest
+  args:
+    executable: /bin/bash
+  register: pull_litellm_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_litellm_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Tag LiteLLM container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag ghcr.io/berriai/litellm:main-latest localhost/litellm:LME_LATEST
+  args:
+    executable: /bin/bash
+  register: tag_litellm_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: tag_litellm_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Pull pgvector container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman pull docker.io/pgvector/pgvector:pg17
+  args:
+    executable: /bin/bash
+  register: pull_pgvector_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: pull_pgvector_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Tag pgvector container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    podman image tag docker.io/pgvector/pgvector:pg17 localhost/pgvector:LME_LATEST
+  args:
+    executable: /bin/bash
+  register: tag_pgvector_result
+  become: yes
+  retries: 3
+  delay: 5
+  until: tag_pgvector_result is not failed
+  when: not (offline_mode | default(false))
+
+- name: Create llama models directory
+  file:
+    path: /opt/lme/llama-models
+    state: directory
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0755'
+  become: yes
+
+- name: Download LFM2.5 1.2B model (Q4_K_M quantization)
+  get_url:
+    url: https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+    dest: /opt/lme/llama-models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+    timeout: 600
+  become: yes
+  when: not (offline_mode | default(false))
+  register: model_download
+  retries: 3
+  delay: 10
+  until: model_download is not failed
+
+- name: Download nomic-embed-text-v1.5 model (Q4_K_M quantization)
+  get_url:
+    url: https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q4_K_M.gguf
+    dest: /opt/lme/llama-models/nomic-embed-text-v1.5.Q4_K_M.gguf
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+    timeout: 600
+  become: yes
+  when: not (offline_mode | default(false))
+  register: embed_model_download
+  retries: 3
+  delay: 10
+  until: embed_model_download is not failed
+
+- name: Create initial llm-keys podman secret (empty placeholder for fresh installs)
+  shell: |
+    source /root/.profile
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    if ! podman secret ls | grep -q llm-keys; then
+      echo -n '# empty' | podman secret create --driver file llm-keys -
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+
+- name: Copy llama.cpp quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-llama-cpp.container"
+    dest: /etc/containers/systemd/lme-llama-cpp.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Copy LiteLLM config file to /opt/lme/config
+  copy:
+    src: "{{ clone_directory }}/config/litellm_config.yaml"
+    dest: /opt/lme/config/litellm_config.yaml
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+
+- name: Copy LiteLLM quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-litellm.container"
+    dest: /etc/containers/systemd/lme-litellm.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Build LME Log Analyzer container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    cd {{ clone_directory }}/lme-log-analyzer
+    podman build -t localhost/lme-log-analyzer:LME_LATEST .
+  args:
+    executable: /bin/bash
+  register: build_log_analyzer_result
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Copy Log Analyzer quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-log-analyzer.container"
+    dest: /etc/containers/systemd/lme-log-analyzer.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Build LME Dashboard container image
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    cd {{ clone_directory }}/lme-dashboard
+    podman build -t localhost/lme-dashboard:LME_LATEST .
+  args:
+    executable: /bin/bash
+  register: build_dashboard_result
+  become: yes
+  when: not (offline_mode | default(false))
+
+- name: Copy Dashboard quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-dashboard.container"
+    dest: /etc/containers/systemd/lme-dashboard.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Copy pgvector quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-pgvector.container"
+    dest: /etc/containers/systemd/lme-pgvector.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Copy pgvector data volume to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-pgvectordata.volume"
+    dest: /etc/containers/systemd/lme-pgvectordata.volume
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Copy embeddings quadlet file to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/lme-embeddings.container"
+    dest: /etc/containers/systemd/lme-embeddings.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Create scripts directory
+  file:
+    path: /opt/lme/scripts
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy LLM key sync script
+  copy:
+    src: "{{ clone_directory }}/scripts/sync_llm_keys.py"
+    dest: /opt/lme/scripts/sync_llm_keys.py
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy llama model switch script
+  copy:
+    src: "{{ clone_directory }}/scripts/switch_llama_model.py"
+    dest: /opt/lme/scripts/switch_llama_model.py
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy LLM keys systemd service and path units
+  copy:
+    src: "{{ clone_directory }}/systemd/{{ item }}"
+    dest: /etc/systemd/system/{{ item }}
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - lme-llm-keys.service
+    - lme-llm-keys.path
+    - lme-llama-model.service
+    - lme-llama-model.path
+  become: yes
+
+- name: Reload systemd daemon for llama.cpp and LiteLLM
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Enable and start pgvector service
+  systemd:
+    name: lme-pgvector.service
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Enable and start embeddings service
+  systemd:
+    name: lme-embeddings.service
+    enabled: yes
+    state: started
+  become: yes
+  when: embed_model_download is succeeded
+
+- name: Run LME documentation ingestion into pgvector
+  shell: |
+    source /root/.profile
+    sudo -i podman run --rm --network lme \
+      --secret pgvector,type=env,target=PGVECTOR_PASS \
+      -v {{ clone_directory }}/scripts:/scripts:z \
+      docker.io/library/python:3.11-slim bash -c \
+      "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py --reset"
+  args:
+    executable: /bin/bash
+  become: yes
+  when: embed_model_download is succeeded
+  register: ingest_result
+  retries: 5
+  delay: 30
+  until: ingest_result is not failed
+
+- name: Enable and start llama.cpp service
+  systemd:
+    name: lme-llama-cpp.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+  ignore_errors: yes
+  register: llama_cpp_start
+
+- name: Wait for llama.cpp to be ready
+  pause:
+    seconds: 5
+  when: llama_cpp_start is succeeded
+
+- name: Enable and start LiteLLM service
+  systemd:
+    name: lme-litellm.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+
+- name: Enable and start LME Dashboard service
+  systemd:
+    name: lme-dashboard.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+
+- name: Enable and start LLM keys path watcher
+  systemd:
+    name: lme-llm-keys.path
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Create initial llama model config (records the default model)
+  copy:
+    content: '{"model": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf"}'
+    dest: /opt/lme/config/llama-cpp-model.json
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+    force: no
+  become: yes
+
+- name: Enable and start llama model switch path watcher
+  systemd:
+    name: lme-llama-model.path
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Display llama.cpp setup success message
+  debug:
+    msg: |
+      Llama.cpp server with Gemma 3 1B model has been installed and started!
+
+      LME Security Dashboard:        http://{{ ansible_default_ipv4.address }}:8502
+      LiteLLM Proxy (HTTPS):         https://{{ ansible_default_ipv4.address }}:4000
+      Direct llama.cpp (HTTP only):  http://{{ ansible_default_ipv4.address }}:8080
+
+      API Key for LiteLLM: sk-lme-llama-proxy
+      Model name: lfm2.5-1.2b
+      Model file: LiquidAI/LFM2.5-1.2B-Instruct-GGUF (pulled from HuggingFace at startup)
+  when: model_download is succeeded
+
+- name: Display llama.cpp offline mode message
+  debug:
+    msg: |
+      Llama.cpp server has been configured but model was not downloaded (offline mode).
+      To use it:
+      1. Manually copy GGUF model files to /opt/lme/llama-models/:
+         - gemma-3-1b-it-Q4_K_M.gguf  (chat model)
+         - nomic-embed-text-v1.5.Q4_K_M.gguf  (embedding model, 84 MB)
+      2. Start services: sudo systemctl daemon-reload && sudo systemctl start lme-llama-cpp.service lme-embeddings.service
+  when: offline_mode | default(false)

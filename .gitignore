@@ -1,4 +1,5 @@
 *.pdf
+tmp/*
 *.docx
 .DS_Store
 /.idea/
@@ -28,6 +29,10 @@ lme.conf
 testing/tests/assets/style.css
 .history/
 **/get-docker.sh
+**/gh-escluster-bodies/**
+.gh-issue-body.md
+scripts/gh-escluster-issues.log
+scripts/create_remaining_escluster_issues.sh
 *.vim
 **.password.txt
 **.ip.txt
@@ -40,8 +45,10 @@ testing/v2/installers/envirnment.sh
 docker/**/environment.sh
 **exporter.txt
 testing/upgrade_testing/
+# AI assistant tool directories
 .aider*
 .aider/
+.serena/
 .claude/
 .cache/
 .venv/
@@ -56,6 +63,11 @@ ansible/roles/base/files/selinux/*.pp
 offline_resources/
 lme-offline-*.tar.gz
 
+# Elastic Agent downloads
+elastic-agent-*/
+elastic-agent-*.tar.gz
+nohup.out
+
 # Development scripts (not for production)
 scripts/dev_uninstall_lme.sh
 
@@ -64,3 +76,21 @@ scripts/dev_uninstall_lme.sh
 
 .worktrees
 tmp/
+
+testing/v2/installers/**/*.machines.json
+scripts/get_container_bandwidth.sh
+scripts/measure_container_bandwidth.sh
+ansible/inventory/cluster.yml
+todo.txt
+testing/v2/installers/cluster_installer/cluster_output.log
+CLAUDE.md
+.claude
+
+# Sigma script runtime artifacts
+scripts/sigma/output/
+scripts/sigma/sigma/
+scripts/sigma/rules-emerging-threats/
+scripts/sigma/version.txt
+
+# Misc
+elastic-agent-*.deb

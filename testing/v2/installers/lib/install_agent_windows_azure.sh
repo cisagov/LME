@@ -105,9 +105,37 @@ run_azure_powershell() {
     
     # Debug: Show raw JSON response if debug mode is enabled
     if [[ "$DEBUG_MODE" == "true" ]]; then
-        echo "DEBUG: Raw JSON response:"
+        echo "=========================================="
+        echo "DEBUG: Full JSON response (complete output):"
+        echo "=========================================="
         echo "$result" | jq '.' 2>/dev/null || echo "$result"
-        echo "DEBUG: End raw JSON response"
+        echo "=========================================="
+        echo "DEBUG: End JSON response"
+        echo "=========================================="
+        
+        # Extract and print all messages (stdout and stderr) separately
+        if command -v jq >/dev/null 2>&1; then
+            echo ""
+            echo "=========================================="
+            echo "DEBUG: Extracted STDOUT messages:"
+            echo "=========================================="
+            echo "$result" | jq -r '.value[] | select(.code | startswith("ComponentStatus/StdOut/")) | .message' 2>/dev/null || echo "Could not extract stdout messages"
+            echo "=========================================="
+            
+            echo ""
+            echo "=========================================="
+            echo "DEBUG: Extracted STDERR messages:"
+            echo "=========================================="
+            echo "$result" | jq -r '.value[] | select(.code | startswith("ComponentStatus/StdErr/")) | .message' 2>/dev/null || echo "Could not extract stderr messages"
+            echo "=========================================="
+            
+            echo ""
+            echo "=========================================="
+            echo "DEBUG: All messages combined (in order):"
+            echo "=========================================="
+            echo "$result" | jq -r '.value[] | .message' 2>/dev/null || echo "Could not extract messages"
+            echo "=========================================="
+        fi
     fi
     
     # Extract and display the output - handle both stdout and stderr properly
@@ -233,6 +261,11 @@ fi
 
 # Step 3: Install Elastic Agent
 echo "Step 3: Installing Elastic Agent..."
+
+# Properly escape the enrollment token for PowerShell
+# Base64 tokens contain characters like = + / that need careful handling
+ESCAPED_TOKEN=$(printf '%s' "$ENROLLMENT_TOKEN" | sed "s/'/\"/g")
+
 install_command='
 $extractPath = "C:\elastic-agent-extract"
 $agentPath = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
@@ -245,6 +278,9 @@ if (-not (Test-Path $agentExePath)) {
     exit 1
 }
 
+# Enrollment token passed safely
+$enrollmentToken = "'"${ESCAPED_TOKEN}"'"
+
 # Install the agent
 $installArgs = @(
     "install"
@@ -252,7 +288,7 @@ $installArgs = @(
     "--force"
     "--url=https://'"$HOST_IP"':'"$PORT"'"
     "--insecure"
-    "--enrollment-token='"$ENROLLMENT_TOKEN"'"
+    "--enrollment-token=$enrollmentToken"
 )
 
 Write-Host "Installing Elastic Agent with arguments: $($installArgs -join ([char]32))"
