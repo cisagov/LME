@@ -6,6 +6,7 @@
 - detection engineering / sigma rules
   - click 'upload to kibana' for windows, then 'upload to kibana' for macos -- the spinner stops on upload to windows. Has the upload stopped?
   - after successful upload the 'upload to kibana' button does not disappear or grey out
+    - page refresh the options disappear
 
 
 *Improvements and upgrades to make*:

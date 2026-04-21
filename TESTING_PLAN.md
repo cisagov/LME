@@ -257,9 +257,9 @@ Produce a complete credentials reference covering:
   - [ ] Upload non-ndjson is rejected (UI shows error)
   - [ ] Upload empty ndjson rejected (UI shows error)
 - [ ] **Upload YAML (convert + upload)**
-  - [ ] Upload 1 Windows Sigma YAML converts/imports successfully
+  - [x] Upload 1 Windows Sigma YAML converts/imports successfully
   - [ ] Upload mixed Windows + non-Windows YAML converts/imports successfully
-  - [ ] Invalid YAML file produces an error entry and does not crash UI
+  - [x] Invalid YAML file produces an error entry and does not crash UI
   - [ ] sigma-cli missing/backend 500 → UI shows “Upload failed” message
 
 ---

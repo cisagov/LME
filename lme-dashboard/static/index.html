@@ -835,10 +835,10 @@
   <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
     <!-- Sub-tab bar -->
-    <div class="bg-surface-800 border-b border-surface-600 px-4 flex items-center gap-1 h-10">
+    <div class="bg-surface-800 border-b border-surface-600 px-4 pt-3 pb-0 flex items-center gap-1 h-10">
       <button @click="detTab = 'rules'"
-              :class="detTab === 'rules' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
-              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+              :class="activeTab === 'kibana' ? 'border-blue-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+              class="px-4 py-2 border-b-2 transition text-sm font-medium">
         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
@@ -846,8 +846,8 @@
         Rules
       </button>
       <button @click="detTab = 'elastalert'; if (!eaRules._loaded) loadEaRules()"
-              :class="detTab === 'elastalert' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
-              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+              :class="activeTab === 'kibana' ? 'border-blue-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+              class="px-4 py-2 border-b-2 transition text-sm font-medium">
         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
@@ -857,7 +857,7 @@
         <span class="text-xs text-gray-500 font-mono" x-text="'(' + eaRules.rules.length + ')'"></span>
       </button>
       <button @click="detTab = 'kev'; if (!kev.status) loadKevStatus(); if (!kevMatched._loaded) loadKevMatched()"
-              :class="detTab === 'kev' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+              :class="detTab === 'elastalert' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
               class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
