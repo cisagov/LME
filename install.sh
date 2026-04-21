@@ -131,6 +131,96 @@ if [ "$CLUSTER_NODES_ONLY" = "true" ] && [ "$NON_INTERACTIVE" = "true" ] && [ ! 
     AUTO_CREATE_ENV="true"
 fi
 
+# Validate that the offline bundle contains everything --llm needs before
+# ansible runs. Every failure is collected, reported together, and fatal.
+preflight_offline_llm() {
+    local bundle="$SCRIPT_DIR/offline_resources"
+    local manifest="$bundle/MANIFEST"
+    local -a errors=()
+
+    echo -e "${YELLOW}Preflight: validating offline bundle for --llm install...${NC}"
+
+    if [ ! -f "$manifest" ]; then
+        echo -e "${RED}✗ $manifest is missing.${NC}"
+        echo -e "${YELLOW}  Rebuild the bundle with: scripts/prepare_offline.sh --llm${NC}"
+        exit 1
+    fi
+
+    local arch llm_included pages sha_chat sha_embed
+    arch=$(grep -E '^ARCH=' "$manifest" | head -1 | cut -d= -f2-)
+    llm_included=$(grep -E '^LLM_INCLUDED=' "$manifest" | head -1 | cut -d= -f2-)
+    pages=$(grep -E '^DOCS_PAGES=' "$manifest" | head -1 | cut -d= -f2-)
+    sha_chat=$(grep -E '^SHA256_LFM25_CHAT=' "$manifest" | head -1 | cut -d= -f2-)
+    sha_embed=$(grep -E '^SHA256_NOMIC_EMBED=' "$manifest" | head -1 | cut -d= -f2-)
+
+    if [ "$llm_included" != "true" ]; then
+        errors+=("MANIFEST LLM_INCLUDED=$llm_included — bundle was built without --llm")
+    fi
+
+    local host_arch
+    host_arch=$(uname -m)
+    if [ -n "$arch" ] && [ "$arch" != "$host_arch" ]; then
+        errors+=("architecture mismatch: bundle is $arch, host is $host_arch")
+    fi
+
+    local f
+    for f in \
+        "$bundle/container_images/llama.cpp_server.tar" \
+        "$bundle/container_images/litellm_main-latest.tar" \
+        "$bundle/container_images/pgvector_pg17.tar" \
+        "$bundle/container_images/lme-ingest_LME_LATEST.tar" \
+        "$bundle/container_images/lme-log-analyzer_LME_LATEST.tar" \
+        "$bundle/container_images/lme-dashboard_LME_LATEST.tar"
+    do
+        if [ ! -s "$f" ]; then
+            errors+=("missing or empty: $f")
+        fi
+    done
+
+    local chat="$bundle/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
+    local embed="$bundle/models/nomic-embed-text-v1.5.Q4_K_M.gguf"
+    if [ ! -s "$chat" ]; then
+        errors+=("missing or empty: $chat")
+    elif [ -n "$sha_chat" ]; then
+        local actual
+        actual=$(sha256sum "$chat" | cut -d' ' -f1)
+        [ "$actual" = "$sha_chat" ] || errors+=("SHA256 mismatch: $chat (expected $sha_chat, got $actual)")
+    fi
+    if [ ! -s "$embed" ]; then
+        errors+=("missing or empty: $embed")
+    elif [ -n "$sha_embed" ]; then
+        local actual
+        actual=$(sha256sum "$embed" | cut -d' ' -f1)
+        [ "$actual" = "$sha_embed" ] || errors+=("SHA256 mismatch: $embed (expected $sha_embed, got $actual)")
+    fi
+
+    local scrape_index="$bundle/docs/lme-docs-scrape/index.tsv"
+    if [ ! -f "$scrape_index" ]; then
+        errors+=("missing docs scrape index: $scrape_index")
+    elif [ -n "$pages" ]; then
+        local rows
+        rows=$(wc -l < "$scrape_index")
+        [ "$rows" = "$pages" ] || errors+=("docs-scrape row count $rows != MANIFEST DOCS_PAGES $pages")
+    fi
+
+    if [ ${#errors[@]} -gt 0 ]; then
+        echo -e "${RED}✗ Offline --llm preflight failed:${NC}"
+        local e
+        for e in "${errors[@]}"; do
+            echo -e "${RED}  - $e${NC}"
+        done
+        echo -e "${YELLOW}Rebuild the bundle on an internet-connected host:${NC}"
+        echo -e "${YELLOW}  scripts/prepare_offline.sh --llm --arch $host_arch${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Preflight passed (arch=$arch, pages=$pages)${NC}"
+}
+
+if [ "$OFFLINE_MODE" = "true" ] && [ "$INSTALL_LLM" = "true" ]; then
+    preflight_offline_llm
+fi
+
 # Function to check if ansible is installed
 check_ansible() {
     # Add /usr/local/bin to PATH for pip-installed packages

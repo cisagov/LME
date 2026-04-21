@@ -19,6 +19,7 @@ import re
 import sys
 import time
 import argparse
+import pathlib
 import requests
 import psycopg2
 from urllib.parse import urljoin, urlparse
@@ -134,6 +135,48 @@ def crawl(base_url: str) -> dict[str, str]:
 
         time.sleep(REQUEST_DELAY)
 
+    return pages
+
+
+# ── Disk snapshot (for airgapped installs) ───────────────────────────────────
+
+def dump_pages_to_disk(pages: dict[str, str], output_dir: str) -> None:
+    """
+    Write a crawl result to disk as page_NNN.html files plus an index.tsv
+    (url<TAB>filename) and a count file. Consumed by load_pages_from_disk
+    during offline installs.
+    """
+    out = pathlib.Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    index_path = out / "index.tsv"
+    with index_path.open("w", encoding="utf-8") as idx:
+        for i, (url, html) in enumerate(pages.items()):
+            filename = f"page_{i:04d}.html"
+            (out / filename).write_text(html, encoding="utf-8")
+            idx.write(f"{url}\t{filename}\n")
+
+    (out / "count").write_text(str(len(pages)), encoding="utf-8")
+    print(f"  Wrote {len(pages)} pages to {output_dir}")
+
+
+def load_pages_from_disk(source_dir: str) -> dict[str, str]:
+    """
+    Inverse of dump_pages_to_disk. Returns {url: html} read from PATH/index.tsv.
+    """
+    src = pathlib.Path(source_dir)
+    index_path = src / "index.tsv"
+    if not index_path.is_file():
+        raise FileNotFoundError(f"index.tsv not found in {source_dir}")
+
+    pages: dict[str, str] = {}
+    with index_path.open(encoding="utf-8") as idx:
+        for line in idx:
+            line = line.rstrip("\n")
+            if not line:
+                continue
+            url, filename = line.split("\t", 1)
+            pages[url] = (src / filename).read_text(encoding="utf-8")
     return pages
 
 
@@ -310,7 +353,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def ingest(reset: bool = False):
+def ingest(reset: bool = False, source_dir: str | None = None):
     print(f"\n{'='*60}")
     print("LME Documentation RAG Ingestion Pipeline")
     print(f"{'='*60}\n")
@@ -320,9 +363,13 @@ def ingest(reset: bool = False):
     conn = get_conn()
     setup_db(conn, reset=reset)
 
-    # 2. Crawl
-    print(f"\n[2/4] Crawling {BASE_URL} ...")
-    pages = crawl(BASE_URL)
+    # 2. Obtain pages — from disk snapshot (airgap) or live crawl (online)
+    if source_dir:
+        print(f"\n[2/4] Loading pages from {source_dir} ...")
+        pages = load_pages_from_disk(source_dir)
+    else:
+        print(f"\n[2/4] Crawling {BASE_URL} ...")
+        pages = crawl(BASE_URL)
     print(f"  Found {len(pages)} pages.")
 
     # 3. Convert & chunk
@@ -382,5 +429,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingest LME docs into pgvector")
     parser.add_argument("--reset", action="store_true",
                         help="Drop and recreate the docs_chunks table first")
+    parser.add_argument("--source-dir", default=None,
+                        help="Read pre-scraped HTML from PATH/index.tsv "
+                             "instead of crawling (offline installs)")
+    parser.add_argument("--scrape-only", action="store_true",
+                        help="Crawl BASE_URL and dump raw HTML + index.tsv to "
+                             "--output-dir, skipping DB/embedding. Used by "
+                             "prepare_offline.sh --llm to bundle docs.")
+    parser.add_argument("--output-dir", default=None,
+                        help="Destination for --scrape-only output")
     args = parser.parse_args()
-    ingest(reset=args.reset)
+
+    if args.scrape_only:
+        if not args.output_dir:
+            parser.error("--scrape-only requires --output-dir")
+        print(f"Scraping {BASE_URL} → {args.output_dir}")
+        pages = crawl(BASE_URL)
+        print(f"  Found {len(pages)} pages.")
+        dump_pages_to_disk(pages, args.output_dir)
+        sys.exit(0)
+
+    ingest(reset=args.reset, source_dir=args.source_dir)
