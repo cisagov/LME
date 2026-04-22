@@ -6,3 +6,33 @@ nix_daemon_service: "nix-daemon"
 
 # Other podman-specific configurations
 # Note: storage paths are now defined in site.yml 
+lme_child_es_only: false
+lme_quadlet_source_dir: /opt/lme/quadlet-source
+
+# Child nodes only need the ES dependency graph under /etc/containers/systemd.
+# The full source tree is still staged locally under lme_quadlet_source_dir so a
+# future promotion workflow can restore the rest of the stack without re-cloning.
+lme_child_active_quadlet_files:
+  - lme.network
+  - lme-backups.volume
+  - lme-esdata01.volume
+  - lme-kibanadata.volume
+  - lme-setup-certs.container
+
+lme_child_absent_quadlet_files:
+  - lme.service
+  - lme-elastalert.container
+  - lme-fleet-distribution.container
+  - lme-fleet-server.container
+  - lme-kibana.container
+  - lme-setup-accts.container
+  - lme-wazuh-manager.container
+
+lme_child_absent_systemd_units:
+  - lme.service
+  - lme-elastalert.service
+  - lme-fleet-distribution.service
+  - lme-fleet-server.service
+  - lme-kibana.service
+  - lme-setup-accts.service
+  - lme-wazuh-manager.service

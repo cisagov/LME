@@ -41,7 +41,25 @@
     mode: '0744'
   become: yes
 
-- name: Copy quadlet files to /etc/containers/systemd 
+- name: Create local quadlet staging directory
+  file:
+    path: "{{ lme_quadlet_source_dir }}"
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: '0755'
+  become: yes
+
+- name: Stage full quadlet source tree under /opt/lme
+  copy:
+    src: "{{ clone_directory }}/quadlet/"
+    dest: "{{ lme_quadlet_source_dir }}/"
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Copy full quadlet files to /etc/containers/systemd
   copy:
     src: "{{ clone_directory }}/quadlet/"
     dest: /etc/containers/systemd/
@@ -49,6 +67,27 @@
     group: "root"
     mode: '0644'
   become: yes
+  when: not (lme_child_es_only | default(false) | bool)
+
+- name: Stop non-ES services before pruning child quadlets
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ lme_child_absent_systemd_units }}"
+  failed_when: false
+  become: yes
+  when: lme_child_es_only | default(false) | bool
+
+- name: Copy child-required quadlet files to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/{{ item }}"
+    dest: "/etc/containers/systemd/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  loop: "{{ lme_child_active_quadlet_files }}"
+  become: yes
+  when: lme_child_es_only | default(false) | bool
 
 - name: Render Elasticsearch quadlet from template (cluster-aware)
   template:
@@ -59,7 +98,15 @@
     mode: '0644'
   become: yes
 
-- name: copy lme.service to /etc/systemd/system
+- name: Remove non-ES quadlet source files from child nodes
+  file:
+    path: "/etc/containers/systemd/{{ item }}"
+    state: absent
+  loop: "{{ lme_child_absent_quadlet_files }}"
+  become: yes
+  when: lme_child_es_only | default(false) | bool
+
+- name: Copy lme.service to /etc/systemd/system
   copy:
     src: "{{ clone_directory }}/quadlet/lme.service"
     dest: "/etc/systemd/system/lme.service"
@@ -67,6 +114,14 @@
     group: "root"
     mode: '0644'
   become: yes
+  when: not (lme_child_es_only | default(false) | bool)
+
+- name: Remove lme.service from /etc/systemd/system on child nodes
+  file:
+    path: /etc/systemd/system/lme.service
+    state: absent
+  become: yes
+  when: lme_child_es_only | default(false) | bool
 
 # Ensure quadlet helper and systemd generator are available from standard paths
 # Skip for RHEL offline mode - system podman already has these in place

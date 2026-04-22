@@ -362,3 +362,9 @@ discovery configuration from scratch.
 - Use `CLUSTER_SIZE` in exporter.txt to control number of nodes (default: 3)
 - Ansible runs without sudo and elevates internally with `become: yes`
 - Secrets are distributed from master to all cluster nodes
+- Child nodes only keep the Elasticsearch quadlet dependency set in
+  `/etc/containers/systemd/`; the full source quadlet tree is staged in
+  `/opt/lme/quadlet-source/` for future promotion or repair workflows.
+- On child nodes, non-ES quadlets such as Kibana, Fleet, Wazuh, ElastAlert, and
+  `lme.service` are removed from `/etc/containers/systemd/` so the podman
+  systemd generator cannot recreate those services on reboot.

@@ -10,6 +10,28 @@ LME can be deployed in cluster mode where:
 - **Master node (es1)**: Runs the full LME stack (Elasticsearch, Kibana, Fleet, Wazuh)
 - **Cluster nodes (es2, es3, ...)**: Run Elasticsearch only for distributed storage and search
 
+### Cluster child quadlets
+
+Cluster child nodes only keep the Elasticsearch quadlet dependency graph under
+`/etc/containers/systemd/`. LME stages the full quadlet source tree under
+`/opt/lme/quadlet-source/`, but on child nodes it only installs:
+
+- `lme.network`
+- `lme-backups.volume`
+- `lme-esdata01.volume`
+- `lme-kibanadata.volume`
+- `lme-setup-certs.container`
+- the rendered `lme-elasticsearch.container`
+
+Non-ES quadlets such as Kibana, Fleet, Wazuh, ElastAlert, and `lme.service`
+are intentionally removed from the active quadlet directory on child nodes, so
+the podman systemd generator never creates those services at boot.
+
+This keeps reboot behavior correct while preserving a future promotion path: a
+promotion workflow can copy the staged files from `/opt/lme/quadlet-source/`
+back into `/etc/containers/systemd/`, run `systemctl daemon-reload`, and then
+enable/start the full stack.
+
 ## Prerequisites
 
 ### Infrastructure Requirements
@@ -227,6 +249,37 @@ curl -sk -u elastic:$elastic https://localhost:9200/_cat/nodes?v
 # Check shards distribution
 curl -sk -u elastic:$elastic https://localhost:9200/_cat/shards?v
 ```
+
+### Verify child quadlet layout and reboot behavior
+
+Run these checks on a cluster child node after `ansible/elasticsearch.yml` (or
+the Phase 5b child section of `ansible/convert_to_cluster.yml`) completes:
+
+```bash
+# Active quadlets on the child should be ES-only.
+sudo ls -1 /etc/containers/systemd
+
+# Full source tree should still be staged locally for future promotion.
+sudo ls -1 /opt/lme/quadlet-source
+
+# Only Elasticsearch should be present in the active boot path.
+systemctl list-unit-files 'lme-*'
+
+# Elasticsearch should be healthy before reboot.
+source /opt/lme/scripts/extract_secrets.sh -q
+curl -sk -u elastic:$elastic https://localhost:9200/_cluster/health?pretty
+
+# Reboot the child and repeat the ls/systemctl/curl checks.
+sudo reboot
+```
+
+Expected child-node state:
+
+- `/etc/containers/systemd` contains only the Elasticsearch dependency set plus
+  the rendered `lme-elasticsearch.container`
+- `/opt/lme/quadlet-source` contains the full repo quadlet tree
+- Kibana/Fleet/Wazuh/ElastAlert units are not regenerated after reboot
+- Cluster health and node membership stay unchanged
 
 ### Expected Output
 

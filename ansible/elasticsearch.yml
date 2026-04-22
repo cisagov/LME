@@ -90,6 +90,7 @@
     # Prevent podman role from starting the full stack automatically.
     # We explicitly start the Elasticsearch unit after certs/secrets distribution.
     lme_autostart: false
+    lme_child_es_only: true
 
     # Skip secret creation on cluster nodes - secrets are copied from master via secrets_distribution.
     # This prevents the podman role from trying to generate new passwords (which would fail
