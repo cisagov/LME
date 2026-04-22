@@ -608,7 +608,7 @@
               - Systemd units: lme-llm-keys.service/path, lme-llama-model.service/path
       when: current_lme_version is version('2.3.0', '<')
 
-    - name: Skip AI stack (already at 3.0+)
+    - name: Skip AI stack (already at 2.3.0+)
       debug:
         msg: "AI stack already deployed (current version {{ current_lme_version }}), skipping AI component setup"
       when: not (current_lme_version is version('2.3.0', '<'))
@@ -707,7 +707,7 @@
         CONTAINER_COUNT=$(echo "$LME_CONTAINERS" | wc -l)
         echo "$LME_CONTAINERS"
         
-        # LME 3.0 expects 11 containers (5 core + 6 AI stack)
+        # LME 2.3.0 expects 11 containers (5 core + 6 AI stack)
         EXPECTED=11
         if [ $CONTAINER_COUNT -ge $EXPECTED ]; then
           echo "All $EXPECTED expected LME services are running"
@@ -770,7 +770,7 @@
     # ============================================================
     # Post-restart AI Stack setup (requires running services)
     # ============================================================
-    - name: Enable AI stack systemd watchers (upgrade from pre-3.0)
+    - name: Enable AI stack systemd watchers (upgrade from pre-2.3.0)
       block:
         - name: Enable and start LLM keys path watcher
           systemd:
