@@ -7,7 +7,7 @@
     # Common variables
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     install_user: "{{ ansible_user_id }}"
-    new_lme_version: "3.0.0"
+    new_lme_version: "2.3.0"
     
     # Backup timestamp - set once and used throughout
     backup_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
@@ -634,12 +634,12 @@
               - Certificates generated for: litellm, dashboard, log-analyzer, embeddings, llama-cpp
               - Configs: litellm_config.yaml, llama-cpp-model.json
               - Systemd units: lme-llm-keys.service/path, lme-llama-model.service/path
-      when: current_lme_version is version('3.0.0', '<')
+      when: current_lme_version is version('2.3.0', '<')
 
     - name: Skip AI stack (already at 3.0+)
       debug:
         msg: "AI stack already deployed (current version {{ current_lme_version }}), skipping AI component setup"
-      when: not (current_lme_version is version('3.0.0', '<'))
+      when: not (current_lme_version is version('2.3.0', '<'))
 
     - name: Create backup directory for quadlet files
       file:
@@ -835,7 +835,7 @@
         - name: Display doc ingestion result
           debug:
             msg: "{{ 'Documentation ingestion completed successfully' if ingest_result.rc == 0 else 'Documentation ingestion failed (non-fatal) — can be re-run manually' }}"
-      when: current_lme_version is version('3.0.0', '<')
+      when: current_lme_version is version('2.3.0', '<')
 
     - name: Update LME version in environment file
       lineinfile:

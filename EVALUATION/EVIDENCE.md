@@ -371,7 +371,7 @@ sudo podman logs lme-elastalert 2>&1 | grep -i "email\|smtp\|sent"
 
 ---
 
-### Test 5: Upgrade Path (2.2.0 → 3.0.0)
+### Test 5: Upgrade Path (2.2.0 → 2.3.0)
 
 ```bash
 # On a fresh LME 2.2.0 install:

@@ -36,7 +36,7 @@ Deploy via Ludus using the merged range config:
 
 ### 1.3 Upgrade Path Testing
 
-Test LME 2.2.0 -> 3.0.0 upgrade (AI stack deployment):
+Test LME 2.2.0 -> 2.3.0 upgrade (AI stack deployment):
 
 - [ ] Start from a clean LME 2.2.0 install (5 containers running)
 - [ ] Run `ansible-playbook ansible/pre_upgrade_checks.yml` — all checks pass
