@@ -30,7 +30,6 @@
     path: "~/.profile"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
-  become: no
   when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in root's profile
@@ -46,7 +45,6 @@
     path: "~/.bashrc"
     line: 'export PATH=$PATH:/nix/var/nix/profiles/default/bin'
     create: yes
-  become: no
   when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 - name: Update PATH in root's bashrc
@@ -108,7 +106,6 @@
   shell: source ~/.profile
   args:
     executable: /bin/bash
-  become: no
   when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
 
 # ---------------------------------------------------------------------------

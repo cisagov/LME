@@ -14,147 +14,28 @@
     mode: '0700'
   become: yes
 
-- name: Ensure /opt/lme/scripts directory exists
-  file:
-    path: /opt/lme/scripts
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  become: yes
-
-- name: Copy scripts to /opt/lme/scripts (for remote hosts)
-  copy:
-    src: "{{ clone_directory }}/scripts/"
-    dest: /opt/lme/scripts/
-    owner: root
-    group: root
-    mode: preserve
-  become: yes
-
-# Check if /opt/lme/lme-environment.env exists on target (current host)
-- name: Check if /opt/lme/lme-environment.env exists on target
+- name: Check if /opt/lme/lme-environment.env exists
   stat:
     path: "/opt/lme/lme-environment.env"
-  register: optenv_file_target
+  register: optenv_file 
   become: yes
 
-# Check if /opt/lme/lme-environment.env exists on controller
-- name: Check if /opt/lme/lme-environment.env exists on controller
-  stat:
-    path: "/opt/lme/lme-environment.env"
-  register: optenv_file_controller
-  delegate_to: localhost
-  run_once: true
-
-# Check if lme-environment.env exists in config/ on controller
-- name: Check if lme-environment.env exists in config on controller
+- name: Check if lme-environment.env exists
   stat:
     path: "{{ clone_directory }}/config/lme-environment.env"
-  register: env_file_config
-  delegate_to: localhost
-  run_once: true
+  register: env_file
 
-# For cluster nodes (remote hosts), create a minimal env file if none exists
-# This allows cluster nodes to work without requiring the master's env file
-- name: Create minimal lme-environment.env for cluster node
-  ansible.builtin.copy:
-    content: |
-      # LME Environment Configuration (cluster node)
-      IPVAR={{ ansible_host | default(ansible_default_ipv4.address | default('127.0.0.1')) }}
-      IPV4_ONLY=false
-      # Elasticsearch settings for cluster node
-      LOCAL_ES_URL=https://127.0.0.1:9200
-      elastic_username=elastic
-    dest: /opt/lme/lme-environment.env
-    owner: "{{ install_user }}"
-    group: "{{ install_user }}"
-    mode: '0600'
-  become: yes
-  register: minimal_env_created
-  when:
-    - inventory_hostname not in ['localhost', '127.0.0.1']
-    - ansible_connection | default('ssh') != 'local'
-    - not optenv_file_target.stat.exists
-
-# Register to a different variable when skipped so we do not overwrite
-# optenv_file_target with a skip result (which has no .stat and breaks later whens).
-- name: Re-check if lme-environment.env exists on target after minimal creation
-  stat:
-    path: "/opt/lme/lme-environment.env"
-  register: optenv_recheck_after_minimal
-  become: yes
-  when: minimal_env_created is changed
-
-- name: Apply refreshed stat after minimal env creation on cluster node
-  ansible.builtin.set_fact:
-    optenv_file_target: "{{ optenv_recheck_after_minimal }}"
-  when: minimal_env_created is changed
-
-# Fail if no env file exists anywhere (only for local installs)
-- name: Fail if lme-environment.env doesn't exist anywhere (local install)
+- name: Fail if lme-environment.env doesn't exist (either in ./config OR /opt/lme)
   fail:
-    msg: "lme-environment.env file not found in /opt/lme or {{ clone_directory }}/config/ on controller. Please copy example.env to lme-environment.env and edit it before running this playbook."
+    msg: "lme-environment.env file not found in {{ clone_directory }}/config/. Please copy example.env to lme-environment.env in the config directory and edit it before running this playbook."
   when: 
-    - inventory_hostname in ['localhost', '127.0.0.1'] or ansible_connection | default('ssh') == 'local'
-    - not optenv_file_target.stat.exists
-    - not optenv_file_controller.stat.exists
-    - not env_file_config.stat.exists
+    -  (not optenv_file.stat.exists) and (not env_file.stat.exists)
 
-# LOCAL INSTALL: Move file from config/ to /opt/lme/ (only if installing on localhost/controller)
-- name: Move lme-environment.env from config to /opt/lme (local install only)
-  block:
-    - name: Copy lme-environment.env to /opt/lme
-      copy:
-        src: "{{ clone_directory }}/config/lme-environment.env"
-        dest: /opt/lme/lme-environment.env
-        owner: "{{ install_user }}"
-        group: "{{ install_user }}"
-        mode: '0600'
-        remote_src: no
-      become: yes
-
-    - name: Remove lme-environment.env from config directory
-      file:
-        path: "{{ clone_directory }}/config/lme-environment.env"
-        state: absent
-      delegate_to: localhost
-  when:
-    - inventory_hostname in ['localhost', '127.0.0.1']
-    - not optenv_file_target.stat.exists
-    - env_file_config.stat.exists
-
-# REMOTE INSTALL: Copy file from controller's /opt/lme/ to remote /opt/lme/
-# We use slurp+copy because the file may be owned by root with mode 0600,
-# which requires become to read. The copy module doesn't use become for
-# reading source files from the controller.
-- name: Read lme-environment.env from controller (for remote install)
-  ansible.builtin.slurp:
-    src: "{{ '/opt/lme/lme-environment.env' if optenv_file_controller.stat.exists else (clone_directory + '/config/lme-environment.env') }}"
-  register: env_file_content
-  delegate_to: localhost
+- name: Copy lme-environment.env to /opt/lme (only if it doesn't exist)
+  command: "mv {{ clone_directory }}/config/lme-environment.env /opt/lme/lme-environment.env"
   become: yes
-  run_once: true
-  when:
-    - inventory_hostname not in ['localhost', '127.0.0.1']
-    - not optenv_file_target.stat.exists
-    - (optenv_file_controller.stat.exists or env_file_config.stat.exists)
+  when: not optenv_file.stat.exists
 
-- name: Copy lme-environment.env to remote host
-  ansible.builtin.copy:
-    content: "{{ env_file_content.content | b64decode }}"
-    dest: /opt/lme/lme-environment.env
-    owner: "{{ install_user }}"
-    group: "{{ install_user }}"
-    mode: '0600'
-  become: yes
-  when:
-    - inventory_hostname not in ['localhost', '127.0.0.1']
-    - not optenv_file_target.stat.exists
-    - (optenv_file_controller.stat.exists or env_file_config.stat.exists)
-    - env_file_content is defined and env_file_content.content is defined
-
-# Always set correct permissions on the final file
 - name: Set correct permissions for lme-environment.env
   file:
     path: /opt/lme/lme-environment.env

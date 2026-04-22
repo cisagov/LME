@@ -521,7 +521,7 @@ ludus range destroy
 | Wazuh Manager | 3 agents | manager + ubuntu-ep + WIN11-EP, all status=active |
 | ElastAlert2 | Running | Writing to elastalert_status index |
 
-### LME 3.0 Upgrade (AI Stack)
+### LME 2.3.0 Upgrade (AI Stack)
 
 | Step | Result | Detail |
 |------|--------|--------|

@@ -22,7 +22,7 @@
 # Fix Wazuh RBAC
 - name: Fix Wazuh RBAC
   ansible.builtin.expect:
-    command: /opt/lme/scripts/wazuh_rbac.sh
+    command: "{{ clone_directory }}/scripts/wazuh_rbac.sh"
     responses:
       ".*'wazuh'.*":
         - "{{ wazuh_password }}"

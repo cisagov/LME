@@ -35,34 +35,6 @@
         msg: "Containers file not found at {{ containers_file }}"
       when: not containers_file_stat.stat.exists
 
-    - name: Check if this is a cluster installation
-      ansible.builtin.shell: |
-        if [ -f /etc/containers/systemd/lme-elasticsearch.container ]; then
-          grep -c 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container || echo "0"
-        else
-          echo "missing"
-        fi
-      args:
-        executable: /bin/bash
-      register: cluster_mode_check
-      changed_when: false
-
-    - name: Warn and fail if this is a cluster installation
-      fail:
-        msg: |
-          This installation appears to be running in CLUSTER mode
-          (discovery.type=single-node was not found in the Elasticsearch quadlet).
-
-          The upgrade_lme.yml playbook is designed for single-node installations only.
-          For cluster upgrades, use the rolling upgrade playbook instead:
-
-            ansible-playbook -i ansible/inventory/cluster.yml ansible/rolling_upgrade.yml
-
-          See also: testing/v2/development/converting_to_cluster.md
-      when:
-        - cluster_mode_check.stdout | trim != "missing"
-        - cluster_mode_check.stdout | trim | int == 0
-
     - name: Read container versions from file
       set_fact:
         container_versions: "{{ lookup('file', containers_file).splitlines() }}"
@@ -398,14 +370,14 @@
           This ensures fleet-server will use the correct container version binaries.
         
     # ============================================================
-    # AI Stack Deployment (LME 3.0 — upgrade from 2.x)
+    # AI Stack Deployment (LME 2.3.0 — upgrade from 2.x)
     # @decision: AI stack is deployed additively during upgrade.
     #   Secrets use file driver (not shell) to avoid ansible-vault
     #   password prompts. Certs are generated via openssl using the
     #   existing LME CA from lme_certs volume — existing certs are
     #   not regenerated.
     # ============================================================
-    - name: Deploy AI Stack components (upgrade from pre-3.0)
+    - name: Deploy AI Stack components (upgrade from pre-2.3.0)
       block:
         - name: Create AI stack directories
           file:
@@ -862,7 +834,7 @@
           - "- Wazuh: {{ wazuh_image }}"
           - "- ElastAlert: {{ elastalert_image }}"
           - ""
-          - "AI Stack (new in 3.0):"
+          - "AI Stack (new in 2.3.0):"
           - "- llama.cpp server:      https://<host>:8080  (LFM2.5-1.2B-Instruct)"
           - "- Embeddings server:     https://<host>:8081  (nomic-embed-text-v1.5)"
           - "- LiteLLM proxy:         https://<host>:4000  (API key: sk-lme-llama-proxy)"

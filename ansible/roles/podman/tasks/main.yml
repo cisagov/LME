@@ -181,14 +181,14 @@
   when: offline_mode | default(false)
 
 - name: Set sysctl limits 
-  command: /opt/lme/scripts/set_sysctl_limits.sh
+  command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
   environment:
     NON_ROOT_USER: "{{ install_user }}"
   become: yes
   changed_when: true
 
 - name: Link latest podman quadlet (Nix podman)
-  command: /opt/lme/scripts/link_latest_podman_quadlet.sh
+  command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
   become: yes
   changed_when: true
   when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
