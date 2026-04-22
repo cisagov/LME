@@ -1,0 +1,14 @@
+[Unit]
+Description=LME CISA KEV Catalog Sync Timer
+Documentation=https://github.com/cisagov/LME
+Requires=lme-kev-sync.service
+
+[Timer]
+OnCalendar={{ kev_timer_schedule }}
+# Persist missed runs across reboots
+Persistent=true
+# Spread load — don't hammer CISA at exactly midnight
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

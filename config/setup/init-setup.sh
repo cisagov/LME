@@ -25,6 +25,14 @@ if [ ! -f "${CERTS_DIR}/certs.zip" ]; then
   unzip -o "${CERTS_DIR}/certs.zip" -d "${CERTS_DIR}"
   cat "${CERTS_DIR}/elasticsearch/elasticsearch.crt" "${CERTS_DIR}/ca/ca.crt" > "${CERTS_DIR}/elasticsearch/elasticsearch.chain.pem"
 
+  # Generate chain PEM files for all services that need them
+  for svc in litellm dashboard log-analyzer embeddings llama-cpp kibana fleet-server wazuh-manager logstash curator fleet-distribution; do
+    if [ -d "${CERTS_DIR}/${svc}" ] && [ -f "${CERTS_DIR}/${svc}/${svc}.crt" ]; then
+      cat "${CERTS_DIR}/${svc}/${svc}.crt" "${CERTS_DIR}/ca/ca.crt" > "${CERTS_DIR}/${svc}/${svc}.chain.pem"
+      echo "Created chain PEM for ${svc}"
+    fi
+  done
+
   echo "Setting file permissions... certs"
   chown -R elasticsearch:elasticsearch "${CERTS_DIR}"
   find "${CERTS_DIR}" -type d -exec chmod 755 {} \;

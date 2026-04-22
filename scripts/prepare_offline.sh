@@ -12,7 +12,10 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 LME_ROOT="$(dirname "$SCRIPT_DIR")"
 CONTAINERS_FILE="$LME_ROOT/config/containers.txt"
+LLM_CONTAINERS_FILE="$LME_ROOT/config/containers-llm.txt"
 OUTPUT_DIR="$LME_ROOT/offline_resources"
+INCLUDE_LLM="false"
+TARGET_ARCH="$(uname -m)"
 
 # Load environment variables from example.env if it exists
 ENV_FILE="$LME_ROOT/config/example.env"
@@ -41,6 +44,8 @@ usage() {
     echo
     echo "OPTIONS:"
     echo "  -o, --output DIR              Output directory for offline resources (default: ./offline_resources)"
+    echo "  -l, --llm                     Include LLM stack (containers, GGUF models, docs scrape, ingest image)"
+    echo "      --arch ARCH               Record target architecture in MANIFEST (default: $(uname -m))"
     echo "  -h, --help                    Show this help message"
     echo
     exit 1
@@ -51,6 +56,14 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         -o|--output)
             OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        -l|--llm)
+            INCLUDE_LLM="true"
+            shift
+            ;;
+        --arch)
+            TARGET_ARCH="$2"
             shift 2
             ;;
         -h|--help)
@@ -124,6 +137,30 @@ install_podman() {
     fi
 
     echo -e "${GREEN}✓ Podman installed successfully${NC}"
+}
+
+# If the Nix daemon socket dir is locked down to a group we're not in,
+# the Nix podman-closure phase (~line 795) would die with
+# "Permission denied" AFTER 6 GB of container tars were written. Auto-fix
+# up front by widening the dir to 0775 via sudo — the socket itself is
+# already srw-rw-rw so this exposes no new surface.
+ensure_nix_daemon_access() {
+    local socket_dir="/nix/var/nix/daemon-socket"
+    [ -d "$socket_dir" ] || return 0                 # no daemon-socket dir at all → nothing to check.
+    ls "$socket_dir" >/dev/null 2>&1 && return 0     # already reachable → fine.
+    # We can see the dir exists but can't list it — exactly the 0770 group-gated case.
+
+    echo -e "${YELLOW}Nix daemon socket dir is not reachable by $USER — widening $socket_dir to 0775...${NC}"
+    if sudo chmod 0775 "$socket_dir" && ls "$socket_dir" >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ Nix daemon socket now reachable${NC}"
+        return 0
+    fi
+
+    local sock_group
+    sock_group=$(stat -c '%G' "$socket_dir" 2>/dev/null || echo nix-users)
+    echo -e "${RED}✗ Could not open Nix daemon socket even after chmod.${NC}"
+    echo -e "${YELLOW}  Try: sudo usermod -aG $sock_group $USER  (then open a new shell and rerun)${NC}"
+    exit 1
 }
 
 # Check if podman is available and force install if not
@@ -231,9 +268,71 @@ create_output_dir() {
     mkdir -p "$OUTPUT_DIR/agents"
     mkdir -p "$OUTPUT_DIR/cve"
     mkdir -p "$OUTPUT_DIR/docs"
+    # Truncate manifest so reruns start clean
+    : > "$OUTPUT_DIR/container_images/image_manifest.tsv"
+    if [ "$INCLUDE_LLM" = "true" ]; then
+        mkdir -p "$OUTPUT_DIR/models"
+        mkdir -p "$OUTPUT_DIR/docs/lme-docs-scrape"
+    fi
 }
 
-# Download and save container images
+# Derive target tag localhost/<last-path-seg>:LME_LATEST from an image ref.
+# Matches container_setup.yml:116 derivation, with explicit localhost/ prefix.
+derive_target_tag() {
+    local image_ref="$1"
+    local last_seg="${image_ref##*/}"
+    local name="${last_seg%%:*}"
+    echo "localhost/${name}:LME_LATEST"
+}
+
+# Save a container image to a tar and append an entry to image_manifest.tsv.
+# Usage: save_container_tar <image_ref> [target_tag]
+# If target_tag is omitted it's derived with derive_target_tag.
+save_container_tar() {
+    local container="$1"
+    local target_tag="${2:-$(derive_target_tag "$1")}"
+
+    local image_name output_file
+    image_name=$(echo "$container" | sed 's|.*/||' | sed 's/:/_/g')
+    output_file="$OUTPUT_DIR/container_images/${image_name}.tar"
+
+    # Idempotency: podman save -o refuses to overwrite, so skip when a
+    # nonzero tar is already present from a prior run. Always (re)write the
+    # manifest line because create_output_dir truncates it on each run.
+    if [ -s "$output_file" ]; then
+        echo -e "${GREEN}  ✓ Tar already exists, reusing: $output_file${NC}"
+    else
+        echo -e "${YELLOW}  Saving image to $output_file...${NC}"
+        if ! sudo podman save -o "$output_file" "$container"; then
+            echo -e "${RED}  ✗ Failed to save $container${NC}"
+            return 1
+        fi
+        echo -e "${GREEN}  ✓ Successfully saved to $output_file${NC}"
+        sudo chown "$USER:$USER" "$output_file"
+    fi
+
+    # tar_filename<TAB>source_ref<TAB>target_tag
+    printf '%s\t%s\t%s\n' "${image_name}.tar" "$container" "$target_tag" \
+        >> "$OUTPUT_DIR/container_images/image_manifest.tsv"
+}
+
+# Pull a single image and record it in the manifest via save_container_tar.
+pull_and_save_container() {
+    local container="$1"
+    local target_tag="$2"
+
+    echo -e "${YELLOW}Processing: $container${NC}"
+    echo -e "${YELLOW}  Pulling image...${NC}"
+    if sudo podman pull "$container"; then
+        echo -e "${GREEN}  ✓ Successfully pulled $container${NC}"
+        save_container_tar "$container" "$target_tag"
+    else
+        echo -e "${RED}  ✗ Failed to pull $container${NC}"
+    fi
+    echo
+}
+
+# Download and save container images from config/containers.txt
 download_containers() {
     echo -e "${YELLOW}Downloading and saving container images...${NC}"
 
@@ -244,35 +343,164 @@ download_containers() {
 
     while IFS= read -r container; do
         if [ -n "$container" ] && [[ ! "$container" =~ ^[[:space:]]*# ]]; then
-            echo -e "${YELLOW}Processing: $container${NC}"
-
-            # Extract image name for filename
-            image_name=$(echo "$container" | sed 's|.*/||' | sed 's/:/_/g')
-            output_file="$OUTPUT_DIR/container_images/${image_name}.tar"
-
-            # Pull the image with debugging
-            echo -e "${YELLOW}  Pulling image...${NC}"
-            if sudo podman pull "$container"; then
-                echo -e "${GREEN}  ✓ Successfully pulled $container${NC}"
-
-                # Save the image
-                echo -e "${YELLOW}  Saving image to $output_file...${NC}"
-                if sudo podman save -o "$output_file" "$container"; then
-                    echo -e "${GREEN}  ✓ Successfully saved to $output_file${NC}"
-                    # Make the file readable by the user
-                    sudo chown $USER:$USER "$output_file"
-                else
-                    echo -e "${RED}  ✗ Failed to save $container${NC}"
-                fi
-            else
-                echo -e "${RED}  ✗ Failed to pull $container${NC}"
-            fi
-            echo
+            pull_and_save_container "$container" ""
         fi
     done < "$CONTAINERS_FILE"
 }
 
 
+
+# Download and save the LLM container images listed in containers-llm.txt.
+# A small override map handles the llama.cpp dot-to-dash rename that
+# quadlet/lme-llama-cpp.container and quadlet/lme-embeddings.container expect.
+download_llm_containers() {
+    echo -e "${YELLOW}Downloading LLM container images...${NC}"
+
+    if [ ! -f "$LLM_CONTAINERS_FILE" ]; then
+        echo -e "${RED}✗ LLM containers file not found: $LLM_CONTAINERS_FILE${NC}"
+        exit 1
+    fi
+
+    declare -A LLM_TAG_OVERRIDES=(
+        ["ghcr.io/ggml-org/llama.cpp:server"]="localhost/llama-cpp:LME_LATEST"
+    )
+
+    while IFS= read -r container; do
+        if [ -n "$container" ] && [[ ! "$container" =~ ^[[:space:]]*# ]]; then
+            pull_and_save_container "$container" "${LLM_TAG_OVERRIDES[$container]:-}"
+        fi
+    done < "$LLM_CONTAINERS_FILE"
+}
+
+# Download the two GGUFs that llama_cpp_setup.yml would otherwise fetch
+# at install time. Captures SHA256 of each for the MANIFEST / preflight.
+MODEL_CHAT_SHA256=""
+MODEL_EMBED_SHA256=""
+
+download_llm_models() {
+    echo -e "${YELLOW}Downloading LLM GGUF models...${NC}"
+    mkdir -p "$OUTPUT_DIR/models"
+
+    local chat_url embed_url chat_file embed_file
+    chat_url="https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main/LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
+    embed_url="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q4_K_M.gguf"
+    chat_file="$OUTPUT_DIR/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
+    embed_file="$OUTPUT_DIR/models/nomic-embed-text-v1.5.Q4_K_M.gguf"
+
+    if [ -f "$chat_file" ] && [ -s "$chat_file" ]; then
+        echo -e "${GREEN}  ✓ Chat model already present: $chat_file${NC}"
+    else
+        echo -e "${YELLOW}  Downloading LFM2.5-1.2B chat model (~2 GB)...${NC}"
+        if ! download_file "$chat_url" "$chat_file"; then
+            echo -e "${RED}✗ Failed to download chat model${NC}"
+            exit 1
+        fi
+    fi
+    MODEL_CHAT_SHA256=$(sha256sum "$chat_file" | cut -d' ' -f1)
+
+    if [ -f "$embed_file" ] && [ -s "$embed_file" ]; then
+        echo -e "${GREEN}  ✓ Embed model already present: $embed_file${NC}"
+    else
+        echo -e "${YELLOW}  Downloading nomic-embed-text embedding model (~84 MB)...${NC}"
+        if ! download_file "$embed_url" "$embed_file"; then
+            echo -e "${RED}✗ Failed to download embed model${NC}"
+            exit 1
+        fi
+    fi
+    MODEL_EMBED_SHA256=$(sha256sum "$embed_file" | cut -d' ' -f1)
+
+    echo -e "${GREEN}✓ Models downloaded${NC}"
+    echo -e "${GREEN}  Chat  SHA256: $MODEL_CHAT_SHA256${NC}"
+    echo -e "${GREEN}  Embed SHA256: $MODEL_EMBED_SHA256${NC}"
+}
+
+# Build and save the ingest image that replaces the online flow's
+# `python:3.11-slim + inline pip install` (llama_cpp_setup.yml:318-324).
+# Pin exact package versions so offline bundles are reproducible.
+build_ingest_image() {
+    echo -e "${YELLOW}Building LME ingest image (pinned pip deps)...${NC}"
+    local dockerfile_tmp
+    dockerfile_tmp=$(mktemp)
+    cat > "$dockerfile_tmp" <<'DOCKERFILE'
+FROM python:3.11-slim
+RUN pip install --no-cache-dir \
+    requests==2.32.3 \
+    beautifulsoup4==4.12.3 \
+    markdownify==0.13.1 \
+    psycopg2-binary==2.9.9 \
+    pgvector==0.3.6 \
+    lxml==5.3.0
+DOCKERFILE
+
+    if sudo podman build -t localhost/lme-ingest:LME_LATEST -f "$dockerfile_tmp" "$LME_ROOT"; then
+        rm -f "$dockerfile_tmp"
+        save_container_tar "localhost/lme-ingest:LME_LATEST" "localhost/lme-ingest:LME_LATEST"
+    else
+        rm -f "$dockerfile_tmp"
+        echo -e "${RED}✗ Failed to build LME ingest image${NC}"
+        exit 1
+    fi
+}
+
+# Build and save lme-log-analyzer and lme-dashboard images locally, since the
+# online install would `podman build` these in-place — impossible offline.
+build_lme_images() {
+    echo -e "${YELLOW}Building LME Log Analyzer image...${NC}"
+    if sudo podman build -t localhost/lme-log-analyzer:LME_LATEST "$LME_ROOT/lme-log-analyzer"; then
+        save_container_tar "localhost/lme-log-analyzer:LME_LATEST" "localhost/lme-log-analyzer:LME_LATEST"
+    else
+        echo -e "${RED}✗ Failed to build LME Log Analyzer${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Building LME Dashboard image...${NC}"
+    if sudo podman build -t localhost/lme-dashboard:LME_LATEST "$LME_ROOT/lme-dashboard"; then
+        save_container_tar "localhost/lme-dashboard:LME_LATEST" "localhost/lme-dashboard:LME_LATEST"
+    else
+        echo -e "${RED}✗ Failed to build LME Dashboard${NC}"
+        exit 1
+    fi
+}
+
+# Captured by scrape_lme_docs, read by write_manifest.
+DOCS_PAGES=0
+
+# Run the ingest image with --scrape-only so we don't need a host-side
+# Python/BS4 toolchain. Writes page_NNNN.html + index.tsv + count.
+scrape_lme_docs() {
+    echo -e "${YELLOW}Pre-scraping LME docs for offline RAG ingest...${NC}"
+    local scrape_out="$OUTPUT_DIR/docs/lme-docs-scrape"
+    mkdir -p "$scrape_out"
+
+    if sudo podman run --rm \
+        -v "$scrape_out":/out:Z \
+        -v "$LME_ROOT/scripts":/scripts:z \
+        localhost/lme-ingest:LME_LATEST \
+        python /scripts/ingest_docs.py --scrape-only --output-dir /out; then
+        sudo chown -R "$USER:$USER" "$scrape_out"
+        DOCS_PAGES=$(cat "$scrape_out/count" 2>/dev/null || echo 0)
+        echo -e "${GREEN}✓ Scraped $DOCS_PAGES pages → $scrape_out${NC}"
+    else
+        echo -e "${RED}✗ Docs scrape failed${NC}"
+        exit 1
+    fi
+}
+
+# Emit the top-level MANIFEST consumed by install.sh preflight.
+write_manifest() {
+    local manifest_file="$OUTPUT_DIR/MANIFEST"
+    {
+        echo "PREPARED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "ARCH=$TARGET_ARCH"
+        echo "LLM_INCLUDED=$INCLUDE_LLM"
+        if [ "$INCLUDE_LLM" = "true" ]; then
+            echo "SHA256_LFM25_CHAT=$MODEL_CHAT_SHA256"
+            echo "SHA256_NOMIC_EMBED=$MODEL_EMBED_SHA256"
+            echo "DOCS_PAGES=$DOCS_PAGES"
+        fi
+    } > "$manifest_file"
+    echo -e "${GREEN}✓ Wrote $manifest_file${NC}"
+}
 
 # Download file with fallback from wget to curl
 download_file() {
@@ -1030,7 +1258,11 @@ create_offline_archive() {
     # Include the entire LME directory (which now contains offline_resources)
     LME_DIR_NAME="$(basename "$LME_ROOT")"
 
-    if tar -czf "$ARCHIVE_PATH" "$LME_DIR_NAME"; then
+    # --ignore-failed-read: don't abort the whole archive because of stale
+    # leftover files a prior extraction may have left as root-owned/unreadable
+    # (e.g., elastic-agent-*/data/agent.lock). tar still warns, and the archive
+    # still contains everything we can read.
+    if tar --ignore-failed-read -czf "$ARCHIVE_PATH" "$LME_DIR_NAME"; then
         echo -e "${GREEN}✓ Archive created successfully: $ARCHIVE_PATH${NC}"
 
         # Get archive size
@@ -1053,7 +1285,9 @@ generate_load_script() {
     cat > "$OUTPUT_DIR/load_containers.sh" << 'EOF'
 #!/bin/bash
 
-# Simple Container Loading Script for Offline LME Installation
+# Container Loading Script for Offline LME Installation.
+# Reads container_images/image_manifest.tsv (tar_filename<TAB>source_ref<TAB>target_tag)
+# and loads+tags each image.
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -1062,78 +1296,57 @@ NC='\033[0m'
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 IMAGES_DIR="$SCRIPT_DIR/container_images"
+MANIFEST="$IMAGES_DIR/image_manifest.tsv"
 
 echo -e "${YELLOW}Loading container images for offline LME installation...${NC}"
 
 # Ensure proper PATH for Nix binaries
 export PATH="/nix/var/nix/profiles/default/bin:$PATH"
 
-# Simple mapping of tar files to target names
-declare -A IMAGE_MAP
-IMAGE_MAP["elasticsearch_8.18.8.tar"]="localhost/elasticsearch:LME_LATEST"
-IMAGE_MAP["kibana_8.18.8.tar"]="localhost/kibana:LME_LATEST"
-IMAGE_MAP["elastic-agent_8.18.8.tar"]="localhost/elastic-agent:LME_LATEST"
-IMAGE_MAP["wazuh-manager_4.9.1.tar"]="localhost/wazuh-manager:LME_LATEST"
-IMAGE_MAP["elastalert2_2.20.0.tar"]="localhost/elastalert2:LME_LATEST"
-IMAGE_MAP["distribution_lite-8.18.8.tar"]="localhost/distribution:LME_LATEST"
+if [ ! -f "$MANIFEST" ]; then
+    echo -e "${RED}✗ Manifest not found: $MANIFEST${NC}"
+    exit 1
+fi
 
 LOADED_COUNT=0
 FAILED_COUNT=0
 
-for tar_file in "$IMAGES_DIR"/*.tar; do
-    if [ -f "$tar_file" ]; then
-        filename=$(basename "$tar_file")
-        target_name="${IMAGE_MAP[$filename]}"
+while IFS=$'\t' read -r tar_name source_ref target_tag; do
+    [ -z "$tar_name" ] && continue
+    [[ "$tar_name" =~ ^[[:space:]]*# ]] && continue
 
-        if [ -z "$target_name" ]; then
-            echo -e "${RED}✗ Unknown tar file: $filename${NC}"
-            FAILED_COUNT=$((FAILED_COUNT + 1))
-            continue
-        fi
+    tar_file="$IMAGES_DIR/$tar_name"
+    if [ ! -f "$tar_file" ]; then
+        echo -e "${RED}✗ Missing tar: $tar_name${NC}"
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+        continue
+    fi
 
-        # Check if already tagged
-        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman images --format '{{.Repository}}:{{.Tag}}'" | grep -q "$target_name"; then
-            echo -e "${GREEN}✓ $filename already loaded and tagged${NC}"
-            continue
-        fi
+    # Skip if already tagged
+    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman images --format '{{.Repository}}:{{.Tag}}'" | grep -qx "$target_tag"; then
+        echo -e "${GREEN}✓ $tar_name already loaded as $target_tag${NC}"
+        continue
+    fi
 
-        echo -e "${YELLOW}Loading $filename...${NC}"
-        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman load -i '$tar_file'"; then
-            echo -e "${GREEN}✓ Loaded $filename${NC}"
+    echo -e "${YELLOW}Loading $tar_name...${NC}"
+    if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman load -i '$tar_file'"; then
+        echo -e "${GREEN}✓ Loaded $tar_name${NC}"
 
-            # Get the image that was just loaded and tag it
-            echo -e "${YELLOW}  Tagging as $target_name...${NC}"
-
-            # Find the loaded image and tag it
-            case "$filename" in
-                "elasticsearch_8.18.8.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/elasticsearch/elasticsearch:8.18.8 $target_name"
-                    ;;
-                "kibana_8.18.8.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/kibana/kibana:8.18.8 $target_name"
-                    ;;
-                "elastic-agent_8.18.8.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/beats/elastic-agent:8.18.8 $target_name"
-                    ;;
-                "wazuh-manager_4.9.1.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.io/wazuh/wazuh-manager:4.9.1 $target_name"
-                    ;;
-                "elastalert2_2.20.0.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.io/jertel/elastalert2:2.20.0 $target_name"
-                    ;;
-                "distribution_lite-8.18.8.tar")
-                    sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag docker.elastic.co/package-registry/distribution:lite-8.18.8 $target_name"
-                    ;;
-            esac
-
-            echo -e "${GREEN}  ✓ Tagged as $target_name${NC}"
+        # Tag source -> target. For images built locally with the target tag
+        # already set, podman load will restore it under that name and the
+        # source->target tag here is a no-op.
+        if sudo bash -c "export PATH=/nix/var/nix/profiles/default/bin:\$PATH; podman tag '$source_ref' '$target_tag'"; then
+            echo -e "${GREEN}  ✓ Tagged as $target_tag${NC}"
             LOADED_COUNT=$((LOADED_COUNT + 1))
         else
-            echo -e "${RED}✗ Failed to load $filename${NC}"
+            echo -e "${RED}  ✗ Failed to tag $source_ref as $target_tag${NC}"
             FAILED_COUNT=$((FAILED_COUNT + 1))
         fi
+    else
+        echo -e "${RED}✗ Failed to load $tar_name${NC}"
+        FAILED_COUNT=$((FAILED_COUNT + 1))
     fi
-done
+done < "$MANIFEST"
 
 echo
 echo -e "${GREEN}Container loading summary:${NC}"
@@ -1164,11 +1377,20 @@ main() {
 
     check_internet
     check_podman
+    ensure_nix_daemon_access
     create_output_dir
     download_containers
+    if [ "$INCLUDE_LLM" = "true" ]; then
+        download_llm_containers
+        build_ingest_image
+        download_llm_models
+        build_lme_images
+        scrape_lme_docs
+    fi
     download_packages
     download_agents
     download_cve_database
+    write_manifest
     generate_load_script
     create_offline_archive
 

@@ -1,0 +1,25 @@
+---
+# Stage pre-shipped GGUF models from the offline bundle into the runtime
+# model directory. Registering the same variable names as the online get_url
+# tasks in llama_cpp_setup.yml (lines 131, 146) lets downstream
+# `when: ... is succeeded` guards remain unchanged.
+
+- name: Copy LFM2.5 chat model from offline bundle
+  copy:
+    src: "{{ clone_directory }}/offline_resources/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
+    dest: /opt/lme/llama-models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+  register: model_download
+
+- name: Copy nomic-embed-text model from offline bundle
+  copy:
+    src: "{{ clone_directory }}/offline_resources/models/nomic-embed-text-v1.5.Q4_K_M.gguf"
+    dest: /opt/lme/llama-models/nomic-embed-text-v1.5.Q4_K_M.gguf
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
+  become: yes
+  register: embed_model_download

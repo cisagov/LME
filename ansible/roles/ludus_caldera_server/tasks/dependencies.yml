@@ -1,0 +1,14 @@
+---
+- name: Install Caldera system dependencies
+  become: true
+  ansible.builtin.apt:
+    name:
+      - git
+      - curl
+      - wget
+      - pipenv
+      - lsof
+      - python3
+      - python3-venv
+      - python3-pip
+    update_cache: true

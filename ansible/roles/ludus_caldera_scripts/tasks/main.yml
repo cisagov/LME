@@ -1,0 +1,60 @@
+---
+- name: Extract API key from Caldera config
+  ansible.builtin.shell: grep "api_key_red" {{ ludus_caldera_scripts_install_dir }}/conf/default.yml | awk '{print $2}'
+  register: api_key_result
+  changed_when: false
+  when: ludus_caldera_scripts_api_key | length == 0
+
+- name: Set API key fact
+  ansible.builtin.set_fact:
+    _caldera_api_key: "{{ ludus_caldera_scripts_api_key | default(api_key_result.stdout | default(''), true) }}"
+
+- name: Create scripts deploy directory
+  ansible.builtin.file:
+    path: "{{ ludus_caldera_scripts_deploy_dir }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Create configs subdirectory
+  ansible.builtin.file:
+    path: "{{ ludus_caldera_scripts_deploy_dir }}/configs"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Deploy API key export script
+  ansible.builtin.copy:
+    content: |
+      #!/bin/sh
+      export API_KEY="{{ _caldera_api_key }}"
+    dest: "{{ ludus_caldera_scripts_deploy_dir }}/caldera_api_key.sh"
+    mode: "0755"
+  become: true
+
+- name: Deploy Caldera automation scripts
+  ansible.builtin.copy:
+    src: "caldera-scripting/{{ item }}"
+    dest: "{{ ludus_caldera_scripts_deploy_dir }}/{{ item }}"
+    mode: "0755"
+  loop:
+    - run_config.py
+    - operation.py
+    - get_abilities.py
+  become: true
+
+- name: Deploy operation config files
+  ansible.builtin.copy:
+    src: "caldera-scripting/configs/{{ item }}"
+    dest: "{{ ludus_caldera_scripts_deploy_dir }}/configs/{{ item }}"
+    mode: "0644"
+  loop:
+    - demo_config.json
+    - 01_discovery.json
+  become: true
+
+- name: Display deployment summary
+  ansible.builtin.debug:
+    msg: |
+      Caldera scripts deployed to {{ ludus_caldera_scripts_deploy_dir }}.
+      Usage: source {{ ludus_caldera_scripts_deploy_dir }}/caldera_api_key.sh && python3 {{ ludus_caldera_scripts_deploy_dir }}/run_config.py configs/demo_config.json --api_key $API_KEY

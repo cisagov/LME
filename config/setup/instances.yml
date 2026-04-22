@@ -49,3 +49,38 @@ instances:
       - "localhost"
     ip:
       - "127.0.0.1"
+
+  - name: "litellm"
+    dns:
+      - "lme-litellm"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "dashboard"
+    dns:
+      - "lme-dashboard"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "log-analyzer"
+    dns:
+      - "lme-log-analyzer"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "embeddings"
+    dns:
+      - "lme-embeddings"
+      - "localhost"
+    ip:
+      - "127.0.0.1"
+
+  - name: "llama-cpp"
+    dns:
+      - "lme-llama-cpp"
+      - "localhost"
+    ip:
+      - "127.0.0.1"

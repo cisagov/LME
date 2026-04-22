@@ -1,0 +1,16 @@
+[Unit]
+Description=MITRE Caldera Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory={{ ludus_caldera_server_install_dir }}
+Environment="PATH={{ caldera_service_path.stdout }}"
+ExecStart=pipenv run python3 server.py --build{% if ludus_caldera_server_insecure %} --insecure{% endif %}
+
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

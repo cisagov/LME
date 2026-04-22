@@ -1,0 +1,3697 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LME Security Dashboard</title>
+
+  <!-- Tailwind CSS (CDN, no build step) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              900: '#0d1117',
+              800: '#161b22',
+              700: '#21262d',
+              600: '#30363d',
+              500: '#484f58',
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Consolas', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Alpine.js (CDN, ~15 kb) -->
+  <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    body { background-color: #0d1117; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #161b22; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+
+    /* chat message animation */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg-enter { animation: fadeSlideIn 0.2s ease; }
+
+    /* typing dots */
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%            { transform: translateY(-4px); }
+    }
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #58a6ff; margin: 0 2px; }
+    .dot:nth-child(1) { animation: bounce 1.2s infinite 0s; }
+    .dot:nth-child(2) { animation: bounce 1.2s infinite .2s; }
+    .dot:nth-child(3) { animation: bounce 1.2s infinite .4s; }
+
+    /* line clamp */
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body class="dark h-full text-gray-300 font-mono text-sm antialiased" x-data="dashboard()" x-init="init()">
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="bg-surface-800 border-b border-surface-600 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+  <div class="flex items-center gap-3">
+    <!-- shield icon -->
+    <svg class="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955
+               11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29
+               9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+    </svg>
+    <span class="text-white font-semibold tracking-wide">LME Security Dashboard</span>
+  </div>
+
+  <!-- status pills -->
+  <div class="flex items-center gap-3 text-xs">
+    <span x-cloak :class="health.elasticsearch === 'green' ? 'bg-green-900 text-green-300' :
+                           health.elasticsearch === 'yellow' ? 'bg-yellow-900 text-yellow-300' :
+                           'bg-red-900 text-red-300'"
+          class="px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span class="w-1.5 h-1.5 rounded-full"
+            :class="health.elasticsearch === 'green' ? 'bg-green-400' :
+                    health.elasticsearch === 'yellow' ? 'bg-yellow-400' : 'bg-red-400'"></span>
+      ES: <span x-text="health.elasticsearch || '…'"></span>
+    </span>
+    <span :class="health.litellm === 'ok' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'"
+          class="px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span class="w-1.5 h-1.5 rounded-full"
+            :class="health.litellm === 'ok' ? 'bg-green-400' : 'bg-red-400'"></span>
+      LLM: <span x-text="health.litellm || '…'"></span>
+    </span>
+    <span :class="health.pgvector === 'ok' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'"
+          class="px-2 py-0.5 rounded-full flex items-center gap-1">
+      <span class="w-1.5 h-1.5 rounded-full"
+            :class="health.pgvector === 'ok' ? 'bg-green-400' : 'bg-red-400'"></span>
+      pgvector: <span x-text="health.pgvector || '…'"></span>
+    </span>
+
+    <button @click="mainView = 'settings'; settingsSection = 'models'; loadModels(); loadLocalModels()"
+            class="px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer hover:opacity-80 transition"
+            :class="activeModelIsLocal ? 'bg-purple-900 text-purple-300' : 'bg-sky-900 text-sky-300'"
+            title="Click to open model settings">
+      <svg x-show="activeModelIsLocal" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+      </svg>
+      <svg x-show="!activeModelIsLocal" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+      </svg>
+      Model: <span x-text="modelSettings.activeModel || '…'"></span>
+    </button>
+
+    <button @click="loadAll()"
+            class="px-2 py-0.5 rounded-full bg-surface-700 text-gray-400 hover:text-white hover:bg-surface-600 transition flex items-center gap-1">
+      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<!-- ── Top-level view switcher ────────────────────────────────────────────── -->
+<nav class="bg-surface-800 border-b border-surface-600 px-4 flex items-center gap-1 sticky top-[57px] z-20 h-10">
+  <button @click="mainView = 'alerts'"
+          :class="mainView === 'alerts' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+    </svg>
+    Alerts
+  </button>
+  <button @click="mainView = 'vulns'; if(!vulns._loaded) loadVulns()"
+          :class="mainView === 'vulns' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    Vulnerabilities
+    <span x-show="vulns.totalVulns > 0" x-cloak
+          class="ml-1 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
+          x-text="vulns.totalVulns"></span>
+  </button>
+  <button @click="mainView = 'detection'; if (!kibanaRules._loaded) loadKibanaRules(); if (!sigma._loaded) loadSigmaStatus(); if (!prebuilt.status) loadPrebuiltStatus()"
+          :class="mainView === 'detection' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+    </svg>
+    Detection Engineering
+  </button>
+  <button @click="mainView = 'settings'; loadModels(); loadLocalModels(); if (!kev.status) loadKevStatus()"
+          :class="mainView === 'settings' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+          class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+    </svg>
+    Settings
+  </button>
+</nav>
+
+<!-- ── Global layout: views + persistent chat sidebar ────────────────────── -->
+<div class="flex h-[calc(100vh-97px)]">
+
+<!-- ── Views wrapper (left) ──────────────────────────────────────────────── -->
+<div class="flex-1 min-w-0 overflow-hidden">
+
+<!-- ── Main layout ─────────────────────────────────────────────────────────── -->
+<div x-show="mainView === 'alerts'" class="flex h-full">
+
+  <!-- LEFT: alerts panel -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- Tab bar + filters -->
+    <div class="bg-surface-800 border-b border-surface-600 px-4 pt-3 pb-0 flex items-end justify-between">
+      <div class="flex gap-1">
+        <button @click="activeTab = 'kibana'"
+                :class="activeTab === 'kibana' ? 'border-blue-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Kibana Alerts
+          <span x-show="kibana.total > 0" x-cloak
+                class="ml-1.5 bg-blue-900 text-blue-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="kibana.total"></span>
+        </button>
+        <button @click="activeTab = 'wazuh'"
+                :class="activeTab === 'wazuh' ? 'border-orange-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Wazuh Alerts
+          <span x-show="wazuh.total > 0" x-cloak
+                class="ml-1.5 bg-orange-900 text-orange-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="wazuh.total"></span>
+        </button>
+        <button @click="activeTab = 'sysmon'"
+                :class="activeTab === 'sysmon' ? 'border-red-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Sysmon
+          <span x-show="sysmon.total > 0" x-cloak
+                class="ml-1.5 bg-red-900 text-red-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="sysmon.total"></span>
+        </button>
+        <button @click="activeTab = 'defender'"
+                :class="activeTab === 'defender' ? 'border-green-400 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'"
+                class="px-4 py-2 border-b-2 transition text-sm font-medium">
+          Windows Defender
+          <span x-show="defender.total > 0" x-cloak
+                class="ml-1.5 bg-green-900 text-green-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="defender.total"></span>
+        </button>
+      </div>
+
+      <!-- filters -->
+      <div class="flex items-center gap-3 pb-2 text-xs flex-wrap">
+        <!-- Search -->
+        <div class="flex items-center gap-2 flex-1 min-w-[180px] max-w-xs">
+          <div class="relative w-full">
+            <svg class="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" x-model="searchQuery" placeholder="Search alerts…"
+                   @input.debounce.400ms="loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                   @keydown.escape="searchQuery = ''; loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                   class="w-full bg-surface-700 border border-surface-500 rounded pl-7 pr-7 py-1 text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500">
+            <button x-show="searchQuery" x-cloak
+                    @click="searchQuery = ''; loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                    class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <span class="text-surface-600">|</span>
+
+        <!-- Time range (shared) -->
+        <div class="flex items-center gap-2">
+          <label class="text-gray-500">Time range</label>
+          <select x-model="timeRange" @change="loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                  class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-purple-500">
+            <option value="now-15m">Last 15 min</option>
+            <option value="now-1h">Last 1 hour</option>
+            <option value="now-4h">Last 4 hours</option>
+            <option value="now-12h">Last 12 hours</option>
+            <option value="now-24h" selected>Last 24 hours</option>
+            <option value="now-3d">Last 3 days</option>
+            <option value="now-7d">Last 7 days</option>
+            <option value="now-30d">Last 30 days</option>
+            <option value="now-90d">Last 90 days</option>
+          </select>
+        </div>
+
+        <!-- Machine filter (shared) -->
+        <div class="flex items-center gap-2" x-show="hosts.length > 1">
+          <label class="text-gray-500">Machine</label>
+          <select x-model="hostFilter" @change="loadKibana(); loadWazuh(); loadSysmon(); loadDefender()"
+                  class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-purple-500">
+            <option value="">All machines</option>
+            <template x-for="h in hosts" :key="h">
+              <option :value="h" x-text="h"></option>
+            </template>
+          </select>
+        </div>
+
+        <span class="text-surface-600" x-show="hosts.length > 1">|</span>
+
+        <template x-if="activeTab === 'kibana'">
+          <div class="flex items-center gap-2">
+            <label class="text-gray-500">Min severity</label>
+            <select x-model="kibana.minSeverity" @change="loadKibana()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-blue-500">
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium" selected>Medium+</option>
+              <option value="low">Low+</option>
+            </select>
+          </div>
+        </template>
+        <template x-if="activeTab === 'wazuh'">
+          <div class="flex items-center gap-2">
+            <label class="text-gray-500">Min level</label>
+            <select x-model.number="wazuh.minLevel" @change="loadWazuh()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-orange-500">
+              <option value="5">5 (notice)</option>
+              <option value="6">6</option>
+              <option value="7" selected>7 (medium)</option>
+              <option value="9">9 (high)</option>
+              <option value="12">12 (critical)</option>
+            </select>
+          </div>
+        </template>
+        <template x-if="activeTab === 'sysmon'">
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 italic">High-value event IDs only (8, 10, 25, 6, 9, 15, 17-21, 255)</span>
+          </div>
+        </template>
+        <template x-if="activeTab === 'defender'">
+          <div class="flex items-center gap-2">
+            <label class="text-gray-500">Min severity</label>
+            <select x-model="defender.minSeverity" @change="loadDefender()"
+                    class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-gray-300 focus:outline-none focus:border-green-500">
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium+</option>
+              <option value="low" selected>All</option>
+            </select>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Alert list -->
+    <div class="flex-1 overflow-y-auto px-4 py-3 space-y-2" x-ref="alertScroll"
+         @scroll.debounce.100ms="
+           const el = $refs.alertScroll;
+           if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+             if (activeTab === 'kibana') loadMoreKibana();
+             else if (activeTab === 'wazuh') loadMoreWazuh();
+             else if (activeTab === 'sysmon') loadMoreSysmon();
+             else if (activeTab === 'defender') loadMoreDefender();
+           }
+         ">
+
+      <!-- loading spinner -->
+      <template x-if="(activeTab === 'kibana' && kibana.loading) || (activeTab === 'wazuh' && wazuh.loading) || (activeTab === 'sysmon' && sysmon.loading) || (activeTab === 'defender' && defender.loading)">
+        <div class="flex items-center justify-center h-32 text-gray-500">
+          <svg class="animate-spin w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Loading alerts…
+        </div>
+      </template>
+
+      <!-- error -->
+      <template x-if="activeTab === 'kibana' && kibana.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="kibana.error"></div>
+      </template>
+      <template x-if="activeTab === 'sysmon' && sysmon.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="sysmon.error"></div>
+      </template>
+      <template x-if="activeTab === 'defender' && defender.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="defender.error"></div>
+      </template>
+      <template x-if="activeTab === 'wazuh' && wazuh.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs" x-text="wazuh.error"></div>
+      </template>
+
+      <!-- empty state -->
+      <template x-if="activeTab === 'kibana' && !kibana.loading && !kibana.error && kibana.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          No Kibana alerts at this severity level
+        </div>
+      </template>
+      <template x-if="activeTab === 'wazuh' && !wazuh.loading && !wazuh.error && wazuh.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          No Wazuh alerts at this level
+        </div>
+      </template>
+      <template x-if="activeTab === 'defender' && !defender.loading && !defender.error && defender.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+          No Windows Defender events in this time range
+        </div>
+      </template>
+      <template x-if="activeTab === 'sysmon' && !sysmon.loading && !sysmon.error && sysmon.alerts.length === 0">
+        <div class="flex flex-col items-center justify-center h-32 text-gray-600">
+          <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          No Sysmon events in this time range
+        </div>
+      </template>
+
+      <!-- ── Kibana alert cards ── -->
+      <template x-if="activeTab === 'kibana' && !kibana.loading">
+        <div class="space-y-2">
+          <template x-for="alert in kibana.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <!-- left -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.rule_name"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.host" x-cloak>
+                      <span class="text-gray-600">host:</span>
+                      <span class="text-gray-400" x-text="alert.host"></span>
+                    </span>
+                    <span x-show="alert.user" x-cloak>
+                      <span class="text-gray-600">user:</span>
+                      <span class="text-gray-400" x-text="alert.user"></span>
+                    </span>
+                    <span x-show="alert.src_ip" x-cloak>
+                      <span class="text-gray-600">src:</span>
+                      <span class="text-gray-400" x-text="alert.src_ip"></span>
+                    </span>
+                  </div>
+                  <p x-show="alert.reason" x-cloak class="mt-1 text-xs text-gray-500 line-clamp-1"
+                     x-text="alert.reason"></p>
+                </div>
+                <!-- actions -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'kibana')"
+                          class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition">
+                    <span x-text="alert._expanded ? 'Hide' : 'Details'"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- expanded detail -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.command">
+                  <div>
+                    <span class="text-gray-600">command:</span>
+                    <code class="ml-2 text-green-400 break-all" x-text="alert.command"></code>
+                  </div>
+                </template>
+                <template x-if="alert.dst_ip">
+                  <div>
+                    <span class="text-gray-600">dst_ip:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.dst_ip"></span>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis result -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-blue-900 px-3 py-2 bg-blue-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-blue-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Wazuh alert cards ── -->
+      <template x-if="activeTab === 'wazuh' && !wazuh.loading">
+        <div class="space-y-2">
+          <template x-for="alert in wazuh.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span class="bg-surface-700 text-gray-400 px-1.5 py-0.5 rounded text-xs"
+                          x-text="'L' + alert.level"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.rule_name"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.agent_name" x-cloak>
+                      <span class="text-gray-600">agent:</span>
+                      <span class="text-gray-400" x-text="alert.agent_name"></span>
+                    </span>
+                    <span x-show="alert.src_ip" x-cloak>
+                      <span class="text-gray-600">src:</span>
+                      <span class="text-gray-400" x-text="alert.src_ip"></span>
+                    </span>
+                    <span x-show="alert.rule_id" x-cloak>
+                      <span class="text-gray-600">rule:</span>
+                      <span class="text-gray-400" x-text="alert.rule_id"></span>
+                    </span>
+                  </div>
+                  <template x-if="alert.groups && alert.groups.length">
+                    <div class="mt-1 flex flex-wrap gap-1">
+                      <template x-for="g in alert.groups.slice(0,4)" :key="g">
+                        <span class="bg-surface-700 text-gray-500 px-1.5 py-0.5 rounded text-xs" x-text="g"></span>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'wazuh')"
+                          class="px-2 py-1 rounded bg-orange-900/50 text-orange-300 hover:bg-orange-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                          x-text="alert._expanded ? 'Hide' : 'Details'"></button>
+                </div>
+              </div>
+
+              <!-- expanded -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.full_log">
+                  <div>
+                    <span class="text-gray-600">log:</span>
+                    <code class="ml-2 text-green-400 break-all" x-text="alert.full_log"></code>
+                  </div>
+                </template>
+                <template x-if="alert.location">
+                  <div>
+                    <span class="text-gray-600">location:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.location"></span>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-orange-900 px-3 py-2 bg-orange-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-orange-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Sysmon cards ── -->
+      <template x-if="activeTab === 'sysmon' && !sysmon.loading">
+        <div class="space-y-2">
+          <template x-for="alert in sysmon.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span class="bg-red-900/50 text-red-300 px-1.5 py-0.5 rounded text-xs font-mono"
+                          x-text="'ID ' + alert.event_id + ' ' + alert.event_name"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.summary"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.host" x-cloak>
+                      <span class="text-gray-600">host:</span>
+                      <span class="text-gray-400" x-text="alert.host"></span>
+                    </span>
+                    <span x-show="alert.user" x-cloak>
+                      <span class="text-gray-600">user:</span>
+                      <span class="text-gray-400" x-text="alert.user"></span>
+                    </span>
+                  </div>
+                  <p x-show="alert.image" x-cloak class="mt-1 text-xs text-gray-500 truncate">
+                    <span class="text-gray-600">image:</span>
+                    <span class="text-yellow-400/70 font-mono" x-text="alert.image"></span>
+                  </p>
+                  <p x-show="alert.target" x-cloak class="text-xs text-gray-500 truncate">
+                    <span class="text-gray-600">target:</span>
+                    <span class="text-red-400/70 font-mono" x-text="alert.target"></span>
+                  </p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'sysmon')"
+                          class="px-2 py-1 rounded bg-red-900/50 text-red-300 hover:bg-red-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                          x-text="alert._expanded ? 'Hide' : 'Details'"></button>
+                </div>
+              </div>
+
+              <!-- expanded -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.command_line">
+                  <div>
+                    <span class="text-gray-600">cmdline:</span>
+                    <code class="ml-2 text-green-400 break-all" x-text="alert.command_line"></code>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-red-900 px-3 py-2 bg-red-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-red-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Windows Defender cards ── -->
+      <template x-if="activeTab === 'defender' && !defender.loading">
+        <div class="space-y-2">
+          <template x-for="alert in defender.alerts" :key="alert.id">
+            <div class="bg-surface-800 border rounded-lg overflow-hidden transition hover:border-gray-500"
+                 :class="severityBorder(alert.severity)">
+              <div class="px-3 py-2 flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                          :class="severityBadge(alert.severity)"
+                          x-text="alert.severity"></span>
+                    <span x-show="alert.event_id" class="bg-surface-700 text-gray-400 px-1.5 py-0.5 rounded text-xs"
+                          x-text="'ID ' + alert.event_id"></span>
+                    <span class="text-white font-medium truncate" x-text="alert.summary"></span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                    <span x-text="fmtTime(alert.timestamp)"></span>
+                    <span x-show="alert.threat_name" x-cloak>
+                      <span class="text-gray-600">threat:</span>
+                      <span class="text-red-400 font-medium" x-text="alert.threat_name"></span>
+                    </span>
+                    <span x-show="alert.category" x-cloak>
+                      <span class="text-gray-600">category:</span>
+                      <span class="text-gray-400" x-text="alert.category"></span>
+                    </span>
+                    <span x-show="alert.action" x-cloak>
+                      <span class="text-gray-600">action:</span>
+                      <span class="text-green-400" x-text="alert.action"></span>
+                    </span>
+                    <span x-show="alert.host" x-cloak>
+                      <span class="text-gray-600">host:</span>
+                      <span class="text-gray-400" x-text="alert.host"></span>
+                    </span>
+                  </div>
+                  <p x-show="alert.path" x-cloak class="mt-1 text-xs text-gray-500 line-clamp-1"
+                     x-text="alert.path"></p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button @click="analyzeAlert(alert, 'defender')"
+                          class="px-2 py-1 rounded bg-green-900/50 text-green-300 hover:bg-green-800 text-xs transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21
+                               12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                               9.9a5 5 0 117.072 0l-.548.547A3.374
+                               3.374 0 0014 18.469V19a2 2 0
+                               11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    Analyze
+                  </button>
+                  <button @click="alert._expanded = !alert._expanded"
+                          class="px-2 py-1 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                          x-text="alert._expanded ? 'Hide' : 'Details'"></button>
+                </div>
+              </div>
+
+              <!-- expanded -->
+              <div x-show="alert._expanded" x-cloak
+                   class="border-t border-surface-600 px-3 py-2 bg-surface-900 space-y-1.5 text-xs">
+                <template x-if="alert.source">
+                  <div>
+                    <span class="text-gray-600">source:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.source"></span>
+                  </div>
+                </template>
+                <template x-if="alert.user">
+                  <div>
+                    <span class="text-gray-600">user:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.user"></span>
+                  </div>
+                </template>
+                <template x-if="alert.severity_name">
+                  <div>
+                    <span class="text-gray-600">severity:</span>
+                    <span class="ml-2 text-gray-300" x-text="alert.severity_name"></span>
+                  </div>
+                </template>
+                <pre class="mt-2 text-xs text-gray-500 bg-surface-800 rounded p-2 overflow-x-auto max-h-48"
+                     x-text="JSON.stringify(alert._raw, null, 2)"></pre>
+              </div>
+
+              <!-- AI analysis -->
+              <template x-if="alert._analysis">
+                <div class="border-t border-green-900 px-3 py-2 bg-green-950/20 text-xs">
+                  <div class="flex items-center gap-1.5 mb-1 text-green-400 font-medium">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    AI Analysis
+                  </div>
+                  <div class="text-gray-300 whitespace-pre-wrap" x-text="alert._analysis"></div>
+                </div>
+              </template>
+              <template x-if="alert._analyzing">
+                <div class="border-t border-surface-600 px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                  Analyzing…
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- loading more spinner -->
+      <template x-if="(activeTab === 'kibana' && kibana.loadingMore) || (activeTab === 'wazuh' && wazuh.loadingMore) || (activeTab === 'sysmon' && sysmon.loadingMore) || (activeTab === 'defender' && defender.loadingMore)">
+        <div class="flex items-center justify-center py-4 text-gray-500 text-xs">
+          <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Loading more…
+        </div>
+      </template>
+
+      <!-- end-of-results -->
+      <template x-if="activeTab === 'kibana' && !kibana.loading && !kibana.loadingMore && kibana.alerts.length > 0 && !kibana.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
+      </template>
+      <template x-if="activeTab === 'wazuh' && !wazuh.loading && !wazuh.loadingMore && wazuh.alerts.length > 0 && !wazuh.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
+      </template>
+      <template x-if="activeTab === 'sysmon' && !sysmon.loading && !sysmon.loadingMore && sysmon.alerts.length > 0 && !sysmon.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
+      </template>
+      <template x-if="activeTab === 'defender' && !defender.loading && !defender.loadingMore && defender.alerts.length > 0 && !defender.nextCursor">
+        <div class="text-center py-3 text-gray-600 text-xs">All alerts loaded</div>
+      </template>
+
+    </div><!-- end alert list -->
+  </div><!-- end left panel -->
+
+</div><!-- end main layout -->
+
+<!-- ── Detection Engineering view ─────────────────────────────────────────── -->
+<div x-show="mainView === 'detection'" x-cloak class="flex h-full">
+
+  <!-- LEFT: sub-tabs + content -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+    <!-- Sub-tab bar -->
+    <div class="bg-surface-800 border-b border-surface-600 px-4 flex items-center gap-1 h-10">
+      <button @click="detTab = 'rules'"
+              :class="detTab === 'rules' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+        Rules
+      </button>
+      <button @click="detTab = 'elastalert'; if (!eaRules._loaded) loadEaRules()"
+              :class="detTab === 'elastalert' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
+                   01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        ElastAlert
+        <span class="text-xs text-gray-500 font-mono" x-text="'(' + eaRules.rules.length + ')'"></span>
+      </button>
+      <button @click="detTab = 'kev'; if (!kev.status) loadKevStatus(); if (!kevMatched._loaded) loadKevMatched()"
+              :class="detTab === 'kev' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+              class="px-4 py-1.5 rounded text-sm font-medium transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
+                   4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        KEVs
+        <template x-if="kev.status && kev.status.matched_cves > 0">
+          <span class="ml-1 bg-orange-900 text-orange-300 text-xs px-1.5 py-0.5 rounded-full"
+                x-text="kev.status.matched_cves"></span>
+        </template>
+      </button>
+    </div>
+
+    <!-- Content area -->
+    <div class="flex-1 overflow-y-auto px-4 py-4">
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- RULES TAB                                                         -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div x-show="detTab === 'rules'">
+
+        <!-- ══ Import Elastic Prebuilt Rules ══════════════════════════════ -->
+        <div class="mb-4 bg-surface-800 border border-surface-600 rounded-lg p-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <h3 class="text-sm font-semibold text-white">Elastic Prebuilt Rules</h3>
+              <template x-if="prebuilt.status">
+                <span class="text-xs text-gray-500">
+                  <span x-text="prebuilt.status.rules_installed + ' installed'"></span>
+                  <template x-if="prebuilt.status.rules_not_installed > 0">
+                    <span class="text-yellow-400" x-text="' · ' + prebuilt.status.rules_not_installed + ' available'"></span>
+                  </template>
+                  <template x-if="prebuilt.status.rules_not_updated > 0">
+                    <span class="text-blue-400" x-text="' · ' + prebuilt.status.rules_not_updated + ' updates'"></span>
+                  </template>
+                  <template x-if="prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0">
+                    <span class="text-green-400"> · Up to date</span>
+                  </template>
+                </span>
+              </template>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="installPrebuiltRules()" :disabled="prebuilt.installing || (prebuilt.status && prebuilt.status.rules_not_installed === 0 && prebuilt.status.rules_not_updated === 0)"
+                      class="px-3 py-1.5 rounded bg-yellow-600 hover:bg-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-medium transition flex items-center gap-2">
+                <template x-if="prebuilt.installing">
+                  <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                </template>
+                <span x-text="prebuilt.installing ? 'Importing…' : 'Import Prebuilt'"></span>
+              </button>
+            </div>
+          </div>
+          <template x-if="prebuilt.message">
+            <p class="text-xs mt-2" :class="prebuilt.error ? 'text-red-400' : 'text-green-400'" x-text="prebuilt.message"></p>
+          </template>
+        </div>
+
+        <!-- ══ Sigma Rules Import ═════════════════════════════════════════ -->
+        <div class="mb-4 bg-surface-800 border border-surface-600 rounded-lg p-4">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-semibold text-white">Sigma Rules</h3>
+              <span class="text-xs text-gray-500">Download latest SigmaHQ rules, convert, and import into Kibana</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="sigmaConvert()" :disabled="sigma.converting"
+                      class="px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center gap-1.5">
+                <template x-if="sigma.converting">
+                  <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                </template>
+                <template x-if="!sigma.converting">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                  </svg>
+                </template>
+                <span x-text="sigma.converting ? 'Downloading…' : 'Download & Convert'"></span>
+              </button>
+              <label class="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
+                     :class="sigma.fileUploading ? 'opacity-60 pointer-events-none' : ''">
+                <svg class="w-3.5 h-3.5" :class="sigma.fileUploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <span x-text="sigma.fileUploading ? 'Uploading…' : 'Upload NDJSON'"></span>
+                <input type="file" accept=".ndjson" class="hidden" @change="sigmaUploadFile($event)">
+              </label>
+              <label class="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition flex items-center gap-1.5 cursor-pointer"
+                     :class="sigma.yamlUploading ? 'opacity-60 pointer-events-none' : ''">
+                <svg class="w-3.5 h-3.5" :class="sigma.yamlUploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <span x-text="sigma.yamlUploading ? 'Converting…' : 'Upload YAML'"></span>
+                <input type="file" accept=".yml,.yaml" multiple class="hidden" @change="sigmaUploadYaml($event)">
+              </label>
+            </div>
+          </div>
+          <template x-if="sigma.message">
+            <div class="mb-3 px-3 py-2 rounded text-xs"
+                 :class="sigma.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="sigma.message"></div>
+          </template>
+          <template x-if="sigma.fileMessage">
+            <div class="mb-3 px-3 py-2 rounded text-xs"
+                 :class="sigma.fileError ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="sigma.fileMessage"></div>
+          </template>
+          <template x-if="sigma.totalRules > 0">
+            <div>
+              <div class="grid grid-cols-3 gap-3">
+                <template x-for="(info, platform) in sigma.platforms" :key="platform">
+                  <div class="bg-surface-700 border border-surface-600 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-sm font-medium text-white capitalize" x-text="platform"></span>
+                      <span class="text-xs text-gray-500" x-text="info.rule_count + ' rules'"></span>
+                    </div>
+                    <div x-show="info.modified" class="text-[10px] text-gray-600 mb-2" x-text="'Converted: ' + (info.modified ? new Date(info.modified).toLocaleString() : '')"></div>
+                    <button @click="sigmaUpload(platform)" :disabled="sigma.uploading === platform"
+                            class="w-full px-2 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition flex items-center justify-center gap-1">
+                      <template x-if="sigma.uploading === platform">
+                        <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      </template>
+                      <span x-text="sigma.uploading === platform ? 'Uploading…' : 'Upload to Kibana'"></span>
+                    </button>
+                  </div>
+                </template>
+              </div>
+              <p class="mt-2 text-[10px] text-gray-600 italic">Rules are imported disabled by default. Enable individually in the rules table below.</p>
+            </div>
+          </template>
+          <template x-if="!sigma.converting && sigma.totalRules === 0 && !sigma.message">
+            <div class="text-center text-xs text-gray-500 py-3">
+              No converted rules found. Click "Download & Convert" to fetch the latest Sigma rules from SigmaHQ.
+            </div>
+          </template>
+        </div>
+
+        <!-- ══ Kibana Detection Rules Table ═══════════════════════════════ -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <h2 class="text-sm font-semibold text-white">Kibana Detection Rules</h2>
+              <span class="text-xs text-gray-500" x-text="'(' + kibanaRules.total + ' rules)'"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="text" x-model="kibanaRules.search" placeholder="Search rules…"
+                     @input.debounce.400ms="kibanaRules.page=1; loadKibanaRules()"
+                     class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300 placeholder-gray-600 w-48 focus:outline-none focus:border-blue-500">
+              <select x-model="kibanaRules.enabledFilter" @change="kibanaRules.page=1; loadKibanaRules()"
+                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
+                <option value="">All</option>
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+              <select x-model="kibanaRules.tagFilter" @change="kibanaRules.page=1; loadKibanaRules()"
+                      class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs text-gray-300">
+                <option value="">All OS</option>
+                <option value="OS: Windows">Windows (Elastic)</option>
+                <option value="OS: Linux">Linux (Elastic)</option>
+                <option value="OS: macOS">macOS (Elastic)</option>
+                <option value="Sigma Windows">Windows (Sigma)</option>
+                <option value="Sigma Linux">Linux (Sigma)</option>
+                <option value="Sigma macOS">macOS (Sigma)</option>
+              </select>
+              <button @click="loadKibanaRules()" class="text-gray-400 hover:text-white transition">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bulk enable/disable by OS -->
+          <div class="flex items-center gap-3 mb-2 px-1 flex-wrap">
+            <span class="text-[10px] text-gray-500 uppercase tracking-wider">Bulk by OS:</span>
+            <template x-for="tag in ['OS: Windows', 'OS: Linux', 'OS: macOS']" :key="tag">
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-400" x-text="tag.replace('OS: ', '')"></span>
+                <button @click="bulkActionByTag('enable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-green-800 hover:bg-green-700 text-white transition">Enable All</button>
+                <button @click="bulkActionByTag('disable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-red-800 hover:bg-red-700 text-white transition">Disable All</button>
+              </div>
+            </template>
+            <template x-for="tag in ['Sigma Windows', 'Sigma Linux', 'Sigma macOS']" :key="tag">
+              <div class="flex items-center gap-1">
+                <span class="text-xs text-gray-400" x-text="tag"></span>
+                <button @click="bulkActionByTag('enable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-green-800 hover:bg-green-700 text-white transition">Enable All</button>
+                <button @click="bulkActionByTag('disable', tag)"
+                        class="px-1.5 py-0.5 rounded text-[10px] bg-red-800 hover:bg-red-700 text-white transition">Disable All</button>
+              </div>
+            </template>
+          </div>
+
+          <!-- Bulk actions bar -->
+          <div x-show="kibanaRules.selected.size > 0" x-cloak
+               class="flex items-center gap-3 mb-2 px-3 py-2 bg-blue-900/20 border border-blue-800 rounded-lg text-xs">
+            <span class="text-blue-300 font-medium" x-text="kibanaRules.selected.size + ' selected'"></span>
+            <button @click="bulkToggleKibanaRules(true)"
+                    class="px-2 py-1 rounded bg-green-700 hover:bg-green-600 text-white transition">Enable Selected</button>
+            <button @click="bulkToggleKibanaRules(false)"
+                    class="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white transition">Disable Selected</button>
+            <button @click="kibanaRules.selected = new Set()"
+                    class="px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 text-gray-300 transition ml-auto">Clear Selection</button>
+          </div>
+
+          <template x-if="kibanaRules.loading">
+            <div class="flex items-center justify-center h-20 text-gray-500 text-xs">
+              <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              Loading rules…
+            </div>
+          </template>
+
+          <template x-if="!kibanaRules.loading && kibanaRules.rules.length > 0">
+            <div>
+              <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+                <table class="w-full text-xs">
+                  <thead class="bg-surface-700 text-gray-400 uppercase tracking-wider">
+                    <tr>
+                      <th class="px-2 py-2 w-8">
+                        <input type="checkbox" :checked="kibanaRules.selected.size === kibanaRules.rules.length && kibanaRules.rules.length > 0"
+                               @change="toggleSelectAll()" class="rounded bg-surface-600 border-surface-500 text-blue-600 focus:ring-0 cursor-pointer">
+                      </th>
+                      <th class="px-2 py-2 text-left w-10">On</th>
+                      <th class="px-3 py-2 text-left cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('name')">
+                        Rule Name <span x-show="kibanaRules.sortField === 'name'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
+                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('severity')">
+                        Severity <span x-show="kibanaRules.sortField === 'severity'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
+                      <th class="px-3 py-2 text-left w-20 cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('risk_score')">
+                        Risk <span x-show="kibanaRules.sortField === 'risk_score'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
+                      <th class="px-3 py-2 text-left w-24 cursor-pointer hover:text-gray-200 transition select-none" @click="sortKibanaRules('enabled')">
+                        Status <span x-show="kibanaRules.sortField === 'enabled'" x-text="kibanaRules.sortOrder === 'asc' ? ' ▲' : ' ▼'"></span></th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-surface-700">
+                    <template x-for="rule in kibanaRules.rules" :key="rule.id">
+                      <tr class="hover:bg-surface-700/50 transition" :class="kibanaRules.selected.has(rule.id) ? 'bg-blue-900/10' : ''">
+                        <td class="px-2 py-1.5">
+                          <input type="checkbox" :checked="kibanaRules.selected.has(rule.id)" @change="toggleSelectRule(rule.id)"
+                                 class="rounded bg-surface-600 border-surface-500 text-blue-600 focus:ring-0 cursor-pointer">
+                        </td>
+                        <td class="px-2 py-1.5">
+                          <button @click="toggleKibanaRule(rule)" class="relative w-8 h-4 rounded-full transition-colors" :class="rule.enabled ? 'bg-blue-600' : 'bg-surface-600'">
+                            <span class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform" :class="rule.enabled ? 'translate-x-4' : ''"></span>
+                          </button>
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <div class="text-gray-200 truncate max-w-md" x-text="rule.name"></div>
+                          <div class="text-gray-600 truncate max-w-md text-[10px]" x-text="rule.description"></div>
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase" :class="severityBadge(rule.severity)" x-text="rule.severity"></span>
+                        </td>
+                        <td class="px-3 py-1.5 text-gray-500" x-text="rule.risk_score"></td>
+                        <td class="px-3 py-1.5">
+                          <span class="text-[10px]" :class="rule.enabled ? 'text-green-400' : 'text-gray-600'" x-text="rule.enabled ? 'Active' : 'Disabled'"></span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+                <span x-text="'Showing ' + ((kibanaRules.page-1)*kibanaRules.perPage+1) + '-' + Math.min(kibanaRules.page*kibanaRules.perPage, kibanaRules.total) + ' of ' + kibanaRules.total"></span>
+                <div class="flex gap-2">
+                  <button @click="kibanaRules.page--; loadKibanaRules()" :disabled="kibanaRules.page <= 1"
+                          class="px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 disabled:opacity-30 disabled:cursor-not-allowed">Prev</button>
+                  <button @click="kibanaRules.page++; loadKibanaRules()" :disabled="kibanaRules.page * kibanaRules.perPage >= kibanaRules.total"
+                          class="px-2 py-1 rounded bg-surface-700 hover:bg-surface-600 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="!kibanaRules.loading && kibanaRules.rules.length === 0">
+            <div class="text-center py-6 text-gray-600 text-xs">No matching rules</div>
+          </template>
+        </div>
+      </div><!-- end Rules tab -->
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- ELASTALERT TAB                                                    -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div x-show="detTab === 'elastalert'" x-cloak>
+        <div class="mb-6">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h2 class="text-sm font-semibold text-white">ElastAlert2 Rules</h2>
+            <div class="flex items-center gap-2">
+              <button @click="loadEaRules()" :disabled="eaRules.loading"
+                      class="p-1.5 rounded hover:bg-surface-700 text-gray-500 hover:text-gray-300 transition disabled:opacity-40" title="Refresh">
+                <svg class="w-3.5 h-3.5" :class="eaRules.loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
+              <button @click="eaRules.showPasteModal = true; eaRules.pasteMessage = null"
+                      class="px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 border border-surface-500 text-gray-300 text-xs transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Paste YAML
+              </button>
+              <label class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 text-white text-xs transition flex items-center gap-1.5 cursor-pointer"
+                     :class="eaRules.uploading ? 'opacity-60 pointer-events-none' : ''">
+                <svg class="w-3.5 h-3.5" :class="eaRules.uploading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <span x-text="eaRules.uploading ? 'Uploading…' : 'Upload File'"></span>
+                <input type="file" accept=".yml,.yaml" multiple class="hidden" @change="uploadEaRules($event)">
+              </label>
+            </div>
+          </div>
+          <template x-if="eaRules.uploadMessage">
+            <div class="text-xs rounded px-3 py-2 mb-3"
+                 :class="eaRules.uploadError ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+                 x-text="eaRules.uploadMessage"></div>
+          </template>
+          <template x-if="eaRules.error">
+            <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-3" x-text="eaRules.error"></div>
+          </template>
+          <template x-if="eaRules.loading && !eaRules.rules.length">
+            <div class="flex items-center gap-2 text-gray-500 text-xs py-4">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              Loading rules…
+            </div>
+          </template>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+            <template x-if="!eaRules.loading && eaRules.rules.length === 0">
+              <div class="flex flex-col items-center justify-center py-10 text-gray-600">
+                <svg class="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <p class="text-sm">No rules yet — upload a file or paste YAML to get started.</p>
+              </div>
+            </template>
+            <template x-for="(rule, idx) in eaRules.rules" :key="rule.filename">
+              <div :class="idx > 0 ? 'border-t border-surface-600' : ''">
+                <div class="flex items-center justify-between px-4 py-3 gap-3 cursor-pointer hover:bg-surface-700/50 transition" @click="toggleEaRule(rule.filename)">
+                  <div class="min-w-0 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 text-gray-500 shrink-0 transition-transform" :class="eaRules.expanded === rule.filename ? 'rotate-90' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                    <div class="min-w-0">
+                      <p class="text-sm text-white truncate" x-text="rule.name"></p>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-xs font-mono text-gray-500" x-text="rule.filename"></span>
+                        <template x-if="rule.type !== 'unknown'"><span class="px-1.5 py-0.5 rounded text-xs bg-surface-700 text-gray-400" x-text="rule.type"></span></template>
+                        <template x-if="rule.index"><span class="text-xs text-gray-600 truncate" x-text="rule.index"></span></template>
+                      </div>
+                    </div>
+                  </div>
+                  <button @click.stop="deleteEaRule(rule.filename)" :disabled="eaRules.deleting === rule.filename"
+                          class="shrink-0 p-1.5 rounded hover:bg-red-900/40 text-gray-600 hover:text-red-400 transition disabled:opacity-40" title="Delete rule">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                </div>
+                <div x-show="eaRules.expanded === rule.filename" class="border-t border-surface-600 bg-surface-900 px-4 py-3">
+                  <template x-if="eaRules.loadingYaml === rule.filename">
+                    <div class="flex items-center gap-2 text-gray-500 text-xs py-2">
+                      <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                      Loading…
+                    </div>
+                  </template>
+                  <template x-if="eaRules.loadingYaml !== rule.filename && eaRules.yamlCache[rule.filename] !== undefined">
+                    <pre class="text-xs text-gray-300 font-mono whitespace-pre-wrap break-words leading-relaxed" x-text="eaRules.yamlCache[rule.filename]"></pre>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+          <p class="text-xs text-gray-600 mt-2">Rules are written to <span class="font-mono">/opt/lme/config/elastalert2/rules/</span> and picked up by ElastAlert2 within 5 minutes.</p>
+        </div>
+      </div><!-- end ElastAlert tab -->
+
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <!-- KEV TAB                                                           -->
+      <!-- ═══════════════════════════════════════════════════════════════════ -->
+      <div x-show="detTab === 'kev'" x-cloak>
+
+        <!-- Summary cards -->
+        <div class="grid grid-cols-4 gap-3 mb-4">
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total KEVs</p>
+            <p class="text-2xl font-semibold text-white" x-text="kev.status ? kev.status.total_kev : '—'"></p>
+            <p class="text-xs text-gray-600 mt-0.5">in CISA catalog</p>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Matched</p>
+            <p class="text-2xl font-semibold" :class="kev.status && kev.status.matched_cves > 0 ? 'text-orange-400' : 'text-white'"
+               x-text="kev.status ? kev.status.matched_cves : '—'"></p>
+            <p class="text-xs text-gray-600 mt-0.5">found in your environment</p>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Overdue</p>
+            <p class="text-2xl font-semibold" :class="kev.status && kev.status.overdue_count > 0 ? 'text-red-400' : 'text-white'"
+               x-text="kev.status ? kev.status.overdue_count : '—'"></p>
+            <p class="text-xs text-gray-600 mt-0.5">past CISA remediation deadline</p>
+          </div>
+          <div class="bg-surface-800 border border-surface-600 rounded-lg px-4 py-3">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Last Sync</p>
+            <p class="text-sm font-semibold text-white mt-1" x-text="kev.status && kev.status.last_pull_timestamp ? fmtTime(kev.status.last_pull_timestamp) : 'Never'"></p>
+            <div class="flex items-center gap-2 mt-1">
+              <button @click="kevPull()" :disabled="kev.pulling"
+                      class="px-2 py-0.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-[10px] transition">
+                <span x-text="kev.pulling ? 'Syncing…' : 'Sync Now'"></span>
+              </button>
+              <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener"
+                 class="text-[10px] text-blue-500 hover:text-blue-400 transition">CISA Catalog</a>
+            </div>
+          </div>
+        </div>
+
+        <template x-if="kev.pullMessage">
+          <div class="mb-3 px-3 py-2 rounded text-xs"
+               :class="kev.pullError ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+               x-text="kev.pullMessage"></div>
+        </template>
+
+        <!-- Matched KEVs table -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-white">Matched KEVs in Your Environment</h3>
+            <button @click="loadKevMatched()" class="text-gray-400 hover:text-white transition">
+              <svg class="w-4 h-4" :class="kevMatched.loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </button>
+          </div>
+
+          <template x-if="kevMatched.loading">
+            <div class="flex items-center justify-center h-20 text-gray-500 text-xs">
+              <svg class="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              Loading matched KEVs…
+            </div>
+          </template>
+
+          <template x-if="!kevMatched.loading && kevMatched.items.length === 0">
+            <div class="bg-green-900/20 border border-green-800 rounded-lg p-6 text-center">
+              <svg class="w-10 h-10 mx-auto mb-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <p class="text-sm text-green-300 font-medium">No known exploited vulnerabilities found in your environment</p>
+              <p class="text-xs text-gray-500 mt-1">Your systems have no CVEs matching the CISA KEV catalog</p>
+            </div>
+          </template>
+
+          <template x-if="!kevMatched.loading && kevMatched.items.length > 0">
+            <div class="space-y-2">
+              <template x-for="item in kevMatched.items" :key="item.cve_id">
+                <div class="bg-surface-800 border rounded-lg overflow-hidden"
+                     :class="item.overdue ? 'border-red-700' : 'border-surface-600'">
+                  <div class="px-4 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <a :href="'https://nvd.nist.gov/vuln/detail/' + item.cve_id" target="_blank" rel="noopener"
+                             class="text-sm font-semibold text-blue-400 hover:text-blue-300" x-text="item.cve_id"></a>
+                          <span x-show="item.overdue" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-300 uppercase">Overdue</span>
+                          <span x-show="item.ransomware === 'Known'" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-900 text-purple-300 uppercase">Ransomware</span>
+                          <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase" :class="severityBadge(item.severity)" x-text="item.severity || 'N/A'"></span>
+                          <span x-show="item.cvss" class="text-xs text-gray-500" x-text="'CVSS ' + (item.cvss ? item.cvss.toFixed(1) : '')"></span>
+                        </div>
+                        <p class="text-xs text-white mt-1" x-text="item.name"></p>
+                        <p class="text-xs text-gray-500 mt-0.5" x-text="item.vendor + ' — ' + item.product"></p>
+                      </div>
+                      <div class="text-right shrink-0">
+                        <p class="text-[10px] text-gray-500">Due Date</p>
+                        <p class="text-xs font-semibold" :class="item.overdue ? 'text-red-400' : 'text-yellow-400'" x-text="item.due_date || 'N/A'"></p>
+                        <p class="text-[10px] text-gray-600 mt-0.5" x-text="'Added ' + item.date_added"></p>
+                      </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2 leading-relaxed line-clamp-2" x-text="item.description"></p>
+                    <div class="flex items-center justify-between mt-2">
+                      <div class="flex items-center gap-1 flex-wrap">
+                        <span class="text-[10px] text-gray-500 mr-1">Affected hosts:</span>
+                        <template x-for="host in item.affected_hosts" :key="host">
+                          <span class="px-1.5 py-0.5 rounded bg-orange-900/40 text-orange-300 text-[10px]" x-text="host"></span>
+                        </template>
+                        <span x-show="item.host_count === 0" class="text-[10px] text-gray-600">None detected</span>
+                      </div>
+                      <span class="text-[10px] text-gray-600" x-text="item.host_count + ' host(s)'"></span>
+                    </div>
+                    <div class="mt-2 px-3 py-2 bg-surface-700 rounded text-[10px] text-gray-400 leading-relaxed">
+                      <span class="text-gray-500 font-semibold">Required Action:</span>
+                      <span x-text="item.required_action"></span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div><!-- end KEV tab -->
+
+    </div><!-- end content area -->
+  </div><!-- end left panel -->
+
+
+  <!-- ── Paste YAML modal ── -->
+  <div x-show="eaRules.showPasteModal" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+       @keydown.escape.window="eaRules.showPasteModal = false">
+    <div class="bg-surface-800 border border-surface-600 rounded-lg w-full max-w-2xl flex flex-col max-h-[90vh]"
+         @click.stop>
+      <!-- Modal header -->
+      <div class="flex items-center justify-between px-4 py-3 border-b border-surface-600">
+        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0
+                     00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Paste ElastAlert2 Rule
+        </h3>
+        <button @click="eaRules.showPasteModal = false"
+                class="text-gray-500 hover:text-gray-300 transition">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <!-- Modal body -->
+      <div class="flex-1 overflow-y-auto p-4">
+        <p class="text-xs text-gray-500 mb-3">
+          Paste a valid ElastAlert2 rule YAML below. The filename will be derived from the rule's
+          <span class="font-mono">name</span> field, or you can specify one manually.
+        </p>
+        <textarea
+          x-model="eaRules.pasteYaml"
+          placeholder="name: My Detection Rule&#10;type: any&#10;index: .alerts-security.alerts-*&#10;filter:&#10;  - query_string:&#10;      query: &quot;event.action:login_failed&quot;&#10;alert:&#10;  - debug"
+          rows="16"
+          class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-2 text-xs text-gray-300
+                 placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition resize-none font-mono"
+        ></textarea>
+        <div class="mt-3">
+          <label class="block text-xs text-gray-500 mb-1">Filename (optional — leave blank to auto-derive)</label>
+          <input type="text" x-model="eaRules.pasteFilename"
+                 placeholder="my_rule.yml"
+                 class="w-full bg-surface-700 border border-surface-500 rounded px-3 py-1.5 text-xs text-gray-300
+                        placeholder-gray-600 focus:outline-none focus:border-emerald-500 transition font-mono">
+        </div>
+      </div>
+      <!-- Modal footer -->
+      <div class="px-4 py-3 border-t border-surface-600 flex items-center justify-between gap-3">
+        <template x-if="eaRules.pasteMessage">
+          <span class="text-xs"
+                :class="eaRules.pasteError ? 'text-red-400' : 'text-green-400'"
+                x-text="eaRules.pasteMessage"></span>
+        </template>
+        <div x-show="!eaRules.pasteMessage"></div>
+        <div class="flex gap-2 shrink-0">
+          <button @click="eaRules.showPasteModal = false"
+                  class="px-3 py-1.5 rounded bg-surface-700 hover:bg-surface-600 border border-surface-500
+                         text-gray-300 text-xs transition">
+            Cancel
+          </button>
+          <button @click="pasteEaRule()"
+                  :disabled="eaRules.pasting || !eaRules.pasteYaml.trim()"
+                  class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" :class="eaRules.pasting ? 'animate-spin' : ''"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span x-text="eaRules.pasting ? 'Saving…' : 'Save Rule'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end detection engineering view -->
+
+<!-- ── Vulnerabilities view ────────────────────────────────────────────── -->
+<div x-show="mainView === 'vulns'" x-cloak class="h-full overflow-y-auto">
+  <div class="max-w-7xl mx-auto p-6">
+
+    <!-- Header row -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-xl font-semibold text-white">Vulnerability Overview</h2>
+        <p class="text-gray-500 text-xs mt-1">Machines ranked by risk — most vulnerable first</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span x-show="vulns.totalVulns > 0" class="text-xs text-gray-500">
+          <span x-text="vulns.agents.length"></span> machine(s),
+          <span x-text="vulns.totalVulns"></span> total vulnerabilities
+        </span>
+        <button @click="loadVulns()" class="px-3 py-1.5 rounded bg-surface-700 text-gray-300 hover:bg-surface-600 text-xs flex items-center gap-1.5">
+          <svg class="w-3 h-3" :class="vulns.loading ? 'animate-spin' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="vulns.loading" class="text-center py-12 text-gray-500">Loading vulnerability data...</div>
+
+    <!-- Error -->
+    <div x-show="vulns.error" class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-4 text-red-300 text-sm" x-text="vulns.error"></div>
+
+    <!-- Empty state -->
+    <div x-show="!vulns.loading && !vulns.error && vulns.agents.length === 0" class="text-center py-16">
+      <svg class="w-12 h-12 mx-auto text-green-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+      </svg>
+      <p class="text-gray-400">No vulnerability data found. Ensure Wazuh agents are enrolled and vulnerability detection is enabled.</p>
+    </div>
+
+    <!-- Agent cards -->
+    <div x-show="!vulns.loading && vulns.agents.length > 0" class="space-y-4">
+      <template x-for="(agent, idx) in vulns.agents" :key="agent.agent_id">
+        <div class="bg-surface-800 border border-surface-600 rounded-lg overflow-hidden">
+
+          <!-- Agent summary row (clickable) -->
+          <button @click="toggleAgentDetail(agent)"
+                  class="w-full px-5 py-4 flex items-center gap-4 hover:bg-surface-700/50 transition text-left">
+
+            <!-- Rank badge -->
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                 :class="idx === 0 ? 'bg-red-900 text-red-300' : idx < 3 ? 'bg-orange-900 text-orange-300' : 'bg-surface-700 text-gray-400'">
+              <span x-text="idx + 1"></span>
+            </div>
+
+            <!-- Machine info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-white font-medium truncate" x-text="agent.agent_name"></span>
+                <span class="text-xs text-gray-600" x-text="'ID: ' + agent.agent_id"></span>
+              </div>
+              <div class="text-xs text-gray-500 truncate" x-text="agent.os"></div>
+            </div>
+
+            <!-- Severity bar -->
+            <div class="flex items-center gap-1 shrink-0">
+              <span x-show="agent.critical > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300"
+                    x-text="agent.critical + ' Critical'"></span>
+              <span x-show="agent.high > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-orange-900 text-orange-300"
+                    x-text="agent.high + ' High'"></span>
+              <span x-show="agent.medium > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300"
+                    x-text="agent.medium + ' Med'"></span>
+              <span x-show="agent.low > 0" class="px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300"
+                    x-text="agent.low + ' Low'"></span>
+            </div>
+
+            <!-- Total + CVSS -->
+            <div class="text-right shrink-0 w-24">
+              <div class="text-white font-semibold" x-text="agent.total + ' CVEs'"></div>
+              <div class="text-xs text-gray-500">
+                Max CVSS: <span class="font-medium"
+                  :class="agent.max_cvss >= 9 ? 'text-red-400' : agent.max_cvss >= 7 ? 'text-orange-400' : agent.max_cvss >= 4 ? 'text-yellow-400' : 'text-green-400'"
+                  x-text="agent.max_cvss.toFixed(1)"></span>
+              </div>
+            </div>
+
+            <!-- Severity visual bar -->
+            <div class="w-32 shrink-0">
+              <div class="flex h-3 rounded-full overflow-hidden bg-surface-700">
+                <div class="bg-red-500" :style="'width:' + (agent.total ? (agent.critical/agent.total*100) : 0) + '%'"></div>
+                <div class="bg-orange-500" :style="'width:' + (agent.total ? (agent.high/agent.total*100) : 0) + '%'"></div>
+                <div class="bg-yellow-500" :style="'width:' + (agent.total ? (agent.medium/agent.total*100) : 0) + '%'"></div>
+                <div class="bg-green-600" :style="'width:' + (agent.total ? (agent.low/agent.total*100) : 0) + '%'"></div>
+              </div>
+            </div>
+
+            <!-- Expand chevron -->
+            <svg class="w-4 h-4 text-gray-500 transition-transform shrink-0" :class="agent._expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+
+          <!-- Expanded detail: CVE list -->
+          <div x-show="agent._expanded" class="border-t border-surface-600">
+
+            <!-- Severity filter tabs -->
+            <div class="px-5 py-2 bg-surface-900/50 flex items-center gap-2 text-xs border-b border-surface-700">
+              <span class="text-gray-500 mr-1">Filter:</span>
+              <button @click="loadAgentVulns(agent.agent_id, '', false)"
+                      :class="vulnDetail.sevFilter === '' ? 'bg-surface-600 text-white' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">All</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'Critical', false)"
+                      :class="vulnDetail.sevFilter === 'Critical' ? 'bg-red-900 text-red-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">Critical</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'High', false)"
+                      :class="vulnDetail.sevFilter === 'High' ? 'bg-orange-900 text-orange-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">High</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'Medium', false)"
+                      :class="vulnDetail.sevFilter === 'Medium' ? 'bg-yellow-900 text-yellow-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">Medium</button>
+              <button @click="loadAgentVulns(agent.agent_id, 'Low', false)"
+                      :class="vulnDetail.sevFilter === 'Low' ? 'bg-green-900 text-green-300' : 'text-gray-400 hover:text-gray-200'"
+                      class="px-2 py-0.5 rounded transition">Low</button>
+              <span x-show="vulnDetail.loading" class="ml-2 text-gray-500">Loading...</span>
+            </div>
+
+            <!-- CVE table -->
+            <div class="max-h-96 overflow-y-auto" @scroll="onVulnScroll($event)">
+              <table class="w-full text-xs">
+                <thead class="bg-surface-900/80 sticky top-0">
+                  <tr class="text-gray-500 text-left">
+                    <th class="px-5 py-2 font-medium w-36">CVE</th>
+                    <th class="px-3 py-2 font-medium w-20">Severity</th>
+                    <th class="px-3 py-2 font-medium w-16">CVSS</th>
+                    <th class="px-3 py-2 font-medium w-40">Package</th>
+                    <th class="px-3 py-2 font-medium">Description</th>
+                    <th class="px-3 py-2 font-medium w-24">Detected</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(vuln, vi) in vulnDetail.vulns" :key="vi">
+                    <tr class="border-t border-surface-700 hover:bg-surface-700/30">
+                      <td class="px-5 py-2">
+                        <div class="flex items-center gap-1.5">
+                          <a :href="'https://nvd.nist.gov/vuln/detail/' + vuln.cve_id" target="_blank"
+                             class="text-blue-400 hover:underline font-medium" x-text="vuln.cve_id"></a>
+                          <span x-show="vuln.is_kev" class="px-1 py-0.5 rounded text-[10px] font-bold bg-rose-700 text-white" title="CISA Known Exploited Vulnerability">KEV</span>
+                        </div>
+                        <div x-show="vuln.is_kev && vuln.kev_due_date" class="text-[10px] text-rose-400 mt-0.5">
+                          Due: <span x-text="vuln.kev_due_date"></span>
+                          <span x-show="vuln.kev_ransomware === 'Known'" class="ml-1 text-rose-300">Ransomware</span>
+                        </div>
+                      </td>
+                      <td class="px-3 py-2">
+                        <span class="px-1.5 py-0.5 rounded text-xs"
+                              :class="severityBadge(vuln.severity.toLowerCase())"
+                              x-text="vuln.severity || 'N/A'"></span>
+                      </td>
+                      <td class="px-3 py-2 font-medium"
+                          :class="(vuln.cvss||0) >= 9 ? 'text-red-400' : (vuln.cvss||0) >= 7 ? 'text-orange-400' : (vuln.cvss||0) >= 4 ? 'text-yellow-400' : 'text-green-400'"
+                          x-text="vuln.cvss != null ? vuln.cvss.toFixed(1) : '—'"></td>
+                      <td class="px-3 py-2">
+                        <div class="text-gray-300" x-text="vuln.package"></div>
+                        <div class="text-gray-600 truncate max-w-[10rem]" x-text="vuln.package_version"></div>
+                      </td>
+                      <td class="px-3 py-2 text-gray-400">
+                        <div class="line-clamp-2" x-text="vuln.description"></div>
+                      </td>
+                      <td class="px-3 py-2 text-gray-500" x-text="fmtTime(vuln.detected_at)"></td>
+                    </tr>
+                  </template>
+                  <tr x-show="agent._expanded && !vulnDetail.loading && vulnDetail.vulns.length === 0">
+                    <td colspan="6" class="px-5 py-4 text-center text-gray-500">No vulnerabilities found for this filter.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <!-- Load more / status row -->
+              <div class="px-5 py-2 text-xs text-gray-500 flex items-center justify-between border-t border-surface-700">
+                <span x-text="'Showing ' + vulnDetail.vulns.length + ' of ' + vulnDetail.total"></span>
+                <span x-show="vulnDetail.loading && vulnDetail.vulns.length > 0" class="text-blue-400">Loading more...</span>
+                <span x-show="!vulnDetail.hasMore && vulnDetail.vulns.length > 0 && !vulnDetail.loading" class="text-gray-600">All loaded</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div><!-- end vulnerabilities view -->
+
+<!-- ── Settings View ──────────────────────────────────────────────────────── -->
+<div x-show="mainView === 'settings'" x-cloak class="flex h-full">
+
+  <!-- LEFT: Settings sidebar -->
+  <div class="w-52 shrink-0 bg-surface-800 border-r border-surface-600 py-4 px-3 space-y-1">
+    <button @click="settingsSection = 'models'"
+            :class="settingsSection === 'models' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+      AI Models
+    </button>
+    <button @click="settingsSection = 'local-models'"
+            :class="settingsSection === 'local-models' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+      </svg>
+      Local Models
+    </button>
+    <button @click="settingsSection = 'kev'"
+            :class="settingsSection === 'kev' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732
+                 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      KEV Configuration
+    </button>
+    <button @click="settingsSection = 'documents'; loadDocsStatus()"
+            :class="settingsSection === 'documents' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Documents
+    </button>
+    <button @click="settingsSection = 'general'"
+            :class="settingsSection === 'general' ? 'bg-surface-700 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-surface-700/50'"
+            class="w-full text-left px-3 py-2 rounded text-sm font-medium transition flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6
+                 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+      </svg>
+      General
+    </button>
+  </div>
+
+  <!-- RIGHT: Settings content -->
+  <div class="flex-1 overflow-y-auto px-8 py-6">
+    <div class="max-w-3xl">
+
+    <!-- ═══ AI Models Section ═══ -->
+    <div x-show="settingsSection === 'models'">
+      <h2 class="text-white font-semibold text-lg mb-1">AI Models</h2>
+      <p class="text-xs text-gray-500 mb-6">Configure LLM providers and API keys</p>
+
+      <!-- Active model display -->
+      <div class="bg-surface-900 rounded-lg p-4 border border-surface-600 mb-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Active Model</p>
+            <p class="text-white font-semibold text-lg" x-text="modelSettings.activeModel || 'Loading...'"></p>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-green-900 text-green-300 text-xs font-medium">In Use</span>
+        </div>
+      </div>
+
+      <!-- Configured models list -->
+      <h3 class="text-white font-medium mb-3">Configured Models</h3>
+      <div class="space-y-2 mb-6">
+        <template x-if="modelSettings.models.length === 0">
+          <p class="text-gray-600 text-sm">No models configured yet.</p>
+        </template>
+        <template x-for="(m, i) in modelSettings.models" :key="i">
+          <div class="bg-surface-900 border border-surface-600 rounded-lg px-4 py-3 flex items-center justify-between group hover:border-surface-500 transition">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-white font-medium" x-text="m.model_name"></span>
+                <span x-show="m.provider === 'local' || m.provider === ''"
+                      class="px-1.5 py-0.5 rounded text-xs bg-purple-900 text-purple-300 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                  Local
+                </span>
+                <span x-show="m.provider && m.provider !== 'local'"
+                      class="px-1.5 py-0.5 rounded text-xs bg-sky-900 text-sky-300 flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                  Cloud
+                </span>
+                <span x-show="m.model_name === modelSettings.activeModel"
+                      class="px-1.5 py-0.5 rounded text-xs bg-green-900 text-green-300">active</span>
+              </div>
+              <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-3">
+                <span x-text="m.litellm_model"></span>
+                <span x-show="m.api_base" x-text="m.api_base" class="truncate max-w-[200px]"></span>
+                <span x-show="m.has_api_key" class="text-green-500">key set</span>
+                <span x-show="!m.has_api_key" class="text-gray-600">no key</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button x-show="m.model_name !== modelSettings.activeModel"
+                      @click="setActiveModel(m.model_name)"
+                      class="px-2 py-1 rounded bg-blue-900/50 text-blue-300 hover:bg-blue-800 text-xs transition">
+                Use
+              </button>
+              <button @click="deleteModel(m.model_name)"
+                      class="px-2 py-1 rounded bg-red-900/30 text-red-400 hover:bg-red-900 text-xs transition opacity-0 group-hover:opacity-100">
+                Remove
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Add new model -->
+      <h3 class="text-white font-medium mb-3">Add Model</h3>
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button @click="newModel.provider = 'local'; prefillModel()"
+                :class="newModel.provider === 'local' ? 'border-purple-500 bg-purple-900/30 text-purple-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">Local</div>
+          <div class="text-xs opacity-60 mt-0.5">llama.cpp</div>
+        </button>
+        <button @click="newModel.provider = 'openai'; prefillModel()"
+                :class="newModel.provider === 'openai' ? 'border-green-500 bg-green-900/30 text-green-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">OpenAI</div>
+          <div class="text-xs opacity-60 mt-0.5">GPT-4o, etc.</div>
+        </button>
+        <button @click="newModel.provider = 'anthropic'; prefillModel()"
+                :class="newModel.provider === 'anthropic' ? 'border-orange-500 bg-orange-900/30 text-orange-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">Anthropic</div>
+          <div class="text-xs opacity-60 mt-0.5">Claude</div>
+        </button>
+        <button @click="newModel.provider = 'openrouter'; prefillModel()"
+                :class="newModel.provider === 'openrouter' ? 'border-blue-500 bg-blue-900/30 text-blue-200' : 'border-surface-600 text-gray-400 hover:border-gray-500'"
+                class="border rounded-lg px-3 py-2.5 text-center text-sm transition">
+          <div class="font-medium">OpenRouter</div>
+          <div class="text-xs opacity-60 mt-0.5">Multi-provider</div>
+        </button>
+      </div>
+      <div class="space-y-3 mb-6">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Display Name</label>
+          <input x-model="newModel.model_name" type="text" placeholder="e.g. gpt-4o"
+                 class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Model ID</label>
+          <input x-model="newModel.litellm_model" type="text" placeholder="e.g. gpt-4o"
+                 class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          <template x-if="modelSettings.providers[newModel.provider]?.models">
+            <div class="flex flex-wrap gap-1 mt-1.5">
+              <template x-for="s in modelSettings.providers[newModel.provider].models" :key="s">
+                <button @click="newModel.litellm_model = s; if(!newModel.model_name) newModel.model_name = s.split('/').pop()"
+                        class="px-2 py-0.5 rounded bg-surface-700 text-gray-400 hover:text-white text-xs transition"
+                        x-text="s"></button>
+              </template>
+            </div>
+          </template>
+        </div>
+        <template x-if="modelSettings.providers[newModel.provider]?.needs_api_key">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">API Key</label>
+            <input x-model="newModel.api_key" type="password" placeholder="sk-..."
+                   class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          </div>
+        </template>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">API Base URL <span class="text-gray-600">(optional)</span></label>
+          <input x-model="newModel.api_base" type="text" :placeholder="modelSettings.providers[newModel.provider]?.api_base || 'Leave empty for default'"
+                 class="w-full bg-surface-900 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+        </div>
+        <div class="flex items-center gap-3 pt-1">
+          <button @click="addModel()"
+                  :disabled="!newModel.model_name || modelSettings.saving"
+                  class="px-4 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium text-sm transition">
+            <span x-show="!modelSettings.saving">Add Model</span>
+            <span x-show="modelSettings.saving">Saving…</span>
+          </button>
+          <span x-show="modelSettings.message" x-text="modelSettings.message"
+                class="text-xs" :class="modelSettings.error ? 'text-red-400' : 'text-green-400'"></span>
+        </div>
+      </div>
+
+      <div class="bg-blue-950/30 border border-blue-900/50 rounded-lg p-3 text-xs text-blue-300/80">
+        <p class="font-medium text-blue-300 mb-1">How it works</p>
+        <ul class="space-y-1 list-disc list-inside">
+          <li><strong>Use</strong> instantly switches which model the AI Assistant uses</li>
+          <li><strong>Add/Remove</strong> updates the LiteLLM proxy config — restart the LiteLLM service to apply</li>
+          <li>By default, the local llama.cpp model is used (no API key needed)</li>
+        </ul>
+      </div>
+    </div><!-- end AI Models section -->
+
+    <!-- ═══ Local Models Section ═══ -->
+    <div x-show="settingsSection === 'local-models'">
+      <div class="flex items-center gap-3 mb-1">
+        <h2 class="text-white font-semibold text-lg">Local Models</h2>
+        <span class="text-xs font-normal px-2 py-0.5 rounded-full"
+              :class="localModels.status.status === 'ready' ? 'bg-green-900/50 text-green-400' :
+                       localModels.status.status === 'switching' ? 'bg-yellow-900/50 text-yellow-400' :
+                       localModels.status.status === 'error' ? 'bg-red-900/50 text-red-400' :
+                       'bg-gray-800 text-gray-500'"
+              x-text="localModels.status.status === 'switching' ? 'Restarting...' :
+                       localModels.status.status === 'error' ? 'Error' :
+                       localModels.status.status === 'ready' ? 'Running' : 'Unknown'"></span>
+      </div>
+      <p class="text-xs text-gray-500 mb-6">Manage local llama.cpp GGUF model files</p>
+
+      <template x-if="localModels.status.status === 'error' && localModels.status.error">
+        <div class="mb-4 p-2 rounded bg-red-900/30 border border-red-800 text-red-300 text-xs"
+             x-text="localModels.status.error"></div>
+      </template>
+
+      <!-- Available GGUF models -->
+      <h3 class="text-white font-medium mb-3">Installed Models</h3>
+      <div class="space-y-2 mb-6">
+        <template x-if="localModels.models.length === 0">
+          <p class="text-gray-500 text-sm">No .gguf models found in /opt/lme/llama-models/</p>
+        </template>
+        <template x-for="m in localModels.models" :key="m.filename">
+          <div class="flex items-center justify-between p-3 rounded-lg border group transition"
+               :class="m.filename === localModels.activeModel ? 'border-green-700 bg-green-900/20' : 'border-surface-600 bg-surface-900 hover:border-surface-500'">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                   :class="m.filename === localModels.activeModel ? 'bg-green-900/50' : 'bg-surface-700'">
+                <svg class="w-4 h-4" :class="m.filename === localModels.activeModel ? 'text-green-400' : 'text-gray-500'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium truncate" :class="m.filename === localModels.activeModel ? 'text-green-300' : 'text-gray-300'"
+                   x-text="m.filename"></p>
+                <p class="text-xs text-gray-500" x-text="m.size_mb + ' MB'"></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span x-show="m.filename === localModels.activeModel"
+                    class="px-2 py-0.5 rounded-full bg-green-900/50 text-green-400 text-xs">Active</span>
+              <button x-show="m.filename !== localModels.activeModel"
+                      @click="switchLocalModel(m.filename)"
+                      :disabled="localModels.switching"
+                      class="px-3 py-1.5 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800 text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed">
+                <span x-show="!localModels.switching">Switch</span>
+                <span x-show="localModels.switching">Switching...</span>
+              </button>
+              <button x-show="m.filename !== localModels.activeModel"
+                      @click="deleteLocalModel(m.filename)"
+                      class="px-2 py-1.5 rounded bg-red-900/50 text-red-400 hover:bg-red-800 text-xs font-medium transition">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Download in progress -->
+      <template x-if="localModels.downloads.length > 0">
+        <div class="mb-6 space-y-2">
+          <template x-for="d in localModels.downloads" :key="d.filename">
+            <div class="p-3 rounded-lg bg-blue-900/20 border border-blue-800">
+              <div class="flex items-center gap-3 mb-1">
+                <svg class="w-4 h-4 text-blue-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span class="text-sm text-blue-300 font-medium" x-text="d.filename"></span>
+              </div>
+              <div class="ml-7 flex items-center gap-2">
+                <div class="flex-1 bg-blue-950 rounded-full h-2 overflow-hidden">
+                  <div class="bg-blue-500 h-2 rounded-full animate-pulse" style="width: 100%"></div>
+                </div>
+                <span class="text-xs text-blue-400 whitespace-nowrap"
+                      x-text="d.downloaded_mb >= 1024 ? (d.downloaded_mb / 1024).toFixed(1) + ' GB' : d.downloaded_mb + ' MB'"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Download new model -->
+      <h3 class="text-white font-medium mb-3">Download from HuggingFace</h3>
+      <div class="border border-surface-600 rounded-lg p-4 bg-surface-900">
+        <div class="flex gap-2 mb-3">
+          <input x-model="localModels.searchQuery" type="text"
+                 placeholder="e.g. google/gemma-3-1b-it, mistral-7b, phi-3-mini"
+                 @keydown.enter="searchModels()"
+                 class="flex-1 bg-surface-800 border border-surface-500 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"/>
+          <button @click="searchModels()"
+                  :disabled="!localModels.searchQuery || localModels.searching"
+                  class="px-4 py-2 rounded bg-purple-700 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition whitespace-nowrap">
+            <span x-show="!localModels.searching">Search</span>
+            <span x-show="localModels.searching">Searching...</span>
+          </button>
+        </div>
+        <template x-if="localModels.searchResults.length > 0">
+          <div class="space-y-3 max-h-80 overflow-y-auto">
+            <template x-for="repo in localModels.searchResults" :key="repo.repo_id">
+              <div class="border border-surface-500 rounded-lg p-3 bg-surface-800">
+                <p class="text-sm text-purple-300 font-medium mb-2" x-text="repo.repo_id"></p>
+                <div class="space-y-1.5">
+                  <template x-for="f in repo.files" :key="f.filename">
+                    <div class="flex items-center justify-between px-2 py-1.5 rounded hover:bg-surface-700 transition group">
+                      <div class="min-w-0 flex-1">
+                        <span class="text-xs text-gray-300 truncate block" x-text="f.filename"></span>
+                        <span class="text-xs text-gray-500">
+                          <span x-show="f.size_mb" x-text="f.size_mb >= 1024 ? (f.size_mb / 1024).toFixed(1) + ' GB' : f.size_mb + ' MB'"></span>
+                          <span x-show="f.quant" class="ml-1 px-1.5 py-0.5 rounded bg-surface-600 text-gray-400" x-text="f.quant"></span>
+                        </span>
+                      </div>
+                      <button @click="downloadSearchResult(repo.repo_id, f.filename)"
+                              :disabled="localModels.downloading"
+                              class="ml-2 px-3 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-medium transition opacity-0 group-hover:opacity-100 shrink-0">
+                        Download
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+        <template x-if="localModels.searchDone && localModels.searchResults.length === 0">
+          <p class="text-xs text-gray-500 py-2">No GGUF models found. Try a different name like "owner/model-name".</p>
+        </template>
+        <p x-show="localModels.downloadMessage" x-text="localModels.downloadMessage"
+           class="mt-2 text-xs" :class="localModels.downloadError ? 'text-red-400' : 'text-green-400'"></p>
+      </div>
+
+      <p x-show="localModels.message" x-text="localModels.message"
+         class="mt-3 text-xs" :class="localModels.messageError ? 'text-red-400' : 'text-green-400'"></p>
+    </div><!-- end Local Models section -->
+
+    <!-- ═══ KEV Configuration Section ═══ -->
+    <div x-show="settingsSection === 'kev'">
+      <h2 class="text-white font-semibold text-lg mb-1">KEV Configuration</h2>
+      <p class="text-xs text-gray-500 mb-6">CISA Known Exploited Vulnerabilities catalog sync and alerting</p>
+
+      <template x-if="kev.loading">
+        <div class="flex items-center gap-2 text-gray-500 text-xs mb-4">
+          <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          Loading KEV status…
+        </div>
+      </template>
+      <template x-if="kev.error">
+        <div class="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-xs mb-4"
+             x-text="kev.error"></div>
+      </template>
+
+      <!-- Catalog Sync card -->
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 mb-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Catalog Sync</h3>
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-500">Last pull:</span>
+            <span class="text-gray-300"
+                  x-text="kev.status && kev.status.last_pull_timestamp
+                           ? kev.status.last_pull_timestamp : 'Never'"></span>
+            <template x-if="kev.status">
+              <span class="px-1.5 py-0.5 rounded-full text-xs font-medium"
+                    :class="{
+                      'bg-green-900 text-green-300': kev.status.badge === 'current',
+                      'bg-yellow-900 text-yellow-300': kev.status.badge === 'stale',
+                      'bg-gray-700 text-gray-400':    kev.status.badge === 'never',
+                    }"
+                    x-text="kev.status.badge === 'current' ? 'Current'
+                           : kev.status.badge === 'stale'   ? 'Stale'
+                           : 'Never pulled'"></span>
+            </template>
+          </div>
+          <button @click="kevPull()"
+                  :disabled="kev.pulling"
+                  class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5 shrink-0">
+            <svg class="w-3.5 h-3.5" :class="kev.pulling ? 'animate-spin' : ''"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                       0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span x-text="kev.pulling ? 'Pulling…' : 'Pull now'"></span>
+          </button>
+        </div>
+        <template x-if="kev.pullMessage">
+          <div class="text-xs rounded px-3 py-2 mb-3"
+               :class="kev.pullError
+                 ? 'bg-red-900/30 border border-red-700 text-red-300'
+                 : 'bg-green-900/30 border border-green-700 text-green-300'"
+               x-text="kev.pullMessage"></div>
+        </template>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs text-gray-300">Auto-pull</p>
+            <p class="text-xs text-gray-600">Automatically sync the catalog on a schedule</p>
+          </div>
+          <button @click="kevSettings.auto_pull = !kevSettings.auto_pull; saveKevSettings()"
+                  :class="kevSettings.auto_pull ? 'bg-emerald-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.auto_pull ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs" :class="kevSettings.auto_pull ? 'text-gray-300' : 'text-gray-600'">Pull frequency</p>
+            <p class="text-xs text-gray-600">How often to sync from CISA</p>
+          </div>
+          <select x-model.number="kevSettings.frequency_hours"
+                  @change="saveKevSettings()"
+                  :disabled="!kevSettings.auto_pull"
+                  class="bg-surface-700 border border-surface-500 rounded px-2 py-1 text-xs
+                         text-gray-300 focus:outline-none focus:border-emerald-500 transition
+                         disabled:opacity-40 disabled:cursor-not-allowed">
+            <option value="6">Every 6 hours</option>
+            <option value="12">Every 12 hours</option>
+            <option value="24">Daily</option>
+            <option value="168">Weekly</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Alert Settings card -->
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Alert Settings</h3>
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <p class="text-xs text-gray-300">Alert on new KEV match</p>
+            <p class="text-xs text-gray-600">Level 15 Wazuh alert when a host CVE enters the catalog</p>
+          </div>
+          <button @click="kevSettings.alert_on_match = !kevSettings.alert_on_match"
+                  :class="kevSettings.alert_on_match ? 'bg-emerald-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.alert_on_match ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs text-gray-300">Alert on overdue remediation</p>
+            <p class="text-xs text-gray-600">Notify when a matched KEV passes its CISA due date</p>
+          </div>
+          <button @click="kevSettings.alert_on_overdue = !kevSettings.alert_on_overdue"
+                  :class="kevSettings.alert_on_overdue ? 'bg-emerald-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.alert_on_overdue ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between py-2 border-t border-surface-600">
+          <div>
+            <p class="text-xs text-gray-300">Ransomware-linked KEVs only</p>
+            <p class="text-xs text-gray-600">Filter alerts to CVEs confirmed in ransomware campaigns</p>
+          </div>
+          <button @click="kevSettings.ransomware_only = !kevSettings.ransomware_only"
+                  :class="kevSettings.ransomware_only ? 'bg-orange-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="kevSettings.ransomware_only ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-surface-600">
+          <template x-if="kevSettings.message">
+            <span class="text-xs"
+                  :class="kevSettings.error ? 'text-red-400' : 'text-green-400'"
+                  x-text="kevSettings.message"></span>
+          </template>
+          <div x-show="!kevSettings.message"></div>
+          <button @click="saveKevSettings()"
+                  :disabled="kevSettings.saving"
+                  class="px-3 py-1.5 rounded bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-xs transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" :class="kevSettings.saving ? 'animate-spin' : ''"
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span x-text="kevSettings.saving ? 'Saving…' : 'Save settings'"></span>
+          </button>
+        </div>
+      </div>
+    </div><!-- end KEV Configuration section -->
+
+    <!-- ═══ Documents Section ═══ -->
+    <div x-show="settingsSection === 'documents'">
+      <h2 class="text-white font-semibold text-lg mb-1">Documents</h2>
+      <p class="text-xs text-gray-500 mb-6">Manage the LME documentation index used by AI chat (RAG)</p>
+
+      <div class="bg-surface-900 rounded-lg p-4 border border-surface-600 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-medium text-white">LME Documentation Index</h3>
+            <p class="text-[10px] text-gray-500 mt-1">Scraped from cisagov.github.io/lme-docs/ and stored in pgvector for AI-powered search</p>
+          </div>
+          <template x-if="docsIndex.status">
+            <div class="text-right">
+              <p class="text-sm font-medium" :class="docsIndex.status.chunk_count > 0 ? 'text-green-400' : 'text-yellow-400'"
+                 x-text="docsIndex.status.chunk_count + ' chunks indexed'"></p>
+              <p x-show="docsIndex.status.last_ingested" class="text-[10px] text-gray-500"
+                 x-text="'Last updated: ' + new Date(docsIndex.status.last_ingested).toLocaleString()"></p>
+            </div>
+          </template>
+        </div>
+
+        <button @click="ingestDocs()" :disabled="docsIndex.ingesting"
+                class="px-4 py-2 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition flex items-center gap-2">
+          <template x-if="docsIndex.ingesting">
+            <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+          </template>
+          <template x-if="!docsIndex.ingesting">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+          </template>
+          <span x-text="docsIndex.ingesting ? 'Scraping & indexing… this takes a few minutes' : 'Pull Latest Documentation'"></span>
+        </button>
+
+        <template x-if="docsIndex.message">
+          <div class="mt-3 px-3 py-2 rounded text-xs"
+               :class="docsIndex.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/30 border border-green-700 text-green-300'"
+               x-text="docsIndex.message"></div>
+        </template>
+      </div>
+    </div>
+
+    <!-- ═══ General Section ═══ -->
+    <div x-show="settingsSection === 'general'">
+      <h2 class="text-white font-semibold text-lg mb-1">General</h2>
+      <p class="text-xs text-gray-500 mb-6">Dashboard behavior and defaults</p>
+
+      <div class="bg-surface-800 border border-surface-600 rounded-lg p-4 space-y-0">
+        <!-- Auto-refresh -->
+        <div class="flex items-center justify-between py-3">
+          <div>
+            <p class="text-sm text-gray-300">Auto-refresh</p>
+            <p class="text-xs text-gray-600">Automatically reload alerts and health status every 60 seconds</p>
+          </div>
+          <button @click="toggleAutoRefresh()"
+                  :class="autoRefresh ? 'bg-blue-600' : 'bg-surface-600'"
+                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
+                         transition-colors focus:outline-none cursor-pointer">
+            <span :class="autoRefresh ? 'translate-x-4' : 'translate-x-0'"
+                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
+          </button>
+        </div>
+      </div>
+    </div><!-- end General section -->
+
+    </div><!-- end max-w-3xl -->
+  </div><!-- end content area -->
+</div><!-- end Settings view -->
+
+</div><!-- end views wrapper -->
+
+<!-- ── RIGHT: LME Docs Assistant (always visible) ────────────────────────── -->
+<div class="w-80 xl:w-96 shrink-0 bg-surface-800 border-l border-surface-600 flex flex-col">
+  <div class="px-4 py-3 border-b border-surface-600 flex items-center justify-between">
+    <div class="flex items-center gap-2 text-sm font-medium text-white">
+      <!-- Lumberjack mascot -->
+      <svg class="w-6 h-6" viewBox="0 0 48 48" fill="none">
+        <!-- Beanie hat -->
+        <path d="M15 17Q15 9 24 9Q33 9 33 17Z" fill="#DC2626"/>
+        <circle cx="24" cy="8" r="2.5" fill="#EF4444"/>
+        <rect x="14" y="16" width="20" height="3" rx="1.5" fill="#991B1B"/>
+        <!-- Face -->
+        <circle cx="24" cy="24" r="8" fill="#FBBF24"/>
+        <!-- Eyes -->
+        <circle cx="21" cy="22.5" r="1.3" fill="#1E293B"/>
+        <circle cx="27" cy="22.5" r="1.3" fill="#1E293B"/>
+        <!-- Smile -->
+        <path d="M21.5 26Q24 29 26.5 26" stroke="#92400E" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <!-- Beard -->
+        <path d="M17 26C17 33 24 35.5 24 35.5C24 35.5 31 33 31 26" fill="#92400E"/>
+        <!-- Body (flannel plaid) -->
+        <rect x="15" y="35" width="18" height="13" rx="3" fill="#DC2626"/>
+        <line x1="18" y1="35" x2="18" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+        <line x1="24" y1="35" x2="24" y2="48" stroke="#1E293B" stroke-width="3" opacity="0.45"/>
+        <line x1="30" y1="35" x2="30" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+        <line x1="15" y1="38" x2="33" y2="38" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+        <line x1="15" y1="44" x2="33" y2="44" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+        <line x1="15" y1="41" x2="33" y2="41" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+        <line x1="21" y1="35" x2="21" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+        <line x1="27" y1="35" x2="27" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+        <!-- Axe -->
+        <line x1="35" y1="28" x2="42" y2="14" stroke="#A16207" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M40 11L46 15L43 19Z" fill="#94A3B8"/>
+      </svg>
+      LME Docs Assistant
+    </div>
+    <div class="flex items-center gap-2">
+      <button @click="clearChat()" class="text-gray-600 hover:text-gray-400 text-xs transition">Clear</button>
+    </div>
+  </div>
+
+  <!-- messages -->
+  <div class="flex-1 overflow-y-auto px-3 py-3 space-y-3" x-ref="chatScroll">
+    <template x-if="chat.messages.length === 0">
+      <div class="text-center text-gray-600 text-xs mt-6 space-y-1">
+        <!-- Lumberjack mascot (large) -->
+        <svg class="w-16 h-16 mx-auto mb-3" viewBox="0 0 48 48" fill="none">
+          <path d="M15 17Q15 9 24 9Q33 9 33 17Z" fill="#DC2626"/>
+          <circle cx="24" cy="8" r="2.5" fill="#EF4444"/>
+          <rect x="14" y="16" width="20" height="3" rx="1.5" fill="#991B1B"/>
+          <circle cx="24" cy="24" r="8" fill="#FBBF24"/>
+          <circle cx="21" cy="22.5" r="1.3" fill="#1E293B"/>
+          <circle cx="27" cy="22.5" r="1.3" fill="#1E293B"/>
+          <path d="M21.5 26Q24 29 26.5 26" stroke="#92400E" stroke-width="1" fill="none" stroke-linecap="round"/>
+          <path d="M17 26C17 33 24 35.5 24 35.5C24 35.5 31 33 31 26" fill="#92400E"/>
+          <rect x="15" y="35" width="18" height="13" rx="3" fill="#DC2626"/>
+          <line x1="18" y1="35" x2="18" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+          <line x1="24" y1="35" x2="24" y2="48" stroke="#1E293B" stroke-width="3" opacity="0.45"/>
+          <line x1="30" y1="35" x2="30" y2="48" stroke="#1E3A1E" stroke-width="2" opacity="0.5"/>
+          <line x1="15" y1="38" x2="33" y2="38" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+          <line x1="15" y1="44" x2="33" y2="44" stroke="#1E293B" stroke-width="2" opacity="0.4"/>
+          <line x1="15" y1="41" x2="33" y2="41" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+          <line x1="21" y1="35" x2="21" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+          <line x1="27" y1="35" x2="27" y2="48" stroke="#FBBF24" stroke-width="1" opacity="0.45"/>
+          <line x1="35" y1="28" x2="42" y2="14" stroke="#A16207" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M40 11L46 15L43 19Z" fill="#94A3B8"/>
+        </svg>
+        <p>Ask me anything about LME</p>
+        <p class="text-gray-700 mt-2">Installation, configuration, troubleshooting, and more</p>
+        <p class="mt-3">
+          <span class="text-purple-400">Answers grounded in the LME documentation</span>
+        </p>
+      </div>
+    </template>
+
+    <template x-for="(msg, i) in chat.messages" :key="i">
+      <div data-msg :class="msg.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start'">
+        <template x-if="msg.role === 'user'">
+          <div class="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed bg-blue-900/60 text-blue-100">
+            <div class="whitespace-pre-wrap" x-text="msg.content"></div>
+          </div>
+        </template>
+        <template x-if="msg.role === 'assistant'">
+          <div class="max-w-[85%] space-y-2">
+            <template x-if="!msg.content">
+              <div class="bg-surface-700 rounded-lg px-3 py-2">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </div>
+            </template>
+            <template x-if="msg.content">
+              <div class="bg-surface-700 text-gray-300 rounded-lg px-3 py-2 text-xs leading-relaxed">
+                <div class="whitespace-pre-wrap" x-html="linkify(msg.content)"></div>
+              </div>
+            </template>
+            <template x-if="msg.content && msg.sources && msg.sources.length">
+              <div class="space-y-1.5">
+                <p class="text-xs text-purple-400 font-semibold uppercase tracking-wide">Relevant Documentation</p>
+                <template x-for="(src, si) in msg.sources" :key="si">
+                  <a :href="src.url" target="_blank" rel="noopener"
+                     class="block bg-purple-950/50 border border-purple-800/60 rounded-lg px-3 py-2
+                            hover:bg-purple-900/50 hover:border-purple-700 transition group">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-purple-200 group-hover:text-white truncate"
+                           x-text="src.section || src.title"></p>
+                        <p class="text-xs text-purple-500 truncate mt-0.5" x-text="src.url"></p>
+                      </div>
+                      <span class="shrink-0 text-xs text-purple-600 mt-0.5"
+                            x-text="(src.similarity * 100).toFixed(0) + '%'"></span>
+                    </div>
+                    <template x-if="src.excerpt">
+                      <p class="text-xs text-purple-400/80 mt-1.5 leading-relaxed line-clamp-2"
+                         x-text="src.excerpt"></p>
+                    </template>
+                  </a>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+
+  <!-- input -->
+  <div class="px-3 pb-3 pt-2 border-t border-surface-600">
+    <div class="flex gap-2">
+      <textarea
+        x-model="chat.input"
+        @keydown.enter.prevent="if (!$event.shiftKey) sendChat()"
+        rows="2"
+        placeholder="Ask about LME docs… (Enter to send)"
+        class="flex-1 bg-surface-700 border border-surface-500 rounded px-3 py-2 text-xs text-gray-300
+               placeholder-gray-600 resize-none focus:outline-none focus:border-blue-500 transition"
+      ></textarea>
+      <button @click="sendChat()"
+              :disabled="chat.thinking || !chat.input.trim()"
+              class="px-3 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40
+                     disabled:cursor-not-allowed text-white transition flex items-center">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div><!-- end LME Docs Assistant -->
+
+</div><!-- end global layout -->
+
+<!-- ─── JavaScript ───────────────────────────────────────────────────────── -->
+<script>
+function linkify(text) {
+  // Escape HTML first to prevent XSS
+  const div = document.createElement('div');
+  div.textContent = text;
+  let safe = div.innerHTML;
+  // Convert URLs to clickable links
+  safe = safe.replace(/(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" rel="noopener" class="text-purple-400 hover:text-purple-300 underline">$1</a>');
+  return safe;
+}
+function dashboard() {
+  return {
+    activeTab: 'kibana',
+    mainView: 'alerts',
+    settingsSection: 'models',
+    autoRefresh: false,
+    detTab: 'rules',
+    _refreshTimer: null,
+
+    health: { elasticsearch: null, litellm: null },
+
+    timeRange: 'now-24h',
+    searchQuery: '',
+    hostFilter: '',
+    hosts: [],
+    _searchDebounce: null,
+    kibana: {
+      loading: false, loadingMore: false, error: null,
+      alerts: [], total: 0,
+      minSeverity: 'medium', nextCursor: '',
+    },
+    wazuh: {
+      loading: false, loadingMore: false, error: null,
+      alerts: [], total: 0,
+      minLevel: 7, nextCursor: '',
+    },
+    sysmon: {
+      loading: false, loadingMore: false, error: null,
+      alerts: [], total: 0, nextCursor: '',
+    },
+    defender: {
+      loading: false, loadingMore: false, error: null,
+      alerts: [], total: 0, nextCursor: '',
+      minSeverity: 'low',
+    },
+    chat: {
+      messages: [], input: '', thinking: false,
+    },
+    vulns: {
+      loading: false, error: null, _loaded: false,
+      agents: [], totalVulns: 0,
+    },
+    kev: {
+      loading: false, pulling: false, error: null,
+      pullMessage: null, pullError: false, status: null,
+    },
+    kevSettings: {
+      auto_pull: true, frequency_hours: 24,
+      alert_on_match: true, alert_on_overdue: true, ransomware_only: false,
+      saving: false, message: null, error: false,
+    },
+    modelSettings: {
+      activeModel: '', models: [], providers: {},
+      saving: false, message: '', error: false,
+    },
+    localModels: {
+      models: [], activeModel: '', status: {},
+      switching: false, message: '', messageError: false,
+      downloads: [], downloading: false,
+      searchQuery: '', searching: false, searchResults: [], searchDone: false,
+      downloadMessage: '', downloadError: false,
+      _pollTimer: null,
+    },
+
+    docsIndex: {
+      status: null, ingesting: false, message: '', error: false,
+    },
+    prebuilt: {
+      loading: false, installing: false,
+      status: null, message: '', error: false,
+    },
+    kevMatched: {
+      loading: false, _loaded: false, items: [],
+    },
+    kibanaRules: {
+      loading: false, rules: [], total: 0,
+      page: 1, perPage: 50,
+      search: '', enabledFilter: '', tagFilter: '',
+      sortField: 'severity', sortOrder: 'asc',
+      selected: new Set(),
+      _loaded: false,
+    },
+    sigma: {
+      converting: false, uploading: null,
+      message: '', error: false,
+      platforms: {}, totalRules: 0,
+      _loaded: false,
+      fileUploading: false, fileMessage: '', fileError: false,
+      yamlUploading: false,
+    },
+    eaRules: {
+      loading: false, error: null, _loaded: false,
+      rules: [],
+      uploading: false, uploadMessage: null, uploadError: false,
+      showPasteModal: false, pasteYaml: '', pasteFilename: '',
+      pasting: false, pasteMessage: null, pasteError: false,
+      deleting: null,
+      expanded: null, yamlCache: {}, loadingYaml: null,
+    },
+
+
+    async loadDocsStatus() {
+      try {
+        const r = await fetch('/api/docs/status');
+        if (r.ok) this.docsIndex.status = await r.json();
+      } catch(e) {}
+    },
+
+    async ingestDocs() {
+      this.docsIndex.ingesting = true;
+      this.docsIndex.message = '';
+      this.docsIndex.error = false;
+      try {
+        const r = await fetch('/api/docs/ingest', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        this.docsIndex.message = `Done — ${data.chunks_indexed} chunks indexed`;
+        await this.loadDocsStatus();
+      } catch(e) {
+        this.docsIndex.message = `Ingestion failed: ${e.message}`;
+        this.docsIndex.error = true;
+      } finally {
+        this.docsIndex.ingesting = false;
+      }
+    },
+
+    async loadPrebuiltStatus() {
+      this.prebuilt.loading = true;
+      try {
+        const r = await fetch('/api/rules/prebuilt/status');
+        if (r.ok) this.prebuilt.status = await r.json();
+      } catch(e) { console.error('Prebuilt status failed:', e); }
+      finally { this.prebuilt.loading = false; }
+    },
+
+    async installPrebuiltRules() {
+      this.prebuilt.installing = true;
+      this.prebuilt.message = '';
+      this.prebuilt.error = false;
+      try {
+        const r = await fetch('/api/rules/prebuilt/install', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        const parts = [];
+        if (data.rules_installed > 0) parts.push(`${data.rules_installed} rules installed`);
+        if (data.rules_skipped > 0) parts.push(`${data.rules_skipped} skipped`);
+        if (data.rules_failed > 0) parts.push(`${data.rules_failed} failed`);
+        this.prebuilt.message = parts.length ? parts.join(', ') : 'All prebuilt rules are already installed';
+        await this.loadPrebuiltStatus();
+        await this.loadKibanaRules();
+      } catch(e) {
+        this.prebuilt.message = `Import failed: ${e.message}`;
+        this.prebuilt.error = true;
+      } finally {
+        this.prebuilt.installing = false;
+      }
+    },
+
+    async bulkActionByTag(action, tag) {
+      const label = tag.replace('OS: ', '').replace('Sigma ', 'Sigma ');
+      if (!confirm(`${action === 'enable' ? 'Enable' : 'Disable'} ALL ${label} rules?`)) return;
+      this.kibanaRules.loading = true;
+      try {
+        const r = await fetch('/api/rules/kibana/bulk-action', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action, query: `alert.attributes.tags:"${tag}"` }),
+        });
+        if (!r.ok) { const d = await r.json(); throw new Error(d.detail || `HTTP ${r.status}`); }
+        await this.loadKibanaRules();
+      } catch(e) {
+        console.error('Bulk action failed:', e);
+        alert(`Bulk action failed: ${e.message}`);
+        this.kibanaRules.loading = false;
+      }
+    },
+
+    async loadKibanaRules() {
+      this.kibanaRules.loading = true;
+      this.kibanaRules._loaded = true;
+      this.kibanaRules.selected = new Set();
+      try {
+        const params = new URLSearchParams({
+          page: this.kibanaRules.page,
+          per_page: this.kibanaRules.perPage,
+          sort_field: this.kibanaRules.sortField,
+          sort_order: this.kibanaRules.sortOrder,
+        });
+        if (this.kibanaRules.search) params.set('q', this.kibanaRules.search);
+        if (this.kibanaRules.enabledFilter) params.set('enabled', this.kibanaRules.enabledFilter);
+        if (this.kibanaRules.tagFilter) params.set('tags', this.kibanaRules.tagFilter);
+        const r = await fetch(`/api/rules/kibana?${params}`);
+        if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+        const data = await r.json();
+        this.kibanaRules.rules = data.rules;
+        this.kibanaRules.total = data.total;
+      } catch(e) {
+        console.error('Failed to load Kibana rules:', e);
+      } finally {
+        this.kibanaRules.loading = false;
+      }
+    },
+
+    sortKibanaRules(field) {
+      if (this.kibanaRules.sortField === field) {
+        this.kibanaRules.sortOrder = this.kibanaRules.sortOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.kibanaRules.sortField = field;
+        this.kibanaRules.sortOrder = field === 'severity' || field === 'risk_score' ? 'desc' : 'asc';
+      }
+      this.kibanaRules.page = 1;
+      this.loadKibanaRules();
+    },
+
+    toggleSelectAll() {
+      if (this.kibanaRules.selected.size === this.kibanaRules.rules.length) {
+        this.kibanaRules.selected = new Set();
+      } else {
+        this.kibanaRules.selected = new Set(this.kibanaRules.rules.map(r => r.id));
+      }
+    },
+
+    toggleSelectRule(id) {
+      const s = new Set(this.kibanaRules.selected);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      this.kibanaRules.selected = s;
+    },
+
+    async toggleKibanaRule(rule) {
+      const newState = !rule.enabled;
+      rule.enabled = newState;
+      try {
+        const r = await fetch('/api/rules/kibana/toggle', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ids: [rule.id], enabled: newState }),
+        });
+        if (!r.ok) rule.enabled = !newState;
+      } catch(e) {
+        rule.enabled = !newState;
+      }
+    },
+
+    async bulkToggleKibanaRules(enabled) {
+      const ids = [...this.kibanaRules.selected];
+      if (!ids.length) return;
+      if (!confirm(`${enabled ? 'Enable' : 'Disable'} ${ids.length} rules?`)) return;
+      try {
+        const r = await fetch('/api/rules/kibana/toggle', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ids, enabled }),
+        });
+        if (r.ok) {
+          this.kibanaRules.selected = new Set();
+          await this.loadKibanaRules();
+        }
+      } catch(e) {
+        console.error('Bulk toggle failed:', e);
+      }
+    },
+
+    async loadSigmaStatus() {
+      try {
+        const r = await fetch('/api/rules/sigma/status');
+        if (r.ok) {
+          const data = await r.json();
+          this.sigma.platforms = data.platforms;
+          this.sigma.totalRules = data.total_rules;
+          this.sigma._loaded = true;
+        }
+      } catch(e) {}
+    },
+
+    async sigmaConvert() {
+      this.sigma.converting = true;
+      this.sigma.message = '';
+      this.sigma.error = false;
+      try {
+        const r = await fetch('/api/rules/sigma/convert', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Conversion failed');
+        this.sigma.platforms = data.platforms;
+        this.sigma.totalRules = data.total_rules;
+        this.sigma.message = `Conversion complete: ${data.total_rules} rules across ${Object.keys(data.platforms).length} platforms`;
+      } catch(e) {
+        this.sigma.message = e.message;
+        this.sigma.error = true;
+      } finally {
+        this.sigma.converting = false;
+      }
+    },
+
+    async sigmaUpload(platform) {
+      this.sigma.uploading = platform;
+      this.sigma.message = '';
+      this.sigma.error = false;
+      try {
+        const r = await fetch('/api/rules/sigma/upload', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ platform }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Upload failed');
+        const errCount = (data.errors || []).length;
+        this.sigma.message = `${platform}: ${data.success_count} rules imported${errCount > 0 ? `, ${errCount} errors` : ''} (all disabled by default)`;
+        await this.loadKibanaRules();
+      } catch(e) {
+        this.sigma.message = e.message;
+        this.sigma.error = true;
+      } finally {
+        this.sigma.uploading = null;
+      }
+    },
+
+    async sigmaUploadYaml(event) {
+      const files = event.target.files;
+      if (!files || !files.length) return;
+      this.sigma.yamlUploading = true;
+      this.sigma.fileMessage = '';
+      this.sigma.fileError = false;
+      const fd = new FormData();
+      for (const f of files) fd.append('files', f);
+      try {
+        const r = await fetch('/api/rules/sigma/upload-yaml', { method: 'POST', body: fd });
+        const data = await r.json();
+        if (!r.ok) {
+          const detail = data.detail || `HTTP ${r.status}`;
+          throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+        }
+        const errCount = (data.errors || []).length;
+        this.sigma.fileMessage = `${data.success_count} rule${data.success_count !== 1 ? 's' : ''} imported from ${files.length} YAML file${files.length !== 1 ? 's' : ''}${errCount > 0 ? `, ${errCount} error${errCount !== 1 ? 's' : ''}` : ''} (all disabled by default)`;
+        await this.loadKibanaRules();
+      } catch(e) {
+        this.sigma.fileMessage = `Upload failed: ${e.message}`;
+        this.sigma.fileError = true;
+      } finally {
+        this.sigma.yamlUploading = false;
+        event.target.value = '';
+      }
+    },
+
+    async sigmaUploadFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      this.sigma.fileUploading = true;
+      this.sigma.fileMessage = '';
+      this.sigma.fileError = false;
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const r = await fetch('/api/rules/sigma/upload-file', { method: 'POST', body: fd });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        const errCount = (data.errors || []).length;
+        this.sigma.fileMessage = `${data.success_count} rule${data.success_count !== 1 ? 's' : ''} imported from ${data.filename}${errCount > 0 ? `, ${errCount} error${errCount !== 1 ? 's' : ''}` : ''} (all disabled by default)`;
+        await this.loadKibanaRules();
+      } catch(e) {
+        this.sigma.fileMessage = `Upload failed: ${e.message}`;
+        this.sigma.fileError = true;
+      } finally {
+        this.sigma.fileUploading = false;
+        event.target.value = '';
+      }
+    },
+
+    async loadEaRules() {
+      this.eaRules.loading = true;
+      this.eaRules.error = null;
+      try {
+        const r = await fetch('/api/rules/elastalert');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        this.eaRules.rules = data.rules;
+        this.eaRules._loaded = true;
+      } catch(e) {
+        this.eaRules.error = `Failed to load rules: ${e.message}`;
+      } finally {
+        this.eaRules.loading = false;
+      }
+    },
+
+    async uploadEaRules(event) {
+      const files = event.target.files;
+      if (!files || !files.length) return;
+      this.eaRules.uploading = true;
+      this.eaRules.uploadMessage = null;
+      this.eaRules.uploadError = false;
+      const fd = new FormData();
+      for (const f of files) fd.append('files', f);
+      try {
+        const r = await fetch('/api/rules/elastalert/upload', { method: 'POST', body: fd });
+        const data = await r.json();
+        if (!r.ok) {
+          const detail = data.detail || `HTTP ${r.status}`;
+          throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+        }
+        const saved = data.saved?.length || 0;
+        const errs = data.errors?.length || 0;
+        this.eaRules.uploadMessage = `Uploaded ${saved} rule${saved !== 1 ? 's' : ''}` +
+          (errs ? ` (${errs} failed)` : '');
+        this.eaRules.uploadError = saved === 0;
+        await this.loadEaRules();
+      } catch(e) {
+        this.eaRules.uploadMessage = `Upload failed: ${e.message}`;
+        this.eaRules.uploadError = true;
+      } finally {
+        this.eaRules.uploading = false;
+        event.target.value = '';
+      }
+    },
+
+    async pasteEaRule() {
+      if (!this.eaRules.pasteYaml.trim()) return;
+      this.eaRules.pasting = true;
+      this.eaRules.pasteMessage = null;
+      this.eaRules.pasteError = false;
+      try {
+        const r = await fetch('/api/rules/elastalert/paste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            yaml_content: this.eaRules.pasteYaml,
+            filename: this.eaRules.pasteFilename,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        this.eaRules.pasteMessage = `Saved as ${data.filename}`;
+        this.eaRules.pasteError = false;
+        this.eaRules.pasteYaml = '';
+        this.eaRules.pasteFilename = '';
+        await this.loadEaRules();
+        setTimeout(() => { this.eaRules.showPasteModal = false; this.eaRules.pasteMessage = null; }, 1200);
+      } catch(e) {
+        this.eaRules.pasteMessage = `${e.message}`;
+        this.eaRules.pasteError = true;
+      } finally {
+        this.eaRules.pasting = false;
+      }
+    },
+
+    async deleteEaRule(filename) {
+      if (!confirm(`Delete rule "${filename}"?`)) return;
+      this.eaRules.deleting = filename;
+      if (this.eaRules.expanded === filename) this.eaRules.expanded = null;
+      try {
+        const r = await fetch(`/api/rules/elastalert/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        if (!r.ok) { const d = await r.json(); throw new Error(d.detail || `HTTP ${r.status}`); }
+        delete this.eaRules.yamlCache[filename];
+        await this.loadEaRules();
+      } catch(e) {
+        this.eaRules.uploadMessage = `Delete failed: ${e.message}`;
+        this.eaRules.uploadError = true;
+      } finally {
+        this.eaRules.deleting = null;
+      }
+    },
+
+    async toggleEaRule(filename) {
+      if (this.eaRules.expanded === filename) {
+        this.eaRules.expanded = null;
+        return;
+      }
+      this.eaRules.expanded = filename;
+      if (this.eaRules.yamlCache[filename] !== undefined) return;
+      this.eaRules.loadingYaml = filename;
+      try {
+        const r = await fetch(`/api/rules/elastalert/${encodeURIComponent(filename)}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        this.eaRules.yamlCache[filename] = data.content;
+      } catch(e) {
+        this.eaRules.yamlCache[filename] = `# Error loading rule: ${e.message}`;
+      } finally {
+        this.eaRules.loadingYaml = null;
+      }
+    },
+
+    get activeModelIsLocal() {
+      const m = this.modelSettings.models.find(m => m.model_name === this.modelSettings.activeModel);
+      return !m || m.provider === 'local' || m.provider === '';
+    },
+    newModel: {
+      provider: 'local', model_name: '', litellm_model: '', api_key: '', api_base: '',
+    },
+
+    async init() {
+      await Promise.all([this.loadHealth(), this.loadHosts(), this.loadKibana(), this.loadWazuh(), this.loadSysmon(), this.loadDefender(), this.loadModels(), this.loadLocalModels()]);
+    },
+
+    async loadHealth() {
+      try {
+        const r = await fetch('/api/health');
+        this.health = await r.json();
+      } catch(e) {
+        this.health = { elasticsearch: 'error', litellm: 'error' };
+      }
+    },
+
+    _retryHealth(maxRetries, intervalMs) {
+      let retries = 0;
+      const timer = setInterval(async () => {
+        await this.loadHealth();
+        retries++;
+        if (this.health.litellm === 'ok' || retries >= maxRetries) {
+          clearInterval(timer);
+        }
+      }, intervalMs);
+    },
+
+    async loadKibana() {
+      this.kibana.loading = true;
+      this.kibana.error = null;
+      this.kibana.nextCursor = '';
+      try {
+        const params = new URLSearchParams({
+          min_severity: this.kibana.minSeverity,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/kibana?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.kibana.alerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.kibana.total = data.total;
+        this.kibana.nextCursor = data.next_cursor || '';
+      } catch(e) {
+        this.kibana.error = `Failed to load Kibana alerts: ${e.message}`;
+      } finally {
+        this.kibana.loading = false;
+      }
+    },
+
+    async loadMoreKibana() {
+      if (this.kibana.loadingMore || !this.kibana.nextCursor) return;
+      this.kibana.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          min_severity: this.kibana.minSeverity,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.kibana.nextCursor,
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/kibana?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.kibana.alerts.push(...newAlerts);
+        this.kibana.nextCursor = data.next_cursor || '';
+      } finally {
+        this.kibana.loadingMore = false;
+      }
+    },
+
+    async loadWazuh() {
+      this.wazuh.loading = true;
+      this.wazuh.error = null;
+      this.wazuh.nextCursor = '';
+      try {
+        const params = new URLSearchParams({
+          min_level: this.wazuh.minLevel,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/wazuh?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.wazuh.alerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.wazuh.total = data.total;
+        this.wazuh.nextCursor = data.next_cursor || '';
+      } catch(e) {
+        this.wazuh.error = `Failed to load Wazuh alerts: ${e.message}`;
+      } finally {
+        this.wazuh.loading = false;
+      }
+    },
+
+    async loadMoreWazuh() {
+      if (this.wazuh.loadingMore || !this.wazuh.nextCursor) return;
+      this.wazuh.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          min_level: this.wazuh.minLevel,
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.wazuh.nextCursor,
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/wazuh?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.wazuh.alerts.push(...newAlerts);
+        this.wazuh.nextCursor = data.next_cursor || '';
+      } finally {
+        this.wazuh.loadingMore = false;
+      }
+    },
+
+    async loadSysmon() {
+      this.sysmon.loading = true;
+      this.sysmon.error = null;
+      this.sysmon.nextCursor = '';
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          filter_mode: 'severe',
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/sysmon?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.sysmon.alerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.sysmon.total = data.total;
+        this.sysmon.nextCursor = data.next_cursor || '';
+      } catch(e) {
+        this.sysmon.error = `Failed to load Sysmon events: ${e.message}`;
+      } finally {
+        this.sysmon.loading = false;
+      }
+    },
+
+    async loadMoreSysmon() {
+      if (this.sysmon.loadingMore || !this.sysmon.nextCursor) return;
+      this.sysmon.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.sysmon.nextCursor,
+          filter_mode: 'severe',
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/sysmon?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.sysmon.alerts.push(...newAlerts);
+        this.sysmon.nextCursor = data.next_cursor || '';
+      } finally {
+        this.sysmon.loadingMore = false;
+      }
+    },
+
+    async loadDefender() {
+      this.defender.loading = true;
+      this.defender.error = null;
+      this.defender.nextCursor = '';
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          min_severity: this.defender.minSeverity,
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/defender?${params}`);
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.defender.alerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.defender.total = data.total;
+        this.defender.nextCursor = data.next_cursor || '';
+      } catch(e) {
+        this.defender.error = `Failed to load Defender events: ${e.message}`;
+      } finally {
+        this.defender.loading = false;
+      }
+    },
+
+    async loadMoreDefender() {
+      if (this.defender.loadingMore || !this.defender.nextCursor) return;
+      this.defender.loadingMore = true;
+      try {
+        const params = new URLSearchParams({
+          size: 50,
+          time_from: this.timeRange,
+          time_to: 'now',
+          search_after: this.defender.nextCursor,
+          min_severity: this.defender.minSeverity,
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.hostFilter) params.set('host', this.hostFilter);
+        const r = await fetch(`/api/alerts/defender?${params}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const newAlerts = data.alerts.map(a => ({
+          ...a, _expanded: false, _analysis: null, _analyzing: false,
+        }));
+        this.defender.alerts.push(...newAlerts);
+        this.defender.nextCursor = data.next_cursor || '';
+      } finally {
+        this.defender.loadingMore = false;
+      }
+    },
+
+    async loadHosts() {
+      try {
+        const r = await fetch('/api/alerts/hosts');
+        if (r.ok) {
+          const data = await r.json();
+          this.hosts = data.hosts || [];
+        }
+      } catch(e) {}
+    },
+
+    async loadAll() {
+      await Promise.all([this.loadHealth(), this.loadKibana(), this.loadWazuh(), this.loadSysmon(), this.loadDefender()]);
+    },
+
+    toggleAutoRefresh() {
+      this.autoRefresh = !this.autoRefresh;
+      if (this.autoRefresh) {
+        this._refreshTimer = setInterval(() => this.loadAll(), 60000); // every 60s
+      } else {
+        clearInterval(this._refreshTimer);
+      }
+    },
+
+    async analyzeAlert(alert, source) {
+      alert._analyzing = true;
+      alert._analysis = null;
+      // send a minimal context (cap at 4kb) to keep the tiny model happy
+      const rawSlice = JSON.parse(JSON.stringify(alert._raw));
+      // strip noisy fields
+      for (const k of ['message', 'event.original']) delete rawSlice[k];
+      try {
+        const r = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ alert: rawSlice, source }),
+        });
+        if (!r.ok) {
+          const err = await r.json();
+          alert._analysis = `Error: ${err.detail}`;
+        } else {
+          const data = await r.json();
+          alert._analysis = data.analysis;
+        }
+      } catch(e) {
+        alert._analysis = `Error: ${e.message}`;
+      } finally {
+        alert._analyzing = false;
+      }
+    },
+
+    async sendChat() {
+      const text = this.chat.input.trim();
+      if (!text || this.chat.thinking) return;
+      this.chat.input = '';
+      this.chat.messages.push({ role: 'user', content: text });
+      this.chat.thinking = true;
+      this.$nextTick(() => this.scrollToMessage(this.chat.messages.length - 1));
+
+      const endpoint = '/api/chat/rag/stream';
+
+      try {
+        const r = await fetch(endpoint, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            messages: this.chat.messages.filter(m => m.role !== 'system'),
+            stream: true,
+          }),
+        });
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+
+        // Add empty assistant message
+        this.chat.messages.push({ role: 'assistant', content: '', sources: [] });
+        const idx = this.chat.messages.length - 1;
+        this.$nextTick(() => this.scrollToMessage(idx));
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let gotContent = false;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const payload = line.slice(6).trim();
+            if (payload === '[DONE]') break;
+            try {
+              const obj = JSON.parse(payload);
+              if (obj.sources) {
+                this.chat.messages[idx].sources = obj.sources;
+              }
+              if (obj.content) {
+                if (!gotContent) {
+                  gotContent = true;
+                  this.chat.thinking = false;
+                }
+                this.chat.messages[idx].content += obj.content;
+              }
+              if (obj.error) {
+                this.chat.messages[idx].content += `\n[Error: ${obj.error}]`;
+              }
+            } catch(_) {}
+          }
+        }
+        this.chat.thinking = false;
+      } catch(e) {
+        this.chat.thinking = false;
+        this.chat.messages.push({ role: 'assistant', content: `Error: ${e.message}`, sources: [] });
+      }
+    },
+
+    scrollChat() {
+      this.$nextTick(() => {
+        const el = this.$refs.chatScroll;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+    scrollToMessage(idx) {
+      this.$nextTick(() => {
+        const el = this.$refs.chatScroll;
+        if (!el) return;
+        const msgs = el.querySelectorAll('[data-msg]');
+        const target = msgs[idx];
+        if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        else el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    async loadModels() {
+      try {
+        const r = await fetch('/api/models');
+        const data = await r.json();
+        this.modelSettings.activeModel = data.active_model;
+        this.modelSettings.models = data.models;
+        this.modelSettings.providers = data.providers;
+      } catch(e) {
+        console.error('Failed to load models:', e);
+      }
+    },
+
+    prefillModel() {
+      const p = this.modelSettings.providers[this.newModel.provider];
+      this.newModel.model_name = '';
+      this.newModel.litellm_model = '';
+      this.newModel.api_key = '';
+      this.newModel.api_base = '';
+      if (p && p.models && p.models.length) {
+        this.newModel.litellm_model = p.models[0];
+        this.newModel.model_name = p.models[0].split('/').pop();
+      }
+    },
+
+    async addModel() {
+      this.modelSettings.saving = true;
+      this.modelSettings.message = '';
+      try {
+        const r = await fetch('/api/models', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(this.newModel),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.modelSettings.message = data.message;
+        this.modelSettings.error = false;
+        this.newModel = { provider: this.newModel.provider, model_name: '', litellm_model: '', api_key: '', api_base: '' };
+        await this.loadModels();
+      } catch(e) {
+        this.modelSettings.message = e.message;
+        this.modelSettings.error = true;
+      } finally {
+        this.modelSettings.saving = false;
+      }
+    },
+
+    async deleteModel(name) {
+      if (!confirm(`Remove model "${name}"?`)) return;
+      try {
+        const r = await fetch(`/api/models/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.modelSettings.message = data.message;
+        this.modelSettings.error = false;
+        await this.loadModels();
+      } catch(e) {
+        this.modelSettings.message = e.message;
+        this.modelSettings.error = true;
+      }
+    },
+
+    async setActiveModel(name) {
+      try {
+        const r = await fetch('/api/models/active', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ model_name: name }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.modelSettings.activeModel = data.active_model;
+        this.modelSettings.message = `Now using "${name}"`;
+        this.modelSettings.error = false;
+      } catch(e) {
+        this.modelSettings.message = e.message;
+        this.modelSettings.error = true;
+      }
+    },
+
+    // ── Local model management ──────────────────────────────────────────
+    async loadLocalModels() {
+      try {
+        const r = await fetch('/api/local-models');
+        const data = await r.json();
+        this.localModels.models = data.models;
+        this.localModels.activeModel = data.active_model;
+        this.localModels.status = data.status || {};
+      } catch(e) {
+        console.error('Failed to load local models:', e);
+      }
+      // Also check for in-progress downloads
+      await this.checkDownloads();
+    },
+
+    async deleteLocalModel(filename) {
+      if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
+      try {
+        const r = await fetch(`/api/local-models/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.localModels.models = this.localModels.models.filter(m => m.filename !== filename);
+      } catch(e) {
+        alert(`Delete failed: ${e.message}`);
+      }
+    },
+
+    async switchLocalModel(filename) {
+      if (!confirm(`Switch llama.cpp to "${filename}"?\n\nThis will restart the llama.cpp container. AI chat will be briefly unavailable.`)) return;
+      this.localModels.switching = true;
+      this.localModels.message = '';
+      // Clear stale status so poll doesn't see old "ready"
+      this.localModels.status = { status: 'switching', model: filename };
+      try {
+        const r = await fetch('/api/local-models/switch', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ model: filename }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.localModels.message = data.message;
+        this.localModels.messageError = false;
+        // Update the header model name immediately
+        if (data.display_name) {
+          this.modelSettings.activeModel = data.display_name;
+        }
+        // Poll for status updates while switching — pass filename so we know what to wait for
+        this._pollLocalModelStatus(filename);
+      } catch(e) {
+        this.localModels.message = e.message;
+        this.localModels.messageError = true;
+        this.localModels.switching = false;
+      }
+    },
+
+    async _fetchLocalModelsNoCache() {
+      // Cache-busting fetch for status polling
+      const r = await fetch('/api/local-models?_t=' + Date.now());
+      return await r.json();
+    },
+
+    _pollLocalModelStatus(requestedFilename) {
+      if (this.localModels._pollTimer) clearInterval(this.localModels._pollTimer);
+      let attempts = 0;
+      console.log('[model-switch] polling for:', requestedFilename);
+      this.localModels._pollTimer = setInterval(async () => {
+        attempts++;
+        try {
+          const data = await this._fetchLocalModelsNoCache();
+          this.localModels.models = data.models;
+          this.localModels.activeModel = data.active_model;
+          this.localModels.status = data.status || {};
+          const st = data.status?.status || '';
+          const statusModel = data.status?.model || '';
+          console.log(`[model-switch] poll #${attempts}: status=${st} model=${statusModel} wanted=${requestedFilename}`);
+          // Only stop polling when status is "ready" for the model we actually requested
+          const isForOurRequest = statusModel === requestedFilename;
+          if (isForOurRequest && st === 'ready') {
+            clearInterval(this.localModels._pollTimer);
+            this.localModels._pollTimer = null;
+            this.localModels.switching = false;
+            this.localModels.message = `Now running ${requestedFilename}`;
+            this.localModels.messageError = false;
+            await this.loadModels();
+            this._retryHealth(8, 3000);
+          } else if (isForOurRequest && st === 'error') {
+            clearInterval(this.localModels._pollTimer);
+            this.localModels._pollTimer = null;
+            this.localModels.switching = false;
+            this.localModels.message = data.status?.error || 'Switch failed';
+            this.localModels.messageError = true;
+          } else if (attempts > 30) {
+            clearInterval(this.localModels._pollTimer);
+            this.localModels._pollTimer = null;
+            this.localModels.switching = false;
+            this.localModels.message = 'Switch is taking longer than expected. Refresh to check status.';
+            this.localModels.messageError = true;
+          }
+        } catch(e) {
+          console.error('[model-switch] poll error:', e);
+        }
+      }, 3000);
+    },
+
+    async searchModels() {
+      this.localModels.searching = true;
+      this.localModels.searchResults = [];
+      this.localModels.searchDone = false;
+      this.localModels.downloadMessage = '';
+      try {
+        const r = await fetch('/api/local-models/search', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ query: this.localModels.searchQuery }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Search failed');
+        this.localModels.searchResults = data.results;
+        this.localModels.searchDone = true;
+      } catch(e) {
+        this.localModels.downloadMessage = e.message;
+        this.localModels.downloadError = true;
+        this.localModels.searchDone = true;
+      } finally {
+        this.localModels.searching = false;
+      }
+    },
+
+    async downloadSearchResult(repoId, filename) {
+      this.localModels.downloading = true;
+      this.localModels.downloadMessage = '';
+      this.localModels.downloadError = false;
+      this.localModels._downloadingFilename = filename;
+      try {
+        const r = await fetch('/api/local-models/download', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ repo_id: repoId, filename }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Failed');
+        this.localModels.downloadMessage = `Downloading ${filename}...`;
+        this.localModels.downloadError = false;
+        this._pollDownloads(filename);
+      } catch(e) {
+        this.localModels.downloadMessage = e.message;
+        this.localModels.downloadError = true;
+        this.localModels.downloading = false;
+      }
+    },
+
+    async checkDownloads() {
+      try {
+        const r = await fetch('/api/local-models/downloads');
+        const data = await r.json();
+        this.localModels.downloads = data.downloads;
+        // Update message with progress if we have data
+        if (data.downloads.length > 0) {
+          const d = data.downloads[0];
+          const sizeTxt = d.downloaded_mb >= 1024
+            ? (d.downloaded_mb / 1024).toFixed(1) + ' GB'
+            : d.downloaded_mb + ' MB';
+          this.localModels.downloadMessage = `Downloading ${d.filename}... (${sizeTxt} so far)`;
+        }
+      } catch(e) {
+        // ignore
+      }
+    },
+
+    _pollDownloads(filename) {
+      const timer = setInterval(async () => {
+        await this.checkDownloads();
+        if (this.localModels.downloads.length === 0) {
+          clearInterval(timer);
+          this.localModels.downloading = false;
+          // Check if the file now exists in models list
+          await this.loadLocalModels();
+          const found = this.localModels.models.find(m => m.filename === filename);
+          if (found) {
+            const sizeTxt = found.size_mb >= 1024
+              ? (found.size_mb / 1024).toFixed(1) + ' GB'
+              : found.size_mb + ' MB';
+            this.localModels.downloadMessage = `${filename} downloaded successfully (${sizeTxt}). You can now switch to it.`;
+            this.localModels.downloadError = false;
+          } else {
+            this.localModels.downloadMessage = `Download of ${filename} may have failed — file not found.`;
+            this.localModels.downloadError = true;
+          }
+        }
+      }, 3000);
+      setTimeout(() => {
+        clearInterval(timer);
+        if (this.localModels.downloading) {
+          this.localModels.downloading = false;
+          this.localModels.downloadMessage = 'Download timed out or is still running in the background. Refresh to check.';
+          this.localModels.downloadError = true;
+        }
+      }, 30 * 60 * 1000);
+    },
+
+    async loadVulns() {
+      this.vulns.loading = true;
+      this.vulns.error = null;
+      try {
+        const r = await fetch('/api/vulnerabilities');
+        if (!r.ok) {
+          const err = await r.json();
+          throw new Error(err.detail || `HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        this.vulns.agents = data.agents.map(a => ({
+          ...a,
+          _expanded: false,
+        }));
+        this.vulns.totalVulns = data.total_vulnerabilities;
+        this.vulns._loaded = true;
+      } catch(e) {
+        this.vulns.error = `Failed to load vulnerabilities: ${e.message}`;
+      } finally {
+        this.vulns.loading = false;
+      }
+    },
+
+    vulnDetail: { vulns: [], loading: false, sevFilter: '', agentId: null, total: 0, hasMore: false },
+    _vulnPageSize: 50,
+
+    async toggleAgentDetail(agent) {
+      agent._expanded = !agent._expanded;
+      if (agent._expanded) {
+        this.vulnDetail = { vulns: [], loading: false, sevFilter: '', agentId: agent.agent_id, total: 0, hasMore: false };
+        await this.loadAgentVulns(agent.agent_id, '', false);
+      }
+    },
+
+    async loadAgentVulns(agentId, sevFilter, append) {
+      const offset = append ? this.vulnDetail.vulns.length : 0;
+      if (!append) {
+        this.vulnDetail = { vulns: [], loading: true, sevFilter, agentId, total: 0, hasMore: false };
+      } else {
+        this.vulnDetail = { ...this.vulnDetail, loading: true };
+      }
+      try {
+        const params = new URLSearchParams({ size: this._vulnPageSize, offset });
+        if (sevFilter) params.set('severity', sevFilter);
+        const r = await fetch(`/api/vulnerabilities/${agentId}?${params}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        const newVulns = append ? [...this.vulnDetail.vulns, ...data.vulnerabilities] : data.vulnerabilities;
+        const hasMore = newVulns.length < data.total;
+        this.vulnDetail = { vulns: newVulns, loading: false, sevFilter, agentId, total: data.total, hasMore };
+      } catch(e) {
+        console.error('Failed to load agent vulns:', e);
+        this.vulnDetail = { ...this.vulnDetail, loading: false };
+      }
+    },
+
+    onVulnScroll(ev) {
+      const el = ev.target;
+      if (this.vulnDetail.loading || !this.vulnDetail.hasMore) return;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+        this.loadAgentVulns(this.vulnDetail.agentId, this.vulnDetail.sevFilter, true);
+      }
+    },
+
+    clearChat() {
+      this.chat.messages = [];
+      this.chat.input = '';
+    },
+
+    async loadKevStatus() {
+      this.kev.loading = true;
+      this.kev.error = null;
+      try {
+        const r = await fetch('/api/kev/status');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        this.kev.status = data;
+        if (data.settings) {
+          this.kevSettings = { ...this.kevSettings, ...data.settings };
+        }
+      } catch(e) {
+        this.kev.error = `Failed to load KEV status: ${e.message}`;
+      } finally {
+        this.kev.loading = false;
+      }
+    },
+
+    async loadKevMatched() {
+      this.kevMatched.loading = true;
+      this.kevMatched._loaded = true;
+      try {
+        const r = await fetch('/api/kev/matched');
+        if (r.ok) {
+          const data = await r.json();
+          this.kevMatched.items = data.matched || [];
+        }
+      } catch(e) {
+        console.error('Failed to load KEV matched:', e);
+      } finally {
+        this.kevMatched.loading = false;
+      }
+    },
+
+    async kevPull() {
+      this.kev.pulling = true;
+      this.kev.pullMessage = null;
+      this.kev.pullError = false;
+      try {
+        const r = await fetch('/api/kev/pull', { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        this.kev.pullMessage = `Synced ${data.total} CVEs successfully.`;
+        this.kev.pullError = false;
+        await this.loadKevStatus();
+      } catch(e) {
+        this.kev.pullMessage = `Pull failed: ${e.message}`;
+        this.kev.pullError = true;
+      } finally {
+        this.kev.pulling = false;
+      }
+    },
+
+    async saveKevSettings() {
+      this.kevSettings.saving = true;
+      this.kevSettings.message = null;
+      this.kevSettings.error = false;
+      try {
+        const r = await fetch('/api/settings/kev', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            auto_pull: this.kevSettings.auto_pull,
+            frequency_hours: this.kevSettings.frequency_hours,
+            alert_on_match: this.kevSettings.alert_on_match,
+            alert_on_overdue: this.kevSettings.alert_on_overdue,
+            ransomware_only: this.kevSettings.ransomware_only,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || `HTTP ${r.status}`);
+        this.kevSettings.message = 'Settings saved.';
+        this.kevSettings.error = false;
+      } catch(e) {
+        this.kevSettings.message = `Save failed: ${e.message}`;
+        this.kevSettings.error = true;
+      } finally {
+        this.kevSettings.saving = false;
+      }
+    },
+
+    fmtTime(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        const now = new Date();
+        const diff = Math.floor((now - d) / 1000);
+        if (diff < 60) return `${diff}s ago`;
+        if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+        return d.toLocaleDateString();
+      } catch(_) { return iso; }
+    },
+
+    severityBorder(sev) {
+      return {
+        critical: 'border-red-700',
+        high:     'border-orange-700',
+        medium:   'border-yellow-700',
+        low:      'border-green-800',
+        unknown:  'border-surface-600',
+      }[sev] || 'border-surface-600';
+    },
+
+    severityBadge(sev) {
+      return {
+        critical: 'bg-red-900 text-red-300',
+        high:     'bg-orange-900 text-orange-300',
+        medium:   'bg-yellow-900 text-yellow-300',
+        low:      'bg-green-900 text-green-300',
+        unknown:  'bg-surface-700 text-gray-400',
+      }[sev] || 'bg-surface-700 text-gray-400';
+    },
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=https://docs.ludus.cloud/schemas/range-config.json
+#
+# LME Role Validation Experiment
+# Tests all 5 ludus_* roles: lme_server, lme_agents, caldera_server, caldera_agent, caldera_scripts
+#
+# Prerequisites:
+#   - Templates built: ubuntu-24.04-x64-server-template, ubuntu-24.04-x64-desktop-template, win11-22h2-x64-enterprise-template
+#   - Roles uploaded: ludus_lme_server, ludus_lme_agents, ludus_caldera_server, ludus_caldera_agent, ludus_caldera_scripts
+#
+# Usage:
+#   curl -sk -X PUT -H "X-API-KEY: $LUDUS_API_KEY" \
+#     -F "file=@detection-engineering/ludus-range-config.yml" \
+#     "$LUDUS_URL/api/v2/range/config"
+#
+#   curl -sk -X POST -H "X-API-KEY: $LUDUS_API_KEY" \
+#     -H "Content-Type: application/json" \
+#     -d '{}' "$LUDUS_URL/api/v2/range/deploy"
+
+ludus:
+  # --- LME Server (Elasticsearch, Kibana, Fleet, Wazuh Manager) ---
+  - vm_name: "{{ range_id }}-lme-server"
+    hostname: "lme-server"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 10
+    ram_gb: 32
+    cpus: 4
+    linux: true
+    roles:
+      - ludus_lme_server
+    role_vars:
+      ludus_lme_server_version: "2.2.0"
+
+  # --- Caldera Server (Adversary Emulation Platform + Automation Scripts) ---
+  - vm_name: "{{ range_id }}-caldera-server"
+    hostname: "caldera-srv"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 20
+    ram_gb: 8
+    cpus: 2
+    linux: true
+    roles:
+      - ludus_caldera_server
+      - name: ludus_caldera_scripts
+        depends_on:
+          - vm_name: "{{ range_id }}-caldera-server"
+            role: ludus_caldera_server
+
+  # --- Windows 11 Endpoint (Elastic Agent + Wazuh Agent + Sysmon + Caldera Agent) ---
+  - vm_name: "{{ range_id }}-win11-endpoint"
+    hostname: "WIN11-EP"
+    template: win11-22h2-x64-enterprise-template
+    vlan: 10
+    ip_last_octet: 30
+    ram_gb: 8
+    cpus: 2
+    windows:
+      sysprep: false
+    roles:
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: ludus_lme_server
+      - name: ludus_caldera_agent
+        depends_on:
+          - vm_name: "{{ range_id }}-caldera-server"
+            role: ludus_caldera_server
+    role_vars:
+      ludus_lme_agents_server_ip: "10.{{ range_second_octet }}.10.10"
+      ludus_lme_agents_elastic_password: "CHANGEME"
+      ludus_lme_agents_elastic_version: "8.18.8"
+      ludus_lme_agents_enrollment_token: "CHANGEME"
+      ludus_lme_agents_wazuh_version: "4.9.1"
+      ludus_lme_agents_wazuh_manager_ip: "10.{{ range_second_octet }}.10.10"
+      ludus_caldera_agent_server_ip: "10.{{ range_second_octet }}.10.20"
+
+  # --- Ubuntu Endpoint (Elastic Agent + Wazuh Agent + auditd) ---
+  # NOTE: Swap to ubuntu-24.04-x64-desktop-template once build completes
+  - vm_name: "{{ range_id }}-ubuntu-endpoint"
+    hostname: "ubuntu-ep"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 40
+    ram_gb: 4
+    cpus: 2
+    linux: true
+    roles:
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: ludus_lme_server
+    role_vars:
+      ludus_lme_agents_server_ip: "10.{{ range_second_octet }}.10.10"
+      ludus_lme_agents_elastic_password: "CHANGEME"
+      ludus_lme_agents_elastic_version: "8.18.8"
+      ludus_lme_agents_enrollment_token: "CHANGEME"
+      ludus_lme_agents_wazuh_version: "4.9.1"
+      ludus_lme_agents_wazuh_manager_ip: "10.{{ range_second_octet }}.10.10"

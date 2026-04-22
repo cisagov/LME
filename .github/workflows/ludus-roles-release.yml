@@ -1,0 +1,37 @@
+name: Publish Ludus Roles to Ansible Galaxy
+
+on:
+  push:
+    tags:
+      - 'ludus-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        role:
+          - ludus_lme_server
+          - ludus_lme_agents
+          - ludus_caldera_server
+          - ludus_caldera_agent
+          - ludus_caldera_scripts
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: Publish role to Galaxy
+        run: |
+          ansible-galaxy role import \
+            --api-key "${{ secrets.GALAXY_API_KEY }}" \
+            --role-name "${{ matrix.role }}" \
+            cisagov LME
+        env:
+          ANSIBLE_GALAXY_TOKEN: ${{ secrets.GALAXY_API_KEY }}

@@ -3,6 +3,10 @@
 # Note: Most common variables are now defined in site.yml
 
 # Default packages that apply to all distributions if not overridden
+# Note: ansible is NOT included here because install.sh already installs it
+# before running this playbook. On RHEL9/UBI9, the EPEL ansible package has
+# a broken dependency on ansible-core which is only in RHEL subscription repos.
+# See docker/rhel9/README-ANSIBLE.md for details.
 common_packages:
   - wget
   - gnupg2
@@ -50,7 +54,7 @@ ubuntu_24_04_packages:
 # Ubuntu 22.04 specific packages
 ubuntu_22_04_packages:
   - python3.10
-  - python3.10-venv
+  - python3-venv
   - python3.10-dev
 
 # Red Hat-specific packages

@@ -1,0 +1,7 @@
+[Unit]
+Description=Switch llama.cpp local model and restart service
+After=lme-llama-cpp.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/lme/scripts/switch_llama_model.py
