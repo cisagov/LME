@@ -2182,20 +2182,6 @@
                   class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
           </button>
         </div>
-        <!-- Default RAG mode -->
-        <div class="flex items-center justify-between py-3 border-t border-surface-600">
-          <div>
-            <p class="text-sm text-gray-300">RAG Mode (Documentation)</p>
-            <p class="text-xs text-gray-600">LME Docs Assistant answers using LME documentation by default</p>
-          </div>
-          <button @click="chat.ragMode = !chat.ragMode"
-                  :class="chat.ragMode ? 'bg-purple-600' : 'bg-surface-600'"
-                  class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent
-                         transition-colors focus:outline-none cursor-pointer">
-            <span :class="chat.ragMode ? 'translate-x-4' : 'translate-x-0'"
-                  class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"></span>
-          </button>
-        </div>
       </div>
     </div><!-- end General section -->
 
@@ -2241,19 +2227,6 @@
       LME Docs Assistant
     </div>
     <div class="flex items-center gap-2">
-      <button @click="chat.ragMode = !chat.ragMode"
-              :class="chat.ragMode ? 'bg-purple-900 text-purple-300 border-purple-700' : 'bg-surface-700 text-gray-500 border-surface-500'"
-              class="px-2 py-0.5 rounded-full border text-xs flex items-center gap-1 transition hover:opacity-80"
-              :title="chat.ragMode ? 'RAG on: answering from LME docs' : 'RAG off: click to use LME documentation'">
-        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168
-                   18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5
-                   16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5
-                   18c-1.746 0-3.332.477-4.5 1.253"/>
-        </svg>
-        <span x-text="chat.ragMode ? 'Docs ON' : 'Docs'"></span>
-      </button>
       <button @click="clearChat()" class="text-gray-600 hover:text-gray-400 text-xs transition">Clear</button>
     </div>
   </div>
@@ -2348,7 +2321,7 @@
         x-model="chat.input"
         @keydown.enter.prevent="if (!$event.shiftKey) sendChat()"
         rows="2"
-        :placeholder="chat.ragMode ? 'Ask about LME docs… (Enter to send)' : 'Ask anything… (Enter to send)'"
+        placeholder="Ask about LME docs… (Enter to send)"
         class="flex-1 bg-surface-700 border border-surface-500 rounded px-3 py-2 text-xs text-gray-300
                placeholder-gray-600 resize-none focus:outline-none focus:border-blue-500 transition"
       ></textarea>
@@ -2415,7 +2388,7 @@ function dashboard() {
       minSeverity: 'low',
     },
     chat: {
-      messages: [], input: '', thinking: false, ragMode: true,
+      messages: [], input: '', thinking: false,
     },
     vulns: {
       loading: false, error: null, _loaded: false,
@@ -3177,7 +3150,7 @@ function dashboard() {
       this.chat.thinking = true;
       this.$nextTick(() => this.scrollToMessage(this.chat.messages.length - 1));
 
-      const endpoint = this.chat.ragMode ? '/api/chat/rag/stream' : '/api/chat/stream';
+      const endpoint = '/api/chat/rag/stream';
 
       try {
         const r = await fetch(endpoint, {
