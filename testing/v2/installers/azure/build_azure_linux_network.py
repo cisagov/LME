@@ -10,7 +10,7 @@ from azure.mgmt.devtestlabs import DevTestLabsClient
 from azure.mgmt.devtestlabs.models import Schedule
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.network import NetworkManagementClient
-from azure.mgmt.resource.subscriptions import SubscriptionClient
+from azure.mgmt.subscription import SubscriptionClient
 from datetime import datetime
 from pathlib import Path
 
