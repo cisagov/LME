@@ -268,22 +268,14 @@
     mode: '0755'
   become: yes
 
-- name: Copy LLM key sync script
+- name: Copy scripts to /opt/lme/scripts
   copy:
-    src: "{{ clone_directory }}/scripts/sync_llm_keys.py"
-    dest: /opt/lme/scripts/sync_llm_keys.py
+    src: "{{ clone_directory }}/scripts/"
+    dest: /opt/lme/scripts/
     owner: root
     group: root
-    mode: '0755'
-  become: yes
-
-- name: Copy llama model switch script
-  copy:
-    src: "{{ clone_directory }}/scripts/switch_llama_model.py"
-    dest: /opt/lme/scripts/switch_llama_model.py
-    owner: root
-    group: root
-    mode: '0755'
+    mode: preserve
+    remote_src: yes
   become: yes
 
 - name: Copy LLM keys systemd service and path units
@@ -419,9 +411,9 @@
     msg: |
       Llama.cpp server with LFM2.5 1.2B model has been installed and started!
 
-      LME Security Dashboard:        http://{{ ansible_default_ipv4.address }}:8502
-      LiteLLM Proxy (HTTPS):         https://{{ ansible_default_ipv4.address }}:4000
-      Direct llama.cpp (HTTP only):  http://{{ ansible_default_ipv4.address }}:8080
+      LME Security Dashboard:        http://{{ (ansible_default_ipv4.address if (ansible_default_ipv4 is defined and ansible_default_ipv4.address is defined) else 'localhost') }}:8502
+      LiteLLM Proxy (HTTPS):         https://{{ (ansible_default_ipv4.address if (ansible_default_ipv4 is defined and ansible_default_ipv4.address is defined) else 'localhost') }}:4000
+      Direct llama.cpp (HTTP only):  http://{{ (ansible_default_ipv4.address if (ansible_default_ipv4 is defined and ansible_default_ipv4.address is defined) else 'localhost') }}:8080
 
       API Key for LiteLLM: sk-lme-llama-proxy
       Model name: lfm2.5-1.2b
