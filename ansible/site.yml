@@ -9,6 +9,7 @@
     install_user: "{{ ansible_user_id }}"
     debug_mode: false  # Default debug mode to false
     offline_mode: false  # Default offline mode to false
+    install_llm: true  # Default LLM install on; install.sh overrides to false for --offline without --llm
 
     # Storage configuration
     storage_runroot: "/run/containers/storage"

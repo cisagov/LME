@@ -30,9 +30,10 @@ usage() {
     echo "OPTIONS:"
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
     echo "  -d, --debug                   Enable debug mode for verbose output"
-    echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
+    echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks; skips LLM unless --llm is also set)"
     echo "  --skip-packages               Skip package installation (for development)"
-    echo "  --llm                         Install llama.cpp server for AI/LLM functionality"
+    echo "  --llm                         Install LLM stack (llama.cpp, LiteLLM, pgvector, docs ingest)."
+    echo "                                Default: on for non-offline installs; off for --offline unless this flag is set."
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
     echo "  -g, --graph-root GRAPH_ROOT   Change the graphroot directory (where volumes are stored)"
     echo "  -h, --help                    Show this help message"
@@ -587,6 +588,17 @@ run_playbook() {
         echo -e "${YELLOW}⚠ Running in offline mode - skipping internet-dependent tasks${NC}"
     fi
 
+    # Compute effective install_llm for Ansible.
+    # Offline installs skip LLM unless --llm was explicitly requested, because
+    # the offline LLM path requires the larger `prepare_offline.sh --llm`
+    # bundle. Non-offline installs keep the current LLM-on default.
+    if [ "$OFFLINE_MODE" = "true" ] && [ "$INSTALL_LLM" != "true" ]; then
+        EFFECTIVE_INSTALL_LLM="false"
+        echo -e "${YELLOW}⚠ Offline install without --llm: LLM stack will be skipped${NC}"
+    else
+        EFFECTIVE_INSTALL_LLM="true"
+    fi
+
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
 
@@ -597,9 +609,9 @@ run_playbook() {
     sudo chown $(whoami):$(whoami) /opt/ansible-tmp
 
     if [ -f "$SCRIPT_DIR/inventory" ]; then
-        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
+        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"',"install_llm":'"${EFFECTIVE_INSTALL_LLM}"'}' $ANSIBLE_OPTS
     else
-        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
+        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"',"install_llm":'"${EFFECTIVE_INSTALL_LLM}"'}' $ANSIBLE_OPTS
     fi
     
     if [ $? -eq 0 ]; then

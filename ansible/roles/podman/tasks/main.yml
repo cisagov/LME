@@ -211,6 +211,9 @@
   include_tasks: quadlet_setup.yml
 
 # Include llama.cpp setup tasks (conditional)
+# `install_llm` is provided by install.sh (and defaulted in site.yml). Offline
+# installs without --llm force it false to skip the offline LLM staging and
+# docs-ingestion path, which requires a `prepare_offline.sh --llm` bundle.
 - name: Setup llama.cpp for podman
   include_tasks: llama_cpp_setup.yml
-  when: install_llm | default(true)
+  when: install_llm | default(true) | bool
