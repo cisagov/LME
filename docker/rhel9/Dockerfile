@@ -10,7 +10,7 @@ ENV LANG=en_US.UTF-8 \
 
 # Skip systemd updates to avoid conflicts, install base packages
 RUN dnf install -y \
-    glibc-langpack-en sudo openssh-clients git vim iptables-nft \
+    glibc-langpack-en sudo openssh-clients git vim iptables-nft dbus-daemon \
     && dnf clean all \
     && GROUP_ID_VAR=$GROUP_ID \
     && USER_ID_VAR=$USER_ID \
@@ -47,6 +47,12 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     rm -f /lib/systemd/system/anaconda.target.wants/* && \
     mkdir -p /etc/systemd/system/systemd-logind.service.d && \
     echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
+
+# Re-enable DBus (system bus) after the cleanup above wiped its wants symlinks.
+# crun (used by nested podman) and loginctl both require /run/dbus/system_bus_socket,
+# which only gets created if dbus.socket is pulled in by sockets.target at boot.
+RUN systemctl unmask dbus.socket dbus-broker.service systemd-logind.service dbus-org.freedesktop.login1.service || true && \
+    systemctl enable dbus.socket dbus-broker.service systemd-logind.service
 
 #COPY docker/rhel9/lme-setup.service /etc/systemd/system/
 #
