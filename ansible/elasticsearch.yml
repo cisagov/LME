@@ -90,7 +90,11 @@
     # Prevent podman role from starting the full stack automatically.
     # We explicitly start the Elasticsearch unit after certs/secrets distribution.
     lme_autostart: false
-    lme_child_es_only: true
+    # Only data nodes (SSH targets) should get ES-only quadlets: copy child graph, prune
+    # non-ES quadlets, remove lme.service. The cluster master uses ansible_connection=local
+    # and must keep the full control-plane quadlets (never set true for every host — that
+    # strips Kibana/Fleet/Wazuh from the master when this playbook runs after site.yml).
+    lme_child_es_only: "{{ (ansible_connection | default('ssh')) != 'local' }}"
 
     # Skip secret creation on cluster nodes - secrets are copied from master via secrets_distribution.
     # This prevents the podman role from trying to generate new passwords (which would fail

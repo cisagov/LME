@@ -401,7 +401,8 @@
 
     # Do not auto-start -- we start ES explicitly after secrets/certs
     lme_autostart: false
-    lme_child_es_only: true
+    # Same as elasticsearch.yml: prune quadlets only on SSH data nodes, not on local master.
+    lme_child_es_only: "{{ (ansible_connection | default('ssh')) != 'local' }}"
 
     # Skip secret creation on cluster nodes
     lme_skip_secret_creation: true

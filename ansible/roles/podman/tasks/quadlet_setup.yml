@@ -69,6 +69,56 @@
   become: yes
   when: not (lme_child_es_only | default(false) | bool)
 
+# ---------------------------------------------------------------------------
+# Compute child-absent quadlet/systemd sets from the repo's quadlet/ directory.
+# Source of truth is the filesystem: anything in quadlet/ that is not in
+# `lme_child_active_quadlet_files` or `lme_child_active_extras` is pruned from
+# child (ES-only) nodes. This avoids having to maintain parallel deny lists.
+#
+# The find runs once on the controller (playbook lives on the master / CI host).
+# Do not gate this task on lme_child_es_only: with run_once, other hosts would
+# skip and see a registered dict without `.files`, breaking set_fact on es2/es3.
+# ---------------------------------------------------------------------------
+- name: Enumerate quadlet files shipped in the repo
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../quadlet"
+    file_type: file
+    patterns:
+      - '*.container'
+      - '*.volume'
+      - '*.network'
+      - '*.service'
+  delegate_to: localhost
+  connection: local
+  run_once: true
+  become: false
+  register: lme_quadlet_find_raw
+
+- name: Compute child-absent quadlet files (quadlet/ minus active minus extras)
+  ansible.builtin.set_fact:
+    lme_child_absent_quadlet_files: >-
+      {{ (quadlet_paths.files | default([]) | map(attribute='path') | map('basename') | list)
+         | difference(lme_child_active_quadlet_files + lme_child_active_extras) }}
+  vars:
+    quadlet_paths: "{{ hostvars[ansible_play_hosts[0]]['lme_quadlet_find_raw'] }}"
+  when: lme_child_es_only | default(false) | bool
+
+- name: Compute child-absent systemd units (.container -> .service, skip volumes/networks)
+  ansible.builtin.set_fact:
+    lme_child_absent_systemd_units: >-
+      {{ lme_child_absent_quadlet_files
+         | reject('match', '.*\.(volume|network)$')
+         | map('regex_replace', '\.container$', '.service')
+         | list }}
+  when: lme_child_es_only | default(false) | bool
+
+- name: Show computed child-absent sets (diagnostic)
+  ansible.builtin.debug:
+    msg:
+      absent_quadlet_files: "{{ lme_child_absent_quadlet_files }}"
+      absent_systemd_units: "{{ lme_child_absent_systemd_units }}"
+  when: lme_child_es_only | default(false) | bool
+
 - name: Stop non-ES services before pruning child quadlets
   ansible.builtin.systemd:
     name: "{{ item }}"
