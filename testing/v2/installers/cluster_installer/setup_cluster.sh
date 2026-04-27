@@ -324,21 +324,24 @@ echo ""
 echo -e "${GREEN}=== Local setup complete ===${NC}"
 echo ""
 
-# Generate SSH key on master
-echo -e "${YELLOW}Generating SSH key on master...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa -q <<< y 2>/dev/null || true"
-echo -e "${GREEN}SSH key generated on master${NC}"
+# Generate SSH key on master, only when missing, non-interactive
+echo -e "${YELLOW}Ensuring SSH key exists on master...${NC}"
+ssh "${LME_USER}@${MASTER_IP}" "if [ ! -f ~/.ssh/id_rsa ]; then ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa -q; fi"
+echo -e "${GREEN}Master SSH key is ready${NC}"
 
-# Install sshpass on master first (needed for copying keys)
-echo -e "${YELLOW}Installing sshpass on master...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "sudo apt-get update && sudo apt-get install -y sshpass"
-echo -e "${GREEN}sshpass installed on master${NC}"
-
-# Copy master's key to cluster nodes using sshpass
+# Copy master's public key to each cluster node from local host.
+# This avoids password-based copy prompts on the master and keeps retries idempotent.
 echo -e "${YELLOW}Copying master's SSH key to cluster nodes...${NC}"
-for ip in $CLUSTER_PRIVATE_IPS; do
+MASTER_PUB_KEY="$(ssh "${LME_USER}@${MASTER_IP}" "sed -n '1p' ~/.ssh/id_rsa.pub")"
+if [ -z "${MASTER_PUB_KEY}" ]; then
+    echo -e "${RED}Failed to read master's public SSH key${NC}"
+    exit 1
+fi
+MASTER_PUB_KEY_B64="$(printf '%s' "${MASTER_PUB_KEY}" | base64 -w 0)"
+
+for ip in $(jq -r '.linux_vms[1:][].ip_address' "${RESOURCE_GROUP}.machines.json"); do
     echo "  Copying key to $ip..."
-    if ssh "${LME_USER}@${MASTER_IP}" "sshpass -p '$PASSWORD' ssh-copy-id -o StrictHostKeyChecking=no ${LME_USER}@${ip}"; then
+    if ssh "${LME_USER}@${ip}" "mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && grep -qxF \"\$(echo '${MASTER_PUB_KEY_B64}' | base64 -d)\" ~/.ssh/authorized_keys || echo \"\$(echo '${MASTER_PUB_KEY_B64}' | base64 -d)\" >> ~/.ssh/authorized_keys"; then
         echo -e "    ${GREEN}Done${NC}"
     else
         echo -e "    ${RED}Failed${NC}"
@@ -361,8 +364,7 @@ wait_for_network "${LME_USER}@${MASTER_IP}" "github.com"
 
 # Clone repo and checkout branch on master
 echo -e "${YELLOW}Cloning LME repo on master...${NC}"
-ssh "${LME_USER}@${MASTER_IP}" "git clone https://github.com/cisagov/LME.git ~/LME"
-ssh "${LME_USER}@${MASTER_IP}" "cd ~/LME && git checkout ${BRANCH}"
+ssh "${LME_USER}@${MASTER_IP}" "if [ -d ~/LME/.git ]; then cd ~/LME && git fetch --all && git checkout ${BRANCH} && git pull --ff-only origin ${BRANCH}; else rm -rf ~/LME && git clone https://github.com/cisagov/LME.git ~/LME && cd ~/LME && git checkout ${BRANCH}; fi"
 echo -e "${GREEN}Repo cloned and checked out to ${BRANCH}${NC}"
 
 if [ "$RSYNC_LOCAL" = "true" ]; then
