@@ -1,0 +1,50 @@
+---
+# IP address of the LME server. Must be set by the caller (e.g., in role_vars).
+ludus_lme_agents_server_ip: ""
+
+# Elasticsearch password. Required for dynamic version/token lookups via API.
+# If empty, ludus_lme_agents_elastic_version and ludus_lme_agents_enrollment_token
+# must be provided explicitly.
+ludus_lme_agents_elastic_password: ""
+
+# Fleet enrollment token. Auto-fetched from Kibana API if elastic_password is set.
+ludus_lme_agents_enrollment_token: ""
+
+# Elasticsearch user used for API calls.
+ludus_lme_agents_elastic_user: "elastic"
+
+# Fleet server URL. Elastic Agent enrolls to this endpoint.
+ludus_lme_agents_fleet_server: "https://{{ ludus_lme_agents_server_ip }}:{{ ludus_lme_agents_fleet_port }}"
+
+# Ports for LME services.
+ludus_lme_agents_kibana_port: 5601
+ludus_lme_agents_es_port: 9200
+ludus_lme_agents_fleet_port: 8220
+
+# Architecture suffix for artifact download URLs.
+ludus_lme_agents_agent_arch: "x86_64"
+
+# IP of the Wazuh manager. Defaults to the LME server IP.
+ludus_lme_agents_wazuh_manager_ip: "{{ ludus_lme_agents_server_ip }}"
+
+# SSH credentials for delegating tasks to the LME/Wazuh manager.
+# Required when delegate_to uses a raw IP (Ludus default: localuser/password).
+ludus_lme_agents_manager_ssh_user: "localuser"
+ludus_lme_agents_manager_ssh_pass: "password"
+
+# Wazuh manager version. If set, skips the delegate_to query to the manager.
+# Format: "4.9.1" (without leading 'v').
+ludus_lme_agents_wazuh_version: ""
+
+# How long to wait for Wazuh agents to become Active on the manager.
+ludus_lme_agents_wazuh_retries: 30
+ludus_lme_agents_wazuh_delay: 10
+
+# Temporary directories for downloaded artifacts.
+ludus_lme_agents_linux_temp_dir: "/tmp"
+ludus_lme_agents_windows_temp_dir: "C:\\Temp"
+
+# External tool URLs.
+ludus_lme_agents_sysmon_url: "https://download.sysinternals.com/files/Sysmon.zip"
+ludus_lme_agents_sysmon_config_url: "https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml"
+ludus_lme_agents_audit_rules_url: "https://raw.githubusercontent.com/Neo23x0/auditd/master/audit.rules"

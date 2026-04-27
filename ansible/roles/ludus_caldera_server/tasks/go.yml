@@ -1,0 +1,16 @@
+---
+- name: Download and install Go {{ ludus_caldera_server_go_version }}
+  become: true
+  ansible.builtin.unarchive:
+    src: "https://go.dev/dl/go{{ ludus_caldera_server_go_version }}.linux-amd64.tar.gz"
+    dest: /usr/local
+    remote_src: true
+    owner: root
+    group: root
+
+- name: Add Go to system PATH
+  become: true
+  ansible.builtin.copy:
+    content: 'export PATH=$PATH:/usr/local/go/bin'
+    dest: /etc/profile.d/go.sh
+    mode: "0644"

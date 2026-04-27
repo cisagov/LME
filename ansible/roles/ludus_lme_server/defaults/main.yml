@@ -1,0 +1,20 @@
+---
+# IP address the LME stack binds to. Defaults to the VM's primary IPv4 address
+# if not explicitly specified. Set this in role_vars to match your Ludus VLAN.
+ludus_lme_server_ip: ""
+
+# LME version to install. Must match a release tag in the cisagov/LME repository.
+ludus_lme_server_version: "2.2.0"
+
+# Enable offline mode (skip external downloads during LME install).
+ludus_lme_server_offline: false
+
+# Elasticsearch JVM heap memory in bytes. 2 GB default; increase for production.
+# Must be <= half of total system RAM.
+ludus_lme_server_memory_limit: 2073741824
+
+# LME git repository URL.
+ludus_lme_server_repo_url: "https://github.com/cisagov/LME.git"
+
+# Directory on the target VM where LME will be cloned and installed from.
+ludus_lme_server_install_dir: "/opt/lme-install"

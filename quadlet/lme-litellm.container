@@ -1,0 +1,33 @@
+# lme-litellm.container
+[Unit]
+Description=LiteLLM Proxy Server Container Service
+Requires=lme-network.service lme-llama-cpp.service
+After=lme.service lme-network.service lme-llama-cpp.service
+PartOf=lme.service
+
+[Service]
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=10
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+[Install]
+WantedBy=default.target lme.service
+
+[Container]
+ContainerName=lme-litellm
+Image=localhost/litellm:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-litellm --entrypoint /bin/sh
+PublishPort=4000:4000
+Volume=/opt/lme/config/litellm_config.yaml:/app/config.yaml:ro
+Volume=lme_certs:/certs:ro
+Secret=llm-keys,type=mount,target=/run/secrets/llm_keys
+Environment=SSL_KEYFILE=/certs/litellm/litellm.key
+Environment=SSL_CERTFILE=/certs/litellm/litellm.crt
+Environment=SSL_CERT_FILE=/tmp/combined-ca.crt
+Environment=REQUESTS_CA_BUNDLE=/tmp/combined-ca.crt
+Environment=CURL_CA_BUNDLE=/tmp/combined-ca.crt
+Exec=-c "cat /etc/ssl/certs/ca-certificates.crt /certs/ca/ca.crt > /tmp/combined-ca.crt; set -a; [ -f /run/secrets/llm_keys ] && . /run/secrets/llm_keys; set +a; exec litellm --config /app/config.yaml --port 4000 --ssl_keyfile_path /certs/litellm/litellm.key --ssl_certfile_path /certs/litellm/litellm.crt"
+

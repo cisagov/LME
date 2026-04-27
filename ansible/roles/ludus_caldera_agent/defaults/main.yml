@@ -1,0 +1,19 @@
+---
+# IP address of the Caldera server. Must be set by the caller (e.g., in role_vars)
+# or auto-discovered from hostvars['localhost'].caldera_ip (set by ludus_caldera_server).
+ludus_caldera_agent_server_ip: ""
+
+# Caldera server HTTP port.
+ludus_caldera_agent_server_port: 8888
+
+# Path where the Caldera agent binary will be stored on the Windows endpoint.
+ludus_caldera_agent_path: "C:\\Users\\Public\\splunkd.exe"
+
+# Caldera group the agent joins. Determines which operations target this agent.
+ludus_caldera_agent_group: "red"
+
+# Directory for the agent startup script.
+ludus_caldera_agent_script_dir: "C:\\ludus"
+
+# Whether to reboot the Windows host after agent installation to start the agent.
+ludus_caldera_agent_reboot: true

@@ -1,0 +1,3 @@
+ghcr.io/ggml-org/llama.cpp:server
+ghcr.io/berriai/litellm:main-latest
+docker.io/pgvector/pgvector:pg17

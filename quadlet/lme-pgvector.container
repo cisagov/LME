@@ -1,0 +1,33 @@
+# lme-pgvector.container
+[Unit]
+Description=pgvector - PostgreSQL with vector similarity search
+Requires=lme-network.service
+After=lme-network.service
+PartOf=lme.service
+
+[Install]
+WantedBy=default.target lme.service
+
+[Service]
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=10
+TimeoutStartSec=90
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+[Container]
+ContainerName=lme-pgvector
+Image=localhost/pgvector:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-pgvector
+PublishPort=5432:5432
+Volume=lme_pgvectordata:/var/lib/postgresql/data:z
+Environment=POSTGRES_DB=lme_vectors
+Environment=POSTGRES_USER=lme
+Secret=pgvector,type=env,target=POSTGRES_PASSWORD
+HealthCmd=pg_isready -U lme -d lme_vectors
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+HealthStartPeriod=30s
