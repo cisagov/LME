@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: ludus_caldera_agent
+  namespace: cisagov
+  author: cisagov
+  description: "Installs MITRE Caldera agent (sandcat) on Windows endpoints"
+  license: "GPLv3"
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Windows
+      versions:
+        - all
+  galaxy_tags:
+    - ludus
+    - caldera
+    - agent
+    - windows
+    - red_team
+    - security
+dependencies: []

@@ -1,0 +1,26 @@
+---
+- name: Resolve service PATH including Go and NVM
+  become: true
+  ansible.builtin.shell: |
+    reqs='/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin'
+    nvm=$(find {{ ansible_env.HOME }}/.nvm/versions/node/*/bin -type d 2>/dev/null | paste -sd ':' -)
+    echo "$PATH:$reqs:${nvm}"
+  register: caldera_service_path
+  changed_when: false
+
+- name: Deploy Caldera systemd service
+  become: true
+  ansible.builtin.template:
+    src: caldera.service.j2
+    dest: /etc/systemd/system/caldera.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Reload systemd and enable/start Caldera
+  become: true
+  ansible.builtin.systemd:
+    name: caldera.service
+    daemon_reload: true
+    enabled: true
+    state: started

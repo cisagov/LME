@@ -1,0 +1,12 @@
+---
+# Caldera server IP. Auto-discovered from localhost facts if empty.
+ludus_caldera_scripts_server_ip: ""
+
+# Caldera install directory (used to extract API key from config).
+ludus_caldera_scripts_install_dir: "/opt/caldera"
+
+# Directory where automation scripts are deployed.
+ludus_caldera_scripts_deploy_dir: "/opt/caldera-scripts"
+
+# Caldera red team API key. Auto-extracted from Caldera config if empty.
+ludus_caldera_scripts_api_key: ""

@@ -70,13 +70,25 @@ while IFS= read -r line; do
         
         # Use the name as-is for the variable name
         var_name=$name
-        
+
+        # Skip secrets managed outside of ansible-vault (e.g. pgvector
+        # uses the file driver and llm-keys is managed by sync_llm_keys.py)
+        case "$var_name" in
+            llm-keys|pgvector) continue ;;
+        esac
+
+        vault_file="/etc/lme/vault/$id"
+        if ! sudo test -f "$vault_file"; then
+            echo_if_not_quiet "Skipping $var_name (no vault file)"
+            continue
+        fi
+
         # Get the real password using ansible-vault
         secret_value=$(sudo -i ansible-vault view /etc/lme/vault/$id)
-        
+
         # Add export command to the string
         export_commands+="export $var_name='$secret_value'; "
-        
+
         if $PRINT_SECRETS; then
             echo "Exported $var_name: $secret_value"
         elif ! $QUIET_MODE; then

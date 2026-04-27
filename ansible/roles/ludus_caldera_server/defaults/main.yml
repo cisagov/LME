@@ -1,0 +1,28 @@
+---
+# MITRE Caldera git branch/tag to install.
+ludus_caldera_server_version: "5.3.0"
+
+# Go version to install.
+ludus_caldera_server_go_version: "1.23.3"
+
+# Node.js major version (installed via NVM).
+ludus_caldera_server_node_version: "22"
+
+# NVM version.
+ludus_caldera_server_nvm_version: "0.40.1"
+
+# Caldera git repository URL.
+ludus_caldera_server_repo_url: "https://github.com/mitre/caldera.git"
+
+# Directory where Caldera is cloned and installed.
+ludus_caldera_server_install_dir: "/opt/caldera"
+
+# HTTP port Caldera listens on.
+ludus_caldera_server_port: 8888
+
+# Agent check-in sleep interval bounds (seconds).
+ludus_caldera_server_sleep_min: 2
+ludus_caldera_server_sleep_max: 5
+
+# Run Caldera in insecure (HTTP) mode. Set to false for HTTPS.
+ludus_caldera_server_insecure: true

@@ -1,0 +1,34 @@
+---
+- name: Clone Caldera repository
+  ansible.builtin.shell: |
+    git clone {{ ludus_caldera_server_repo_url }} \
+      --recursive \
+      --branch {{ ludus_caldera_server_version }} \
+      {{ ludus_caldera_server_install_dir }}
+  args:
+    creates: "{{ ludus_caldera_server_install_dir }}/server.py"
+  become: true
+
+- name: Configure agent sleep intervals
+  ansible.builtin.lineinfile:
+    path: "{{ ludus_caldera_server_install_dir }}/conf/agents.yml"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  loop:
+    - regexp: "sleep_max"
+      line: "sleep_max: {{ ludus_caldera_server_sleep_max }}"
+    - regexp: "sleep_min"
+      line: "sleep_min: {{ ludus_caldera_server_sleep_min }}"
+  become: true
+
+- name: Install Caldera Python dependencies
+  ansible.builtin.shell: |
+    export PATH="/usr/local/go/bin:$PATH"
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    cd {{ ludus_caldera_server_install_dir }}
+    pipenv install
+    pipenv run pip install -r requirements.txt
+  become: true
+  args:
+    creates: "{{ ludus_caldera_server_install_dir }}/Pipfile.lock"

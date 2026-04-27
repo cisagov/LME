@@ -7,6 +7,9 @@ PartOf=lme.service
 
 [Service]
 Restart=always
+RestartSec=5
+StartLimitIntervalSec=120
+StartLimitBurst=10
 LimitNOFILE=655360
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 TimeoutStartSec=5400

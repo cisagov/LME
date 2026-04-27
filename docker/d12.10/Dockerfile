@@ -31,7 +31,7 @@ WORKDIR $BASE_DIR
 FROM base AS lme
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    systemd systemd-sysv \
+    systemd systemd-sysv dbus \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -45,7 +45,13 @@ RUN cd /lib/systemd/system/sysinit.target.wants/ && \
     rm -f /lib/systemd/system/basic.target.wants/* && \
     rm -f /lib/systemd/system/anaconda.target.wants/* && \
     mkdir -p /etc/systemd/system/systemd-logind.service.d && \
-    echo -e "[Service]\nProtectHostname=no" > /etc/systemd/system/systemd-logind.service.d/override.conf
+    printf "[Service]\nProtectHostname=no\n" > /etc/systemd/system/systemd-logind.service.d/override.conf
+
+# Re-enable DBus (system bus) after the cleanup above wiped its wants symlinks.
+# crun (used by nested podman) and loginctl both require /run/dbus/system_bus_socket,
+# which only gets created if dbus.socket is pulled in by sockets.target at boot.
+RUN systemctl unmask dbus.socket dbus.service systemd-logind.service dbus-org.freedesktop.login1.service || true && \
+    systemctl enable dbus.socket dbus.service systemd-logind.service
 
 #COPY docker/d12.10/lme-setup.service /etc/systemd/system/
 #

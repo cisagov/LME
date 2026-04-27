@@ -1,0 +1,9 @@
+# Caldera agent startup script — deployed by ludus_caldera_agent role
+$agentPath = "{{ ludus_caldera_agent_path }}"
+$serverUrl = "http://{{ _caldera_server_ip }}:{{ ludus_caldera_agent_server_port }}"
+
+# Stop any existing agent process
+Get-Process | Where-Object { $_.Path -eq $agentPath } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+# Start agent in configured group
+Start-Process -FilePath $agentPath -ArgumentList "-server $serverUrl -group {{ ludus_caldera_agent_group }}" -WindowStyle hidden

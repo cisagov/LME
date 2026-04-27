@@ -1,0 +1,98 @@
+## General purpose caching downloader for Ludus
+
+## Example windows usage:
+# - name: General purpose caching downloader example
+# ansible.builtin.include_tasks:
+#   file: download_file.yml
+# vars:
+#   ludus_download_file_name: adkwinpesetup.exe
+#   ludus_download_file_url: https://download.microsoft.com/download/0/1/C/01CC78AA-B53B-4884-B7EA-74F2878AA79F/adk/adksetup.exe
+#   ludus_download_file_host_path: "C:\\ludus\\sccm"
+
+## Example Linux usage:
+# - name: General purpose caching downloader example (Linux)
+#   ansible.builtin.include_tasks:
+#     file: download_file.yml
+#   vars:
+#     ludus_download_file_name: elastic-agent-8.13.1-linux-x86_64.tar.gz
+#     ludus_download_file_url: https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-8.13.1-linux-x86_64.tar.gz
+#     ludus_download_file_host_path: /opt/elastic
+#     # Only use checksums for files that do not update!
+#     ludus_download_file_checksum: "sha512:a91a09124eacfdce9cb8d6876ae2896ad0f0682ca8e112ccf2ec5660f3ec4db96b230869f5dc5011136a15d2882a58b71e45775843f31c282ee8c8db9524a27f"
+#     # Set to always download and ignore cache
+#      ludus_download_file_force_download: true
+
+####################################
+# You should not modify this file! #
+####################################
+
+- name: Get file if needed
+  run_once: true
+  block:
+    - name: "Create directory on Ludus host if it doesn't exist: {{ ludus_install_path | default('/opt/ludus') }}/resources/{{ role_name }}"
+      ansible.builtin.file:
+        path: "{{ ludus_install_path | default('/opt/ludus') }}/resources/{{ role_name }}"
+        state: directory
+        recurse: true
+      delegate_to: localhost
+
+    - name: Check if file exists on Ludus host
+      ansible.builtin.stat:
+        path: "{{ ludus_install_path | default('/opt/ludus') }}/resources/{{ role_name }}/{{ ludus_download_file_name }}"
+        checksum_algorithm: "{{ ludus_download_file_checksum.split(':')[0] if ludus_download_file_checksum is defined else 'sha1' }}"
+      delegate_to: localhost
+      register: file_check
+
+    - name: Chceck file checksum if file exists
+      ansible.builtin.set_fact:
+        existing_file_checksum_correct: "{{ file_check.stat.checksum == ludus_download_file_checksum.split(':')[1] }}"
+      when: file_check.stat.exists and ludus_download_file_checksum is defined
+
+    - name: Downloading file to Ludus host
+      ansible.builtin.get_url:
+        url: "{{ ludus_download_file_url }}"
+        dest: "{{ ludus_install_path | default('/opt/ludus') }}/resources/{{ role_name }}/{{ ludus_download_file_name }}"
+        checksum: "{{ ludus_download_file_checksum | default(omit) }}"
+        mode: "660"
+      delegate_to: localhost
+      when: |
+        (ludus_download_file_force_download is defined and ludus_download_file_force_download)
+        or not file_check.stat.exists
+        or (existing_file_checksum_correct is defined and not existing_file_checksum_correct)
+
+- name: Create directory on VM if it doesn't exist (Windows)
+  ansible.windows.win_file:
+    path: "{{ ludus_download_file_host_path }}"
+    state: directory
+  when: ansible_os_family == "Windows"
+
+- name: Check if file exists on VM (Windows)
+  ansible.windows.win_stat:
+    path: "{{ ludus_download_file_host_path }}\\{{ ludus_download_file_name }}"
+  register: file_host_check_windows
+  when: ansible_os_family == "Windows"
+
+- name: Copy file to windows VM (Windows)
+  ansible.windows.win_copy:
+    src: "{{ ludus_install_path | default('/opt/ludus') }}/resources/{{ role_name }}/{{ ludus_download_file_name }}"
+    dest: "{{ ludus_download_file_host_path }}\\{{ ludus_download_file_name }}"
+  when: ansible_os_family == "Windows" and not file_host_check_windows.stat.exists
+
+- name: Create directory on VM if it doesn't exist (Linux/macOS)
+  ansible.builtin.file:
+    path: "{{ ludus_download_file_host_path }}"
+    state: directory
+    mode: "0755"
+  when: not ansible_os_family == "Windows"
+
+- name: Check if file exists on VM (Linux/macOS)
+  ansible.builtin.stat:
+    path: "{{ ludus_download_file_host_path }}/{{ ludus_download_file_name }}"
+  register: file_host_check_linux
+  when: not ansible_os_family == "Windows"
+
+- name: Copy file to windows VM (Linux/macOS)
+  ansible.builtin.copy:
+    src: "{{ ludus_install_path | default('/opt/ludus') }}/resources/{{ role_name }}/{{ ludus_download_file_name }}"
+    dest: "{{ ludus_download_file_host_path }}/{{ ludus_download_file_name }}"
+  when: not ansible_os_family == "Windows" and not file_host_check_linux.stat.exists

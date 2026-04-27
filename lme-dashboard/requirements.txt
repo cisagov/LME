@@ -1,0 +1,12 @@
+fastapi==0.115.0
+uvicorn==0.32.0
+httpx==0.28.1
+psycopg2-binary>=2.9
+pgvector>=0.4
+pyyaml>=6.0
+cryptography>=42.0
+python-multipart>=0.0.9
+requests>=2.31
+beautifulsoup4>=4.12
+markdownify>=0.11
+lxml>=5.0

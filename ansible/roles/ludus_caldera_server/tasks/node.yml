@@ -1,0 +1,14 @@
+---
+- name: Install NVM {{ ludus_caldera_server_nvm_version }}
+  ansible.builtin.shell: >
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v{{ ludus_caldera_server_nvm_version }}/install.sh | bash
+  args:
+    creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+
+- name: Install Node {{ ludus_caldera_server_node_version }} via NVM
+  ansible.builtin.shell: |
+    export NVM_DIR="$HOME/.nvm"
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    nvm install {{ ludus_caldera_server_node_version }}
+  args:
+    creates: "{{ ansible_env.HOME }}/.nvm/versions/node"

@@ -1,0 +1,27 @@
+---
+galaxy_info:
+  role_name: ludus_lme_server
+  namespace: cisagov
+  author: cisagov
+  description: "Deploys the LME server stack (Elasticsearch, Kibana, Fleet, Wazuh) on a Ludus VM"
+  license: "GPLv3"
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - ludus
+    - lme
+    - elasticsearch
+    - kibana
+    - fleet
+    - wazuh
+    - logging
+    - monitoring
+    - security
+dependencies: []

@@ -1,0 +1,40 @@
+---
+# @decision DEC-CALDERA-SERVER-001
+# @title Modular task split for Caldera server deployment
+# @status accepted
+# @rationale Caldera has multiple independent prerequisites (Go, Node, Python deps)
+#   each with their own installation and idempotency logic. Splitting into sub-task
+#   files keeps each concern isolated and testable. The extract_secrets step is
+#   integrated here (absorbing the former extract_caldera_secrets role) so downstream
+#   roles can consume facts without a separate extraction step.
+
+- name: Install system dependencies
+  ansible.builtin.include_tasks: dependencies.yml
+
+- name: Check if Go is already installed
+  ansible.builtin.stat:
+    path: /usr/local/go/bin/go
+  register: go_check
+
+- name: Install Go
+  ansible.builtin.include_tasks: go.yml
+  when: not go_check.stat.exists
+
+- name: Install Node via NVM
+  ansible.builtin.include_tasks: node.yml
+
+- name: Check if Caldera service is running
+  ansible.builtin.systemd:
+    name: caldera
+  register: caldera_service_status
+  failed_when: false
+
+- name: Install and configure Caldera
+  ansible.builtin.include_tasks: caldera.yml
+  when: caldera_service_status.status.ActiveState | default('inactive') != 'active'
+
+- name: Deploy Caldera systemd service
+  ansible.builtin.include_tasks: service.yml
+
+- name: Extract Caldera secrets for downstream roles
+  ansible.builtin.include_tasks: extract_secrets.yml
