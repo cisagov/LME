@@ -210,6 +210,8 @@ the master recovery bundle to:
   - `lme-environment.env` (configuration)
   - `config/` directory
   - Quadlet files
+  - LLM model weights (`llama-models/`), dashboard sources, KEV catalog/history,
+    LiteLLM config, and trigger/status files used by the helper services
 
 ### 2. LME Vault and Security Files
 - **Location**: `/etc/lme/`
@@ -219,7 +221,23 @@ the master recovery bundle to:
   - `version` file
   - Security certificates and vault data
 
-### 3. Podman Volumes
+### 3. Quadlet Files
+- **Location**: `/etc/containers/systemd/`
+- All `.container`, `.volume`, and `.network` files for the LME stack.
+
+### 4. LME-owned Host Systemd Units
+- **Location**: `/etc/systemd/system/`
+- An allowlist of LME helper units installed by Ansible roles (LLM and KEV
+  helpers plus the umbrella `lme.service`):
+  - `lme.service`
+  - `lme-llm-keys.service` / `lme-llm-keys.path`
+  - `lme-llama-model.service` / `lme-llama-model.path`
+  - `lme-kev-sync.service` / `lme-kev-sync.timer`
+- Each unit's enabled state is recorded in
+  `etc_systemd_system_lme/manifest.txt` so the restore playbooks can
+  reapply the `enable`/`disable` state after copying the files back.
+
+### 5. Podman Volumes
 All LME-related volumes are backed up:
 - `lme_esdata01` - Elasticsearch data
 - `lme_kibanadata` - Kibana configurations
@@ -229,6 +247,7 @@ All LME-related volumes are backed up:
 - `lme_filebeat_*` - Filebeat configurations
 - `lme_elastalert2_logs` - ElastAlert logs
 - `lme_backups` - Internal backup storage
+- `lme_pgvectordata` - pgvector PostgreSQL data for LME doc embeddings
 
 For **cluster installs**, `backup_lme.yml` excludes:
 - `lme_esdata*`
@@ -238,7 +257,25 @@ This keeps the host-level backup focused on master/control-plane recovery
 instead of implying a local filesystem copy is a cluster-wide Elasticsearch
 backup.
 
-### 4. Backup Metadata
+### 6. Podman Secrets
+Two artifacts are written to make secret restoration self-contained:
+
+- `secret_mapping.txt` (legacy): `NAME=ID` lines for each Podman secret. Older
+  restore code reads this file and pulls plaintext from `/etc/lme/vault/<ID>`.
+- `secret_manifest.txt` (preferred): one line per secret in the format
+  `NAME|ID|DRIVER|VAULT_FILE|CAPTURED_FILE`.
+  - `VAULT_FILE` points into `etc_lme/vault/` and is used for shell-driver
+    secrets that already live in the LME Ansible vault (for example
+    `elastic`, `kibana_system`, `wazuh`, `wazuh_api`).
+  - `CAPTURED_FILE` points into `secrets/` and stores the secret value
+    re-encrypted with `ansible-vault` for non-vault driver secrets such as
+    `pgvector` and `llm-keys`. The cleartext is never written to disk.
+
+If `podman secret inspect --showsecret` is unavailable for a given secret,
+the manifest still records its name and ID with empty payload references, and
+the restore playbooks log a warning instead of recreating it incorrectly.
+
+### 7. Backup Metadata
 - Backup timestamp and version information
 - Volume manifest with contents listing
 - Backup status and verification data
@@ -269,23 +306,39 @@ backup.
 ### Backup Directory Structure
 ```
 /var/lib/containers/storage/backups/
-└── YYYYMMDDTHHMMSS/           # Timestamp-based directory
-    ├── backup_status.txt      # Backup completion status
-    ├── expected_empty_volumes.txt  # List of volumes expected to be empty
-    ├── lme/                   # LME installation backup
+└── YYYYMMDDTHHMMSS/                  # Timestamp-based directory
+    ├── backup_status.txt             # Backup completion status
+    ├── expected_empty_volumes.txt    # List of volumes expected to be empty
+    ├── secret_mapping.txt            # Legacy NAME=ID secret list
+    ├── secret_manifest.txt           # NAME|ID|DRIVER|VAULT_FILE|CAPTURED_FILE
+    ├── lme/                          # LME installation backup
     │   ├── lme-environment.env
     │   ├── config/
     │   └── ...
-    ├── etc_lme/               # Vault and security files backup
+    ├── etc_lme/                      # Vault and security files backup
     │   ├── pass.sh
     │   ├── vault/
     │   └── version
-    └── volumes/               # Volume backups
+    ├── etc_containers_systemd/       # Quadlet files backup
+    ├── etc_systemd_system_lme/       # LME-owned host systemd units
+    │   ├── manifest.txt              # UNIT|FILE_BACKED_UP|ENABLED_STATE
+    │   ├── lme.service
+    │   ├── lme-llm-keys.service
+    │   ├── lme-llm-keys.path
+    │   ├── lme-llama-model.service
+    │   ├── lme-llama-model.path
+    │   ├── lme-kev-sync.service
+    │   └── lme-kev-sync.timer
+    ├── secrets/                      # Vault-encrypted captured secret values
+    │   ├── pgvector.vault
+    │   └── llm-keys.vault
+    └── volumes/                      # Volume backups
         ├── lme_esdata01/
-        │   ├── manifest.txt   # Volume contents listing
+        │   ├── manifest.txt          # Volume contents listing
         │   ├── backup_status.txt
-        │   └── data/          # Actual volume data
+        │   └── data/                 # Actual volume data
         ├── lme_kibanadata/
+        ├── lme_pgvectordata/
         └── ...
 ```
 

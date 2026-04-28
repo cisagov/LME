@@ -361,12 +361,32 @@
           echo "No systemd container files found in backup (older backup format)"
           SYSTEMD_RESTORE_STATUS=0
         fi
-        
-        if [ $LME_RESTORE_STATUS -eq 0 ] && [ $VAULT_RESTORE_STATUS -eq 0 ] && [ $SYSTEMD_RESTORE_STATUS -eq 0 ]; then
+
+        # Restore LME-owned host systemd units (.service/.path/.timer) if backed up
+        HOST_UNITS_DIR="{{ selected_backup_dir }}/etc_systemd_system_lme"
+        HOST_UNITS_STATUS=0
+        if [ -d "$HOST_UNITS_DIR" ] && [ -f "$HOST_UNITS_DIR/manifest.txt" ]; then
+          while IFS='|' read -r unit file_status enabled_state; do
+            case "$unit" in
+              ''|\#*) continue ;;
+            esac
+            SRC="$HOST_UNITS_DIR/$unit"
+            if [ "$file_status" = "copied" ] && [ -f "$SRC" ]; then
+              {{ cp_preserve_cmd }} -f "$SRC" "/etc/systemd/system/$unit" || HOST_UNITS_STATUS=1
+              chmod 644 "/etc/systemd/system/$unit" 2>/dev/null || true
+              chown root:root "/etc/systemd/system/$unit" 2>/dev/null || true
+            fi
+          done < "$HOST_UNITS_DIR/manifest.txt"
+          echo "Host systemd unit files restored from backup"
+        else
+          echo "No host systemd unit backup found (older backup format or no helper units)"
+        fi
+
+        if [ $LME_RESTORE_STATUS -eq 0 ] && [ $VAULT_RESTORE_STATUS -eq 0 ] && [ $SYSTEMD_RESTORE_STATUS -eq 0 ] && [ $HOST_UNITS_STATUS -eq 0 ]; then
           echo "LME installation, vault files, and systemd files restored successfully"
           exit 0
         else
-          echo "Failed to restore LME installation, vault files, or systemd files (LME: $LME_RESTORE_STATUS, Vault: $VAULT_RESTORE_STATUS, Systemd: $SYSTEMD_RESTORE_STATUS)"
+          echo "Failed to restore LME installation, vault files, or systemd files (LME: $LME_RESTORE_STATUS, Vault: $VAULT_RESTORE_STATUS, Systemd: $SYSTEMD_RESTORE_STATUS, HostUnits: $HOST_UNITS_STATUS)"
           exit 1
         fi
       args:
@@ -380,6 +400,7 @@
         - "{{ lme_install_dir }}"
         - "/etc/lme"
         - "/etc/containers/systemd"
+        - "/etc/systemd/system"
       when:
         - selinux_active | default(false)
       changed_when: false
@@ -388,45 +409,107 @@
       systemd:
         daemon_reload: yes
       when: restore_result is success
+
+    - name: Re-enable LME host systemd units recorded in backup manifest
+      shell: |
+        HOST_UNITS_DIR="{{ selected_backup_dir }}/etc_systemd_system_lme"
+        if [ ! -f "$HOST_UNITS_DIR/manifest.txt" ]; then
+          echo "No host unit manifest in backup; nothing to enable"
+          exit 0
+        fi
+        while IFS='|' read -r unit file_status enabled_state; do
+          case "$unit" in
+            ''|\#*) continue ;;
+          esac
+          # Skip umbrella unit; it is enabled by the LME installer separately.
+          if [ "$unit" = "lme.service" ]; then
+            continue
+          fi
+          if [ ! -f "/etc/systemd/system/$unit" ]; then
+            continue
+          fi
+          case "$enabled_state" in
+            enabled|enabled-runtime|alias|static)
+              systemctl enable "$unit" 2>/dev/null || true
+              ;;
+            *)
+              systemctl disable "$unit" 2>/dev/null || true
+              ;;
+          esac
+        done < "$HOST_UNITS_DIR/manifest.txt"
+      args:
+        executable: /bin/bash
+      when: restore_result is success
+      ignore_errors: yes
       
-    - name: Restore Podman secrets from backup vault files
+    - name: Restore Podman secrets from backup
       shell: |
         export PATH=$PATH:/nix/var/nix/profiles/default/bin
         # Use the backup password file for decryption
         export ANSIBLE_VAULT_PASSWORD_FILE="{{ selected_backup_dir }}/etc_lme/pass.sh"
-        
+
         # Remove existing secrets first
         for secret_id in $(podman secret ls --format "{{ '{{' }}.ID{{ '}}' }}"); do
           podman secret rm "$secret_id" 2>/dev/null || true
         done
-        
-        # Check if secret mapping file exists in backup
-        MAPPING_FILE="{{ selected_backup_dir }}/secret_mapping.txt"
-        BACKUP_VAULT_DIR="{{ selected_backup_dir }}/etc_lme/vault"
-        
-        if [ -f "$MAPPING_FILE" ] && [ -d "$BACKUP_VAULT_DIR" ]; then
-          echo "Found secret mapping file and backup vault directory, restoring secrets..."
-          
-          # Read mapping file and recreate secrets from backup vault files
-          while IFS='=' read -r secret_name vault_file_id; do
-            # Skip comments and empty lines
-            if [[ "$secret_name" =~ ^#.*$ ]] || [[ -z "$secret_name" ]]; then
-              continue
+
+        BACKUP_ROOT="{{ selected_backup_dir }}"
+        MANIFEST_FILE="$BACKUP_ROOT/secret_manifest.txt"
+        MAPPING_FILE="$BACKUP_ROOT/secret_mapping.txt"
+        BACKUP_VAULT_DIR="$BACKUP_ROOT/etc_lme/vault"
+
+        # Helper that creates a podman secret from a vault-encrypted file using
+        # the requested driver, falling back to shell driver when unknown.
+        create_secret_from_vault() {
+          local name="$1" driver="$2" vault_path="$3"
+          local value
+          value=$(ansible-vault view "$vault_path")
+          if [ $? -ne 0 ] || [ -z "$value" ]; then
+            echo "Failed to decrypt $vault_path for secret $name"
+            return 1
+          fi
+          local podman_driver="shell"
+          case "$driver" in
+            file|shell) podman_driver="$driver" ;;
+            *) podman_driver="shell" ;;
+          esac
+          printf '%s' "$value" | podman secret create --driver "$podman_driver" --replace "$name" -
+        }
+
+        if [ -f "$MANIFEST_FILE" ]; then
+          echo "Restoring secrets using secret_manifest.txt"
+          while IFS='|' read -r name id driver vault_file captured_file; do
+            case "$name" in
+              ''|\#*) continue ;;
+            esac
+            if [ -n "$vault_file" ] && [ -f "$BACKUP_VAULT_DIR/$vault_file" ]; then
+              echo "Restoring '$name' (driver=$driver) from etc_lme/vault/$vault_file"
+              create_secret_from_vault "$name" "$driver" "$BACKUP_VAULT_DIR/$vault_file" \
+                && echo "Successfully restored secret: $name" \
+                || echo "Failed to create secret: $name"
+            elif [ -n "$captured_file" ] && [ -f "$BACKUP_ROOT/$captured_file" ]; then
+              echo "Restoring '$name' (driver=$driver) from $captured_file"
+              create_secret_from_vault "$name" "$driver" "$BACKUP_ROOT/$captured_file" \
+                && echo "Successfully restored secret: $name" \
+                || echo "Failed to create secret: $name"
+            else
+              echo "Warning: no payload available to restore secret '$name' (driver=$driver). Skipping; recreate via install/playbooks if required."
             fi
-            
-            # Check if vault file exists in backup
+          done < "$MANIFEST_FILE"
+        elif [ -f "$MAPPING_FILE" ] && [ -d "$BACKUP_VAULT_DIR" ]; then
+          echo "secret_manifest.txt missing; falling back to legacy secret_mapping.txt"
+          while IFS='=' read -r secret_name vault_file_id; do
+            case "$secret_name" in
+              ''|\#*) continue ;;
+            esac
             BACKUP_VAULT_FILE="$BACKUP_VAULT_DIR/$vault_file_id"
             if [ -f "$BACKUP_VAULT_FILE" ]; then
               echo "Restoring secret: $secret_name from backup vault file: $vault_file_id"
-              # Extract secret from backup vault file and create new secret
               SECRET_VALUE=$(ansible-vault view "$BACKUP_VAULT_FILE")
               if [ $? -eq 0 ] && [ -n "$SECRET_VALUE" ]; then
-                echo "$SECRET_VALUE" | podman secret create --driver shell --replace "$secret_name" -
-                if [ $? -eq 0 ]; then
-                  echo "Successfully restored secret: $secret_name"
-                else
-                  echo "Failed to create secret: $secret_name"
-                fi
+                echo "$SECRET_VALUE" | podman secret create --driver shell --replace "$secret_name" - \
+                  && echo "Successfully restored secret: $secret_name" \
+                  || echo "Failed to create secret: $secret_name"
               else
                 echo "Failed to decrypt backup vault file for secret: $secret_name"
               fi
@@ -434,19 +517,15 @@
               echo "Warning: Backup vault file not found for secret $secret_name: $BACKUP_VAULT_FILE"
             fi
           done < "$MAPPING_FILE"
-          
-          echo "Secret restoration from backup completed"
         else
-          echo "No secret mapping file or backup vault directory found, attempting fallback method..."
-          
-          # Fallback: Create secrets in standard order from backup vault files (for older backups)
+          echo "No secret manifest or mapping found; using positional fallback for very old backups"
           if [ -d "$BACKUP_VAULT_DIR" ]; then
             vault_files=($(ls "$BACKUP_VAULT_DIR" | grep -v "^$" | sort))
             secret_names=("elastic" "kibana_system" "wazuh_api" "wazuh")
-            
+
             for i in "${!secret_names[@]}"; do
               if [ -f "$BACKUP_VAULT_DIR/${vault_files[$i]}" ]; then
-                echo "Creating secret ${secret_names[$i]} from backup vault file ${vault_files[$i]} (fallback method)"
+                echo "Creating secret ${secret_names[$i]} from backup vault file ${vault_files[$i]} (positional fallback)"
                 SECRET_VALUE=$(ansible-vault view "$BACKUP_VAULT_DIR/${vault_files[$i]}")
                 if [ $? -eq 0 ] && [ -n "$SECRET_VALUE" ]; then
                   echo "$SECRET_VALUE" | podman secret create --driver shell --replace "${secret_names[$i]}" -
@@ -458,10 +537,8 @@
           else
             echo "Error: No backup vault directory found at $BACKUP_VAULT_DIR"
           fi
-          
-          echo "Fallback secret creation from backup completed"
         fi
-        
+
         # Verify secrets were created
         echo "Current secrets:"
         podman secret ls

@@ -8,7 +8,10 @@
     lme_install_dir: "/opt/lme"
     restore_backup_dir: "{{ restore_backup_dir | default('') }}"
     restore_backup_search_paths: []
-    restore_es_volumes: false
+    # Automatic (default): true for single-node backups, false when backup is from cluster
+    # topology (detected via cluster_recovery_note.txt or backed-up elasticsearch quadlet).
+    # Set explicitly true/false to override.
+    restore_es_volumes: "auto"
     expected_master_containers_min: 4
     restore_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
 
@@ -233,11 +236,46 @@
             selected_backup_dir: "{{ restore_extracted_dirs.files[0].path }}"
             restore_tar_staging_cleanup: "{{ restore_tar_staging.path }}"
 
+    # Once selected_backup_dir points at bundle contents we can classify the backup using the same signals as
+    # backup_lme (cluster_recovery_note vs discovery.type in the archived elasticsearch quadlet).
+    - name: Detect Elasticsearch topology reflected in backup bundle
+      shell: |
+        set -euo pipefail
+        if [ -f "{{ selected_backup_dir }}/cluster_recovery_note.txt" ]; then
+          echo "cluster"
+          exit 0
+        fi
+        # backup_lme stores quadlets under etc_containers_systemd; tarball layouts may use etc/containers/systemd
+        if [ -f "{{ selected_backup_dir }}/etc_containers_systemd/lme-elasticsearch.container" ]; then
+          f="{{ selected_backup_dir }}/etc_containers_systemd/lme-elasticsearch.container"
+        elif [ -f "{{ selected_backup_dir }}/etc/containers/systemd/lme-elasticsearch.container" ]; then
+          f="{{ selected_backup_dir }}/etc/containers/systemd/lme-elasticsearch.container"
+        else
+          f=""
+        fi
+        if [ -z "$f" ] || [ ! -f "$f" ]; then
+          echo "unknown"
+        elif grep -qF 'discovery.type=single-node' "$f"; then
+          echo "single-node"
+        else
+          echo "cluster"
+        fi
+      args:
+        executable: /bin/bash
+      register: restore_backup_es_mode_probe
+      changed_when: false
+
+    - name: Resolve restore_es_volumes when set to automatic default
+      set_fact:
+        restore_es_volumes: "{{ (restore_backup_es_mode_probe.stdout | trim) != 'cluster' }}"
+      when: restore_es_volumes | string | lower == 'auto'
+
     - name: Display restore mode
       debug:
         msg: >-
           Restoring LME master state from {{ selected_backup_dir }}.
-          Elasticsearch volumes will {{ 'also be restored' if restore_es_volumes | bool else 'be skipped (recommended for clusters)' }}.
+          Topology from backup archive: {{ restore_backup_es_mode_probe.stdout | trim }}.
+          Elasticsearch data volumes: {{ 'will be restored' if restore_es_volumes | bool else 'will be skipped' }}.
 
     - name: Stop LME service if present
       systemd:
@@ -279,6 +317,25 @@
           chmod 644 /etc/containers/systemd/* 2>/dev/null || true
           chown root:root /etc/containers/systemd/* 2>/dev/null || true
         fi
+
+        # Restore LME-owned host systemd units (.service/.path/.timer) if backed up
+        HOST_UNITS_DIR="{{ selected_backup_dir }}/etc_systemd_system_lme"
+        if [ -d "$HOST_UNITS_DIR" ] && [ -f "$HOST_UNITS_DIR/manifest.txt" ]; then
+          while IFS='|' read -r unit file_status enabled_state; do
+            case "$unit" in
+              ''|\#*) continue ;;
+            esac
+            SRC="$HOST_UNITS_DIR/$unit"
+            if [ "$file_status" = "copied" ] && [ -f "$SRC" ]; then
+              cp -f "$SRC" "/etc/systemd/system/$unit"
+              chmod 644 "/etc/systemd/system/$unit" 2>/dev/null || true
+              chown root:root "/etc/systemd/system/$unit" 2>/dev/null || true
+            fi
+          done < "$HOST_UNITS_DIR/manifest.txt"
+          echo "Host systemd unit files restored from backup"
+        else
+          echo "No host systemd unit backup found (older backup format or no helper units)"
+        fi
       args:
         executable: /bin/bash
       register: restore_files_result
@@ -289,6 +346,7 @@
         - "{{ lme_install_dir }}"
         - "/etc/lme"
         - "/etc/containers/systemd"
+        - "/etc/systemd/system"
       when:
         - selinux_active | default(false)
       changed_when: false
@@ -297,7 +355,37 @@
       systemd:
         daemon_reload: yes
 
-    - name: Restore Podman secrets from backup vault files
+    - name: Re-enable LME host systemd units recorded in backup manifest
+      shell: |
+        HOST_UNITS_DIR="{{ selected_backup_dir }}/etc_systemd_system_lme"
+        if [ ! -f "$HOST_UNITS_DIR/manifest.txt" ]; then
+          echo "No host unit manifest in backup; nothing to enable"
+          exit 0
+        fi
+        while IFS='|' read -r unit file_status enabled_state; do
+          case "$unit" in
+            ''|\#*) continue ;;
+          esac
+          if [ "$unit" = "lme.service" ]; then
+            continue
+          fi
+          if [ ! -f "/etc/systemd/system/$unit" ]; then
+            continue
+          fi
+          case "$enabled_state" in
+            enabled|enabled-runtime|alias|static)
+              systemctl enable "$unit" 2>/dev/null || true
+              ;;
+            *)
+              systemctl disable "$unit" 2>/dev/null || true
+              ;;
+          esac
+        done < "$HOST_UNITS_DIR/manifest.txt"
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+
+    - name: Restore Podman secrets from backup
       shell: |
         export PATH=$PATH:/nix/var/nix/profiles/default/bin
         export ANSIBLE_VAULT_PASSWORD_FILE="{{ selected_backup_dir }}/etc_lme/pass.sh"
@@ -306,15 +394,51 @@
           podman secret rm "$secret_id" 2>/dev/null || true
         done
 
-        MAPPING_FILE="{{ selected_backup_dir }}/secret_mapping.txt"
-        BACKUP_VAULT_DIR="{{ selected_backup_dir }}/etc_lme/vault"
+        BACKUP_ROOT="{{ selected_backup_dir }}"
+        MANIFEST_FILE="$BACKUP_ROOT/secret_manifest.txt"
+        MAPPING_FILE="$BACKUP_ROOT/secret_mapping.txt"
+        BACKUP_VAULT_DIR="$BACKUP_ROOT/etc_lme/vault"
 
-        if [ -f "$MAPPING_FILE" ] && [ -d "$BACKUP_VAULT_DIR" ]; then
-          while IFS='=' read -r secret_name vault_file_id; do
-            if [[ "$secret_name" =~ ^#.*$ ]] || [[ -z "$secret_name" ]]; then
-              continue
+        create_secret_from_vault() {
+          local name="$1" driver="$2" vault_path="$3"
+          local value
+          value=$(ansible-vault view "$vault_path")
+          if [ $? -ne 0 ] || [ -z "$value" ]; then
+            echo "Failed to decrypt $vault_path for secret $name"
+            return 1
+          fi
+          local podman_driver="shell"
+          case "$driver" in
+            file|shell) podman_driver="$driver" ;;
+            *) podman_driver="shell" ;;
+          esac
+          printf '%s' "$value" | podman secret create --driver "$podman_driver" --replace "$name" -
+        }
+
+        if [ -f "$MANIFEST_FILE" ]; then
+          echo "Restoring secrets using secret_manifest.txt"
+          while IFS='|' read -r name id driver vault_file captured_file; do
+            case "$name" in
+              ''|\#*) continue ;;
+            esac
+            if [ -n "$vault_file" ] && [ -f "$BACKUP_VAULT_DIR/$vault_file" ]; then
+              create_secret_from_vault "$name" "$driver" "$BACKUP_VAULT_DIR/$vault_file" \
+                && echo "Successfully restored secret: $name" \
+                || echo "Failed to create secret: $name"
+            elif [ -n "$captured_file" ] && [ -f "$BACKUP_ROOT/$captured_file" ]; then
+              create_secret_from_vault "$name" "$driver" "$BACKUP_ROOT/$captured_file" \
+                && echo "Successfully restored secret: $name" \
+                || echo "Failed to create secret: $name"
+            else
+              echo "Warning: no payload available to restore secret '$name' (driver=$driver). Skipping."
             fi
-
+          done < "$MANIFEST_FILE"
+        elif [ -f "$MAPPING_FILE" ] && [ -d "$BACKUP_VAULT_DIR" ]; then
+          echo "secret_manifest.txt missing; falling back to legacy secret_mapping.txt"
+          while IFS='=' read -r secret_name vault_file_id; do
+            case "$secret_name" in
+              ''|\#*) continue ;;
+            esac
             BACKUP_VAULT_FILE="$BACKUP_VAULT_DIR/$vault_file_id"
             if [ -f "$BACKUP_VAULT_FILE" ]; then
               SECRET_VALUE=$(ansible-vault view "$BACKUP_VAULT_FILE")
@@ -324,6 +448,9 @@
             fi
           done < "$MAPPING_FILE"
         fi
+
+        echo "Current secrets:"
+        podman secret ls
       args:
         executable: /bin/bash
       register: restore_secrets_result
