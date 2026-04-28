@@ -253,7 +253,6 @@
       args:
         executable: /bin/bash
       register: running_containers_no_backup
-      when: backup_choice in ['n', 'no']
       until: running_containers_no_backup.stdout_lines | length == 0
       retries: 12
       delay: 5
