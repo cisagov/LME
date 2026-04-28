@@ -420,9 +420,11 @@ jobs:
 
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
             cd ${INSTALLERS_DIR} && \
-            PASSWORD=\$(cat pipe-${{ env.UNIQUE_ID }}.password.txt) && \
-            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
-              \"sshpass -p '\$PASSWORD' ssh-copy-id -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PRIVATE_IP }}\" && \
+            MASTER_PUB_KEY=\$(ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sed -n \"1p\" ~/.ssh/id_rsa.pub') && \
+            if [ -z \"\$MASTER_PUB_KEY\" ]; then echo 'Failed to read master public key'; exit 1; fi && \
+            MASTER_PUB_KEY_B64=\$(printf '%s' \"\$MASTER_PUB_KEY\" | base64 -w 0) && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
+              \"mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && grep -qxF \\\$(echo '\$MASTER_PUB_KEY_B64' | base64 -d) ~/.ssh/authorized_keys || echo \\\$(echo '\$MASTER_PUB_KEY_B64' | base64 -d) >> ~/.ssh/authorized_keys\" && \
             ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
               \"ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PRIVATE_IP }} hostname\"
           "
