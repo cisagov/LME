@@ -8,6 +8,17 @@ import re
 import ipaddress
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.compute.models import (
+    AdditionalCapabilities,
+    HardwareProfile,
+    ImageReference,
+    NetworkInterfaceReference,
+    NetworkProfile,
+    OSDisk,
+    OSProfile,
+    StorageProfile,
+    VirtualMachine,
+)
 from azure.mgmt.devtestlabs import DevTestLabsClient
 from azure.mgmt.devtestlabs.models import Schedule
 from azure.mgmt.resource import ResourceManagementClient
@@ -276,38 +287,36 @@ def create_linux_vm(
     )
 
     print(f"\nCreating {vm_name}...")
-    vm_params = {
-        "location": location,
-        "hardware_profile": {"vm_size": vm_size},
-        "additional_capabilities": {
-            "nested_virtualization_enabled": True
-        },
-        "storage_profile": {
-            "image_reference": {
-                "publisher": image_publisher,
-                "offer": image_offer,
-                "sku": image_sku,
-                "version": image_version,
-            },
-            "os_disk": {
-                "create_option": "FromImage",
-                "disk_size_gb": os_disk_size_gb,
-            },
-        },
-        "os_profile": {
-            "computer_name": f"{vm_name}",
-            "admin_username": vm_admin,
-            "admin_password": f"{vm_password}",
-        },
-        "network_profile": {
-            "network_interfaces": [
-                {
-                    "id": nic.id,
-                }
+    vm_params = VirtualMachine(
+        location=location,
+        hardware_profile=HardwareProfile(vm_size=vm_size),
+        additional_capabilities=AdditionalCapabilities(
+            nested_virtualization_enabled=True
+        ),
+        storage_profile=StorageProfile(
+            image_reference=ImageReference(
+                publisher=image_publisher,
+                offer=image_offer,
+                sku=image_sku,
+                version=image_version,
+            ),
+            os_disk=OSDisk(
+                create_option="FromImage",
+                disk_size_gb=os_disk_size_gb,
+            ),
+        ),
+        os_profile=OSProfile(
+            computer_name=f"{vm_name}",
+            admin_username=vm_admin,
+            admin_password=f"{vm_password}",
+        ),
+        network_profile=NetworkProfile(
+            network_interfaces=[
+                NetworkInterfaceReference(id=nic.id, primary=True),
             ],
-        },
-        "tags": tags or {},
-    }
+        ),
+        tags=tags or {},
+    )
 
     vm_poller = compute_client.virtual_machines.begin_create_or_update(
         resource_group_name=resource_group.name,
@@ -377,35 +386,35 @@ def create_windows_server(
     )
 
     # Create VM
-    vm_params = {
-        'location': location,
-        'os_profile': {
-            'computer_name': server_name,
-            'admin_username': vm_admin,
-            'admin_password': vm_password
+    vm_params = VirtualMachine(
+        location=location,
+        os_profile=OSProfile(
+            computer_name=server_name,
+            admin_username=vm_admin,
+            admin_password=vm_password,
+        ),
+        hardware_profile=HardwareProfile(
+            vm_size="Standard_DS1_v2"
+        ),
+        storage_profile=StorageProfile(
+            image_reference=ImageReference(
+                publisher="MicrosoftWindowsServer",
+                offer="WindowsServer",
+                sku="2019-Datacenter",
+                version="latest",
+            ),
+        ),
+        network_profile=NetworkProfile(
+            network_interfaces=[
+                NetworkInterfaceReference(id=nic.id, primary=True),
+            ],
+        ),
+        tags={
+            "project": project,
+            "created": today,
+            "createdBy": current_user,
         },
-        'hardware_profile': {
-            'vm_size': 'Standard_DS1_v2'  # Default size, change if needed
-        },
-        'storage_profile': {
-            'image_reference': {
-                'publisher': 'MicrosoftWindowsServer',
-                'offer': 'WindowsServer',
-                'sku': '2019-Datacenter',
-                'version': 'latest'
-            },
-        },
-        'network_profile': {
-            'network_interfaces': [{
-                'id': nic.id,
-            }]
-        },
-        'tags': {
-            'project': project,
-            'created': today,
-            'createdBy': current_user
-        }
-    }
+    )
 
     try:
         vm_result = compute_client.virtual_machines.begin_create_or_update(
