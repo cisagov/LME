@@ -67,11 +67,11 @@ BEFORE (single-node)             AFTER (cluster)
 
 ### Phase 1: Pre-checks and Backup
 
-1. **Verify current installation health** (run as sudo):
+1. **Verify current installation health** (from the LME repo on the master; `systemctl` as sudo):
    ```bash
    sudo systemctl status lme
-   sudo su
-   source /opt/lme/scripts/extract_secrets.sh -q
+   cd /path/to/LME
+   source scripts/extract_secrets.sh -q
    curl -sk -u "elastic:$elastic" https://localhost:9200/_cluster/health?pretty
    ```
    Confirm status is `green` and all containers are running.
@@ -126,10 +126,10 @@ BEFORE (single-node)             AFTER (cluster)
 
 ### Phase 4: Verification
 
-7. **Check cluster health** (run as sudo):
+7. **Check cluster health** (from the LME repo on the master):
    ```bash
-   sudo su
-   source /opt/lme/scripts/extract_secrets.sh -q
+   cd /path/to/LME
+   source scripts/extract_secrets.sh -q
    curl -sk -u "elastic:$elastic" https://localhost:9200/_cluster/health?pretty
    ```
    Expected: `status: green` (or `yellow` while replicas are being allocated),
