@@ -205,6 +205,7 @@
         - name: Create staging directory for tarball extraction
           tempfile:
             state: directory
+            path: "{{ restore_tar_staging_parent | default('/var/tmp') }}"
             suffix: lme_restore
           register: restore_tar_staging
 

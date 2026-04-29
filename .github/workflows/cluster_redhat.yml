@@ -54,7 +54,7 @@ jobs:
           echo "UNIQUE_ID=${RANDOM_NUM}_cluster_redhat_${{ github.run_number }}" >> $GITHUB_ENV
           
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
     
       - name: Setup environment variables
         run: |

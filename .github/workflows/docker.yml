@@ -69,7 +69,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_ubuntu2204_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Get branch name
       shell: bash
@@ -320,7 +320,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_ubuntu2404_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Get branch name
       shell: bash
@@ -571,7 +571,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_debian1210_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Get branch name
       shell: bash
@@ -822,7 +822,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_rhel9_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       
     - name: Get branch name
       shell: bash
@@ -1073,7 +1073,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_ubuntu2404cluster_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Get branch name
       shell: bash
@@ -1320,7 +1320,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_debian1210cluster_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Get branch name
       shell: bash
@@ -1567,7 +1567,7 @@ jobs:
         echo "UNIQUE_ID=${RANDOM_NUM}_rhel9cluster_${{ github.run_number }}" >> $GITHUB_ENV
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Get branch name
       shell: bash
