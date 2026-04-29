@@ -9,7 +9,6 @@ import ipaddress
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.compute.models import (
-    AdditionalCapabilities,
     HardwareProfile,
     ImageReference,
     NetworkInterfaceReference,
@@ -290,9 +289,6 @@ def create_linux_vm(
     vm_params = VirtualMachine(
         location=location,
         hardware_profile=HardwareProfile(vm_size=vm_size),
-        additional_capabilities=AdditionalCapabilities(
-            nested_virtualization_enabled=True
-        ),
         storage_profile=StorageProfile(
             image_reference=ImageReference(
                 publisher=image_publisher,
