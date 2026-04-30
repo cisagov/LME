@@ -69,10 +69,15 @@ ansible/
   - Single-node only; fails fast on clustered installs
 
 - **`change_passwords.yml`**: Changes built-in user passwords across the LME stack
-  - Supports `elastic`, `kibana_system`, `wazuh`, and `wazuh_api`
+  - Supports `elastic`, `kibana_system`, `wazuh`, `wazuh_api`, and `pgvector`
   - Works for both single-node and cluster deployments
   - Updates Elasticsearch via REST API; updates Wazuh via RBAC tool
+  - Updates PostgreSQL inside `lme-pgvector` via `ALTER USER` and rewrites the
+    file-driver Podman secret (master only)
   - Validates passwords against Have I Been Pwned (skippable in offline mode)
+  - See **[PASSWORD_README.md](PASSWORD_README.md)** for the full credential
+    inventory, including LLM keys (`llm-keys`) and the LiteLLM internal proxy
+    key, which are managed outside this playbook.
 
 - **`snapshot_elasticsearch.yml`**: Manages Elasticsearch snapshot repositories and creates snapshots
   - Supports `fs` (filesystem) and `s3` repository types
@@ -252,7 +257,7 @@ ansible-playbook ansible/restore_lme_master.yml
 For the full workflow, see **[CLUSTER_RECOVERY_README.md](CLUSTER_RECOVERY_README.md)**.
 
 ### Password Changes
-Change built-in user passwords (elastic, kibana_system, wazuh, wazuh_api). Requires a running LME installation and ansible-vault password configured at `/etc/lme/pass.sh`.
+Change built-in user passwords (elastic, kibana_system, wazuh, wazuh_api, pgvector). Requires a running LME installation and ansible-vault password configured at `/etc/lme/pass.sh`. For `pgvector`, the LLM stack must be installed and `lme-pgvector` must be running on the master.
 
 ```bash
 # Single-node (Elasticsearch elastic user)
@@ -266,9 +271,18 @@ ansible-playbook -i ansible/inventory/cluster.yml ansible/change_passwords.yml \
 # Offline environments (skip Have I Been Pwned breach check)
 ansible-playbook ansible/change_passwords.yml \
   -e lme_user=elastic -e lme_password='YourNewSecurePassword123!' -e offline_mode=true
+
+# Rotate the pgvector PostgreSQL user (master only)
+ansible-playbook ansible/change_passwords.yml \
+  -e lme_user=pgvector -e lme_password='YourNewPgvectorPwd_123!'
 ```
 
 For clusters, ensure SSH connectivity from master to all nodes before running.
+
+`llm-keys` (cloud LLM provider API keys) and the LiteLLM internal proxy key
+(`sk-lme-llama-proxy`) are managed outside this playbook. See
+**[PASSWORD_README.md](PASSWORD_README.md)** for those workflows and the full
+credential inventory.
 
 ### Single-Node to Cluster Conversion
 Convert an existing single-node LME installation into a multi-node Elasticsearch cluster. Prerequisites: healthy single-node LME on master, cluster inventory at `ansible/inventory/cluster.yml`, SSH connectivity from master to all cluster nodes, ports 9200 and 9300 open between nodes.

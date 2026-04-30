@@ -5,7 +5,8 @@
 # Tests the change_passwords.yml Ansible playbook in the Docker cluster
 # environment. Run from the HOST machine while the cluster containers are up.
 #
-# Tests all supported users: elastic, kibana_system, wazuh, wazuh_api
+# Tests all supported users: elastic, kibana_system, wazuh, wazuh_api, pgvector
+# (pgvector is auto-skipped when the LLM stack is not installed.)
 #
 # Prerequisites:
 #   1. Start cluster:   docker compose -f docker-compose-cluster.yml up -d --build
@@ -30,6 +31,9 @@ NODE3_CONTAINER="lme_cluster_node3"
 
 ELASTIC_TEST_PASSWORD="ChangeMe_Test_Pwd_99.X"
 WAZUH_TEST_PASSWORD="WazuhTest.Pass_789"
+# Default prefix; pgvector test uses a unique suffix so a failed prior run cannot leave
+# the secret equal to the rotation target (no-op ALTER + false "old password" failure).
+PGVECTOR_TEST_PASSWORD="PgvectorTest.Pwd_42a"
 ANSIBLE_OPTS=""
 TESTS_PASSED=0
 TESTS_FAILED=0
@@ -134,6 +138,33 @@ read_vault_secret() {
             ansible-vault view /etc/lme/vault/\$SECRET_ID 2>/dev/null | tr -d '\n'
         fi
     "
+}
+
+# Read a Podman file-driver secret (pgvector, llm-keys) via --showsecret
+read_podman_file_secret() {
+    local container=$1
+    local secret_name=$2
+    docker_exec "$container" "
+        export PATH=\$PATH:/nix/var/nix/profiles/default/bin
+        podman secret inspect --showsecret '${secret_name}' \
+            --format '{{.SecretData}}' 2>/dev/null | tr -d '\n'
+    "
+}
+
+# Verify a candidate password authenticates against pgvector via psql.
+# Uses a throwaway client on the lme Podman network so connections hit
+# scram-sha-256 (pg_hba trust only applies to 127.0.0.1 / local socket inside
+# lme-pgvector; psql -h 127.0.0.1 from inside that container always succeeds).
+verify_pgvector_password() {
+    local container=$1
+    local password=$2
+    docker exec -e PGPASSWORD="$password" "$container" bash -c '
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman run --rm --network lme \
+            -e PGPASSWORD \
+            docker.io/library/postgres:17-alpine \
+            psql -h lme-pgvector -p 5432 -U lme -d lme_vectors -tAc "SELECT 1;" 2>/dev/null || true
+    '
 }
 
 # Run the change_passwords playbook
@@ -534,7 +565,87 @@ test_wazuh_api() {
 }
 
 # =========================================================================
-# Test 5: password_management.sh - reset_elastic_password.exp (elastic)
+# Test 5: pgvector password change (LLM stack)
+# =========================================================================
+test_pgvector() {
+    echo ""
+    echo -e "${YELLOW}=== Test: pgvector password change ===${NC}"
+
+    # Skip cleanly if the LLM stack was not installed in this environment
+    if ! docker_exec "$MASTER_CONTAINER" \
+            "podman ps --format '{{.Names}}' | grep -qx lme-pgvector"; then
+        echo -e "  ${YELLOW}SKIP${NC}: lme-pgvector not running (LLM stack not installed?)"
+        return
+    fi
+
+    local original_pw
+    original_pw=$(read_podman_file_secret "$MASTER_CONTAINER" "pgvector")
+    if [ -z "$original_pw" ]; then
+        fail "Could not read current pgvector password from Podman secret"
+        return
+    fi
+    echo "  Current pgvector password length: ${#original_pw}"
+
+    local pg_tmp_pw="${PGVECTOR_TEST_PASSWORD}.rot.${RANDOM}${RANDOM}.z"
+    while [ "$pg_tmp_pw" = "$original_pw" ]; do
+        pg_tmp_pw="${PGVECTOR_TEST_PASSWORD}.rot.${RANDOM}${RANDOM}.z"
+    done
+
+    # Verify current password authenticates against PostgreSQL
+    if [ "$(verify_pgvector_password "$MASTER_CONTAINER" "$original_pw")" = "1" ]; then
+        pass "Current pgvector password authenticates via psql"
+    else
+        fail "Current pgvector password failed psql authentication"
+        return
+    fi
+
+    # Change password
+    echo "  Running change_passwords.yml (pgvector -> ephemeral test password)..."
+    run_change_password "pgvector" "$pg_tmp_pw"
+    echo -e "  ${GREEN}Playbook completed${NC}"
+
+    # Verify new password authenticates
+    if [ "$(verify_pgvector_password "$MASTER_CONTAINER" "$pg_tmp_pw")" = "1" ]; then
+        pass "New pgvector password authenticates via psql"
+    else
+        fail "New pgvector password failed psql authentication"
+    fi
+
+    # Verify old password rejected
+    local old_result
+    old_result=$(verify_pgvector_password "$MASTER_CONTAINER" "$original_pw")
+    if [ "$old_result" != "1" ]; then
+        pass "Old pgvector password correctly rejected"
+    else
+        fail "Old pgvector password still authenticates -- ALTER USER did not take effect"
+    fi
+
+    # Verify the file-driver secret was updated to the new value
+    local secret_pw
+    secret_pw=$(read_podman_file_secret "$MASTER_CONTAINER" "pgvector")
+    if [ "$secret_pw" = "$pg_tmp_pw" ]; then
+        pass "pgvector Podman secret updated on master"
+    else
+        fail "pgvector Podman secret does not match new password (got length ${#secret_pw})"
+    fi
+
+    # Verify cluster health (sanity check; pgvector change should not affect ES)
+    echo "  Checking cluster health after pgvector rotation..."
+    verify_cluster_health "$CURRENT_ELASTIC_PW"
+
+    # Restore original password
+    echo "  Restoring original pgvector password..."
+    run_change_password "pgvector" "$original_pw"
+
+    if [ "$(verify_pgvector_password "$MASTER_CONTAINER" "$original_pw")" = "1" ]; then
+        pass "Original pgvector password restored successfully"
+    else
+        fail "Original pgvector password restore failed"
+    fi
+}
+
+# =========================================================================
+# Test 6: password_management.sh - reset_elastic_password.exp (elastic)
 # =========================================================================
 test_script_elastic() {
     echo ""
@@ -602,7 +713,7 @@ test_script_elastic() {
 }
 
 # =========================================================================
-# Test 6: password_management.sh - reset_elastic_password.exp (kibana_system)
+# Test 7: password_management.sh - reset_elastic_password.exp (kibana_system)
 # =========================================================================
 test_script_kibana_system() {
     echo ""
@@ -660,7 +771,7 @@ test_script_kibana_system() {
 }
 
 # =========================================================================
-# Test 7: password_management.sh - reset_wazuh_password (wazuh)
+# Test 8: password_management.sh - reset_wazuh_password (wazuh)
 # =========================================================================
 test_script_wazuh() {
     echo ""
@@ -748,6 +859,7 @@ test_elastic
 test_kibana_system
 test_wazuh
 test_wazuh_api
+test_pgvector
 
 echo ""
 echo -e "${YELLOW}========================================${NC}"

@@ -35,6 +35,8 @@ services:
       - NODE_ROLE=master
     command: ["/lib/systemd/systemd", "--system"]
     ports:
+      # lme-pgvector: host 15432 -> master container 5432 (avoid host :5432 conflicts; psql -h localhost -p 15432)
+      - "15432:5432"
       - "5601:5601"
       - "443:443"
       - "8220:8220"

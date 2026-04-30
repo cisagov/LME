@@ -557,3 +557,6 @@ Regularly test your backups by:
 - **[Upgrade Operations](UPGRADE_README.md)**: Upgrading LME with backup integration
 - **[Rollback Operations](ROLLBACK_README.md)**: Restoring from backups
 - **[Cluster Recovery](CLUSTER_RECOVERY_README.md)**: Cluster-safe backup and restore workflows
+- **[Password Rotation](PASSWORD_README.md)**: Inventory of LME credentials
+  (including the `pgvector` and `llm-keys` Podman secrets captured in
+  `secret_manifest.txt`) and how to rotate each one
