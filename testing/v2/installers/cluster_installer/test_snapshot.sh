@@ -346,6 +346,8 @@ fi
 # =========================================================================
 echo ""
 echo -e "${YELLOW}Cleanup: Deleting test snapshots${NC}"
+# DELETE returns 404 snapshot_missing if that name was never created (harmless). Test 4 may
+# skip creating test-pre-upgrade-snapshot when rolling_upgrade pre-check cannot verify the repo.
 
 for snap in test-snapshot-1 test-snapshot-2 test-pre-upgrade-snapshot; do
     ssh_master "sudo bash -s" << SCRIPT

@@ -12,12 +12,14 @@
     # Example future value: es_upgrade_pull_image: docker.io/library/elasticsearch:8.18.8
     es_upgrade_pull_image: ""
 
-    # Pre-upgrade check settings
+    # Pre-upgrade check settings (es_snapshot_fs_location matches snapshot_elasticsearch.yml;
+    # cluster installs override with -e es_snapshot_fs_location=/usr/share/elasticsearch/snapshots)
     disk_space_threshold_percent: "{{ pre_check_disk_threshold | default(85) }}"
     es_snapshot_repo: lme_backups
     es_snapshot_repo_type: fs
+    es_snapshot_fs_location: "/usr/share/elasticsearch/backups"
     es_snapshot_repo_settings:
-      location: "/usr/share/elasticsearch/backups"
+      location: "{{ es_snapshot_fs_location }}"
     snapshot_name: "pre-upgrade-{{ ansible_date_time.iso8601_basic_short }}"
 
   pre_tasks:
