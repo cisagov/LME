@@ -53,6 +53,8 @@ The script will:
 
 Options: `--skip-nfs` to skip NFS setup, `--nfs-only` to run only NFS setup on an existing cluster.
 
+**RHEL 9:** Use `./setup_cluster_redhat.sh` instead of `./setup_cluster.sh` (same flags). It uses `dnf`, puts snapshot backing storage under `/var/lib/lme/es-snapshots` on the master (bind-mounted at `/srv/es-snapshots` so the export is not on the small root LV), configures `nfs-server` and firewalld, and applies SELinux `container_file_t` to the master’s local snapshot paths after bind mounts. Data nodes only run `mkdir`, NFS mount, and fstab in Phase 6; they do not run `chmod`/`chcon` in the script. If a data node denies container access to `/mnt/es-snapshots`, use [RHEL 9: SELinux and snapshot paths](#rhel-9-selinux-and-snapshot-paths) below.
+
 The Azure script writes credentials under `testing/v2/installers/` first;
 `setup_cluster.sh` then copies them to `output/`. For any manual steps you run
 from `cluster_installer/`, use `output/${RESOURCE_GROUP}.password.txt` and
@@ -340,6 +342,45 @@ case all nodes use the NFS client mount from step 9b -- there is no bind mount
 on the master since it is no longer the NFS server. Replace `10.1.0.5` in the
 mount commands and fstab entries with the external server's IP and export path.
 Step 9c (Elasticsearch configuration) stays the same on every node.
+
+## RHEL 9: SELinux and snapshot paths
+
+Podman on RHEL with SELinux enforcing expects snapshot directories used as container volumes to be labeled so the Elasticsearch container can read and write them. The automated installer [`setup_cluster_redhat.sh`](./setup_cluster_redhat.sh) does the following in Phase 6:
+
+- **Master (NFS server):** Creates `/var/lib/lme/es-snapshots` and `/srv/es-snapshots`, `chmod 777` on those two, bind-mounts the backing path onto `/srv/es-snapshots`, adds the bind line to `/etc/fstab`, exports `/srv/es-snapshots` to each node’s private IP, starts `nfs-server`, and opens NFS-related firewalld services when firewalld is active.
+- **Master (same host, client layout):** Bind-mounts `/srv/es-snapshots` to `/mnt/es-snapshots`, adds that bind to `/etc/fstab`, then runs `chmod 777` and `chcon -Rt container_file_t` on `/var/lib/lme/es-snapshots`, `/srv/es-snapshots`, and `/mnt/es-snapshots`.
+- **Data nodes:** Installs `nfs-utils`, mounts `<MASTER_PRIVATE_IP>:/srv/es-snapshots` at `/mnt/es-snapshots` with `vers=4.1,proto=tcp,hard,timeo=600,retrans=2`, and adds a matching `/etc/fstab` entry. The script does **not** run `chmod` or `chcon` on data nodes; if you see permission or SELinux denials for the ES container on those hosts, apply the manual steps below (at least on `/mnt/es-snapshots`).
+
+After mounts, Phase 6c adds `path.repo` for `/usr/share/elasticsearch/snapshots`, drops in the Quadlet volume line `Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots`, and restarts `lme-elasticsearch` on every node.
+
+### Manual repair (RHEL, SELinux)
+
+If you need to fix permissions and labels by hand on any node:
+
+```bash
+sudo mkdir -p /var/lib/lme/es-snapshots /srv/es-snapshots /mnt/es-snapshots
+sudo chmod 777 /var/lib/lme/es-snapshots /srv/es-snapshots /mnt/es-snapshots
+sudo chcon -Rt container_file_t /var/lib/lme/es-snapshots /srv/es-snapshots /mnt/es-snapshots
+sudo systemctl restart lme-elasticsearch
+```
+
+If `/srv/es-snapshots` is still on `/` and you want it backed by `/var` instead, move the backing store and bind-mount before exporting:
+
+```bash
+sudo mkdir -p /var/lib/lme/es-snapshots /srv/es-snapshots
+sudo mount --bind /var/lib/lme/es-snapshots /srv/es-snapshots
+echo '/var/lib/lme/es-snapshots /srv/es-snapshots none bind 0 0' | sudo tee -a /etc/fstab
+```
+
+Then re-apply `chmod` / `chcon` on the paths the container uses, run `sudo exportfs -ra` on the master if you changed exports, and restart Elasticsearch on affected nodes.
+
+On **data nodes**, if the master’s backing path or export changed, remount the NFS share and restart Elasticsearch (replace `<MASTER_PRIVATE_IP>` with the master’s private IP):
+
+```bash
+sudo umount /mnt/es-snapshots
+sudo mount -t nfs -o vers=4.1,proto=tcp,hard,timeo=600,retrans=2 <MASTER_PRIVATE_IP>:/srv/es-snapshots /mnt/es-snapshots
+sudo systemctl restart lme-elasticsearch
+```
 
 ## Cleanup
 
