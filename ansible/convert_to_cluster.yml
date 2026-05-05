@@ -559,9 +559,99 @@
       tags: ['elasticsearch']
 
 ###############################################################################
-# Play 6: Post-conversion -- wait for cluster, update replicas
+# Play 6: Align snapshot wiring with cluster installer behavior
 ###############################################################################
-- name: "Phase 6: Post-conversion verification and replica update"
+- name: "Phase 6: Align snapshot repository wiring across cluster nodes"
+  hosts: elasticsearch
+  become: yes
+  serial: 1
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+  tasks:
+    - name: Check if NFS snapshot mount is present
+      ansible.builtin.command: mountpoint -q /mnt/es-snapshots
+      register: nfs_snapshot_mount
+      changed_when: false
+      failed_when: false
+
+    - name: Skip snapshot wiring on nodes without NFS mount
+      ansible.builtin.debug:
+        msg: "Skipping snapshot wiring on {{ inventory_hostname }} because /mnt/es-snapshots is not mounted."
+      when: nfs_snapshot_mount.rc != 0
+
+    - name: Ensure snapshot path is present in path.repo
+      ansible.builtin.lineinfile:
+        path: /opt/lme/config/elasticsearch.yml
+        regexp: '^\s*-\s*/usr/share/elasticsearch/snapshots\s*$'
+        line: "    - /usr/share/elasticsearch/snapshots"
+        insertafter: '^\s*-\s*/usr/share/elasticsearch/backups\s*$'
+      register: snapshot_repo_path
+      when: nfs_snapshot_mount.rc == 0
+
+    - name: Ensure quadlet drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/containers/systemd/lme-elasticsearch.container.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: nfs_snapshot_mount.rc == 0
+
+    - name: Ensure NFS snapshot volume drop-in is present
+      ansible.builtin.copy:
+        dest: /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Container]
+          Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots
+      register: snapshot_dropin
+      when: nfs_snapshot_mount.rc == 0
+
+    - name: Reload systemd daemon for quadlet updates
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when:
+        - nfs_snapshot_mount.rc == 0
+        - snapshot_repo_path.changed or snapshot_dropin.changed
+
+    - name: Restart Elasticsearch to apply snapshot wiring changes
+      ansible.builtin.systemd:
+        name: lme-elasticsearch
+        state: restarted
+        enabled: true
+      when:
+        - nfs_snapshot_mount.rc == 0
+        - snapshot_repo_path.changed or snapshot_dropin.changed
+
+    - name: Wait for local Elasticsearch to recover after restart
+      ansible.builtin.shell: |
+        set -euo pipefail
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        if [ -f /opt/lme/scripts/extract_secrets.sh ]; then
+          source /opt/lme/scripts/extract_secrets.sh -q
+        else
+          source {{ clone_directory }}/scripts/extract_secrets.sh -q
+        fi
+        status=$(curl -sk -u "elastic:$elastic" https://127.0.0.1:9200/_cluster/health | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","unknown"))')
+        [ "$status" != "red" ]
+      args:
+        executable: /bin/bash
+      register: snapshot_wiring_health
+      retries: 60
+      delay: 10
+      until: snapshot_wiring_health.rc == 0
+      changed_when: false
+      when:
+        - nfs_snapshot_mount.rc == 0
+        - snapshot_repo_path.changed or snapshot_dropin.changed
+
+###############################################################################
+# Play 7: Post-conversion -- wait for cluster, update replicas
+###############################################################################
+- name: "Phase 7: Post-conversion verification and replica update"
   hosts: "{{ groups['elasticsearch'][0] }}"
   connection: local
   become: yes
