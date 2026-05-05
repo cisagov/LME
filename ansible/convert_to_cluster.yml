@@ -154,13 +154,6 @@
         backup_choice: "n"
       when: skip_prompts is defined and skip_prompts | bool
 
-    - name: Run backup
-      include_role:
-        name: backup_lme
-      vars:
-        skip_prompts: true
-      when: backup_choice in ['y', 'yes']
-
     - name: Record existing indices for post-conversion verification
       uri:
         url: "{{ local_es_url }}/_cat/indices?format=json"
@@ -175,6 +168,14 @@
     - name: Display index count
       debug:
         msg: "Found {{ pre_conversion_indices.json | length }} existing indices that will be migrated to replicas=1"
+
+    - name: Run backup
+      include_role:
+        name: backup_lme
+      vars:
+        skip_prompts: true
+        skip_service_restart: true  # Leave services stopped; Phase 2 will reconfigure and Phase 4 restarts lme
+      when: backup_choice in ['y', 'yes']
 
 ###############################################################################
 # Play 1b: Verify SSH connectivity to all remote cluster nodes
