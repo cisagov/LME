@@ -199,7 +199,8 @@ echo
 
 echo
 echo -e "${YELLOW}Step 2: Run conversion playbook${NC}"
-echo -e "${BLUE}This will reconfigure the master, regenerate certificates,${NC}"
+echo -e "${BLUE}This will reconfigure the master, regenerate leaf certificates,${NC}"
+echo -e "${BLUE}keep the existing CA fingerprint,${NC}"
 echo -e "${BLUE}deploy Elasticsearch to cluster nodes, and update replicas.${NC}"
 echo
 

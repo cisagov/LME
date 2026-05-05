@@ -40,17 +40,29 @@
   become: true
   when: lme_certs_inspect_source.rc != 0
 
-- name: Force cert regeneration - remove existing cert archives from lme_certs volume
+- name: Force cert regeneration - remove existing leaf cert archive from lme_certs volume
   ansible.builtin.shell: |
     MOUNT=$(podman volume inspect -f '{{ '{{' }} .Mountpoint {{ '}}' }}' lme_certs)
-    rm -f "$MOUNT/ca.zip" "$MOUNT/certs.zip"
-    echo "Removed ca.zip and certs.zip from $MOUNT to force regeneration"
+    rm -f "$MOUNT/certs.zip"
+    echo "Removed certs.zip from $MOUNT to force leaf cert regeneration"
   args:
     executable: /bin/bash
   delegate_to: "{{ lme_certs_source_host }}"
   run_once: true
   become: true
   when: lme_force_cert_regen | default(false) | bool
+
+- name: Force CA regeneration - remove CA archive from lme_certs volume
+  ansible.builtin.shell: |
+    MOUNT=$(podman volume inspect -f '{{ '{{' }} .Mountpoint {{ '}}' }}' lme_certs)
+    rm -f "$MOUNT/ca.zip"
+    echo "Removed ca.zip from $MOUNT to force CA regeneration"
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  when: lme_force_ca_regen | default(false) | bool
 
 - name: Start certificate setup unit on source host (generates certs if missing)
   ansible.builtin.systemd:

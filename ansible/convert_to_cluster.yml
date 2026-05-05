@@ -274,17 +274,18 @@
       when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
 
 ###############################################################################
-# Play 3: Regenerate certificates with all cluster node IPs
+# Play 3: Regenerate leaf certificates with all cluster node IPs
 ###############################################################################
-- name: "Phase 3: Regenerate certificates for cluster"
+- name: "Phase 3: Regenerate leaf certificates for cluster"
   hosts: elasticsearch
   become: yes
   vars:
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
     lme_force_cert_regen: true
+    lme_force_ca_regen: false
 
   tasks:
-    - name: Include certs role (force regeneration with cluster SANs)
+    - name: Include certs role (reuse CA, regenerate leaf certs with cluster SANs)
       ansible.builtin.include_role:
         name: certs
       run_once: true
