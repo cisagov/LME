@@ -627,23 +627,21 @@
         - snapshot_repo_path.changed or snapshot_dropin.changed
 
     - name: Wait for local Elasticsearch to recover after restart
-      ansible.builtin.shell: |
-        set -euo pipefail
-        export PATH=$PATH:/nix/var/nix/profiles/default/bin
-        if [ -f /opt/lme/scripts/extract_secrets.sh ]; then
-          source /opt/lme/scripts/extract_secrets.sh -q
-        else
-          source {{ clone_directory }}/scripts/extract_secrets.sh -q
-        fi
-        status=$(curl -sk -u "elastic:$elastic" https://127.0.0.1:9200/_cluster/health | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","unknown"))')
-        [ "$status" != "red" ]
-      args:
-        executable: /bin/bash
+      ansible.builtin.uri:
+        url: "https://127.0.0.1:9200/_cluster/health"
+        method: GET
+        user: elastic
+        password: "{{ hostvars[groups['elasticsearch'][0]].elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
       register: snapshot_wiring_health
+      until: >
+        snapshot_wiring_health.json is defined and
+        snapshot_wiring_health.json.status is defined and
+        snapshot_wiring_health.json.status != 'red'
       retries: 60
       delay: 10
-      until: snapshot_wiring_health.rc == 0
-      changed_when: false
       when:
         - nfs_snapshot_mount.rc == 0
         - snapshot_repo_path.changed or snapshot_dropin.changed
