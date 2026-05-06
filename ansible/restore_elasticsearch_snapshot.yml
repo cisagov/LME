@@ -73,6 +73,9 @@
       run_once: true
       delegate_to: "{{ groups['elasticsearch'][0] }}"
 
+    - name: Ensure /opt/lme/scripts has the latest helper scripts
+      ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
     - name: Read lme-environment.env
       ansible.builtin.slurp:
         src: /opt/lme/lme-environment.env

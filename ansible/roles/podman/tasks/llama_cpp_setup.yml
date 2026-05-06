@@ -259,24 +259,8 @@
     mode: '0644'
   become: yes
 
-- name: Create scripts directory
-  file:
-    path: /opt/lme/scripts
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  become: yes
-
-- name: Copy scripts to /opt/lme/scripts
-  copy:
-    src: "{{ clone_directory }}/scripts/"
-    dest: /opt/lme/scripts/
-    owner: root
-    group: root
-    mode: preserve
-    remote_src: yes
-  become: yes
+- name: Ensure /opt/lme/scripts is populated with the latest helper scripts
+  ansible.builtin.include_tasks: ../../tasks/setup_lme_scripts.yml
 
 - name: Copy LLM keys systemd service and path units
   copy:

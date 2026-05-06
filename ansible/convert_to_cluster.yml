@@ -39,6 +39,9 @@
           This playbook must be run with a cluster inventory where the first
           elasticsearch host uses ansible_connection=local (the master node).
 
+    - name: Ensure /opt/lme/scripts has the latest helper scripts on master
+      ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
     - name: Read environment file
       include_tasks: tasks/load_env.yml
 

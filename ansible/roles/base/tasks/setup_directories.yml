@@ -5,32 +5,8 @@
   set_fact:
     clone_directory: "{{ clone_directory | expanduser }}"
 
-- name: Ensure /opt/lme directory exists
-  file:
-    path: /opt/lme
-    state: directory
-    owner: "{{ install_user }}"
-    group: "{{ install_user }}"
-    mode: '0700'
-  become: yes
-
-- name: Ensure /opt/lme/scripts directory exists
-  file:
-    path: /opt/lme/scripts
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
-  become: yes
-
-- name: Copy scripts to /opt/lme/scripts (for remote hosts)
-  copy:
-    src: "{{ clone_directory }}/scripts/"
-    dest: /opt/lme/scripts/
-    owner: root
-    group: root
-    mode: preserve
-  become: yes
+- name: Ensure /opt/lme and /opt/lme/scripts are populated with the latest helper scripts
+  ansible.builtin.include_tasks: ../../tasks/setup_lme_scripts.yml
 
 # Check if /opt/lme/lme-environment.env exists on target (current host)
 - name: Check if /opt/lme/lme-environment.env exists on target
