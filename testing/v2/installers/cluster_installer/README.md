@@ -7,6 +7,8 @@ Manual testing workflow for multi-node LME cluster installations using Ansible.
 - Azure CLI authenticated (`az login`)
 - SSH key pair (`~/.ssh/id_rsa` and `~/.ssh/id_rsa.pub`)
 - `jq` and `sshpass` installed locally
+  - Ubuntu/Debian: `sudo apt-get install -y jq sshpass`
+  - RHEL 9 / Rocky / Alma: `sudo dnf install -y epel-release && sudo dnf install -y jq sshpass`
 
 ## Environment Variables
 
@@ -169,10 +171,24 @@ On master, generate a passwordless SSH key:
 ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
 ```
 
-Install sshpass and copy key to cluster nodes:
+Install sshpass.
+
+Ubuntu/Debian:
 
 ```bash
 sudo apt-get update && sudo apt-get install -y sshpass
+```
+
+RHEL 9 / Rocky / Alma (sshpass is in EPEL):
+
+```bash
+sudo dnf install -y epel-release
+sudo dnf install -y sshpass
+```
+
+Then copy the master's key to each cluster node (same on all OSes):
+
+```bash
 sshpass -p 'PASSWORD_FROM_ABOVE' ssh-copy-id -o StrictHostKeyChecking=no lme-user@10.1.0.10
 sshpass -p 'PASSWORD_FROM_ABOVE' ssh-copy-id -o StrictHostKeyChecking=no lme-user@10.1.0.11
 ```
@@ -204,8 +220,17 @@ sed -i 's/IPVAR=.*/IPVAR=10.1.0.5/' ~/LME/config/lme-environment.env
 
 ### 6. Install Dependencies on Master
 
+Ubuntu/Debian:
+
 ```bash
 sudo apt-get install -y jq
+```
+
+RHEL 9 / Rocky / Alma (jq is in EPEL):
+
+```bash
+sudo dnf install -y epel-release
+sudo dnf install -y jq
 ```
 
 ### 7. Create Cluster Inventory
@@ -263,13 +288,26 @@ acts as the NFS server and every node (including master) mounts the share at
 
 #### 9a. Configure NFS Server on Master
 
-On master, install the NFS server, create the export directory, and publish it
-to every node in the cluster:
+On master, install the NFS server and create the export directory.
+
+Ubuntu/Debian:
 
 ```bash
 sudo apt-get install -y nfs-kernel-server
 sudo mkdir -p /srv/es-snapshots
 sudo chmod 777 /srv/es-snapshots
+```
+
+RHEL 9 / Rocky / Alma (back the export from `/var` so it is not on the small
+root LV, then bind-mount to `/srv/es-snapshots`):
+
+```bash
+sudo dnf install -y nfs-utils
+sudo mkdir -p /var/lib/lme/es-snapshots /srv/es-snapshots
+sudo chmod 777 /var/lib/lme/es-snapshots /srv/es-snapshots
+sudo mount --bind /var/lib/lme/es-snapshots /srv/es-snapshots
+echo '/var/lib/lme/es-snapshots /srv/es-snapshots none bind 0 0' | sudo tee -a /etc/fstab
+sudo chcon -Rt container_file_t /var/lib/lme/es-snapshots /srv/es-snapshots
 ```
 
 Write `/etc/exports` with an entry for each node's private IP. For a 3-node
@@ -279,12 +317,33 @@ cluster with IPs `10.1.0.5`, `10.1.0.10`, and `10.1.0.11`:
 echo '/srv/es-snapshots 10.1.0.5(rw,sync,no_subtree_check,no_root_squash) 10.1.0.10(rw,sync,no_subtree_check,no_root_squash) 10.1.0.11(rw,sync,no_subtree_check,no_root_squash)' \
     | sudo tee /etc/exports
 sudo exportfs -ra
-sudo systemctl start nfs-kernel-server
+```
+
+Start and enable the NFS server.
+
+Ubuntu/Debian:
+
+```bash
+sudo systemctl enable --now nfs-kernel-server
+```
+
+RHEL 9 / Rocky / Alma (different unit name, plus open firewalld if active):
+
+```bash
+sudo systemctl enable --now nfs-server
+if systemctl is-active --quiet firewalld; then
+    sudo firewall-cmd --permanent --add-service=nfs
+    sudo firewall-cmd --permanent --add-service=mountd
+    sudo firewall-cmd --permanent --add-service=rpc-bind
+    sudo firewall-cmd --reload
+fi
 ```
 
 #### 9b. Mount Snapshot Storage on All Nodes
 
-**Master** -- use a bind mount (avoids NFS self-mount hangs):
+**Master** -- use a bind mount (avoids NFS self-mount hangs).
+
+Ubuntu/Debian and RHEL 9:
 
 ```bash
 sudo mkdir -p /mnt/es-snapshots
@@ -292,10 +351,30 @@ sudo mount --bind /srv/es-snapshots /mnt/es-snapshots
 echo '/srv/es-snapshots /mnt/es-snapshots none bind 0 0' | sudo tee -a /etc/fstab
 ```
 
-**Each data node** -- install the NFS client and mount the master's export:
+On RHEL 9, also label the client mount path so the ES container can write to it:
+
+```bash
+sudo chmod 777 /mnt/es-snapshots
+sudo chcon -Rt container_file_t /mnt/es-snapshots
+```
+
+**Each data node** -- install the NFS client and mount the master's export.
+
+Ubuntu/Debian:
 
 ```bash
 sudo apt-get install -y nfs-common
+```
+
+RHEL 9 / Rocky / Alma:
+
+```bash
+sudo dnf install -y nfs-utils
+```
+
+Then mount the share (same on all OSes; replace `10.1.0.5` with the master's private IP):
+
+```bash
 sudo mkdir -p /mnt/es-snapshots
 sudo mount -t nfs -o vers=4.1,proto=tcp,hard,timeo=600,retrans=2 \
     10.1.0.5:/srv/es-snapshots /mnt/es-snapshots
@@ -303,7 +382,15 @@ echo '10.1.0.5:/srv/es-snapshots /mnt/es-snapshots nfs vers=4.1,proto=tcp,hard,t
     | sudo tee -a /etc/fstab
 ```
 
-Replace `10.1.0.5` with the master's private IP.
+On RHEL 9 data nodes, if the ES container is denied access to `/mnt/es-snapshots`, label the mount point and restart Elasticsearch:
+
+```bash
+sudo chmod 777 /mnt/es-snapshots
+sudo chcon -Rt container_file_t /mnt/es-snapshots
+sudo systemctl restart lme-elasticsearch
+```
+
+See [RHEL 9: SELinux and snapshot paths](#rhel-9-selinux-and-snapshot-paths) for the full RHEL flow that `setup_cluster_redhat.sh` automates.
 
 #### 9c. Configure Elasticsearch for Snapshot Storage
 
