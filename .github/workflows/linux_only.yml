@@ -23,10 +23,9 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  # TEMPORARILY DISABLED - uncomment when done with escluster testing
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   build-and-test-linux-only:

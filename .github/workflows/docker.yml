@@ -41,7 +41,6 @@ on:
           - all
           - single
           - cluster
-  # TEMPORARILY DISABLED - uncomment when done with escluster testing
   pull_request:
     branches:
       - '*'

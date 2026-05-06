@@ -1,11 +1,10 @@
 name: Cluster Run - Minimega
 
 on:
-  # TEMPORARILY DISABLED - uncomment when done with escluster testing
-  # pull_request:
-  #   branches:
-  #     - 'develop'
-  #     - 'main'
+  pull_request:
+    branches:
+      - 'develop'
+      - 'main'
   workflow_dispatch:
     inputs:
       azure_region:

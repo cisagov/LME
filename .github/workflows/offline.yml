@@ -23,12 +23,10 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  # TEMPORARILY DISABLED - uncomment when done with escluster testing
-  # pull_request:
-  #   branches:
-  #     - 'cbaxley-offline-github-workflow'
-  #     - 'develop'
-  #     - 'main'
+  pull_request:
+    branches:
+      - 'develop'
+      - 'main'
 
 jobs:
   offline:
