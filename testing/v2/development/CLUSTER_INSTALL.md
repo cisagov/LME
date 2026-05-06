@@ -241,13 +241,13 @@ docker compose -f docker-compose-cluster.yml up -d --build
 source /opt/lme/scripts/extract_secrets.sh -q
 
 # Check cluster health
-curl -sk -u elastic:$elastic https://localhost:9200/_cluster/health?pretty
+curl -sk -u 'elastic:$elastic' https://localhost:9200/_cluster/health?pretty
 
 # View cluster nodes
-curl -sk -u elastic:$elastic https://localhost:9200/_cat/nodes?v
+curl -sk -u 'elastic:$elastic' https://localhost:9200/_cat/nodes?v
 
 # Check shards distribution
-curl -sk -u elastic:$elastic https://localhost:9200/_cat/shards?v
+curl -sk -u 'elastic:$elastic' https://localhost:9200/_cat/shards?v
 ```
 
 ### Verify child quadlet layout and reboot behavior
@@ -267,7 +267,7 @@ systemctl list-unit-files 'lme-*'
 
 # Elasticsearch should be healthy before reboot.
 source /opt/lme/scripts/extract_secrets.sh -q
-curl -sk -u elastic:$elastic https://localhost:9200/_cluster/health?pretty
+curl -sk -u 'elastic:$elastic' https://localhost:9200/_cluster/health?pretty
 
 # Reboot the child and repeat the ls/systemctl/curl checks.
 sudo reboot
