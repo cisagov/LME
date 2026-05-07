@@ -94,6 +94,11 @@ def is_docs_url(url: str) -> bool:
     )
 
 
+def _normalize_crawl_url(url: str) -> str:
+    """Canonical form for queue/dedup: no #fragment, no trailing slash."""
+    return url.split("#")[0].rstrip("/")
+
+
 def crawl(base_url: str) -> dict[str, str]:
     """
     BFS crawl of the docs site.
@@ -107,28 +112,44 @@ def crawl(base_url: str) -> dict[str, str]:
     session.headers["User-Agent"] = "LME-DocBot/1.0 (RAG ingestion)"
 
     while queue:
-        url = queue.pop(0)
-        # Normalise — strip fragment and trailing slash variations
-        url = url.split("#")[0].rstrip("/") + "/"
+        url = _normalize_crawl_url(queue.pop(0))
         if url in visited:
             continue
         visited.add(url)
 
-        try:
-            resp = session.get(url, timeout=15)
-            resp.raise_for_status()
-        except Exception as e:
-            print(f"  SKIP {url}: {e}")
+        resp = None
+        last_err = None
+        # GitHub Pages often 404s slash-terminated URLs but serves the same page without "/".
+        for cand in (url, f"{url}/"):
+            try:
+                r = session.get(cand, timeout=15)
+            except requests.exceptions.RequestException as e:
+                last_err = e
+                break
+            if r.status_code == 404:
+                last_err = f"404 Client Error: Not Found for url: {cand}"
+                continue
+            try:
+                r.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                last_err = e
+                break
+            resp = r
+            break
+
+        if resp is None:
+            print(f"  SKIP {url}: {last_err}")
             continue
 
-        html = resp.text
-        pages[url] = html
+        page_key = _normalize_crawl_url(resp.url)
+        pages[page_key] = resp.text
 
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(resp.text, "lxml")
+        resolve_base = resp.url.split("#")[0]
         for a in soup.find_all("a", href=True):
-            href = urljoin(url, a["href"]).split("#")[0]
+            href = urljoin(resolve_base, a["href"]).split("#")[0]
             if is_docs_url(href):
-                norm = href.rstrip("/") + "/"
+                norm = _normalize_crawl_url(href)
                 if norm not in visited:
                     queue.append(norm)
 
@@ -141,6 +162,22 @@ def crawl(base_url: str) -> dict[str, str]:
 
 # Tags that are pure navigation noise
 _NAV_ROLES = {"navigation", "banner", "contentinfo", "search", "complementary"}
+
+
+def _bs4_attrs(tag) -> dict:
+    """Return a tag's attribute dict. BS4/lxml can leave Tag.attrs as None."""
+    raw = getattr(tag, "attrs", None)
+    return raw if isinstance(raw, dict) else {}
+
+
+def _bs4_class_str(tag) -> str:
+    """Space-separated class string, safe when attrs is missing or class is str/list."""
+    c = _bs4_attrs(tag).get("class", [])
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        return " ".join(str(x) for x in c)
+    return ""
 
 
 def extract_main_content(soup: BeautifulSoup) -> BeautifulSoup | None:
@@ -184,10 +221,10 @@ def html_to_markdown(url: str, html: str) -> tuple[str, str]:
     ):
         tag.decompose()
     for tag in soup.find_all(attrs={"role": True}):
-        if tag.get("role") in _NAV_ROLES:
+        if _bs4_attrs(tag).get("role") in _NAV_ROLES:
             tag.decompose()
     for tag in soup.find_all(attrs={"class": True}):
-        classes = " ".join(tag.get("class", []))
+        classes = _bs4_class_str(tag)
         if any(k in classes for k in ("nav", "sidebar", "toc", "breadcrumb",
                                        "footer", "header", "menu", "search")):
             tag.decompose()

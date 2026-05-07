@@ -25,6 +25,9 @@
     containers_file: "{{ playbook_dir }}/../config/containers.txt"
     
   tasks:
+    - name: Ensure /opt/lme/scripts has the latest helper scripts before upgrade
+      ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
     - name: Check if config containers file exists
       stat:
         path: "{{ containers_file }}"
@@ -34,6 +37,34 @@
       fail:
         msg: "Containers file not found at {{ containers_file }}"
       when: not containers_file_stat.stat.exists
+
+    - name: Check if this is a cluster installation
+      ansible.builtin.shell: |
+        if [ -f /etc/containers/systemd/lme-elasticsearch.container ]; then
+          grep -c 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container || echo "0"
+        else
+          echo "missing"
+        fi
+      args:
+        executable: /bin/bash
+      register: cluster_mode_check
+      changed_when: false
+
+    - name: Warn and fail if this is a cluster installation
+      fail:
+        msg: |
+          This installation appears to be running in CLUSTER mode
+          (discovery.type=single-node was not found in the Elasticsearch quadlet).
+
+          The upgrade_lme.yml playbook is designed for single-node installations only.
+          For cluster upgrades, use the rolling upgrade playbook instead:
+
+            ansible-playbook -i ansible/inventory/cluster.yml ansible/rolling_upgrade.yml
+
+          See also: testing/v2/development/converting_to_cluster.md
+      when:
+        - cluster_mode_check.stdout | trim != "missing"
+        - cluster_mode_check.stdout | trim | int == 0
 
     - name: Read container versions from file
       set_fact:
@@ -570,20 +601,8 @@
             dest: /opt/lme/lme-dashboard/
             remote_src: yes
 
-        - name: Ensure /opt/lme/scripts directory exists
-          file:
-            path: /opt/lme/scripts
-            state: directory
-            owner: root
-            group: root
-            mode: '0755'
-
-        - name: Copy scripts to /opt/lme/scripts
-          copy:
-            src: "{{ clone_directory }}/scripts/"
-            dest: /opt/lme/scripts/
-            remote_src: yes
-            mode: preserve
+        - name: Refresh /opt/lme/scripts with the latest helper scripts (AI stack deploy)
+          ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
 
         - name: Copy LLM systemd service and path units
           copy:

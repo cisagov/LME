@@ -11,6 +11,15 @@ The LME rollback system provides safe restoration from backups with:
 - Service validation after rollback
 - Detailed recovery instructions
 
+`rollback_lme.yml` is supported for **single-node installs only**. Clustered
+deployments must use:
+- `ansible/cluster_backup_lme.yml`
+- `ansible/restore_lme_master.yml`
+- `ansible/restore_elasticsearch_snapshot.yml`
+
+This is enforced by the playbook. It now fails fast when it detects a clustered
+Elasticsearch install.
+
 ## ⚠️ **CRITICAL: Fleet Server Rollback Considerations**
 
 **IMPORTANT**: Before rolling back, understand these Fleet Server implications:
@@ -126,6 +135,9 @@ Rollback requires existing backups created by:
 - Upgrade operations (when backup was chosen)
 - Scheduled backup jobs
 
+For clusters, do **not** use those backups as a substitute for Elasticsearch
+snapshot restore. Cluster data recovery must come from snapshots.
+
 ### Check Available Backups
 ```bash
 # Get container storage root and backup directory
@@ -170,6 +182,22 @@ The playbook will:
 6. **Container Updates**: Pull and tag container images from backup
 7. **Service Restart**: Start services with restored configuration
 8. **Validation**: Verify all services are running correctly
+
+## Cluster Recovery Instead Of Rollback
+
+If this host is part of a cluster, use the supported recovery flow:
+
+```bash
+# 1. Create or identify the cluster recovery bundle
+ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
+
+# 2. Restore master/control-plane state
+ansible-playbook ansible/restore_lme_master.yml
+
+# 3. Restore Elasticsearch data
+ansible-playbook -i ansible/inventory/cluster.yml ansible/restore_elasticsearch_snapshot.yml \
+  -e snapshot_name=<snapshot>
+```
 
 ### Backup Selection
 When prompted, you'll see a list like:
@@ -564,6 +592,7 @@ sudo rm /tmp/lme_rollback_*.status
 - **[Backup Operations](BACKUP_README.md)**: Creating backups for rollback
 - **[Upgrade Operations](UPGRADE_README.md)**: Upgrading with rollback safety
 - **[Main README](README.md)**: Overview of all LME Ansible operations
+- **[Cluster Recovery](CLUSTER_RECOVERY_README.md)**: Cluster-safe recovery workflows
 
 ## Support and Documentation
 

@@ -1,8 +1,8 @@
 ---
 - name: Setup LME
-  hosts: localhost
-  connection: local
-  become: no  # Default to no privilege escalation
+  hosts: "{{ target_hosts | default('localhost') }}"
+  connection: "{{ ansible_connection | default('local') }}"
+  become: yes
   vars:
     # Common variables
     clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
@@ -31,7 +31,34 @@
     es_port: 9200
     kibana_port: 5601
     fleet_port: 8220
-    elasticsearch_number_of_replicas: 0
+    
+    # Cluster mode configuration (default: false for single-node deployment)
+    # Set to true when deploying a multi-node Elasticsearch cluster
+    # Can be enabled via: -e lme_cluster_mode=true
+    lme_cluster_mode: false
+    
+    # Elasticsearch replicas: 0 for single-node (default), 1+ for cluster
+    elasticsearch_number_of_replicas: "{{ 1 if lme_cluster_mode | default(false) else 0 }}"
+    
+    # Cluster discovery settings (only used when lme_cluster_mode=true)
+    # es_discovery_type: 'single-node' for standalone, 'cluster' for multi-node
+    es_discovery_type: "{{ 'cluster' if lme_cluster_mode | default(false) else 'single-node' }}"
+    
+    # Seed hosts for cluster discovery (used when lme_cluster_mode=true)
+    # Should include all nodes that will be part of the cluster
+    es_seed_hosts: "{{ es_cluster_seed_hosts | default([]) }}"
+    
+    # Initial master nodes for cluster bootstrap (used when lme_cluster_mode=true)
+    # Only needed for first-time cluster setup
+    es_initial_masters: "{{ es_initial_master_nodes | default(['lme-elasticsearch']) }}"
+    
+    # Whether this is the initial master node (sets cluster.initial_master_nodes)
+    es_is_initial_master: "{{ lme_cluster_mode | default(false) }}"
+    
+    # Network publish host for cluster mode - the address other nodes can reach this node at
+    # For cluster mode, should be set to the external hostname/IP of this node
+    # Can be set via: -e es_publish_host=node1
+    es_publish_host: "{{ es_master_publish_host | default(omit) }}"
     
     # Kibana version
     kibana_version: "8.18.8"

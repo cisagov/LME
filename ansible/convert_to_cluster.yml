@@ -1,0 +1,851 @@
+---
+# convert_to_cluster.yml
+#
+# Converts an existing single-node LME installation into a multi-node
+# Elasticsearch cluster.
+#
+# Prerequisites:
+#   - A healthy single-node LME install on the master node
+#   - A cluster inventory file at ansible/inventory/cluster.yml
+#     (generate with: scripts/create_cluster_inventory.sh)
+#   - SSH connectivity from master to all cluster nodes
+#   - Ports 9200 and 9300 open between all nodes
+#
+# Usage:
+#   ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml
+#
+# To skip the backup prompt (e.g. in CI):
+#   ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml \
+#     -e skip_prompts=true
+
+###############################################################################
+# Play 1: Pre-checks and backup on master node
+###############################################################################
+- name: "Phase 1: Pre-checks and backup"
+  hosts: "{{ groups['elasticsearch'][0] }}"
+  connection: local
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+    env_file_path: /opt/lme/lme-environment.env
+    es_port: 9200
+
+  tasks:
+    - name: Verify this is the master node (local connection)
+      assert:
+        that:
+          - hostvars[inventory_hostname].ansible_connection | default('') == 'local'
+        fail_msg: >
+          This playbook must be run with a cluster inventory where the first
+          elasticsearch host uses ansible_connection=local (the master node).
+
+    - name: Ensure /opt/lme/scripts has the latest helper scripts on master
+      ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
+    - name: Read environment file
+      include_tasks: tasks/load_env.yml
+
+    - name: Extract secrets for health check
+      ansible.builtin.shell: |
+        set -a
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        source {{ clone_directory }}/scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+      args:
+        executable: /bin/bash
+      register: extract_secrets_result
+      no_log: true
+
+    - name: Set elastic credentials
+      ansible.builtin.set_fact:
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://localhost:9200') }}"
+        elastic_password: "{{ (extract_secrets_result.stdout_lines | select('match', '^elastic=') | list | first).split('=', 1)[1] }}"
+      no_log: true
+
+    - name: Check current Elasticsearch health
+      uri:
+        url: "{{ local_es_url }}/_cluster/health"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: es_health
+
+    - name: Display current cluster state
+      debug:
+        msg: |
+          Current state:
+            Cluster name: {{ es_health.json.cluster_name }}
+            Status: {{ es_health.json.status }}
+            Number of nodes: {{ es_health.json.number_of_nodes }}
+
+    - name: Check current discovery type from quadlet file
+      ansible.builtin.shell: |
+        grep -c 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container || echo "0"
+      args:
+        executable: /bin/bash
+      register: discovery_check
+      changed_when: false
+
+    - name: Detect partial upgrade state
+      ansible.builtin.set_fact:
+        is_single_node_config: "{{ discovery_check.stdout | trim | int > 0 }}"
+        is_single_node_cluster: "{{ es_health.json.number_of_nodes == 1 }}"
+        expected_node_count: "{{ groups['elasticsearch'] | length }}"
+        is_partial_upgrade: >-
+          {{ (discovery_check.stdout | trim | int == 0) and
+             (es_health.json.number_of_nodes | int < (groups['elasticsearch'] | length)) }}
+
+    - name: Display detected state
+      debug:
+        msg: |
+          Detected state:
+            Quadlet has discovery.type=single-node: {{ is_single_node_config }}
+            Current node count: {{ es_health.json.number_of_nodes }}
+            Expected node count: {{ expected_node_count }}
+            Partial upgrade detected: {{ is_partial_upgrade }}
+
+    - name: Verify this is a single-node installation or partial upgrade
+      assert:
+        that:
+          - es_health.json.number_of_nodes | int < (groups['elasticsearch'] | length) | int
+        fail_msg: >
+          This installation already has {{ es_health.json.number_of_nodes }} nodes
+          (expected {{ groups['elasticsearch'] | length }}).
+          The cluster appears to be fully formed. This playbook is intended for
+          converting single-node installations or resuming a partial upgrade.
+
+    - name: Verify current config is single-node (skip if partial upgrade)
+      assert:
+        that:
+          - discovery_check.stdout | trim | int > 0
+        fail_msg: >
+          The current Elasticsearch quadlet does not contain discovery.type=single-node.
+          This host may already be configured for cluster mode.
+      when: not (is_partial_upgrade | bool)
+
+    - name: Notify resuming partial upgrade
+      debug:
+        msg: >
+          RESUMING PARTIAL UPGRADE: The quadlet is already in cluster mode but only
+          {{ es_health.json.number_of_nodes }} of {{ expected_node_count }} nodes are present.
+          Skipping Phase 2 (reconfigure master) and proceeding with certificate
+          regeneration and node deployment.
+      when: is_partial_upgrade | bool
+
+    - name: Get valid backup choice
+      pause:
+        prompt: |
+          You are about to convert this single-node LME installation to a cluster.
+          Do you want to create a backup before converting? (y/yes/n/no)
+          This is HIGHLY recommended in case you need to rollback.
+      register: backup_choice_loop
+      until: backup_choice_loop.user_input | lower in ['y', 'yes', 'n', 'no']
+      retries: 999
+      delay: 0
+      when: skip_prompts is not defined or not skip_prompts | bool
+
+    - name: Set backup choice (interactive)
+      set_fact:
+        backup_choice: "{{ backup_choice_loop.user_input | lower }}"
+      when: skip_prompts is not defined or not skip_prompts | bool
+
+    - name: Set backup choice (automated - no backup)
+      set_fact:
+        backup_choice: "n"
+      when: skip_prompts is defined and skip_prompts | bool
+
+    - name: Record existing indices for post-conversion verification
+      uri:
+        url: "{{ local_es_url }}/_cat/indices?format=json"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: pre_conversion_indices
+
+    - name: Display index count
+      debug:
+        msg: "Found {{ pre_conversion_indices.json | length }} existing indices that will be migrated to replicas=1"
+
+    - name: Run backup
+      include_role:
+        name: backup_lme
+      vars:
+        skip_prompts: true
+        skip_service_restart: true  # Leave services stopped; Phase 2 will reconfigure and Phase 4 restarts lme
+      when: backup_choice in ['y', 'yes']
+
+###############################################################################
+# Play 1b: Verify SSH connectivity to all remote cluster nodes
+###############################################################################
+- name: "Phase 1b: Verify SSH connectivity to cluster nodes"
+  hosts: "elasticsearch:!{{ groups['elasticsearch'][0] }}"
+  gather_facts: false
+  become: no
+  tasks:
+    - name: Test SSH connectivity
+      ansible.builtin.ping:
+      register: ssh_test
+
+    - name: Confirm SSH access
+      debug:
+        msg: "SSH connectivity confirmed to {{ inventory_hostname }} ({{ ansible_host }})"
+
+###############################################################################
+# Play 2: Reconfigure master node for cluster mode
+###############################################################################
+- name: "Phase 2: Reconfigure master for cluster mode"
+  hosts: "{{ groups['elasticsearch'][0] }}"
+  connection: local
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+    # Cluster mode settings
+    lme_cluster_mode: true
+    es_discovery_type: cluster
+    es_seed_hosts: >-
+      {%- if es_cluster_seed_hosts is defined -%}
+        {%- if es_cluster_seed_hosts is string -%}
+          {{ es_cluster_seed_hosts | regex_replace('\\[|\\]', '') | split(',') | map('trim') | list }}
+        {%- else -%}
+          {{ es_cluster_seed_hosts }}
+        {%- endif -%}
+      {%- else -%}
+        {{ [hostvars[inventory_hostname].ansible_host | default('localhost')] }}
+      {%- endif -%}
+    es_initial_masters: "{{ es_initial_master_nodes | default(['lme-elasticsearch']) }}"
+    es_is_initial_master: true
+
+  tasks:
+    - name: Skip Phase 2 (already in cluster mode from previous partial upgrade)
+      debug:
+        msg: "Skipping Phase 2 - quadlet is already configured for cluster mode."
+      when: hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool
+
+    - name: Stop LME service
+      systemd:
+        name: lme
+        state: stopped
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+    - name: Wait for containers to stop
+      ansible.builtin.shell: |
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+      args:
+        executable: /bin/bash
+      register: running_containers
+      until: running_containers.stdout_lines | length == 0
+      retries: 12
+      delay: 5
+      ignore_errors: yes
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+    - name: Re-render Elasticsearch quadlet with cluster settings
+      template:
+        src: "{{ clone_directory }}/ansible/templates/lme-elasticsearch.container.j2"
+        dest: /etc/containers/systemd/lme-elasticsearch.container
+        owner: root
+        group: root
+        mode: '0644'
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+    - name: Verify quadlet was updated (no longer single-node)
+      ansible.builtin.shell: |
+        grep -c 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container || echo "0"
+      args:
+        executable: /bin/bash
+      register: post_render_check
+      changed_when: false
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+    - name: Assert quadlet is now in cluster mode
+      assert:
+        that:
+          - post_render_check.stdout | trim | int == 0
+        fail_msg: "Quadlet still contains discovery.type=single-node after re-rendering. Check template variables."
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+    - name: Display quadlet update confirmation
+      debug:
+        msg: "Elasticsearch quadlet re-rendered with cluster settings (seed_hosts, publish_host, transport port 9300)"
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+###############################################################################
+# Play 3: Regenerate leaf certificates with all cluster node IPs
+###############################################################################
+- name: "Phase 3: Regenerate leaf certificates for cluster"
+  hosts: elasticsearch
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+    lme_force_cert_regen: true
+    lme_force_ca_regen: false
+
+  tasks:
+    - name: Include certs role (reuse CA, regenerate leaf certs with cluster SANs)
+      ansible.builtin.include_role:
+        name: certs
+      run_once: true
+
+###############################################################################
+# Play 4: Restart master Elasticsearch in cluster mode
+###############################################################################
+- name: "Phase 4: Restart master in cluster mode"
+  hosts: "{{ groups['elasticsearch'][0] }}"
+  connection: local
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+  tasks:
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+    - name: Start LME service (master with cluster config)
+      systemd:
+        name: lme
+        state: started
+      when: not (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool)
+
+    - name: Wait for Elasticsearch to be ready on master
+      uri:
+        url: https://localhost:9200
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: es_ready
+      until: es_ready.status is defined and es_ready.status == 200
+      retries: 60
+      delay: 10
+
+    - name: Display master restart confirmation
+      debug:
+        msg: "{{ 'Master already running in cluster mode (partial upgrade resume)' if (hostvars[groups['elasticsearch'][0]].is_partial_upgrade | default(false) | bool) else 'Master node restarted in cluster mode and Elasticsearch is responding' }}"
+
+###############################################################################
+# Play 5: Deploy Elasticsearch to cluster data nodes
+#
+# This reuses the same pattern as elasticsearch.yml but only targets non-master
+# nodes (those that are not the first host in the elasticsearch group).
+###############################################################################
+- name: "Phase 5a: Bootstrap Python on cluster nodes"
+  hosts: "elasticsearch:!{{ groups['elasticsearch'][0] }}"
+  gather_facts: false
+  become: yes
+  tasks:
+    - name: Check if python3 exists
+      ansible.builtin.raw: which python3
+      register: python3_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install python3 via raw (Debian/Ubuntu)
+      ansible.builtin.raw: apt-get update && apt-get install -y python3 python3-apt
+      when: python3_check.rc != 0
+      changed_when: true
+
+- name: "Phase 5b: Deploy Elasticsearch to cluster data nodes"
+  hosts: "elasticsearch:!{{ groups['elasticsearch'][0] }}"
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+    install_user: "{{ ansible_user_id }}"
+    debug_mode: false
+    offline_mode: false
+
+    # Storage configuration
+    storage_runroot: "/run/containers/storage"
+    storage_graphroot: "/var/lib/containers/storage"
+
+    # Directory configuration
+    config_dir: "/etc/lme"
+    user_config_dir: "/root/.config/containers"
+    user_vault_dir: "/etc/lme/vault"
+    user_secrets_conf: "/root/.config/containers/containers.conf"
+    user_storage_conf: "/root/.config/containers/storage.conf"
+    global_storage_conf: "/etc/containers/storage.conf"
+    password_file: "/etc/lme/pass.sh"
+
+    # Password configuration
+    min_length: 12
+
+    # Elasticsearch configuration
+    es_port: 9200
+
+    # Cluster mode
+    lme_cluster_mode: true
+    elasticsearch_number_of_replicas: 1
+    es_discovery_type: cluster
+    es_seed_hosts: >-
+      {%- if es_cluster_seed_hosts is defined -%}
+        {%- if es_cluster_seed_hosts is string -%}
+          {{ es_cluster_seed_hosts | regex_replace('\\[|\\]', '') | split(',') | map('trim') | list }}
+        {%- else -%}
+          {{ es_cluster_seed_hosts }}
+        {%- endif -%}
+      {%- else -%}
+        {{ [es_master_host | default('node1')] }}
+      {%- endif -%}
+    es_initial_masters: "{{ es_initial_master_nodes | default(['lme-elasticsearch']) }}"
+    es_is_initial_master: false
+
+    # Nix configuration
+    nix_profile_symlink_path: /nix/var/nix/profiles/default
+
+    # Do not auto-start -- we start ES explicitly after secrets/certs
+    lme_autostart: false
+    # Same as elasticsearch.yml: prune quadlets only on SSH data nodes, not on local master.
+    lme_child_es_only: "{{ (ansible_connection | default('ssh')) != 'local' }}"
+
+    # Skip secret creation on cluster nodes
+    lme_skip_secret_creation: true
+
+  pre_tasks:
+    - name: Install ansible-core on cluster nodes (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: ansible
+        state: present
+        update_cache: yes
+      become: yes
+      when:
+        - ansible_os_family == 'Debian'
+        - not (offline_mode | default(false))
+
+    - name: Check if ansible-vault is already available (Red Hat)
+      ansible.builtin.command: which ansible-vault
+      register: ansible_vault_check
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install ansible-core via pip on cluster nodes (Red Hat)
+      when:
+        - ansible_os_family == 'RedHat'
+        - ansible_vault_check.rc != 0
+        - not (offline_mode | default(false))
+      become: yes
+      block:
+        - name: Install python3-pip for ansible
+          ansible.builtin.dnf:
+            name:
+              - python3-pip
+            state: present
+
+        - name: Install ansible-core via pip
+          ansible.builtin.pip:
+            name: ansible-core
+            state: present
+
+        - name: Symlink pip-installed ansible binaries to /usr/bin
+          ansible.builtin.shell: |
+            for f in /usr/local/bin/ansible*; do
+              [ -f "$f" ] && ln -sf "$f" /usr/bin/
+            done
+          args:
+            executable: /bin/bash
+          changed_when: true
+
+  roles:
+    - role: base
+      tags: ['base']
+    - role: nix
+      tags: ['system']
+    - role: podman
+      tags: ['system']
+    - role: secrets_distribution
+      tags: ['secrets']
+    - role: certs
+      tags: ['certs']
+
+  tasks:
+    - name: Re-extract secrets after distribution (cluster nodes)
+      ansible.builtin.shell: |
+        set -a
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+        elastic_id=""
+        wazuh_id=""
+        kibana_system_id=""
+        wazuh_api_id=""
+
+        while read -r line; do
+          id=$(echo "$line" | awk '{print $1}')
+          name=$(echo "$line" | awk '{print $2}')
+          case "$name" in
+            elastic) elastic_id="$id" ;;
+            wazuh) wazuh_id="$id" ;;
+            kibana_system) kibana_system_id="$id" ;;
+            wazuh_api) wazuh_api_id="$id" ;;
+          esac
+        done < <(podman secret ls --noheading 2>/dev/null)
+
+        elastic=""
+        wazuh=""
+        kibana_system=""
+        wazuh_api=""
+
+        if [ -n "$elastic_id" ] && [ -f "/etc/lme/vault/$elastic_id" ]; then
+          elastic=$(ansible-vault view "/etc/lme/vault/$elastic_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$wazuh_id" ] && [ -f "/etc/lme/vault/$wazuh_id" ]; then
+          wazuh=$(ansible-vault view "/etc/lme/vault/$wazuh_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$kibana_system_id" ] && [ -f "/etc/lme/vault/$kibana_system_id" ]; then
+          kibana_system=$(ansible-vault view "/etc/lme/vault/$kibana_system_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$wazuh_api_id" ] && [ -f "/etc/lme/vault/$wazuh_api_id" ]; then
+          wazuh_api=$(ansible-vault view "/etc/lme/vault/$wazuh_api_id" 2>/dev/null | tr -d '\n')
+        fi
+
+        echo "elastic=$elastic"
+        echo "wazuh=$wazuh"
+        echo "kibana_system=$kibana_system"
+        echo "wazuh_api=$wazuh_api"
+      args:
+        executable: /bin/bash
+      register: reextract_secrets_vars
+      no_log: "{{ not debug_mode }}"
+      become: yes
+
+    - name: Update global_secrets after re-extraction
+      ansible.builtin.set_fact:
+        global_secrets: "{{ global_secrets | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ reextract_secrets_vars.stdout_lines }}"
+      when: item != '' and '=' in item
+      no_log: "{{ not debug_mode }}"
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Start Elasticsearch unit on cluster node
+      ansible.builtin.systemd:
+        name: lme-elasticsearch
+        state: started
+        enabled: true
+
+    - name: Wait for cluster state to be recovered on this node
+      uri:
+        url: "https://127.0.0.1:9200/_cluster/health"
+        method: GET
+        user: elastic
+        password: "{{ global_secrets.elastic }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: [200]
+      register: node_cluster_health
+      until: >
+        node_cluster_health.status is defined and
+        node_cluster_health.status == 200 and
+        node_cluster_health.json is defined and
+        node_cluster_health.json.status is defined and
+        node_cluster_health.json.status != 'red'
+      retries: 60
+      delay: 10
+
+    - name: Run Elasticsearch post-install configuration
+      ansible.builtin.include_role:
+        name: elasticsearch
+      tags: ['elasticsearch']
+
+###############################################################################
+# Play 6: Align snapshot wiring with cluster installer behavior
+###############################################################################
+- name: "Phase 6: Align snapshot repository wiring across cluster nodes"
+  hosts: elasticsearch
+  become: yes
+  serial: 1
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+  tasks:
+    - name: Check if NFS snapshot mount is present
+      ansible.builtin.command: mountpoint -q /mnt/es-snapshots
+      register: nfs_snapshot_mount
+      changed_when: false
+      failed_when: false
+
+    - name: Skip snapshot wiring on nodes without NFS mount
+      ansible.builtin.debug:
+        msg: "Skipping snapshot wiring on {{ inventory_hostname }} because /mnt/es-snapshots is not mounted."
+      when: nfs_snapshot_mount.rc != 0
+
+    - name: Ensure snapshot path is present in path.repo
+      ansible.builtin.lineinfile:
+        path: /opt/lme/config/elasticsearch.yml
+        regexp: '^\s*-\s*/usr/share/elasticsearch/snapshots\s*$'
+        line: "    - /usr/share/elasticsearch/snapshots"
+        insertafter: '^\s*-\s*/usr/share/elasticsearch/backups\s*$'
+      register: snapshot_repo_path
+      when: nfs_snapshot_mount.rc == 0
+
+    - name: Ensure quadlet drop-in directory exists
+      ansible.builtin.file:
+        path: /etc/containers/systemd/lme-elasticsearch.container.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: nfs_snapshot_mount.rc == 0
+
+    - name: Ensure NFS snapshot volume drop-in is present
+      ansible.builtin.copy:
+        dest: /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Container]
+          Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots
+      register: snapshot_dropin
+      when: nfs_snapshot_mount.rc == 0
+
+    - name: Reload systemd daemon for quadlet updates
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when:
+        - nfs_snapshot_mount.rc == 0
+        - snapshot_repo_path.changed or snapshot_dropin.changed
+
+    - name: Restart Elasticsearch to apply snapshot wiring changes
+      ansible.builtin.systemd:
+        name: lme-elasticsearch
+        state: restarted
+        enabled: true
+      when:
+        - nfs_snapshot_mount.rc == 0
+        - snapshot_repo_path.changed or snapshot_dropin.changed
+
+    - name: Wait for local Elasticsearch to recover after restart
+      ansible.builtin.uri:
+        url: "https://127.0.0.1:9200/_cluster/health"
+        method: GET
+        user: elastic
+        password: "{{ hostvars[groups['elasticsearch'][0]].elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: snapshot_wiring_health
+      until: >
+        snapshot_wiring_health.json is defined and
+        snapshot_wiring_health.json.status is defined and
+        snapshot_wiring_health.json.status != 'red'
+      retries: 60
+      delay: 10
+      when:
+        - nfs_snapshot_mount.rc == 0
+        - snapshot_repo_path.changed or snapshot_dropin.changed
+
+###############################################################################
+# Play 7: Post-conversion -- wait for cluster, update replicas
+###############################################################################
+- name: "Phase 7: Post-conversion verification and replica update"
+  hosts: "{{ groups['elasticsearch'][0] }}"
+  connection: local
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+    env_file_path: /opt/lme/lme-environment.env
+
+  tasks:
+    - name: Read environment file
+      include_tasks: tasks/load_env.yml
+
+    - name: Extract secrets
+      ansible.builtin.shell: |
+        set -a
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        source {{ clone_directory }}/scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+      args:
+        executable: /bin/bash
+      register: post_extract_result
+      no_log: true
+
+    - name: Set elastic credentials
+      ansible.builtin.set_fact:
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://localhost:9200') }}"
+        elastic_password: "{{ (post_extract_result.stdout_lines | select('match', '^elastic=') | list | first).split('=', 1)[1] }}"
+      no_log: true
+
+    - name: Wait for cluster to form (all nodes joined)
+      uri:
+        url: "{{ local_es_url }}/_cluster/health"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: cluster_health
+      until: >
+        cluster_health.json is defined and
+        cluster_health.json.number_of_nodes | int >= (groups['elasticsearch'] | length)
+      retries: 60
+      delay: 10
+
+    - name: Display cluster formation result
+      debug:
+        msg: |
+          Cluster formed successfully:
+            Status: {{ cluster_health.json.status }}
+            Nodes: {{ cluster_health.json.number_of_nodes }}
+            Data nodes: {{ cluster_health.json.number_of_data_nodes }}
+
+    - name: Get list of cluster nodes
+      uri:
+        url: "{{ local_es_url }}/_cat/nodes?format=json"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: cluster_nodes
+
+    - name: Display cluster nodes
+      debug:
+        msg: "Cluster node: {{ item.name }} ({{ item.ip }}) - {{ item['node.role'] }}"
+      loop: "{{ cluster_nodes.json }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Update existing indices to replicas=1
+      uri:
+        url: "{{ local_es_url }}/*/_settings"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        body_format: json
+        body:
+          index:
+            number_of_replicas: 1
+        status_code: [200]
+      register: replica_update
+      ignore_errors: yes
+
+    - name: Display replica update result
+      debug:
+        msg: "{{ 'Successfully updated existing indices to replicas=1' if replica_update.status == 200 else 'Warning: Failed to update some index replicas (some system indices may not allow changes)' }}"
+
+    - name: Get Wazuh legacy index template
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_legacy_template
+      no_log: true
+
+    - name: Update Wazuh legacy template to replicas=1
+      uri:
+        url: "{{ local_es_url }}/_template/wazuh"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ wazuh_legacy_template.json.wazuh
+             | combine({'settings': {'index': {'number_of_replicas': '1'}}}, recursive=True) }}
+        status_code: [200, 201]
+      when: wazuh_legacy_template.status == 200
+      no_log: true
+      ignore_errors: yes
+
+    - name: Get Wazuh composable index templates
+      uri:
+        url: "{{ local_es_url }}/_index_template/wazuh-states-*"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        status_code: [200, 404]
+      register: wazuh_composable_templates
+      no_log: true
+
+    - name: Update Wazuh composable index templates to replicas=1
+      uri:
+        url: "{{ local_es_url }}/_index_template/{{ item.name }}"
+        method: PUT
+        user: elastic
+        password: "{{ elastic_password }}"
+        validate_certs: no
+        force_basic_auth: yes
+        body_format: json
+        body: >-
+          {{ item.index_template
+             | combine({'template': {'settings': {'index': {'number_of_replicas': '1'}}}}, recursive=True) }}
+        status_code: [200, 201]
+      loop: "{{ wazuh_composable_templates.json.index_templates | default([]) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: wazuh_composable_templates.status == 200
+      no_log: true
+      ignore_errors: yes
+
+    - name: Wait for cluster health to stabilize
+      uri:
+        url: "{{ local_es_url }}/_cluster/health?wait_for_status=yellow&timeout=120s"
+        method: GET
+        user: elastic
+        password: "{{ elastic_password }}"
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+      register: final_health
+      retries: 5
+      delay: 30
+
+    - name: Verify Kibana is accessible
+      uri:
+        url: https://localhost:5601/api/status
+        method: GET
+        validate_certs: no
+        status_code: [200, 401]
+      register: kibana_check
+      retries: 12
+      delay: 10
+      ignore_errors: yes
+
+    - name: Display conversion summary
+      debug:
+        msg:
+          - "============================================"
+          - "  LME Cluster Conversion Complete"
+          - "============================================"
+          - ""
+          - "Cluster health: {{ final_health.json.status }}"
+          - "Total nodes: {{ final_health.json.number_of_nodes }}"
+          - "Data nodes: {{ final_health.json.number_of_data_nodes }}"
+          - "Active shards: {{ final_health.json.active_shards }}"
+          - "Relocating shards: {{ final_health.json.relocating_shards }}"
+          - "Initializing shards: {{ final_health.json.initializing_shards }}"
+          - "Unassigned shards: {{ final_health.json.unassigned_shards }}"
+          - ""
+          - "Kibana: {{ 'Accessible' if kibana_check.status is defined else 'Check manually at https://<master-ip>:5601' }}"
+          - ""
+          - "Note: The cluster may be 'yellow' while replica shards are being"
+          - "allocated to new nodes. It will turn 'green' once all replicas"
+          - "are assigned. Monitor with:"
+          - "  curl -sk -u elastic:<password> https://localhost:9200/_cluster/health?pretty"

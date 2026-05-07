@@ -1,16 +1,35 @@
 ---
 # Container setup tasks for podman role
 
-- name: Check if containers.txt exists
+- name: Check if containers.txt exists on Ansible controller
   stat:
     path: "{{ clone_directory }}/config/containers.txt"
   register: containers_file
-  become: yes
+  delegate_to: localhost
+  run_once: true
+  # Note: This check runs on localhost because lookup('file', ...) reads from the controller.
+  # The file must exist on the Ansible controller where the repository is cloned.
 
-- name: Fail if containers.txt doesn't exist
+- name: Fail if containers.txt doesn't exist on controller
   fail:
-    msg: "containers.txt file not found in {{ clone_directory }}/config/"
+    msg: |
+      containers.txt file not found on Ansible controller at {{ clone_directory }}/config/containers.txt
+      
+      This file must exist on the Ansible controller (localhost) because the playbook uses
+      lookup('file', ...) to read it. The file will be copied to target hosts later in the playbook.
+      
+      Please ensure:
+      1. The LME repository is cloned on the Ansible controller
+      2. The clone_directory variable points to the repository root on the controller
+      3. The config/containers.txt file exists in the repository
   when: not containers_file.stat.exists
+
+# Skip secret creation on cluster nodes - secrets will be copied from master via secrets_distribution role.
+# Set lme_skip_secret_creation=true in elasticsearch.yml for cluster deployments.
+- name: Skip secret creation (cluster node - secrets from master)
+  debug:
+    msg: "Skipping secret creation. Secrets will be copied from master via secrets_distribution."
+  when: lme_skip_secret_creation | default(false)
 
 - name: set service user passwords
   shell: |
@@ -23,12 +42,13 @@
   ignore_errors: true
   #only fail on a real error
   failed_when: result.rc != 0 and (result.rc == 1 and result.changed == false)
+  when: not (lme_skip_secret_creation | default(false))
   
 - name: Set podman secret passwords
   shell: |
     source /root/.profile 
-    password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
-    while ! echo -n $password | grep -Eq '[$@!]+';do password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30); echo $password;done
+    password="$(</dev/urandom tr -dc 'A-Za-z' | head -c1)$(</dev/urandom tr -dc 'A-Za-z0-9_.-' | head -c29)"
+    while ! echo -n "$password" | grep -Eq '[_.-]+';do password="$(</dev/urandom tr -dc 'A-Za-z' | head -c1)$(</dev/urandom tr -dc 'A-Za-z0-9_.-' | head -c29)";done
     echo -n $password | podman secret create --driver shell --replace "{{ item }}" -
   args:
     executable: /bin/bash
@@ -38,8 +58,10 @@
     - wazuh_api
     - wazuh
   become: yes
-  ## only run this when
-  when: result.rc == 1
+  ## only run this when secrets don't exist and we're not skipping creation
+  when:
+    - not (lme_skip_secret_creation | default(false))
+    - result.rc == 1
 
 - name: Check if policy.json exists
   stat:

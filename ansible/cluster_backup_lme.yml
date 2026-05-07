@@ -1,0 +1,317 @@
+---
+- name: Create Elasticsearch snapshot for cluster recovery
+  hosts: elasticsearch
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+    es_snapshot_repo: lme_backups
+    es_snapshot_repo_type: fs
+    es_snapshot_fs_location: "/usr/share/elasticsearch/backups"
+    es_s3_bucket: ""
+    es_s3_region: "us-east-1"
+    es_s3_base_path: ""
+    es_s3_endpoint: ""
+
+    cluster_backup_snapshot_name: "{{ snapshot_name | default('lme-cluster-' ~ ansible_date_time.iso8601_basic_short) }}"
+    include_global_state: true
+
+  tasks:
+    - name: Ensure /opt/lme/scripts has the latest helper scripts
+      ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
+    - name: Require a cluster inventory
+      ansible.builtin.assert:
+        that:
+          - groups['elasticsearch'] | length > 1
+        fail_msg: >-
+          cluster_backup_lme.yml is intended for clustered Elasticsearch deployments.
+          For single-node systems, use ansible/backup_lme.yml and ansible/snapshot_elasticsearch.yml directly.
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Persist cluster snapshot name on master host
+      ansible.builtin.set_fact:
+        cluster_backup_snapshot_name: "{{ cluster_backup_snapshot_name }}"
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+      delegate_facts: true
+
+    - name: Read lme-environment.env
+      ansible.builtin.slurp:
+        src: /opt/lme/lme-environment.env
+      register: lme_env_content
+
+    - name: Set environment variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+      when: item != '' and not item.startswith('#')
+
+    - name: Extract elastic password from vault via existing helper
+      ansible.builtin.shell: |
+        set -a
+        source /root/.profile
+        source /opt/lme/scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+      args:
+        executable: /bin/bash
+      register: extract_secrets_vars
+      no_log: true
+
+    - name: Set elastic credentials
+      ansible.builtin.set_fact:
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://localhost:9200') }}"
+        elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('elastic') }}"
+        elastic_password: "{{ (extract_secrets_vars.stdout_lines | select('match', '^elastic=') | list | first).split('=', 1)[1] }}"
+      no_log: true
+
+    - name: Check cluster health before snapshot
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_cluster/health"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: cluster_health
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Require cluster to be restorable before snapshot
+      ansible.builtin.assert:
+        that:
+          - cluster_health.json.status != 'red'
+        fail_msg: >-
+          Cluster health is red. Resolve the cluster state before creating a recovery snapshot.
+          Current health: {{ cluster_health.json }}
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Assert S3 bucket is set when using s3 type
+      ansible.builtin.assert:
+        that:
+          - es_s3_bucket | length > 0
+        fail_msg: >-
+          es_s3_bucket must be set when es_snapshot_repo_type is 's3'.
+      when: es_snapshot_repo_type == 's3'
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Build fs repository settings
+      ansible.builtin.set_fact:
+        es_snapshot_repo_settings:
+          location: "{{ es_snapshot_fs_location }}"
+      when: es_snapshot_repo_type == 'fs'
+
+    - name: Build s3 repository settings
+      ansible.builtin.set_fact:
+        es_snapshot_repo_settings: >-
+          {{
+            { 'bucket': es_s3_bucket, 'region': es_s3_region }
+            | combine({ 'base_path': es_s3_base_path } if es_s3_base_path | length > 0 else {})
+            | combine({ 'endpoint': es_s3_endpoint } if es_s3_endpoint | length > 0 else {})
+          }}
+      when: es_snapshot_repo_type == 's3'
+
+    - name: Warn about fs repository in multi-node cluster
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Local Podman volumes are not shared across nodes. For multi-node cluster snapshots with
+          an fs repository, all nodes must share the same physical storage path.
+      when:
+        - es_snapshot_repo_type == 'fs'
+        - es_snapshot_fs_location == '/usr/share/elasticsearch/backups'
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Register snapshot repository
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          type: "{{ es_snapshot_repo_type }}"
+          settings: "{{ es_snapshot_repo_settings }}"
+        status_code: [200]
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Verify snapshot repository
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}/_verify"
+        method: POST
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: repo_verify
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Create cluster recovery snapshot
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}/{{ hostvars[groups['elasticsearch'][0]].cluster_backup_snapshot_name }}?wait_for_completion=true"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          indices: "*"
+          include_global_state: "{{ include_global_state }}"
+        status_code: [200]
+        timeout: 3600
+      register: snapshot_result
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Verify cluster recovery snapshot succeeded
+      ansible.builtin.assert:
+        that:
+          - snapshot_result.json.snapshot.state == 'SUCCESS'
+        fail_msg: >-
+          Cluster snapshot creation failed.
+          State: {{ snapshot_result.json.snapshot.state }}.
+          Failures: {{ snapshot_result.json.snapshot.failures | default([]) }}
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+- name: Backup cluster master control-plane state
+  hosts: "{{ groups['elasticsearch'][0] }}"
+  connection: local
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+    es_snapshot_repo: lme_backups
+    es_snapshot_repo_type: fs
+    es_snapshot_fs_location: "/usr/share/elasticsearch/backups"
+    es_s3_bucket: ""
+    es_s3_region: "us-east-1"
+    es_s3_base_path: ""
+    es_s3_endpoint: ""
+    cluster_backup_export_dir: ""
+    cluster_backup_auto_export_to_shared_storage: true
+    cluster_backup_shared_storage_mount: "/mnt/es-snapshots"
+    cluster_backup_shared_storage_subdir: "lme-master-backups"
+
+  tasks:
+    - name: Read environment file
+      ansible.builtin.include_tasks: tasks/load_env.yml
+
+    - name: Create cluster-aware master backup bundle
+      ansible.builtin.include_role:
+        name: backup_lme
+      vars:
+        skip_prompts: true
+        lme_cluster_backup_mode: true
+
+    - name: Check for shared storage mount on master
+      ansible.builtin.command: mountpoint -q "{{ cluster_backup_shared_storage_mount }}"
+      register: cluster_backup_shared_storage_mount_check
+      failed_when: false
+      changed_when: false
+
+    - name: Resolve exported backup directory
+      ansible.builtin.set_fact:
+        cluster_backup_export_dir_resolved: >-
+          {{
+            cluster_backup_export_dir
+            if (cluster_backup_export_dir | length > 0) else
+            (
+              cluster_backup_shared_storage_mount ~ '/' ~ cluster_backup_shared_storage_subdir
+              if (
+                (cluster_backup_auto_export_to_shared_storage | bool) and
+                (cluster_backup_shared_storage_mount_check.rc == 0)
+              ) else ''
+            )
+          }}
+
+    - name: Create exported backup directory root
+      ansible.builtin.file:
+        path: "{{ cluster_backup_export_dir_resolved }}"
+        state: directory
+        mode: "0755"
+      when: cluster_backup_export_dir_resolved | length > 0
+
+    - name: Set exported backup path fact
+      ansible.builtin.set_fact:
+        # Single compressed tarball on NFS avoids cp -a metadata issues on NFS clients
+        cluster_backup_exported_backup_path: >-
+          {{
+            cluster_backup_export_dir_resolved ~ '/' ~ backup_timestamp ~ '.tar.gz'
+            if (cluster_backup_export_dir_resolved | length > 0) else ''
+          }}
+
+    - name: Write cluster recovery manifest
+      ansible.builtin.copy:
+        dest: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/cluster_recovery_manifest.yml"
+        content: |
+          created_at: "{{ ansible_date_time.iso8601 }}"
+          backup_mode: "cluster-control-plane"
+          snapshot_name: "{{ hostvars[groups['elasticsearch'][0]].cluster_backup_snapshot_name }}"
+          snapshot_repository:
+            name: "{{ es_snapshot_repo }}"
+            type: "{{ es_snapshot_repo_type }}"
+            fs_location: "{{ es_snapshot_fs_location if es_snapshot_repo_type == 'fs' else '' }}"
+            s3_bucket: "{{ es_s3_bucket if es_snapshot_repo_type == 's3' else '' }}"
+            s3_region: "{{ es_s3_region if es_snapshot_repo_type == 's3' else '' }}"
+            s3_base_path: "{{ es_s3_base_path if es_snapshot_repo_type == 's3' else '' }}"
+            s3_endpoint: "{{ es_s3_endpoint if es_snapshot_repo_type == 's3' else '' }}"
+          cluster:
+            master_host: "{{ groups['elasticsearch'][0] }}"
+            elasticsearch_hosts:
+          {% for host in groups['elasticsearch'] %}
+              - "{{ host }}"
+          {% endfor %}
+          versions:
+            lme: "{{ env_dict.LME_VERSION | default('unknown') }}"
+            stack: "{{ env_dict.STACK_VERSION | default('unknown') }}"
+          local_backup:
+            path: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}"
+            excluded_volumes:
+          {% if lme_backup_excluded_volumes | default([]) | length > 0 %}
+          {% for volume in lme_backup_excluded_volumes %}
+              - "{{ volume }}"
+          {% endfor %}
+          {% else %}
+              - "None"
+          {% endif %}
+          exported_backup:
+            path: "{{ cluster_backup_exported_backup_path | default('') }}"
+            available: {{ 'true' if (cluster_backup_exported_backup_path | default('') | length > 0) else 'false' }}
+          restore_workflow:
+            master_state_playbook: "ansible/restore_lme_master.yml"
+            snapshot_restore_playbook: "ansible/restore_elasticsearch_snapshot.yml"
+      when: backup_base_dir is defined and backup_timestamp is defined
+
+    - name: Export master recovery bundle to shared storage
+      ansible.builtin.shell: |
+        rm -rf "{{ cluster_backup_export_dir_resolved }}/{{ backup_timestamp }}"
+        rm -f "{{ cluster_backup_export_dir_resolved }}/{{ backup_timestamp }}.tar.gz"
+        mkdir -p "{{ cluster_backup_export_dir_resolved }}"
+        tar -C "{{ backup_base_dir }}/backups" -czf \
+          "{{ cluster_backup_export_dir_resolved }}/{{ backup_timestamp }}.tar.gz" \
+          "{{ backup_timestamp }}"
+      args:
+        executable: /bin/bash
+      when: cluster_backup_export_dir_resolved | length > 0
+
+    - name: Display cluster backup summary
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  Cluster Backup Complete"
+          - "============================================"
+          - "Snapshot: {{ hostvars[groups['elasticsearch'][0]].cluster_backup_snapshot_name }}"
+          - "Repository: {{ es_snapshot_repo }} ({{ es_snapshot_repo_type }})"
+          - "Master recovery bundle: {{ backup_base_dir }}/backups/{{ backup_timestamp }}"
+          - "Exported recovery bundle: {{ cluster_backup_exported_backup_path if cluster_backup_exported_backup_path | default('') | length > 0 else 'NOT EXPORTED - set cluster_backup_export_dir or mount shared storage at ' ~ cluster_backup_shared_storage_mount }}"
+          - "Excluded local volumes: {{ lme_backup_excluded_volumes | join(', ') if lme_backup_excluded_volumes | default([]) | length > 0 else 'None' }}"

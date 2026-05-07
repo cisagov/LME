@@ -1,0 +1,9 @@
+# Single-node inventory for playbooks that target hosts: elasticsearch
+# (e.g. snapshot_elasticsearch.yml, rolling_upgrade.yml)
+# Usage: ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.yml
+all:
+  children:
+    elasticsearch:
+      hosts:
+        localhost:
+          ansible_connection: local

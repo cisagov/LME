@@ -36,6 +36,15 @@ jobs:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
       IP_ADDRESS: ""
       AZURE_IP: ""
+      WINDOWS_IP: ""
+      MASTER_PRIVATE_IP: ""
+      ALL_PRIVATE_IPS_JSON: ""
+      ENROLLMENT_TOKEN: ""
+      ES_PASSWORD: ""
+      KIBANA_PASSWORD: ""
+      ELASTIC_AGENT_VERSION: "8.18.8"
+      NODE4_PUBLIC_IP: ""
+      NODE4_PRIVATE_IP: "10.1.0.12"
 
     steps:
       - name: Generate random number
@@ -45,7 +54,7 @@ jobs:
           echo "UNIQUE_ID=${RANDOM_NUM}_escluster_${{ github.run_number }}" >> $GITHUB_ENV
 
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6
 
       - name: Setup environment variables
         run: |
@@ -78,15 +87,140 @@ jobs:
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} up -d pipeline
 
-      - name: Install Python requirements
+      - name: Set up cluster via setup_cluster.sh
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            printf '%s\n' \
+              'export RESOURCE_GROUP=pipe-${{ env.UNIQUE_ID }}' \
+              'export PUBLIC_IP=${{ env.IP_ADDRESS }}/32' \
+              'export VM_SIZE=Standard_D8_v4' \
+              'export LOCATION=${{ inputs.azure_region || 'centralus' }}' \
+              'export AUTO_SHUTDOWN_TIME=23:00' \
+              'export LME_USER=lme-user' \
+              'export BRANCH=${{ env.BRANCH_NAME }}' \
+              'export CLUSTER_SIZE=3' \
+              > ${INSTALLERS_DIR}/exporter.txt && \
+            echo '=== exporter.txt ===' && cat ${INSTALLERS_DIR}/exporter.txt
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              cd /home/lme-user/LME/testing/v2/installers/cluster_installer && \
+              ./setup_cluster.sh
+            "
+
+      - name: Extract cluster metadata
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+          MACHINES_FILE="${INSTALLERS_DIR}/pipe-${{ env.UNIQUE_ID }}.machines.json"
+
+          AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -r '.linux_vms[0].ip_address' ${MACHINES_FILE}" | tr -d '\r\n ')
+          echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
+
+          MASTER_PRIVATE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -r '.linux_vms[0].private_ip' ${MACHINES_FILE}" | tr -d '\r\n ')
+          echo "MASTER_PRIVATE_IP=$MASTER_PRIVATE_IP" >> $GITHUB_ENV
+
+          ALL_PRIVATE_IPS_JSON=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -c '[.linux_vms[].private_ip]' ${MACHINES_FILE}" | tr -d '\r\n ')
+          echo "ALL_PRIVATE_IPS_JSON=$ALL_PRIVATE_IPS_JSON" >> $GITHUB_ENV
+
+          WINDOWS_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "cat ${INSTALLERS_DIR}/pipe-${{ env.UNIQUE_ID }}.ws1.ip.txt 2>/dev/null || echo ''" | tr -d '\r\n ')
+          if [ -z "$WINDOWS_IP" ]; then
+            echo "Warning: Could not read ws1 IP file, using private IP fallback"
+            WINDOWS_IP="10.1.0.4"
+          fi
+          echo "WINDOWS_IP=$WINDOWS_IP" >> $GITHUB_ENV
+
+          echo "Master public IP: $AZURE_IP"
+          echo "Master private IP: $MASTER_PRIVATE_IP"
+          echo "All private IPs: $ALL_PRIVATE_IPS_JSON"
+          echo "Windows IP: $WINDOWS_IP"
+
+      - name: Retrieve Elastic password
+        env:
+          AZURE_IP: ${{ env.AZURE_IP }}
+        run: |
+          cd testing/v2/development
+          ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$ES_PASSWORD"
+          echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
+          echo "Elastic password retrieved successfully: $ES_PASSWORD"
+          KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
+          echo "::add-mask::$KIBANA_PASSWORD"
+          echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
+          echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
+
+      - name: Install test requirements on master node
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers/azure && \
-            pip install -r requirements.txt
+            ssh lme-user@${{ env.AZURE_IP }} 'whoami && hostname && \
+            wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+            sudo apt install -y ./google-chrome-stable_current_amd64.deb && \
+            cd /home/lme-user/LME/testing/tests && \
+            python3 -m venv venv && \
+            source venv/bin/activate && \
+            pip install -r requirements.txt '
           "
 
-      - name: Build Azure instance for cluster
+      - name: Retrieve Elastic policy ID and enrollment token
+        env:
+          KIBANA_URL: "https://localhost:5601"
+          ES_USERNAME: "elastic"
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          POLICY_ID_TEST=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\"  
+            '
+          ")
+          echo "Retrieved Policy ID test: $POLICY_ID_TEST"
+
+          POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" |
+              jq -r '.items[0].id'
+            '
+          ")
+          echo "Retrieved Policy ID: $POLICY_ID"
+
+          ENROLLMENT_TOKEN=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X POST \"$KIBANA_URL/api/fleet/enrollment-api-keys\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\" \
+                -d \"{\\\"policy_id\\\":\\\"$POLICY_ID\\\"}\" |
+              jq -r .item.api_key
+            '
+          ")
+          echo "Retrieved enrollment token: $ENROLLMENT_TOKEN"
+
+          echo "::add-mask::$ENROLLMENT_TOKEN"
+          echo "ENROLLMENT_TOKEN=$ENROLLMENT_TOKEN" >> $GITHUB_ENV
+          echo "Policy ID and Enrollment Token retrieved successfully"
+
+      - name: Install the Elastic Agent on Windows Azure VM
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
@@ -100,30 +234,400 @@ jobs:
             -e AZURE_TENANT_ID \
             -e AZURE_SUBSCRIPTION_ID \
             pipeline bash -c "
-              cd /home/lme-user/LME/testing/v2/installers && \
-              python3 ./azure/build_azure_linux_network.py \
-                -g pipe-${{ env.UNIQUE_ID }} \
-                -s ${{ env.IP_ADDRESS }}/32 \
-                -vs Standard_E16d_v4 \
-                -l ${{ inputs.azure_region || 'centralus' }} \
-                -ast 23:00 \
-                -y
+              az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID && \
+              cd /home/lme-user/LME/testing/v2/installers/lib/ && \
+              chmod +x install_agent_windows_azure.sh && \
+              ./install_agent_windows_azure.sh \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --vm-name ws1 \
+                --token ${{ env.ENROLLMENT_TOKEN }} \
+                --version ${{ env.ELASTIC_AGENT_VERSION }} \
+                --debug
             "
 
-      - name: Get Azure IP
+      - name: Check if the Windows Elastic agent is reporting
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
+          sleep 360
           cd testing/v2/development
-          sleep 30
-          AZURE_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "cat /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.ip.txt")
-          echo "AZURE_IP=$AZURE_IP" >> $GITHUB_ENV
-          echo "Azure IP: $AZURE_IP"
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+              ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'export ES_PASSWORD=\"$ES_PASSWORD\" && /home/lme-user/LME/testing/v2/installers/lib/check_agent_reporting.sh windows'
+          "
 
-      - name: Setup SSH keys for Azure instance
+      - name: Wait 5 minutes after Windows agent check
+        run: |
+          sleep 300
+
+      - name: Run api tests on master node
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
         run: |
           cd testing/v2/development
           docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
-            cd /home/lme-user/LME/testing/v2/installers && \
-            ./lib/copy_ssh_key.sh lme-user ${{ env.AZURE_IP }} /home/lme-user/LME/testing/v2/installers/pipe-${{ env.UNIQUE_ID }}.password.txt
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            source venv/bin/activate && \
+            pytest -v api_tests/'
+          "
+
+      - name: Run selenium tests on master node
+        env:
+          ES_PASSWORD: ${{ env.ES_PASSWORD }}
+          KIBANA_PASSWORD: ${{ env.KIBANA_PASSWORD }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} 'cd /home/lme-user/LME/testing/tests && \
+            echo ELASTIC_PASSWORD=\"$ES_PASSWORD\" >> .env && \
+            echo KIBANA_PASSWORD=\"$KIBANA_PASSWORD\" >> .env && \
+            echo elastic=\"$ES_PASSWORD\" >> .env && \
+            source venv/bin/activate && \
+            pytest -v selenium_tests/'
+          "
+
+      # =========================================================================
+      # Node Recovery Test: Replace failed node 3 with new node 4
+      # =========================================================================
+
+      - name: "Recovery: Create spare VM (ubuntu-4)"
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+              az vm create \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --name ubuntu-4 \
+                --image 'Canonical:ubuntu-24_04-lts:server:latest' \
+                --size Standard_E2d_v4 \
+                --admin-username lme-user \
+                --admin-password \$(cat ${INSTALLERS_DIR}/pipe-${{ env.UNIQUE_ID }}.password.txt) \
+                --vnet-name VNet1 \
+                --subnet SNet1 \
+                --private-ip-address ${{ env.NODE4_PRIVATE_IP }} \
+                --nsg NSG1 \
+                --public-ip-sku Standard \
+                --os-disk-size-gb 128 \
+                --output json
+            "
+
+          NODE4_PUBLIC_IP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              az vm list-ip-addresses \
+                --resource-group pipe-${{ env.UNIQUE_ID }} \
+                --name ubuntu-4 \
+                --query '[0].virtualMachine.network.publicIpAddresses[0].ipAddress' -o tsv
+            " | tr -d '\r\n ')
+          echo "NODE4_PUBLIC_IP=$NODE4_PUBLIC_IP" >> $GITHUB_ENV
+          echo "Node 4 public IP: $NODE4_PUBLIC_IP, private IP: ${{ env.NODE4_PRIVATE_IP }}"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            PASSWORD=\$(cat pipe-${{ env.UNIQUE_ID }}.password.txt) && \
+            jq --arg pub '${NODE4_PUBLIC_IP}' --arg priv '${{ env.NODE4_PRIVATE_IP }}' \
+              --arg user 'lme-user' --arg pw \"\$PASSWORD\" \
+              '.linux_vms += [{\"vm_name\":\"ubuntu-4\",\"ip_address\":\$pub,\"private_ip\":\$priv,\"username\":\$user,\"password\":\$pw}]' \
+              \$MACHINES_FILE > /tmp/machines_updated.json && \
+            mv /tmp/machines_updated.json \$MACHINES_FILE && \
+            echo 'Updated machines.json:' && cat \$MACHINES_FILE
+          "
+
+      - name: "Recovery: Set up SSH to spare node"
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            PASSWORD=\$(cat pipe-${{ env.UNIQUE_ID }}.password.txt) && \
+            echo 'Waiting for SSH on ${{ env.NODE4_PUBLIC_IP }}...' && \
+            for i in \$(seq 1 30); do
+              if sshpass -p \"\$PASSWORD\" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 lme-user@${{ env.NODE4_PUBLIC_IP }} 'echo ok' 2>/dev/null; then
+                echo 'SSH ready'
+                break
+              fi
+              echo -n '.'
+              sleep 10
+            done && \
+            ./lib/copy_ssh_key.sh lme-user ${{ env.NODE4_PUBLIC_IP }} pipe-${{ env.UNIQUE_ID }}.password.txt
+          "
+
+      - name: "Recovery: Deallocate node 3 (simulate failure)"
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          cd testing/v2/development
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T \
+            -e AZURE_CLIENT_ID \
+            -e AZURE_CLIENT_SECRET \
+            -e AZURE_TENANT_ID \
+            -e AZURE_SUBSCRIPTION_ID \
+            pipeline bash -c "
+              az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID && \
+              az vm deallocate --resource-group pipe-${{ env.UNIQUE_ID }} --name ubuntu-3 --no-wait && \
+              echo 'Waiting for ubuntu-3 to deallocate...' && \
+              while true; do
+                STATE=\$(az vm show --resource-group pipe-${{ env.UNIQUE_ID }} --name ubuntu-3 -d --query 'powerState' -o tsv 2>/dev/null)
+                echo \"Power state: \$STATE\"
+                echo \"\$STATE\" | grep -q deallocated && break
+                sleep 10
+              done && \
+              echo 'ubuntu-3 is deallocated'
+            "
+
+      - name: "Recovery: Observe degraded cluster state"
+        run: |
+          cd testing/v2/development
+          echo "Waiting for cluster to detect missing node..."
+          sleep 60
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sudo bash -c \"\
+              source /opt/lme/scripts/extract_secrets.sh -q && \
+              echo === Cluster Health === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cluster/health?pretty && \
+              echo === Node Membership === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cat/nodes?v\"'
+          "
+
+      - name: "Recovery: Set up SSH from master to node 4"
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MASTER_PUB_KEY=\$(ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sed -n \"1p\" ~/.ssh/id_rsa.pub') && \
+            if [ -z \"\$MASTER_PUB_KEY\" ]; then echo 'Failed to read master public key'; exit 1; fi && \
+            MASTER_PUB_KEY_B64=\$(printf '%s' \"\$MASTER_PUB_KEY\" | base64 -w 0) && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
+              \"mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && grep -qxF \\\$(echo '\$MASTER_PUB_KEY_B64' | base64 -d) ~/.ssh/authorized_keys || echo \\\$(echo '\$MASTER_PUB_KEY_B64' | base64 -d) >> ~/.ssh/authorized_keys\" && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              \"ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PRIVATE_IP }} hostname\"
+          "
+
+      - name: "Recovery: Update inventory (replace es3 with es4)"
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          MASTER_PIP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -r '.linux_vms[0].private_ip' ${INSTALLERS_DIR}/pipe-${{ env.UNIQUE_ID }}.machines.json" | tr -d '\r\n ')
+          ES2_PIP=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c \
+            "jq -r '.linux_vms[1].private_ip' ${INSTALLERS_DIR}/pipe-${{ env.UNIQUE_ID }}.machines.json" | tr -d '\r\n ')
+
+          cat > recovery_inventory.yml << EOF
+          all:
+            vars:
+              es_master_host: ${MASTER_PIP}
+              es_cluster_seed_hosts:
+                - ${MASTER_PIP}
+                - ${ES2_PIP}
+                - ${{ env.NODE4_PRIVATE_IP }}
+            children:
+              elasticsearch:
+                hosts:
+                  es1:
+                    ansible_host: ${MASTER_PIP}
+                    ansible_connection: local
+                    es_node_name: lme-elasticsearch
+                    es_is_initial_master: true
+                    es_publish_host: ${MASTER_PIP}
+                  es2:
+                    ansible_host: ${ES2_PIP}
+                    ansible_user: lme-user
+                    es_node_name: es2
+                    es_publish_host: ${ES2_PIP}
+                  es4:
+                    ansible_host: ${{ env.NODE4_PRIVATE_IP }}
+                    ansible_user: lme-user
+                    es_node_name: es4
+                    es_publish_host: ${{ env.NODE4_PRIVATE_IP }}
+          EOF
+          echo "=== New inventory ==="
+          cat recovery_inventory.yml
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            scp /home/lme-user/LME/testing/v2/development/recovery_inventory.yml \
+              lme-user@${{ env.AZURE_IP }}:~/LME/ansible/inventory/cluster.yml
+          "
+          rm recovery_inventory.yml
+
+      - name: "Recovery: Run Ansible to join node 4"
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} '
+              cd ~/LME && ansible-playbook -i ansible/inventory/cluster.yml ansible/elasticsearch.yml
+            '
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              'sudo systemctl restart lme-elasticsearch'
+          "
+          sleep 10
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            ES2_PUB=\$(jq -r '.linux_vms[1].ip_address' pipe-${{ env.UNIQUE_ID }}.machines.json) && \
+            ssh -o StrictHostKeyChecking=no lme-user@\${ES2_PUB} \
+              'sudo systemctl restart lme-elasticsearch'
+          "
+          sleep 10
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
+              'sudo systemctl is-active lme-elasticsearch'
+          "
+
+      - name: "Recovery: Set up NFS on node 4 and re-apply NFS config on all nodes"
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+
+          # Update NFS exports to include node 4
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            MASTER_PIP=\$(jq -r '.linux_vms[0].private_ip' \$MACHINES_FILE) && \
+            ES2_PIP=\$(jq -r '.linux_vms[1].private_ip' \$MACHINES_FILE) && \
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} \
+              \"sudo sed -i '/^\\/srv\\/es-snapshots/d' /etc/exports && \
+               echo '/srv/es-snapshots \${MASTER_PIP}(rw,sync,no_subtree_check,no_root_squash) \${ES2_PIP}(rw,sync,no_subtree_check,no_root_squash) ${{ env.NODE4_PRIVATE_IP }}(rw,sync,no_subtree_check,no_root_squash)' | sudo tee -a /etc/exports && \
+               sudo exportfs -ra\"
+          "
+
+          # Mount NFS on node 4
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
+              \"sudo apt-get install -y nfs-common && \
+               sudo mkdir -p /mnt/es-snapshots && \
+               sudo mount -t nfs ${{ env.MASTER_PRIVATE_IP }}:/srv/es-snapshots /mnt/es-snapshots && \
+               grep -q /mnt/es-snapshots /etc/fstab || echo '${{ env.MASTER_PRIVATE_IP }}:/srv/es-snapshots /mnt/es-snapshots nfs defaults 0 0' | sudo tee -a /etc/fstab\"
+          "
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
+              'mountpoint -q /mnt/es-snapshots && echo NFS mounted || echo NFS NOT mounted'
+          "
+
+          # Quadlet drop-in + ES restart on all live nodes (path.repo now from Ansible template, no sed re-apply)
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            MACHINES_FILE=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            for pub_ip in \$(jq -r '.linux_vms[] | select(.vm_name != \"ubuntu-3\") | .ip_address' \$MACHINES_FILE); do
+              echo \"=== Re-applying ES NFS config on \${pub_ip} ===\" && \
+              ssh -o StrictHostKeyChecking=no lme-user@\${pub_ip} '
+                # path.repo now set by Ansible template (elasticsearch.yml.j2) when lme_cluster_mode=true
+                # sudo grep -q /usr/share/elasticsearch/snapshots /opt/lme/config/elasticsearch.yml || \
+                #   sudo sed -i \"/\\/usr\\/share\\/elasticsearch\\/backups/a\\\\    - /usr/share/elasticsearch/snapshots\" /opt/lme/config/elasticsearch.yml
+                sudo mkdir -p /etc/containers/systemd/lme-elasticsearch.container.d/
+                echo \"[Container]
+          Volume=/mnt/es-snapshots:/usr/share/elasticsearch/snapshots\" | sudo tee /etc/containers/systemd/lme-elasticsearch.container.d/nfs-mount.conf
+                sudo systemctl daemon-reload && sudo systemctl restart lme-elasticsearch
+              '
+            done
+          "
+
+          # Verify node 4 ES is running
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.NODE4_PUBLIC_IP }} \
+              'sudo systemctl is-active lme-elasticsearch'
+          "
+
+      - name: "Recovery: Validate cluster recovery"
+        run: |
+          cd testing/v2/development
+          echo "Waiting for shard rebalancing..."
+          sleep 120
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh -o StrictHostKeyChecking=no lme-user@${{ env.AZURE_IP }} 'sudo bash -c \"\
+              source /opt/lme/scripts/extract_secrets.sh -q && \
+              echo === Cluster Health === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cluster/health?pretty && \
+              echo === Node Membership === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cat/nodes?v && \
+              echo === Shard Distribution === && \
+              curl -sk -u \\\"elastic:\\\$elastic\\\" https://localhost:9200/_cat/shards?v\"'
+          "
+
+      # =========================================================================
+      # Post-Recovery Tests: Snapshot & Password Change
+      # =========================================================================
+
+      - name: "Post-recovery: Prepare test artifacts"
+        run: |
+          cd testing/v2/development
+          INSTALLERS_DIR="/home/lme-user/LME/testing/v2/installers"
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd ${INSTALLERS_DIR} && \
+            ORIG=pipe-${{ env.UNIQUE_ID }}.machines.json && \
+            jq '[.linux_vms[] | select(.vm_name != \"ubuntu-3\")]' \$ORIG \
+              | jq '{linux_vms: .}' > ${RG}.machines.json && \
+            cp pipe-${{ env.UNIQUE_ID }}.password.txt ${RG}.password.txt && \
+            printf 'RESOURCE_GROUP=%s\nLME_USER=lme-user\n' '${RG}' > exporter.txt && \
+            echo '=== Post-recovery machines.json ===' && \
+            jq '.linux_vms[].vm_name' ${RG}.machines.json && \
+            echo '=== exporter.txt ===' && \
+            cat exporter.txt
+          "
+
+      - name: "Post-recovery: Run snapshot tests"
+        run: |
+          cd testing/v2/development
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/cluster_installer && \
+            ./test_snapshot.sh -r ${RG}
+          "
+
+      - name: "Post-recovery: Run Ansible password-change tests"
+        run: |
+          cd testing/v2/development
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/cluster_installer && \
+            ./test_change_passwords.sh --ansible-only -r ${RG}
+          "
+
+      - name: "Post-recovery: Run cluster backup/recovery test"
+        run: |
+          cd testing/v2/development
+          RG="pipe-${{ env.UNIQUE_ID }}-postrecovery"
+
+          docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            cd /home/lme-user/LME/testing/v2/installers/cluster_installer && \
+            ./test_cluster_backup_restore.sh -r ${RG}
           "
 
       - name: Cleanup Azure resources

@@ -8,8 +8,15 @@ This directory contains the Ansible playbooks and roles used to deploy, manage, 
 ansible/
 ├── site.yml              # Main installation playbook
 ├── backup_lme.yml         # Backup operations playbook
+├── cluster_backup_lme.yml # Cluster-safe snapshot + master backup workflow
+├── change_passwords.yml   # Password change playbook
+├── convert_to_cluster.yml # Single-node to cluster conversion playbook
+├── restore_elasticsearch_snapshot.yml # Snapshot restore orchestration
+├── restore_lme_master.yml # Restore master/control-plane state from backup
 ├── upgrade_lme.yml        # Upgrade operations playbook  
 ├── rollback_lme.yml       # Rollback operations playbook
+├── rolling_upgrade.yml    # ES cluster rolling upgrade playbook
+├── snapshot_elasticsearch.yml # Snapshot repository and snapshot management
 ├── requirements.yml       # Ansible collection dependencies
 ├── roles/                 # Ansible roles for different components
 │   ├── backup_lme/        # LME backup operations
@@ -22,7 +29,8 @@ ansible/
 │   ├── podman/            # Podman container runtime setup
 │   └── wazuh/             # Wazuh server configuration
 └── tasks/                 # Shared task files
-    └── load_env.yml       # Environment variable loading
+    ├── load_env.yml       # Environment variable loading
+    └── pre_upgrade_checks.yml # Pre-upgrade verification checks
 ```
 
 ## Main Playbooks
@@ -37,9 +45,15 @@ ansible/
 ### Maintenance Operations
 - **`backup_lme.yml`**: Creates backups of LME installation and data
   - Backs up configuration files
-  - Backs up Podman volumes containing data
+  - Backs up Podman volumes containing data for single-node installs
+  - In cluster mode, creates a master/control-plane backup and excludes Elasticsearch data volumes
   - Creates timestamped backup directories
   - Supports automated and interactive modes
+
+- **`cluster_backup_lme.yml`**: Creates a cluster recovery bundle
+  - Creates an Elasticsearch snapshot
+  - Creates a master/control-plane backup on the master
+  - Emits a recovery manifest tying both artifacts together
 
 - **`upgrade_lme.yml`**: Upgrades LME to newer versions
   - Checks current version and upgrade requirements
@@ -52,6 +66,45 @@ ansible/
   - Optional safety backup before rollback
   - Restores configuration and volume data
   - Validates successful rollback
+  - Single-node only; fails fast on clustered installs
+
+- **`change_passwords.yml`**: Changes built-in user passwords across the LME stack
+  - Supports `elastic`, `kibana_system`, `wazuh`, `wazuh_api`, and `pgvector`
+  - Works for both single-node and cluster deployments
+  - Updates Elasticsearch via REST API; updates Wazuh via RBAC tool
+  - Updates PostgreSQL inside `lme-pgvector` via `ALTER USER` and rewrites the
+    file-driver Podman secret (master only)
+  - Validates passwords against Have I Been Pwned (skippable in offline mode)
+  - See **[PASSWORD_README.md](PASSWORD_README.md)** for the full credential
+    inventory, including LLM keys (`llm-keys`) and the LiteLLM internal proxy
+    key, which are managed outside this playbook.
+
+- **`snapshot_elasticsearch.yml`**: Manages Elasticsearch snapshot repositories and creates snapshots
+  - Supports `fs` (filesystem) and `s3` repository types
+  - Verifies repository accessibility on all cluster nodes
+  - Creates timestamped snapshots (can be skipped with `-e create_snapshot=false`)
+  - Works with single-node and cluster deployments
+
+- **`restore_elasticsearch_snapshot.yml`**: Restores Elasticsearch data from a snapshot
+  - Registers and verifies the snapshot repository
+  - Restores selected indices or full cluster state
+  - Supports optional index renaming during restore
+
+- **`restore_lme_master.yml`**: Restores master/control-plane state from backup
+  - Restores `/opt/lme`, `/etc/lme`, and `/etc/containers/systemd`
+  - Recreates Podman secrets
+  - Restores non-Elasticsearch volumes by default
+
+- **`rolling_upgrade.yml`**: Performs a rolling upgrade of Elasticsearch across cluster nodes
+  - Upgrades one node at a time to maintain cluster availability
+  - Runs pre-upgrade checks (health, version, disk, snapshot) by default
+  - Creates a pre-upgrade snapshot before upgrading (opt-out with `-e create_pre_upgrade_snapshot=false`)
+
+- **`convert_to_cluster.yml`**: Converts an existing single-node LME installation into a multi-node Elasticsearch cluster
+  - Requires a healthy single-node LME on the master and a cluster inventory
+  - Creates a backup before conversion
+  - Deploys Elasticsearch to new nodes and joins them to the cluster
+  - Use `scripts/convert_to_cluster.sh` as a convenience wrapper (generates inventory, then runs the playbook)
 
 ## Roles
 
@@ -141,6 +194,9 @@ ansible-playbook backup_lme.yml
 
 # Create a backup (automated)
 ansible-playbook backup_lme.yml -e skip_prompts=true
+
+# Cluster-safe backup bundle
+ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
 ```
 
 ### Upgrade Operations
@@ -161,6 +217,89 @@ ansible-playbook rollback_lme.yml
 # 1. Select which backup to restore from
 # 2. Choose whether to create a safety backup
 ```
+
+`rollback_lme.yml` is for single-node installs only. For clusters, use the
+snapshot restore and master restore playbooks documented below.
+
+### Snapshot Operations
+Register an Elasticsearch snapshot repository, verify it, and optionally create a snapshot. Supports filesystem (`fs`) and S3 repository types.
+
+```bash
+# Single-node: register repo, verify, and create snapshot
+ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.yml
+
+# Register and verify only (no snapshot)
+ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.yml -e create_snapshot=false
+
+# Cluster
+ansible-playbook -i ansible/inventory/cluster.yml ansible/snapshot_elasticsearch.yml
+
+# S3 repository
+ansible-playbook -i ansible/inventory/single.yml ansible/snapshot_elasticsearch.yml \
+  -e es_snapshot_repo_type=s3 -e es_s3_bucket=my-bucket -e es_s3_region=us-west-2
+```
+
+For full details on shared storage requirements and S3 setup, see **[SNAPSHOT_README.md](SNAPSHOT_README.md)**.
+
+### Cluster Recovery
+Cluster recovery uses separate playbooks for Elasticsearch data and master
+state:
+
+```bash
+# Restore Elasticsearch data from snapshot
+ansible-playbook -i ansible/inventory/cluster.yml ansible/restore_elasticsearch_snapshot.yml \
+  -e snapshot_name=<snapshot>
+
+# Restore master/control-plane state
+ansible-playbook ansible/restore_lme_master.yml
+```
+
+For the full workflow, see **[CLUSTER_RECOVERY_README.md](CLUSTER_RECOVERY_README.md)**.
+
+### Password Changes
+Change built-in user passwords (elastic, kibana_system, wazuh, wazuh_api, pgvector). Requires a running LME installation and ansible-vault password configured at `/etc/lme/pass.sh`. For `pgvector`, the LLM stack must be installed and `lme-pgvector` must be running on the master.
+
+```bash
+# Single-node (Elasticsearch elastic user)
+ansible-playbook ansible/change_passwords.yml \
+  -e lme_user=elastic -e lme_password='YourNewSecurePassword123!'
+
+# Cluster (run from master with ansible/inventory/cluster.yml)
+ansible-playbook -i ansible/inventory/cluster.yml ansible/change_passwords.yml \
+  -e lme_user=elastic -e lme_password='YourNewSecurePassword123!'
+
+# Offline environments (skip Have I Been Pwned breach check)
+ansible-playbook ansible/change_passwords.yml \
+  -e lme_user=elastic -e lme_password='YourNewSecurePassword123!' -e offline_mode=true
+
+# Rotate the pgvector PostgreSQL user (master only)
+ansible-playbook ansible/change_passwords.yml \
+  -e lme_user=pgvector -e lme_password='YourNewPgvectorPwd_123!'
+```
+
+For clusters, ensure SSH connectivity from master to all nodes before running.
+
+`llm-keys` (cloud LLM provider API keys) and the LiteLLM internal proxy key
+(`sk-lme-llama-proxy`) are managed outside this playbook. See
+**[PASSWORD_README.md](PASSWORD_README.md)** for those workflows and the full
+credential inventory.
+
+### Single-Node to Cluster Conversion
+Convert an existing single-node LME installation into a multi-node Elasticsearch cluster. Prerequisites: healthy single-node LME on master, cluster inventory at `ansible/inventory/cluster.yml`, SSH connectivity from master to all cluster nodes, ports 9200 and 9300 open between nodes.
+
+```bash
+# Option 1: Use the wrapper script (generates inventory interactively, then runs playbook)
+# Run as a normal user (not sudo); passwordless sudo must work for ansible become (or run sudo -v first).
+bash scripts/convert_to_cluster.sh
+
+# Option 2: Run the playbook directly (inventory must already exist)
+ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml
+
+# Non-interactive / CI (skip backup prompt)
+ansible-playbook -i ansible/inventory/cluster.yml ansible/convert_to_cluster.yml -e skip_prompts=true
+```
+
+Generate the cluster inventory with `scripts/create_cluster_inventory.sh` if you don't have one. The wrapper script can skip inventory generation with `--skip-inventory` if `ansible/inventory/cluster.yml` already exists.
 
 ## Configuration
 
@@ -228,4 +367,5 @@ Override default values:
 ansible-playbook site.yml -e clone_directory=/custom/path
 ```
 
-For detailed information about backup, upgrade, and rollback operations, see the respective README files for each operation. 
+For detailed information about backup, cluster recovery, upgrade, and rollback
+operations, see the respective README files in this directory.

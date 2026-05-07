@@ -71,11 +71,28 @@ while IFS= read -r line; do
         # Use the name as-is for the variable name
         var_name=$name
 
-        # Skip secrets managed outside of ansible-vault (e.g. pgvector
-        # uses the file driver and llm-keys is managed by sync_llm_keys.py)
+        # llm-keys is managed by sync_llm_keys.py and should not be exported.
         case "$var_name" in
-            llm-keys|pgvector) continue ;;
+            llm-keys) continue ;;
         esac
+
+        # pgvector uses Podman's file driver, not ansible-vault.
+        if [ "$var_name" = "pgvector" ]; then
+            secret_value=$(sudo "$PODMAN_PATH" secret inspect --showsecret pgvector --format '{{.SecretData}}' 2>/dev/null)
+            if [ -z "$secret_value" ]; then
+                echo_if_not_quiet "Skipping pgvector (unable to read Podman file-driver secret)"
+                continue
+            fi
+
+            export_commands+="export pgvector='$secret_value'; "
+
+            if $PRINT_SECRETS; then
+                echo "Exported pgvector: $secret_value"
+            elif ! $QUIET_MODE; then
+                echo "Exported pgvector"
+            fi
+            continue
+        fi
 
         vault_file="/etc/lme/vault/$id"
         if ! sudo test -f "$vault_file"; then
@@ -102,10 +119,10 @@ eval "$export_commands"
 
 if $PRINT_SECRETS; then
     echo "Exported variables with values:"
-    env | grep -E "^(wazuh|wazuh_api|kibana_system|elastic)="
+    env | grep -E "^(wazuh|wazuh_api|kibana_system|elastic|pgvector)="
 elif ! $QUIET_MODE; then
     echo "Exported variables (values hidden):"
-    env | grep -E "^(wazuh|wazuh_api|kibana_system|elastic)=" | cut -d= -f1
+    env | grep -E "^(wazuh|wazuh_api|kibana_system|elastic|pgvector)=" | cut -d= -f1
 fi
 
 if ! $QUIET_MODE; then

@@ -5,6 +5,38 @@
   set_fact:
     backup_timestamp: "{{ ansible_date_time.year }}-{{ ansible_date_time.month }}-{{ ansible_date_time.day }}_{{ ansible_date_time.hour }}-{{ ansible_date_time.minute }}"
 
+- name: Check Elasticsearch quadlet for cluster mode
+  shell: |
+    if [ ! -f /etc/containers/systemd/lme-elasticsearch.container ]; then
+      echo "unknown"
+    elif grep -q 'discovery.type=single-node' /etc/containers/systemd/lme-elasticsearch.container; then
+      echo "single-node"
+    else
+      echo "cluster"
+    fi
+  args:
+    executable: /bin/bash
+  register: lme_backup_install_mode_check
+  become: yes
+  changed_when: false
+
+- name: Set backup mode facts
+  set_fact:
+    lme_backup_install_mode: "{{ lme_backup_install_mode_check.stdout | trim }}"
+    lme_backup_is_cluster_install: "{{ lme_backup_install_mode_check.stdout | trim == 'cluster' }}"
+    lme_backup_mode_label: "{{ 'cluster-control-plane' if (lme_backup_install_mode_check.stdout | trim == 'cluster') else 'single-node-full' }}"
+
+- name: Display backup mode
+  debug:
+    msg: >-
+      Backup mode: {{ lme_backup_mode_label }}.
+      {% if lme_backup_is_cluster_install %}
+      Cluster mode detected. This backup will exclude Elasticsearch data volumes and is only suitable for
+      master/control-plane recovery. Use snapshot_elasticsearch.yml or cluster_backup_lme.yml for cluster data protection.
+      {% else %}
+      Single-node mode detected. Full local volumes will be backed up.
+      {% endif %}
+
 - name: Get Podman graphroot location
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
@@ -124,6 +156,9 @@
     mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme"
     mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_lme"
     mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_containers_systemd"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_systemd_system_lme"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/secrets"
+    mkdir -p "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/volumes"
     
     # Copy the LME installation
     {{ cp_preserve_cmd }} "{{ lme_install_dir }}/." "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/lme/"
@@ -160,36 +195,150 @@
   become: yes
   register: lme_backup_result
 
-- name: Create secret mapping file for rollback
+- name: Backup LME-owned host systemd units
+  # Quadlet units under /etc/containers/systemd are already backed up. Roles like
+  # llama_cpp_setup and kev install regular systemd unit files (.service/.path/.timer)
+  # under /etc/systemd/system. Capture only the LME-owned units here, plus their
+  # enabled state so the restore playbooks can re-enable them after daemon-reload.
+  shell: |
+    set -u
+    DEST_DIR="{{ backup_base_dir }}/backups/{{ backup_timestamp }}/etc_systemd_system_lme"
+    MANIFEST="$DEST_DIR/manifest.txt"
+    mkdir -p "$DEST_DIR"
+    : > "$MANIFEST"
+
+    # Allowlist of LME-owned host units. lme.service is the umbrella unit; the
+    # others are runtime helpers added by recent merges.
+    UNITS=(
+      "lme.service"
+      "lme-llm-keys.service"
+      "lme-llm-keys.path"
+      "lme-llama-model.service"
+      "lme-llama-model.path"
+      "lme-kev-sync.service"
+      "lme-kev-sync.timer"
+    )
+
+    echo "# LME host systemd units backup - Created: {{ ansible_date_time.iso8601 }}" >> "$MANIFEST"
+    echo "# Format: UNIT|FILE_BACKED_UP|ENABLED_STATE" >> "$MANIFEST"
+    echo "" >> "$MANIFEST"
+
+    for unit in "${UNITS[@]}"; do
+      SRC="/etc/systemd/system/$unit"
+      FILE_STATUS="missing"
+      if [ -f "$SRC" ]; then
+        {{ cp_preserve_cmd }} "$SRC" "$DEST_DIR/$unit" 2>/dev/null || true
+        FILE_STATUS="copied"
+      fi
+
+      ENABLED_STATE="unknown"
+      if systemctl list-unit-files "$unit" >/dev/null 2>&1; then
+        ENABLED_STATE=$(systemctl is-enabled "$unit" 2>/dev/null || echo "disabled")
+      fi
+
+      echo "$unit|$FILE_STATUS|$ENABLED_STATE" >> "$MANIFEST"
+    done
+    echo "Host systemd unit backup written to $DEST_DIR"
+  args:
+    executable: /bin/bash
+  become: yes
+  register: lme_systemd_units_backup_result
+  ignore_errors: yes
+
+- name: Display systemd units backup result
+  debug:
+    msg: "{{ lme_systemd_units_backup_result.stdout_lines | default(['Host systemd unit backup skipped']) }}"
+
+- name: Create secret manifest and capture non-vault secret payloads
+  # Older backups only recorded NAME=ID (secret_mapping.txt) and relied on
+  # restore reading /etc/lme/vault/<id> as a shell driver secret. That works for
+  # secrets whose plaintext is still in /etc/lme/vault (elastic, wazuh,
+  # kibana_system, wazuh_api). The LLM stack adds file-driver secrets
+  # (pgvector, llm-keys) whose plaintext is only inside Podman's secret store.
+  # This task writes both the legacy secret_mapping.txt (for backward compatible
+  # restores) and a richer secret_manifest.txt that records driver and a
+  # vault-encrypted captured payload for non-vault secrets when Podman exposes
+  # them via `podman secret inspect --showsecret`.
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
     export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
-    
-    # Create secret mapping file
-    MAPPING_FILE="{{ backup_base_dir }}/backups/{{ backup_timestamp }}/secret_mapping.txt"
-    
-    # Get current secret mappings from podman
+
+    BACKUP_ROOT="{{ backup_base_dir }}/backups/{{ backup_timestamp }}"
+    MAPPING_FILE="$BACKUP_ROOT/secret_mapping.txt"
+    MANIFEST_FILE="$BACKUP_ROOT/secret_manifest.txt"
+    SECRETS_DIR="$BACKUP_ROOT/secrets"
+    BACKUP_VAULT_DIR="$BACKUP_ROOT/etc_lme/vault"
+    mkdir -p "$SECRETS_DIR"
+    chmod 700 "$SECRETS_DIR"
+
     echo "# LME Secret Mapping - Created: {{ ansible_date_time.iso8601 }}" > "$MAPPING_FILE"
     echo "# Format: SECRET_NAME=VAULT_FILE_ID" >> "$MAPPING_FILE"
     echo "" >> "$MAPPING_FILE"
-    
-    # Check if any secrets exist
-    if podman secret ls --format "{{ '{{' }}.Name{{ '}}' }}" | grep -q .; then
-      # Get secret mappings
-      podman secret ls --format "{{ '{{' }}.Name{{ '}}' }}={{ '{{' }}.ID{{ '}}' }}" | while read line; do
-        echo "$line" >> "$MAPPING_FILE"
-      done
-      echo "Secret mapping saved to $MAPPING_FILE"
-    else
+
+    echo "# LME Secret Manifest - Created: {{ ansible_date_time.iso8601 }}" > "$MANIFEST_FILE"
+    echo "# Format: NAME|ID|DRIVER|VAULT_FILE|CAPTURED_FILE" >> "$MANIFEST_FILE"
+    echo "# VAULT_FILE  : path under etc_lme/vault/ for shell-driver secrets, or empty" >> "$MANIFEST_FILE"
+    echo "# CAPTURED_FILE: ansible-vault encrypted payload under secrets/, or empty if not captured" >> "$MANIFEST_FILE"
+    echo "" >> "$MANIFEST_FILE"
+
+    SECRET_NAMES=$(podman secret ls --format "{{ '{{' }}.Name{{ '}}' }}" 2>/dev/null || true)
+    if [ -z "$SECRET_NAMES" ]; then
       echo "# No secrets found during backup" >> "$MAPPING_FILE"
+      echo "# No secrets found during backup" >> "$MANIFEST_FILE"
       echo "Warning: No Podman secrets found during backup"
+      exit 0
     fi
+
+    while IFS= read -r name; do
+      [ -z "$name" ] && continue
+      INSPECT_JSON=$(podman secret inspect "$name" 2>/dev/null || echo "")
+      ID=$(echo "$INSPECT_JSON" | grep -o '"ID": *"[^"]*"' | head -n1 | sed 's/.*"ID": *"\([^"]*\)".*/\1/')
+      DRIVER=$(echo "$INSPECT_JSON" | grep -o '"Name": *"[^"]*"' | tail -n1 | sed 's/.*"Name": *"\([^"]*\)".*/\1/')
+      [ -z "$DRIVER" ] && DRIVER="unknown"
+
+      VAULT_FILE=""
+      CAPTURED_FILE=""
+
+      if [ -n "$ID" ] && [ -f "$BACKUP_VAULT_DIR/$ID" ]; then
+        VAULT_FILE="$ID"
+      fi
+
+      if [ -z "$VAULT_FILE" ]; then
+        # No /etc/lme/vault payload exists for this secret. Try to capture the
+        # plaintext directly from Podman, then re-encrypt it with the host vault
+        # password so it does not land on disk in cleartext.
+        TMP_INSPECT=$(mktemp)
+        if podman secret inspect --showsecret "$name" >"$TMP_INSPECT" 2>/dev/null && [ -s "$TMP_INSPECT" ]; then
+          # Extract SecretData via python for robust JSON parsing since secret
+          # values may contain quotes or special characters.
+          PLAINTEXT=$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d[0].get('SecretData','') if isinstance(d,list) and d else '', end='')" "$TMP_INSPECT" 2>/dev/null || echo "")
+          if [ -n "$PLAINTEXT" ]; then
+            CAPTURED_REL="secrets/${name}.vault"
+            TMP_PLAIN=$(mktemp)
+            printf '%s' "$PLAINTEXT" > "$TMP_PLAIN"
+            if ansible-vault encrypt --output "$BACKUP_ROOT/$CAPTURED_REL" "$TMP_PLAIN" >/dev/null 2>&1; then
+              CAPTURED_FILE="$CAPTURED_REL"
+              chmod 600 "$BACKUP_ROOT/$CAPTURED_REL"
+            fi
+            shred -u "$TMP_PLAIN" 2>/dev/null || rm -f "$TMP_PLAIN"
+          fi
+        fi
+        shred -u "$TMP_INSPECT" 2>/dev/null || rm -f "$TMP_INSPECT"
+      fi
+
+      echo "${name}=${ID}" >> "$MAPPING_FILE"
+      echo "${name}|${ID}|${DRIVER}|${VAULT_FILE}|${CAPTURED_FILE}" >> "$MANIFEST_FILE"
+      echo "Secret '$name' (driver=$DRIVER) recorded: vault_file='$VAULT_FILE' captured='$CAPTURED_FILE'"
+    done <<< "$SECRET_NAMES"
+
+    echo "Secret mapping saved to $MAPPING_FILE"
+    echo "Secret manifest saved to $MANIFEST_FILE"
   args:
     executable: /bin/bash
   become: yes
   register: secret_mapping_result
   ignore_errors: yes
-  
+
 - name: Display secret mapping result
   debug:
     msg: "{{ secret_mapping_result.stdout_lines }}"
@@ -207,6 +356,30 @@
 - name: Display volumes to backup
   debug:
     msg: "Found {{ podman_volumes.stdout_lines | length }} LME volumes to backup"
+
+- name: Set cluster backup volume filters
+  set_fact:
+    lme_backup_excluded_volumes: >-
+      {{
+        ((podman_volumes.stdout_lines | default([])) | select('match', '^lme_esdata.*') | list)
+        + ((podman_volumes.stdout_lines | default([])) | select('equalto', 'lme_backups') | list)
+        if lme_backup_is_cluster_install else []
+      }}
+    lme_backup_selected_volumes: >-
+      {{
+        ((podman_volumes.stdout_lines | default([]))
+          | reject('match', '^lme_esdata.*')
+          | reject('equalto', 'lme_backups')
+          | list)
+        if lme_backup_is_cluster_install else (podman_volumes.stdout_lines | default([]))
+      }}
+
+- name: Display effective backup volume scope
+  debug:
+    msg: |
+      Effective backup scope:
+      - Selected volumes: {{ lme_backup_selected_volumes | join(', ') if lme_backup_selected_volumes | length > 0 else 'None' }}
+      - Excluded volumes: {{ lme_backup_excluded_volumes | join(', ') if lme_backup_excluded_volumes | length > 0 else 'None' }}
   
 - name: Get current LME version
   shell: |
@@ -224,10 +397,43 @@
     content: |
       Backup started: {{ ansible_date_time.iso8601 }}
       LME version: {{ current_version.stdout }}
+      Backup mode: {{ lme_backup_mode_label }}
+      Installation type detected: {{ lme_backup_install_mode }}
+      Cluster snapshot required for ES data: {{ 'YES' if lme_backup_is_cluster_install else 'NO' }}
+      Excluded volumes: {{ lme_backup_excluded_volumes | join(', ') if lme_backup_excluded_volumes | length > 0 else 'None' }}
       LME installation: PENDING
       Volumes: PENDING
       Service restart: PENDING
   become: yes
+
+- name: Write cluster recovery note for cluster backups
+  copy:
+    dest: "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/cluster_recovery_note.txt"
+    content: |
+      Cluster-aware backup note
+      ========================
+
+      This backup was created on a cluster installation.
+
+      Included:
+      - /opt/lme
+      - /etc/lme
+      - /etc/containers/systemd
+      - LME-owned host systemd units under /etc/systemd/system
+      - Captured Podman secret values for non-vault drivers (pgvector, llm-keys)
+      - Non-Elasticsearch LME Podman volumes on this host
+
+      Excluded:
+      - Elasticsearch data volumes (lme_esdata*)
+      - lme_backups
+
+      To recover cluster data, restore an Elasticsearch snapshot created with:
+        ansible-playbook -i ansible/inventory/cluster.yml ansible/snapshot_elasticsearch.yml
+
+      Or use the composed cluster workflow:
+        ansible-playbook -i ansible/inventory/cluster.yml ansible/cluster_backup_lme.yml
+  become: yes
+  when: lme_backup_is_cluster_install
   
 - name: Stop LME service
   systemd:
@@ -235,20 +441,83 @@
     state: stopped
   become: yes
   register: service_stop_result
-  
+
+- name: Explicitly stop all LME container services
+  # systemctl stop lme propagates via PartOf, but WantedBy=default.target can cause
+  # systemd to restart units immediately. Explicit stops suppress Restart=always.
+  # The list also stops host-level helper units (path watchers and timers) that
+  # could otherwise fire mid-backup and write into volumes we are about to copy.
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    SERVICES="
+      lme-dashboard
+      lme-log-analyzer
+      lme-litellm
+      lme-llama-cpp
+      lme-embeddings
+      lme-pgvector
+      lme-fleet-server
+      lme-fleet-distribution
+      lme-kibana
+      lme-elastalert
+      lme-wazuh-manager
+      lme-elasticsearch
+      lme-setup-accts
+      lme-setup-certs
+    "
+    for svc in $SERVICES; do
+      if systemctl is-active --quiet "${svc}.service" 2>/dev/null; then
+        systemctl stop "${svc}.service" 2>/dev/null || true
+      fi
+    done
+
+    HELPERS="
+      lme-llm-keys.path
+      lme-llm-keys.service
+      lme-llama-model.path
+      lme-llama-model.service
+      lme-kev-sync.timer
+      lme-kev-sync.service
+    "
+    for unit in $HELPERS; do
+      if systemctl is-active --quiet "$unit" 2>/dev/null; then
+        systemctl stop "$unit" 2>/dev/null || true
+      fi
+    done
+  args:
+    executable: /bin/bash
+  become: yes
+  ignore_errors: yes
+
 - name: Wait for containers to stop
   shell: |
     export PATH=$PATH:/nix/var/nix/profiles/default/bin
-    podman ps -a --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
+    podman ps --format "{{ '{{' }}.Names{{ '}}' }}" | grep -E "lme" || true
   args:
     executable: /bin/bash
   register: running_containers
   become: yes
   until: running_containers.stdout_lines | length == 0
-  retries: 12
-  delay: 5
+  retries: 24
+  delay: 10
   ignore_errors: yes
-  
+
+- name: Force-remove any orphaned LME containers before restart
+  # Podman tracks --requires dependencies at the container level. If any lme-* container
+  # remains (even stopped/exited), podman run --replace on lme-elasticsearch will fail
+  # with exit 125 if a dependent container (e.g. lme-kibana) is still present and running.
+  # Remove all stopped lme-* containers to give podman a clean slate on restart.
+  shell: |
+    export PATH=$PATH:/nix/var/nix/profiles/default/bin
+    STALE=$(podman ps -a --filter name=lme --format "{{ '{{' }}.Names{{ '}}' }}" 2>/dev/null || true)
+    if [ -n "$STALE" ]; then
+      echo "$STALE" | xargs -r podman rm -f 2>/dev/null || true
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+  ignore_errors: yes
+
 - name: Display any running containers
   debug:
     msg: "Warning: The following containers are still running and may not be backed up properly: {{ running_containers.stdout_lines }}"
@@ -290,10 +559,11 @@
     fi
   args:
     executable: /bin/bash
-  loop: "{{ podman_volumes.stdout_lines }}"
+  loop: "{{ lme_backup_selected_volumes }}"
   register: volume_backup
   become: yes
   ignore_errors: yes
+  when: lme_backup_selected_volumes | length > 0
 
 - name: Collect volume backup statuses
   shell: |
@@ -305,6 +575,12 @@
   ignore_errors: yes
   changed_when: false
 
+- name: Set successful volume count when no volumes were selected
+  set_fact:
+    successful_volumes:
+      stdout: "0"
+  when: lme_backup_selected_volumes | length == 0
+
 - name: Find volumes that were empty during backup
   shell: |
     find "{{ backup_base_dir }}/backups/{{ backup_timestamp }}/volumes" -name "backup_status.txt" -exec grep -l "EMPTY" {} \; | xargs -I {} dirname {} | xargs -I {} basename {}
@@ -314,6 +590,12 @@
   become: yes
   ignore_errors: yes
   changed_when: false
+
+- name: Set empty volume list when no volumes were selected
+  set_fact:
+    empty_volumes:
+      stdout_lines: []
+  when: lme_backup_selected_volumes | length == 0
 
 - name: Create expected empty volumes file based on actual empty volumes found
   copy:
@@ -368,16 +650,22 @@
     content: |
       Backup completed: {{ ansible_date_time.iso8601 }}
       LME version: {{ current_version.stdout }}
+      Backup mode: {{ lme_backup_mode_label }}
+      Installation type detected: {{ lme_backup_install_mode }}
+      Cluster snapshot required for ES data: {{ 'YES' if lme_backup_is_cluster_install else 'NO' }}
+      Excluded volumes: {{ lme_backup_excluded_volumes | join(', ') if lme_backup_excluded_volumes | length > 0 else 'None' }}
       
       Backup status:
       - LME installation: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
       - Vault files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
-      - Systemd files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
-      - Volumes: {{ successful_volumes.stdout | int }} of {{ podman_volumes.stdout_lines | length }} successful
-      - Failed volumes: {{ volume_backup.results | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0 else 'None' }}
+      - Quadlet files: {{ 'SUCCESS' if lme_backup_result is success else 'FAILED' }}
+      - Host systemd units: {{ 'SUCCESS' if lme_systemd_units_backup_result is defined and lme_systemd_units_backup_result is success else ('SKIPPED' if lme_systemd_units_backup_result is not defined else 'FAILED') }}
+      - Secret manifest: {{ 'SUCCESS' if secret_mapping_result is defined and secret_mapping_result is success else 'FAILED' }}
+      - Volumes: {{ successful_volumes.stdout | int }} of {{ lme_backup_selected_volumes | length }} successful
+      - Failed volumes: {{ volume_backup.results | default([]) | selectattr('failed', 'eq', true) | map(attribute='item') | list | join(', ') if volume_backup.results is defined and (volume_backup.results | selectattr('failed', 'eq', true) | list | length > 0) else 'None' }}
       - Service restart: {{ 'SKIPPED - Services left stopped for rollback' if skip_service_restart | default(false) else ('SUCCESS' if service_start_result is success and started_containers.stdout_lines | length > 0 else 'FAILED') }}
       
-      Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == podman_volumes.stdout_lines | length else 'PARTIAL - See details above' }}
+      Overall status: {{ 'SUCCESS' if lme_backup_result is success and successful_volumes.stdout | int == lme_backup_selected_volumes | length else 'PARTIAL - See details above' }}
   become: yes
   
 - name: Read final backup status

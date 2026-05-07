@@ -181,14 +181,14 @@
   when: offline_mode | default(false)
 
 - name: Set sysctl limits 
-  command: "{{ clone_directory }}/scripts/set_sysctl_limits.sh"
+  command: /opt/lme/scripts/set_sysctl_limits.sh
   environment:
     NON_ROOT_USER: "{{ install_user }}"
   become: yes
   changed_when: true
 
 - name: Link latest podman quadlet (Nix podman)
-  command: "{{ clone_directory }}/scripts/link_latest_podman_quadlet.sh"
+  command: /opt/lme/scripts/link_latest_podman_quadlet.sh
   become: yes
   changed_when: true
   when: not (offline_mode | default(false) and ansible_os_family == "RedHat")
@@ -214,6 +214,10 @@
 # `install_llm` is provided by install.sh (and defaulted in site.yml). Offline
 # installs without --llm force it false to skip the offline LLM staging and
 # docs-ingestion path, which requires a `prepare_offline.sh --llm` bundle.
+# Cluster data nodes (lme_child_es_only) do not run the LLM stack: quadlets are
+# pruned on those hosts and the repo is not present at clone_directory for SSH installs.
 - name: Setup llama.cpp for podman
   include_tasks: llama_cpp_setup.yml
-  when: install_llm | default(true) | bool
+  when:
+    - install_llm | default(true) | bool
+    - not (lme_child_es_only | default(false) | bool)

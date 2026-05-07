@@ -1,0 +1,51 @@
+all:
+  vars:
+    # Master node IP (where Kibana/Fleet will run)
+    es_master_host: 10.0.0.4
+
+    # All node IPs for cluster discovery
+    es_cluster_seed_hosts:
+      - 10.0.0.4
+      - 10.0.0.5
+      - 10.0.0.6
+
+  children:
+    elasticsearch:
+      hosts:
+        # Master node - MUST be first (handles cert generation)
+        es1:
+          # ansible_host: IP/hostname for Ansible to SSH/connect to this node
+          ansible_host: 10.0.0.4
+          # ansible_connection: Use 'local' for master (no SSH), 'ssh' for remote nodes
+          ansible_connection: local
+          # es_node_name: The name this Elasticsearch node uses within the cluster
+          es_node_name: lme-elasticsearch
+          # es_is_initial_master: Set to true only for the initial master node
+          es_is_initial_master: true
+          # es_publish_host: IP/hostname this node advertises to other ES nodes
+          # This value MUST appear in es_cluster_seed_hosts above
+          es_publish_host: 10.0.0.4
+
+        # Cluster node 2
+        es2:
+          # ansible_host: IP/hostname for Ansible to SSH to this node
+          ansible_host: 10.0.0.5
+          # ansible_user: SSH username for Ansible to connect as
+          ansible_user: ubuntu
+          # es_node_name: The name this Elasticsearch node uses within the cluster
+          es_node_name: es2
+          # es_publish_host: IP/hostname this node advertises to other ES nodes
+          # This value MUST appear in es_cluster_seed_hosts above
+          es_publish_host: 10.0.0.5
+
+        # Cluster node 3
+        es3:
+          # ansible_host: IP/hostname for Ansible to SSH to this node
+          ansible_host: 10.0.0.6
+          # ansible_user: SSH username for Ansible to connect as
+          ansible_user: ubuntu
+          # es_node_name: The name this Elasticsearch node uses within the cluster
+          es_node_name: es3
+          # es_publish_host: IP/hostname this node advertises to other ES nodes
+          # This value MUST appear in es_cluster_seed_hosts above
+          es_publish_host: 10.0.0.6

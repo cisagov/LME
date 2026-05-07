@@ -12,12 +12,12 @@ ENV LANG=en_US.UTF-8 \
 RUN dnf install -y \
     glibc-langpack-en sudo openssh-clients git vim iptables-nft dbus-daemon \
     && dnf clean all \
-    && GROUP_ID_VAR=$GROUP_ID \
-    && USER_ID_VAR=$USER_ID \
-    && while getent group $GROUP_ID_VAR > /dev/null 2>&1; do GROUP_ID_VAR=$((GROUP_ID_VAR + 1)); done \
-    && while getent passwd $USER_ID_VAR > /dev/null 2>&1; do USER_ID_VAR=$((USER_ID_VAR + 1)); done \
-    && groupadd -g $GROUP_ID_VAR lme-user \
-    && useradd -m -u $USER_ID_VAR -g lme-user lme-user \
+    && existing_user=$(getent passwd $USER_ID | cut -d: -f1 || true) \
+    && if [ -n "$existing_user" ] && [ "$existing_user" != "lme-user" ]; then userdel -r "$existing_user" 2>/dev/null || true; fi \
+    && existing_group=$(getent group $GROUP_ID | cut -d: -f1 || true) \
+    && if [ -n "$existing_group" ] && [ "$existing_group" != "lme-user" ]; then groupdel "$existing_group" 2>/dev/null || true; fi \
+    && groupadd -g $GROUP_ID lme-user \
+    && useradd -m -u $USER_ID -g lme-user lme-user \
     && usermod -aG wheel lme-user \
     && echo "lme-user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
     && echo "Defaults:lme-user !requiretty" >> /etc/sudoers \
