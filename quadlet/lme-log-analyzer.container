@@ -1,9 +1,11 @@
 # lme-log-analyzer.container
 [Unit]
 Description=LME Log Analyzer - Streamlit Web UI
-Requires=lme-elasticsearch.service lme-litellm.service
+Wants=lme-elasticsearch.service lme-litellm.service
 After=lme-elasticsearch.service lme-litellm.service
 PartOf=lme.service
+StartLimitIntervalSec=120
+StartLimitBurst=10
 
 [Install]
 WantedBy=default.target lme.service
@@ -11,8 +13,6 @@ WantedBy=default.target lme.service
 [Service]
 Restart=always
 RestartSec=5
-StartLimitIntervalSec=120
-StartLimitBurst=10
 TimeoutStartSec=300
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 

@@ -366,6 +366,14 @@
   become: yes
   when: model_download is succeeded
 
+- name: Enable and start LME Log Analyzer service
+  systemd:
+    name: lme-log-analyzer.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+
 - name: Enable and start LLM keys path watcher
   systemd:
     name: lme-llm-keys.path
