@@ -41,10 +41,9 @@ on:
           - all
           - single
           - cluster
-  # Commented for offline testing
-  # pull_request:
-  #   branches:
-  #     - '*'
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   build-22-04:

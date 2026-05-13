@@ -1,11 +1,10 @@
 name: Cluster Run - Minimega
 
 on:
-  # Commented for offline testing
-  # pull_request:
-  #   branches:
-  #     - 'develop'
-  #     - 'main'
+  pull_request:
+    branches:
+      - 'develop'
+      - 'main'
   workflow_dispatch:
     inputs:
       azure_region:

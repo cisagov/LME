@@ -26,11 +26,10 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  # Commented for offline testing
-  # pull_request:
-  #   branches:
-  #     - 'develop'
-  #     - 'main'
+  pull_request:
+    branches:
+      - 'develop'
+      - 'main'
 
 jobs:
   build-and-test-cluster-redhat:
