@@ -5,10 +5,11 @@ on:
         - main
       tags:
         - 'v[0-9]+.[0-9]+.[0-9]+*'  # match basic semver tags
-    pull_request:  
-      branches: 
-         - main
-         - 'release-*'
+    # Commented for offline testing
+    # pull_request:
+    #   branches:
+    #      - main
+    #      - 'release-*'
   
 jobs:
   lint:

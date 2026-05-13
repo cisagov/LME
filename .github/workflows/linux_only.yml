@@ -23,9 +23,10 @@ on:
           - ukwest
           - northeurope
           - westeurope
-  pull_request:
-    branches:
-      - '*'
+  # Commented for offline testing
+  # pull_request:
+  #   branches:
+  #     - '*'
 
 jobs:
   build-and-test-linux-only:

@@ -26,9 +26,10 @@ on:
   push:
     branches:
       - develop
-  pull_request:
-    branches:
-      - '*'
+  # Commented for offline testing
+  # pull_request:
+  #   branches:
+  #     - '*'
   
 
 jobs:

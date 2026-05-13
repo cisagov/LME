@@ -5,8 +5,6 @@ Requires=lme-elasticsearch.service
 After=lme-elasticsearch.service lme-kibana.service
 PartOf=lme.service
 ConditionPathExists=/opt/lme/FLEET_SETUP_FINISHED
-StartLimitIntervalSec=120
-StartLimitBurst=10
 
 [Service]
 Restart=always
