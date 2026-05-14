@@ -1,21 +1,16 @@
-name: Publish Ludus Roles to Ansible Galaxy
+name: Publish LME Collection to Ansible Galaxy
 
 on:
   push:
+    branches:
+      - develop
+      - main
     tags:
       - 'ludus-v*'
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        role:
-          - ludus_lme_server
-          - ludus_lme_agents
-          - ludus_caldera_server
-          - ludus_caldera_agent
-          - ludus_caldera_scripts
     steps:
       - uses: actions/checkout@v6
 
@@ -27,11 +22,27 @@ jobs:
       - name: Install Ansible
         run: pip install ansible-core
 
-      - name: Publish role to Galaxy
+      - name: Configure collection for branch
         run: |
-          ansible-galaxy role import \
+          cd ansible
+          if [[ "${{ github.ref_name }}" == "main" || "${{ github.ref }}" == refs/tags/* ]]; then
+            # Production: cisagov.lme
+            sed -i 's/^namespace:.*/namespace: cisagov/' galaxy.yml
+            sed -i 's/^name:.*/name: lme/' galaxy.yml
+          else
+            # Dev: cisagov.lme_dev
+            sed -i 's/^namespace:.*/namespace: cisagov/' galaxy.yml
+            sed -i 's/^name:.*/name: lme_dev/' galaxy.yml
+          fi
+          echo "--- galaxy.yml after substitution ---"
+          head -5 galaxy.yml
+
+      - name: Build collection
+        run: ansible-galaxy collection build --force
+        working-directory: ansible
+
+      - name: Publish collection to Galaxy
+        run: |
+          ansible-galaxy collection publish \
             --api-key "${{ secrets.GALAXY_API_KEY }}" \
-            --role-name "${{ matrix.role }}" \
-            cisagov LME
-        env:
-          ANSIBLE_GALAXY_TOKEN: ${{ secrets.GALAXY_API_KEY }}
+            ansible/*-lme*.tar.gz

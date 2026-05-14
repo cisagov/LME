@@ -465,25 +465,35 @@ build_lme_images() {
 # Captured by scrape_lme_docs, read by write_manifest.
 DOCS_PAGES=0
 
-# Run the ingest image with --scrape-only so we don't need a host-side
-# Python/BS4 toolchain. Writes page_NNNN.html + index.tsv + count.
+# Clone the lme-docs repo and convert .md files into the index.tsv +
+# page_NNNN.html format that --source-dir expects at install time.
+# This replaces the old live-crawl approach which broke when the docs
+# site moved to Docusaurus (JS-rendered pages return empty HTML).
 scrape_lme_docs() {
-    echo -e "${YELLOW}Pre-scraping LME docs for offline RAG ingest...${NC}"
+    echo -e "${YELLOW}Building offline docs bundle from lme-docs git repo...${NC}"
     local scrape_out="$OUTPUT_DIR/docs/lme-docs-scrape"
+    local repo_tmp="/tmp/lme-docs-repo"
     mkdir -p "$scrape_out"
+
+    echo -e "${YELLOW}  Cloning cisagov/lme-docs...${NC}"
+    rm -rf "$repo_tmp"
+    git clone --depth 1 https://github.com/cisagov/lme-docs.git "$repo_tmp"
 
     if sudo podman run --rm \
         -v "$scrape_out":/out:Z \
         -v "$LME_ROOT/scripts":/scripts:z \
+        -v "$repo_tmp":/repo:z \
         localhost/lme-ingest:LME_LATEST \
-        python /scripts/ingest_docs.py --scrape-only --output-dir /out; then
+        python /scripts/ingest_docs.py --scrape-only --docs-repo /repo --output-dir /out; then
         sudo chown -R "$USER:$USER" "$scrape_out"
         DOCS_PAGES=$(cat "$scrape_out/count" 2>/dev/null || echo 0)
-        echo -e "${GREEN}✓ Scraped $DOCS_PAGES pages → $scrape_out${NC}"
+        echo -e "${GREEN}✓ Bundled $DOCS_PAGES pages → $scrape_out${NC}"
     else
-        echo -e "${RED}✗ Docs scrape failed${NC}"
+        echo -e "${RED}✗ Docs bundle failed${NC}"
         exit 1
     fi
+
+    rm -rf "$repo_tmp"
 }
 
 # Emit the top-level MANIFEST consumed by install.sh preflight.

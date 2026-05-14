@@ -3,6 +3,11 @@
 # LME + Caldera Detection Engineering Range
 # Deploys: Caldera server, LME server, 2x Windows workstations with agents
 #
+# No hardcoded credentials required — ludus_lme_agents auto-resolves
+# elastic_password, enrollment_token, and server_ip from localhost facts
+# set by ludus_lme_server. Similarly, ludus_caldera_agent auto-resolves
+# caldera_ip from ludus_caldera_server.
+#
 # Usage:
 #   ludus range config set -f ansible/ranges/lme-caldera-demo.yml
 #   ludus range deploy
@@ -34,7 +39,7 @@ ludus:
     roles:
       - ludus_lme_server
     role_vars:
-      ludus_lme_server_version: "2.2.0"
+      ludus_lme_server_version: "2.3.0"
 
   - vm_name: "{{ range_id }}-win11-workstation"
     hostname: "{{ range_id }}-win11-ws"
@@ -54,9 +59,6 @@ ludus:
         depends_on:
           - vm_name: "{{ range_id }}-caldera-server"
             role: ludus_caldera_server
-    role_vars:
-      ludus_lme_agents_server_ip: "10.{{ range_second_octet }}.10.22"
-      ludus_caldera_agent_server_ip: "10.{{ range_second_octet }}.10.21"
 
   - vm_name: "{{ range_id }}-win11-workstation-2"
     hostname: "{{ range_id }}-win11-ws2"
@@ -76,6 +78,3 @@ ludus:
         depends_on:
           - vm_name: "{{ range_id }}-caldera-server"
             role: ludus_caldera_server
-    role_vars:
-      ludus_lme_agents_server_ip: "10.{{ range_second_octet }}.10.22"
-      ludus_caldera_agent_server_ip: "10.{{ range_second_octet }}.10.21"

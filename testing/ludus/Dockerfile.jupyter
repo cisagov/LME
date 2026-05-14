@@ -1,0 +1,26 @@
+FROM docker.io/jupyter/base-notebook:latest
+
+USER root
+
+RUN pip install --no-cache-dir \
+    jupyter-collaboration \
+    ipykernel \
+    paramiko \
+    papermill \
+    requests \
+    && fix-permissions "${CONDA_DIR}" \
+    && fix-permissions "/home/${NB_USER}"
+
+RUN mkdir -p /etc/jupyter && \
+    echo "c.ContentsManager.allow_hidden = True" >> /etc/jupyter/jupyter_server_config.py
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sshpass openssh-client curl && \
+    rm -rf /var/lib/apt/lists/*
+
+USER ${NB_UID}
+
+CMD ["start-notebook.py", \
+     "--IdentityProvider.token=lme", \
+     "--ServerApp.allow_origin=*", \
+     "--ip=0.0.0.0"]

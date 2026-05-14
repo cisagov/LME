@@ -4,6 +4,8 @@ Description=Llama.cpp Server Container Service
 Requires=lme-network.service
 After=lme-network.service
 PartOf=lme.service
+StartLimitIntervalSec=120
+StartLimitBurst=10
 
 [Install]
 WantedBy=default.target lme.service
@@ -11,8 +13,6 @@ WantedBy=default.target lme.service
 [Service]
 Restart=always
 RestartSec=5
-StartLimitIntervalSec=120
-StartLimitBurst=10
 TimeoutStartSec=300
 
 [Container]

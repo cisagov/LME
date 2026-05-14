@@ -4,7 +4,12 @@
 ludus_lme_server_ip: ""
 
 # LME version to install. Must match a release tag in the cisagov/LME repository.
-ludus_lme_server_version: "2.2.0"
+ludus_lme_server_version: "2.3.0"
+
+# Git ref override. When set, takes priority over the auto-derived tag
+# (v + version). Useful for installing from a branch (e.g., "develop") or
+# a specific commit SHA during testing.
+ludus_lme_server_git_ref: ""
 
 # Enable offline mode (skip external downloads during LME install).
 ludus_lme_server_offline: false
