@@ -1,0 +1,49 @@
+---
+namespace: mreeve-snl
+name: lme
+version: 1.0.0
+readme: README.md
+authors:
+  - CISA (cisagov)
+description: >-
+  Ludus-compatible roles for deploying LME (Logging Made Easy) and
+  MITRE Caldera on cyber ranges. Includes server deployment, agent
+  enrollment with auto-credential resolution, and Caldera C2 setup.
+license_file: ../LICENSE
+tags:
+  - security
+  - logging
+  - elasticsearch
+  - caldera
+  - ludus
+  - detection
+  - lme
+repository: https://github.com/cisagov/LME
+documentation: https://github.com/cisagov/LME/tree/main/ansible
+issues: https://github.com/cisagov/LME/issues
+
+# Include only the ludus roles, exclude everything else
+build_ignore:
+  - "*.yml"
+  - "*.yaml"
+  - "!galaxy.yml"
+  - inventory
+  - ranges
+  - spec
+  - tasks
+  - templates
+  - "*.md"
+  - "!README.md"
+  - roles/backup_lme
+  - roles/base
+  - roles/certs
+  - roles/cleanup
+  - roles/dashboards
+  - roles/elasticsearch
+  - roles/fleet
+  - roles/kev
+  - roles/kibana
+  - roles/nix
+  - roles/podman
+  - roles/secrets_distribution
+  - roles/wazuh
