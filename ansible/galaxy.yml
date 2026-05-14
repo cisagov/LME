@@ -1,7 +1,7 @@
 ---
 namespace: mreeve_snl
 name: lme
-version: 1.0.1
+version: 1.0.2
 readme: README.md
 authors:
   - CISA (cisagov)
@@ -9,7 +9,8 @@ description: >-
   Ludus-compatible roles for deploying LME (Logging Made Easy) and
   MITRE Caldera on cyber ranges. Includes server deployment, agent
   enrollment with auto-credential resolution, and Caldera C2 setup.
-license_file: ../LICENSE
+license:
+  - CC0-1.0
 tags:
   - security
   - logging
