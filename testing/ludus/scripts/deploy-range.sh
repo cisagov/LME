@@ -82,7 +82,7 @@ sync_to_server() {
         echo "  Rsyncing $src → $target_ip:/opt/lme-install/ ..."
         sshpass -p "$SSH_PASS" rsync -az --delete \
             -e "ssh $SSH_OPTS" \
-            --exclude '.git' --exclude 'node_modules' --exclude 'tmp/' --exclude '.worktrees' \
+            --exclude 'node_modules' --exclude 'tmp/' --exclude '.worktrees' \
             "$src/" "$SSH_USER@$target_ip:/tmp/lme-sync/"
         $SSH_CMD "$SSH_USER@$target_ip" "sudo rsync -a --delete /tmp/lme-sync/ /opt/lme-install/ && rm -rf /tmp/lme-sync"
         echo "  Done."
