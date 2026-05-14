@@ -29,4 +29,4 @@ jobs:
         run: |
           ansible-galaxy collection publish \
             --api-key "${{ secrets.GALAXY_API_KEY }}" \
-            ansible/cisagov-lme-*.tar.gz
+            ansible/*-lme-*.tar.gz
