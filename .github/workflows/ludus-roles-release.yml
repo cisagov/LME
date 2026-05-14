@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'ludus-v*'
+    branches:
+      - 'ansible-test'
 
 jobs:
   publish:
@@ -32,6 +34,7 @@ jobs:
           ansible-galaxy role import \
             --api-key "${{ secrets.GALAXY_API_KEY }}" \
             --role-name "${{ matrix.role }}" \
+            --branch "${{ github.ref_name }}" \
             cisagov LME
         env:
           ANSIBLE_GALAXY_TOKEN: ${{ secrets.GALAXY_API_KEY }}

@@ -1,0 +1,16 @@
+# offline-test: Air-gapped LME 2.3 Install
+# Deploy with testing mode enabled (no internet)
+ludus:
+  - vm_name: "{{ range_id }}-lme-server"
+    hostname: "lme-offline"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 10
+    ram_gb: 32
+    cpus: 4
+    linux: true
+    roles:
+      - ludus_lme_server
+    role_vars:
+      ludus_lme_server_version: "2.3.0"
+      ludus_lme_server_git_ref: "snl-ai-llm-frontend-detection-engineering"

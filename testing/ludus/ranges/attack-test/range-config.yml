@@ -1,0 +1,40 @@
+# attack-test: K8s adversary simulation + forensic evidence
+ludus:
+  - vm_name: "{{ range_id }}-lme-server"
+    hostname: "lme-server"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 10
+    ram_gb: 32
+    cpus: 4
+    linux: true
+    roles:
+      - ludus_lme_server
+    role_vars:
+      ludus_lme_server_version: "2.3.0"
+      ludus_lme_server_git_ref: "develop"
+
+  - vm_name: "{{ range_id }}-caldera-server"
+    hostname: "caldera-srv"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 20
+    ram_gb: 8
+    cpus: 2
+    linux: true
+    roles:
+      - ludus_caldera_server
+
+  - vm_name: "{{ range_id }}-ubuntu-endpoint"
+    hostname: "ubuntu-ep"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 40
+    ram_gb: 8
+    cpus: 2
+    linux: true
+    roles:
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: ludus_lme_server

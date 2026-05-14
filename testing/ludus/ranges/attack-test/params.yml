@@ -1,0 +1,13 @@
+RANGE_NAME: "attack-test"
+LME_IP: "10.4.10.10"
+CALDERA_IP: "10.4.10.20"
+OFFLINE_IP: ""
+LME_BRANCH: "develop"
+LME_BRANCH_COMMIT: "1927608e17bb620031aba17001a524d81ef591a0"
+LME_VERSION: "2.3.0"
+SSH_USER: "localuser"
+SSH_PASS: "password"
+ELASTIC_PASS: ""
+NOTES: "K8s Goat adversary simulation on ubuntu endpoint (10.4.10.40)"
+ATTACK_TARGET_IP: "10.4.10.40"
+K8S_GOAT: true

@@ -8,6 +8,52 @@
 #   tasks_from: elastic or tasks_from: wazuh, while this main.yml provides the
 #   default "install both" entrypoint for Ludus range deployments.
 
+# @decision DEC-AGENTS-003
+# @title Auto-resolve credentials from localhost facts set by ludus_lme_server
+# @status accepted
+# @rationale ludus_lme_server sets elastic_password and lme_ip as localhost facts
+#   after install. When ludus_lme_agents runs with depends_on pointing at the
+#   server role, these facts are already available. Auto-resolving them eliminates
+#   the need to hardcode credentials in range configs and ensures agents always
+#   use the actual generated credentials rather than stale pre-generated tokens.
+#   Falls back gracefully: if explicit role_vars are provided they take priority;
+#   if neither facts nor vars exist the existing validation in elastic.yml fails
+#   with a clear error message.
+
+# ---------------------------------------------------------------------------
+# Pre-flight: auto-resolve credentials from ludus_lme_server localhost facts
+# ---------------------------------------------------------------------------
+
+- name: Auto-resolve LME server IP from localhost facts
+  ansible.builtin.set_fact:
+    ludus_lme_agents_server_ip: "{{ hostvars['localhost']['lme_ip'] }}"
+  when:
+    - ludus_lme_agents_server_ip | default('') | length == 0
+    - hostvars['localhost']['lme_ip'] is defined
+
+- name: Auto-resolve elastic password from localhost facts
+  ansible.builtin.set_fact:
+    ludus_lme_agents_elastic_password: "{{ hostvars['localhost']['elastic_password'] }}"
+  when:
+    - ludus_lme_agents_elastic_password | default('') | length == 0
+    - hostvars['localhost']['elastic_password'] is defined
+
+- name: Display credential resolution summary
+  ansible.builtin.debug:
+    msg: >
+      Agent credential resolution:
+        server_ip={{ ludus_lme_agents_server_ip | default('NOT SET') }},
+        elastic_password={{ 'SET (auto-resolved)' if hostvars['localhost']['elastic_password'] is defined
+                           and ludus_lme_agents_elastic_password == hostvars['localhost']['elastic_password']
+                           else ('SET (explicit)' if ludus_lme_agents_elastic_password | default('') | length > 0
+                           else 'NOT SET') }},
+        enrollment_token={{ 'SET (explicit)' if ludus_lme_agents_enrollment_token | default('') | length > 0
+                           else 'WILL AUTO-FETCH' }}
+
+# ---------------------------------------------------------------------------
+# Agent installation
+# ---------------------------------------------------------------------------
+
 - name: Install Elastic Agent
   ansible.builtin.include_role:
     name: ludus_lme_agents

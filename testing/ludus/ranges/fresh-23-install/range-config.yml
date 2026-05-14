@@ -1,0 +1,85 @@
+# fresh-23-install: LME 2.3.0 Fresh Install Validation
+# yaml-language-server: $schema=https://docs.ludus.cloud/schemas/range-config.json
+#
+# This range installs LME 2.3.0 directly (no upgrade path).
+# The ludus_lme_server role pins to 2.3.0 and install.sh deploys
+# the full stack including AI containers.
+
+ludus:
+  - vm_name: "{{ range_id }}-lme-server"
+    hostname: "lme-server"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 10
+    ram_gb: 32
+    cpus: 4
+    linux: true
+    roles:
+      - ludus_lme_server
+    role_vars:
+      ludus_lme_server_version: "2.3.0"
+      ludus_lme_server_repo_url: "https://github.com/cisagov/LME.git"
+      ludus_lme_server_git_ref: "snl-ai-llm-frontend-detection-engineering"
+
+  - vm_name: "{{ range_id }}-caldera-server"
+    hostname: "caldera-srv"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 20
+    ram_gb: 8
+    cpus: 2
+    linux: true
+    roles:
+      - ludus_caldera_server
+      - name: ludus_caldera_scripts
+        depends_on:
+          - vm_name: "{{ range_id }}-caldera-server"
+            role: ludus_caldera_server
+
+  - vm_name: "{{ range_id }}-win11-endpoint"
+    hostname: "WIN11-EP"
+    template: win11-22h2-x64-enterprise-template
+    vlan: 10
+    ip_last_octet: 30
+    ram_gb: 8
+    cpus: 2
+    windows:
+      sysprep: false
+    roles:
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: ludus_lme_server
+      - name: ludus_caldera_agent
+        depends_on:
+          - vm_name: "{{ range_id }}-caldera-server"
+            role: ludus_caldera_server
+    role_vars:
+      ludus_lme_agents_server_ip: "10.{{ range_second_octet }}.10.10"
+      ludus_lme_agents_elastic_password: "jbTP6YWZYgdEqA7eydCSQU9aE!dM5J"
+      ludus_lme_agents_elastic_version: "8.18.8"
+      ludus_lme_agents_enrollment_token: "M0lQeXU1MEJtbmpncnl2aERmdnQ6TDdoZG1uMmFoUDlOdzRYR1lULTgwQQ=="
+      ludus_lme_agents_wazuh_version: "4.9.1"
+      ludus_lme_agents_wazuh_manager_ip: "10.{{ range_second_octet }}.10.10"
+      ludus_caldera_agent_server_ip: "10.{{ range_second_octet }}.10.20"
+
+  - vm_name: "{{ range_id }}-ubuntu-endpoint"
+    hostname: "ubuntu-ep"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 40
+    ram_gb: 4
+    cpus: 2
+    linux: true
+    roles:
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: ludus_lme_server
+    role_vars:
+      ludus_lme_agents_server_ip: "10.{{ range_second_octet }}.10.10"
+      ludus_lme_agents_elastic_password: "jbTP6YWZYgdEqA7eydCSQU9aE!dM5J"
+      ludus_lme_agents_elastic_version: "8.18.8"
+      ludus_lme_agents_enrollment_token: "M0lQeXU1MEJtbmpncnl2aERmdnQ6TDdoZG1uMmFoUDlOdzRYR1lULTgwQQ=="
+      ludus_lme_agents_wazuh_version: "4.9.1"
+      ludus_lme_agents_wazuh_manager_ip: "10.{{ range_second_octet }}.10.10"

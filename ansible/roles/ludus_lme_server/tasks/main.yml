@@ -20,6 +20,13 @@
   ansible.builtin.set_fact:
     _lme_server_ip: "{{ ludus_lme_server_ip | default(ansible_default_ipv4.address, true) }}"
 
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when: ansible_os_family == "Debian"
+
 - name: Install LME prerequisites
   ansible.builtin.package:
     name:
@@ -33,8 +40,8 @@
   ansible.builtin.git:
     repo: "{{ ludus_lme_server_repo_url }}"
     dest: "{{ ludus_lme_server_install_dir }}"
-    version: "v{{ ludus_lme_server_version }}"
-    force: false
+    version: "{{ ludus_lme_server_git_ref if (ludus_lme_server_git_ref | default('') | length > 0) else ('v' + ludus_lme_server_version) }}"
+    force: true
   become: true
 
 - name: Run LME install script
