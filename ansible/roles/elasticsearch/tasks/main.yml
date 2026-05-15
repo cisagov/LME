@@ -7,8 +7,8 @@
 
 - name: Set playbook variables
   ansible.builtin.set_fact:
-    local_es_url: "{{ env_dict.LOCAL_ES_URL | default('') }}"
-    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('') }}"
+    local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://127.0.0.1:9200') }}"
+    elastic_username: "{{ env_dict.ELASTIC_USERNAME | default(env_dict.elastic_username | default('elastic')) }}"
     elastic_password: "{{ global_secrets.elastic | default('') }}"
 
 - name: Debug - Show extracted values
@@ -28,12 +28,12 @@
   register: result
   until: result.status is defined and result.status == 200
   retries: 60
-  delay: 10
+  delay: 15
   ignore_errors: yes
 
 - name: Check if Elasticsearch is ready
   fail:
-    msg: "Elasticsearch is not ready after 10 minutes. Please check the LME service and Elasticsearch logs."
+    msg: "Elasticsearch is not ready after 15 minutes. Please check the LME service and Elasticsearch logs."
   when: result.status is not defined or result.status != 200
 
 - name: Create readonly role using uri module
@@ -71,7 +71,7 @@
 - name: Generate random password for readonly user
   shell: |
     source /root/.profile 
-    password=$(</dev/urandom tr -dc A-Za-z0-9$@! | head -c30)
+    password="$(</dev/urandom tr -dc 'A-Za-z' | head -c1)$(</dev/urandom tr -dc 'A-Za-z0-9$@!' | head -c29)"
     echo -n $password
   register: read_only_password
   become: yes

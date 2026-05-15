@@ -1,0 +1,142 @@
+---
+# Generate certificates once and distribute to all elasticsearch nodes.
+#
+# This uses the existing `lme-setup-certs` quadlet/unit on the *source* node to
+# generate certs into the `lme_certs` volume, then copies the volume contents
+# to other nodes.
+#
+# This role uses a "push" pattern: the bundle is read from the source host via slurp
+# and pushed directly to targets with become: true, ensuring files arrive root-owned.
+
+- name: Determine certificate source host (first elasticsearch host)
+  ansible.builtin.set_fact:
+    lme_certs_source_host: "{{ groups['elasticsearch'][0] }}"
+  run_once: true
+
+- name: Render instances.yml on cert source host
+  ansible.builtin.template:
+    src: instances.yml.j2
+    dest: /opt/lme/config/setup/instances.yml
+    owner: root
+    group: root
+    mode: '0644'
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+
+- name: Ensure lme_certs volume exists (source host)
+  ansible.builtin.command: podman volume inspect lme_certs
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  register: lme_certs_inspect_source
+  changed_when: false
+  failed_when: false
+
+- name: Create lme_certs volume if missing (source host)
+  ansible.builtin.command: podman volume create lme_certs
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  when: lme_certs_inspect_source.rc != 0
+
+- name: Force cert regeneration - remove existing leaf cert archive from lme_certs volume
+  ansible.builtin.shell: |
+    MOUNT=$(podman volume inspect -f '{{ '{{' }} .Mountpoint {{ '}}' }}' lme_certs)
+    rm -f "$MOUNT/certs.zip"
+    echo "Removed certs.zip from $MOUNT to force leaf cert regeneration"
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  when: lme_force_cert_regen | default(false) | bool
+
+- name: Force CA regeneration - remove CA archive from lme_certs volume
+  ansible.builtin.shell: |
+    MOUNT=$(podman volume inspect -f '{{ '{{' }} .Mountpoint {{ '}}' }}' lme_certs)
+    rm -f "$MOUNT/ca.zip"
+    echo "Removed ca.zip from $MOUNT to force CA regeneration"
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  when: lme_force_ca_regen | default(false) | bool
+
+- name: Start certificate setup unit on source host (generates certs if missing)
+  ansible.builtin.systemd:
+    name: lme-setup-certs
+    state: started
+    daemon_reload: true
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+
+- name: Get lme_certs mountpoint on source host
+  ansible.builtin.command: "podman volume inspect -f '{{ '{{' }} .Mountpoint {{ '}}' }}' lme_certs"
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  register: lme_certs_mountpoint_source
+  changed_when: false
+
+- name: Create tarball of lme_certs volume contents on source host
+  ansible.builtin.command: "tar -C {{ lme_certs_mountpoint_source.stdout | quote }} -czf /tmp/lme_certs.tgz ."
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+
+- name: Read cert bundle from source host
+  ansible.builtin.slurp:
+    src: /tmp/lme_certs.tgz
+  register: certs_bundle
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  no_log: true
+
+- name: Ensure lme_certs volume exists (all hosts)
+  ansible.builtin.command: podman volume inspect lme_certs
+  become: true
+  register: lme_certs_inspect
+  changed_when: false
+  failed_when: false
+
+- name: Create lme_certs volume if missing (all hosts)
+  ansible.builtin.command: podman volume create lme_certs
+  become: true
+  when: lme_certs_inspect.rc != 0
+
+- name: Get lme_certs mountpoint on this host
+  ansible.builtin.command: "podman volume inspect -f '{{ '{{' }} .Mountpoint {{ '}}' }}' lme_certs"
+  become: true
+  register: lme_certs_mountpoint
+  changed_when: false
+
+- name: Push cert bundle to target host
+  ansible.builtin.copy:
+    dest: /tmp/lme_certs.tgz
+    content: "{{ certs_bundle.content | b64decode }}"
+    mode: '0600'
+  become: true
+  no_log: true
+
+- name: Extract cert bundle into lme_certs mountpoint
+  ansible.builtin.command: "tar -C {{ lme_certs_mountpoint.stdout | quote }} -xzf /tmp/lme_certs.tgz"
+  become: true
+
+- name: Remove cert bundle on target host
+  ansible.builtin.file:
+    path: /tmp/lme_certs.tgz
+    state: absent
+  become: true
+
+- name: Remove cert bundle on source host (best-effort)
+  ansible.builtin.file:
+    path: /tmp/lme_certs.tgz
+    state: absent
+  delegate_to: "{{ lme_certs_source_host }}"
+  run_once: true
+  become: true
+  failed_when: false

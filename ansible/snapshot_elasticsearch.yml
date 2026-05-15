@@ -1,0 +1,212 @@
+---
+- name: Manage Elasticsearch snapshots
+  hosts: elasticsearch
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+    # Snapshot repository settings
+    es_snapshot_repo: lme_backups
+    es_snapshot_repo_type: fs
+
+    # fs-type settings (used when es_snapshot_repo_type == 'fs')
+    es_snapshot_fs_location: "/usr/share/elasticsearch/backups"
+
+    # S3-type settings (used when es_snapshot_repo_type == 's3')
+    # The repository-s3 plugin must be pre-installed on all Elasticsearch nodes.
+    # See SNAPSHOT_README.md for setup instructions.
+    es_s3_bucket: ""
+    es_s3_region: "us-east-1"
+    es_s3_base_path: ""
+    es_s3_endpoint: ""
+
+    # Snapshot name (override at runtime if desired)
+    snapshot_name: "lme-{{ ansible_date_time.iso8601_basic_short }}"
+
+    # Set to false to register and verify the repository without creating a snapshot
+    create_snapshot: true
+
+  tasks:
+    - name: Ensure /opt/lme/scripts has the latest helper scripts
+      ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
+    - name: Read lme-environment.env
+      ansible.builtin.slurp:
+        src: /opt/lme/lme-environment.env
+      register: lme_env_content
+
+    - name: Set environment variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+      when: item != '' and not item.startswith('#')
+
+    - name: Extract elastic password from vault via existing helper
+      ansible.builtin.shell: |
+        set -a
+        source /root/.profile
+        source /opt/lme/scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+      args:
+        executable: /bin/bash
+      register: extract_secrets_vars
+      no_log: true
+
+    - name: Set elastic credentials
+      ansible.builtin.set_fact:
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://localhost:9200') }}"
+        elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('elastic') }}"
+        elastic_password: "{{ (extract_secrets_vars.stdout_lines | select('match', '^elastic=') | list | first).split('=', 1)[1] }}"
+      no_log: true
+
+    # --- Build repository settings based on type ---
+
+    - name: Assert S3 bucket is set when using s3 type
+      ansible.builtin.assert:
+        that:
+          - es_s3_bucket | length > 0
+        fail_msg: >-
+          es_s3_bucket must be set when es_snapshot_repo_type is 's3'.
+          Pass it with: -e es_s3_bucket=my-bucket-name
+      when: es_snapshot_repo_type == 's3'
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Build fs repository settings
+      ansible.builtin.set_fact:
+        es_snapshot_repo_settings:
+          location: "{{ es_snapshot_fs_location }}"
+      when: es_snapshot_repo_type == 'fs'
+
+    - name: Build s3 repository settings
+      ansible.builtin.set_fact:
+        es_snapshot_repo_settings: >-
+          {{
+            { 'bucket': es_s3_bucket, 'region': es_s3_region }
+            | combine({ 'base_path': es_s3_base_path } if es_s3_base_path | length > 0 else {})
+            | combine({ 'endpoint': es_s3_endpoint } if es_s3_endpoint | length > 0 else {})
+          }}
+      when: es_snapshot_repo_type == 's3'
+
+    # --- Warn about fs type in multi-node clusters (only when using default local path) ---
+
+    - name: Warn about fs repository in multi-node cluster
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: You are using an 'fs' (filesystem) snapshot repository with a multi-node cluster.
+          Local Podman volumes are NOT shared across nodes. For cluster snapshots to work correctly,
+          all nodes must share the same backup path (e.g., via NFS mount).
+          See SNAPSHOT_README.md for shared storage setup instructions.
+      when:
+        - es_snapshot_repo_type == 'fs'
+        - groups['elasticsearch'] | length > 1
+        # Skip warning when using shared storage: /usr/share/elasticsearch/snapshots is the
+        # documented NFS path; any non-default path suggests shared storage is configured.
+        - es_snapshot_fs_location == '/usr/share/elasticsearch/backups'
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    # --- Register snapshot repository ---
+
+    - name: Register snapshot repository
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          type: "{{ es_snapshot_repo_type }}"
+          settings: "{{ es_snapshot_repo_settings }}"
+        status_code: [200]
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    # --- Verify repository ---
+
+    - name: Verify snapshot repository
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}/_verify"
+        method: POST
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: repo_verify
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Display verified nodes
+      ansible.builtin.debug:
+        msg: |
+          === Snapshot Repository Verification ===
+          Repository '{{ es_snapshot_repo }}' verified on nodes:
+          {% for node_id, node_info in repo_verify.json.nodes.items() %}
+            - {{ node_info.name }}
+          {% endfor %}
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    # --- Create snapshot (optional) ---
+
+    - name: Create snapshot
+      when: create_snapshot | default(true) | bool
+      block:
+        - name: "Create snapshot '{{ snapshot_name }}' (this may take several minutes)"
+          ansible.builtin.uri:
+            url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}/{{ snapshot_name }}?wait_for_completion=true"
+            method: PUT
+            user: "{{ elastic_username }}"
+            password: "{{ elastic_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              indices: "*"
+              include_global_state: true
+            status_code: [200]
+            timeout: 3600
+          register: snapshot_result
+          run_once: true
+          delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+        - name: Verify snapshot succeeded
+          ansible.builtin.assert:
+            that:
+              - snapshot_result.json.snapshot.state == 'SUCCESS'
+            fail_msg: >-
+              Snapshot creation failed.
+              Snapshot state: {{ snapshot_result.json.snapshot.state }}.
+              Failures: {{ snapshot_result.json.snapshot.failures | default([]) }}.
+            success_msg: >-
+              Snapshot '{{ snapshot_name }}' created successfully
+              ({{ snapshot_result.json.snapshot.shards.successful }} shards)
+          run_once: true
+          delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Snapshot creation skipped
+      ansible.builtin.debug:
+        msg: "Snapshot creation was skipped. To create a snapshot, omit -e create_snapshot=false"
+      when: not (create_snapshot | default(true) | bool)
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    # --- Summary ---
+
+    - name: Display summary
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  Snapshot Operations Complete"
+          - "============================================"
+          - ""
+          - "Repository: {{ es_snapshot_repo }}"
+          - "Type: {{ es_snapshot_repo_type }}"
+          - "Verified nodes: {{ repo_verify.json.nodes.values() | map(attribute='name') | list | join(', ') }}"
+          - "Snapshot: {{ snapshot_name if (create_snapshot | default(true) | bool) else 'SKIPPED (pass -e create_snapshot=true to enable)' }}"
+          - ""
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"

@@ -1,0 +1,144 @@
+---
+# Wazuh Agent installation for Linux (Debian/Ubuntu) and Windows endpoints.
+# The Wazuh manager version is queried from the running container on the LME
+# server, ensuring the agent version always matches the manager.
+
+# ---------------------------------------------------------------------------
+# Pre-flight: resolve Wazuh manager version from the running container
+# ---------------------------------------------------------------------------
+
+- name: Resolve Wazuh manager IP
+  ansible.builtin.set_fact:
+    _resolved_wazuh_manager_ip: "{{ ludus_lme_agents_wazuh_manager_ip | default(ludus_lme_agents_server_ip) }}"
+
+- name: Get Wazuh manager version from container
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman exec lme-wazuh-manager \
+      /var/ossec/bin/wazuh-control -j info \
+      | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['WAZUH_VERSION'].lstrip('v'))"
+  args:
+    executable: /bin/bash
+  register: wazuh_version_raw
+  delegate_to: "{{ _resolved_wazuh_manager_ip }}"
+  vars:
+    ansible_connection: ssh
+    ansible_user: "{{ ludus_lme_agents_manager_ssh_user }}"
+    ansible_ssh_pass: "{{ ludus_lme_agents_manager_ssh_pass }}"
+    ansible_become_pass: "{{ ludus_lme_agents_manager_ssh_pass }}"
+    ansible_ssh_private_key_file: ""
+    ansible_become: true
+    ansible_remote_tmp: /tmp/.ansible-tmp
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+  become: true
+  changed_when: false
+  run_once: true
+  when: ludus_lme_agents_wazuh_version | default('') | length == 0
+
+- name: Set Wazuh version facts
+  ansible.builtin.set_fact:
+    _wazuh_manager_version: "{{ ludus_lme_agents_wazuh_version | default(wazuh_version_raw.stdout | default('') | trim, true) }}"
+    _wazuh_agent_version: "{{ ludus_lme_agents_wazuh_version | default(wazuh_version_raw.stdout | default('') | trim, true) }}-1"
+  run_once: true
+
+- name: Display resolved Wazuh versions
+  ansible.builtin.debug:
+    msg: "Wazuh manager: {{ _wazuh_manager_version }}, agent package: {{ _wazuh_agent_version }}"
+
+# ---------------------------------------------------------------------------
+# Linux: install Wazuh agent via apt repository
+# ---------------------------------------------------------------------------
+
+- name: Install Wazuh Agent on Linux
+  when: ansible_system == 'Linux'
+  become: true
+  block:
+    - name: Download Wazuh GPG key
+      ansible.builtin.get_url:
+        url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+        dest: /tmp/GPG-KEY-WAZUH
+        mode: "0644"
+
+    - name: Import Wazuh GPG key into keyring
+      ansible.builtin.command: >
+        gpg --no-default-keyring
+            --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg
+            --import /tmp/GPG-KEY-WAZUH
+      args:
+        creates: /usr/share/keyrings/wazuh.gpg
+
+    - name: Set permissions on Wazuh keyring
+      ansible.builtin.file:
+        path: /usr/share/keyrings/wazuh.gpg
+        mode: "0644"
+
+    - name: Add Wazuh apt repository
+      ansible.builtin.copy:
+        content: "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main\n"
+        dest: /etc/apt/sources.list.d/wazuh.list
+        mode: "0644"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Wazuh agent package
+      ansible.builtin.apt:
+        name: "wazuh-agent={{ _wazuh_agent_version }}"
+        state: present
+      environment:
+        WAZUH_MANAGER: "{{ _resolved_wazuh_manager_ip }}"
+
+    - name: Configure Wazuh manager IP in ossec.conf
+      ansible.builtin.replace:
+        path: /var/ossec/etc/ossec.conf
+        regexp: "MANAGER_IP"
+        replace: "{{ _resolved_wazuh_manager_ip }}"
+
+    - name: Enable and start Wazuh agent service
+      ansible.builtin.systemd:
+        name: wazuh-agent
+        enabled: true
+        state: started
+
+# ---------------------------------------------------------------------------
+# Windows: install Wazuh agent via MSI
+# ---------------------------------------------------------------------------
+
+- name: Install Wazuh Agent on Windows
+  when: ansible_os_family == 'Windows'
+  block:
+    - name: Ensure Windows temp directory exists
+      ansible.windows.win_file:
+        path: "{{ ludus_lme_agents_windows_temp_dir }}"
+        state: directory
+
+    - name: Download Wazuh agent MSI
+      ansible.windows.win_get_url:
+        url: "https://packages.wazuh.com/4.x/windows/wazuh-agent-{{ _wazuh_agent_version }}.msi"
+        dest: "{{ ludus_lme_agents_windows_temp_dir }}\\wazuh-agent-{{ _wazuh_agent_version }}.msi"
+
+    - name: Install Wazuh agent MSI
+      ansible.windows.win_package:
+        path: "{{ ludus_lme_agents_windows_temp_dir }}\\wazuh-agent-{{ _wazuh_agent_version }}.msi"
+        arguments: '/q WAZUH_MANAGER="{{ _resolved_wazuh_manager_ip }}"'
+        state: present
+
+    - name: Start Wazuh service on Windows
+      ansible.windows.win_service:
+        name: WazuhSvc
+        state: started
+
+# ---------------------------------------------------------------------------
+# @decision DEC-AGENTS-002
+# @title Removed delegate_to Wazuh verification — causes podman lock deadlock
+# @status accepted
+# @rationale The "wait for agent Active" task delegates to the Wazuh manager IP
+#   to run `podman exec agent_control -l`. In Ludus, this delegation uses a raw
+#   IP which doesn't inherit inventory connection vars, causing SSH auth failures.
+#   Even with explicit connection vars, the podman exec can trigger the SQLite
+#   lock deadlock documented in troubleshooting.md. The Wazuh agent registers
+#   reliably without this verification step — confirmed on both test ranges.
+#   Operators should verify agent registration post-deploy via:
+#     sudo podman exec lme-wazuh-manager /var/ossec/bin/agent_control -l
+# ---------------------------------------------------------------------------

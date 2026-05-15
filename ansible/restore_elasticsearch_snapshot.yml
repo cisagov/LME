@@ -1,0 +1,272 @@
+---
+- name: Restore Elasticsearch snapshot
+  hosts: elasticsearch
+  become: yes
+  vars:
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+
+    es_snapshot_repo: lme_backups
+    es_snapshot_repo_type: fs
+    es_snapshot_fs_location: "/usr/share/elasticsearch/backups"
+    es_s3_bucket: ""
+    es_s3_region: "us-east-1"
+    es_s3_base_path: ""
+    es_s3_endpoint: ""
+
+    snapshot_name: ""
+    restore_indices: "*"
+    include_global_state: true
+    wait_for_completion: true
+    ignore_unavailable: false
+    partial: false
+    restore_mode: "fresh_cluster"
+    confirm_full_cluster_restore: false
+    stop_kibana_during_restore: true
+    restart_kibana_after_restore: true
+    rename_pattern: ""
+    rename_replacement: ""
+
+  tasks:
+    - name: Require snapshot_name
+      ansible.builtin.assert:
+        that:
+          - snapshot_name | length > 0
+        fail_msg: >-
+          snapshot_name is required. Example:
+          ansible-playbook -i ansible/inventory/cluster.yml ansible/restore_elasticsearch_snapshot.yml -e snapshot_name=my-snapshot
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Validate restore mode
+      ansible.builtin.assert:
+        that:
+          - restore_mode in ['fresh_cluster', 'live_cluster']
+        fail_msg: >-
+          restore_mode must be one of: fresh_cluster, live_cluster
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Prevent unsafe live-cluster restore defaults
+      ansible.builtin.assert:
+        that:
+          - not (include_global_state | bool)
+          - restore_indices != '*'
+        fail_msg: >-
+          live_cluster restore mode is only supported for targeted restores.
+          Set include_global_state=false and pass restore_indices=<index-pattern>.
+          Full-cluster restore should use restore_mode=fresh_cluster.
+      when: restore_mode == 'live_cluster'
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Require explicit confirmation for full-cluster restore
+      ansible.builtin.assert:
+        that:
+          - confirm_full_cluster_restore | bool
+        fail_msg: >-
+          Full-cluster restore with restore_indices='*' and include_global_state=true requires
+          -e confirm_full_cluster_restore=true.
+      when:
+        - restore_mode == 'fresh_cluster'
+        - restore_indices == '*'
+        - include_global_state | bool
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Ensure /opt/lme/scripts has the latest helper scripts
+      ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
+    - name: Read lme-environment.env
+      ansible.builtin.slurp:
+        src: /opt/lme/lme-environment.env
+      register: lme_env_content
+
+    - name: Set environment variables
+      ansible.builtin.set_fact:
+        env_dict: "{{ env_dict | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ (lme_env_content['content'] | b64decode).split('\n') }}"
+      when: item != '' and not item.startswith('#')
+
+    - name: Extract elastic password from vault via existing helper
+      ansible.builtin.shell: |
+        set -a
+        source /root/.profile
+        source /opt/lme/scripts/extract_secrets.sh -q
+        echo "elastic=$elastic"
+      args:
+        executable: /bin/bash
+      register: extract_secrets_vars
+      no_log: true
+
+    - name: Set elastic credentials
+      ansible.builtin.set_fact:
+        local_es_url: "{{ env_dict.LOCAL_ES_URL | default('https://localhost:9200') }}"
+        elastic_username: "{{ env_dict.ELASTIC_USERNAME | default('elastic') }}"
+        elastic_password: "{{ (extract_secrets_vars.stdout_lines | select('match', '^elastic=') | list | first).split('=', 1)[1] }}"
+      no_log: true
+
+    - name: Assert S3 bucket is set when using s3 type
+      ansible.builtin.assert:
+        that:
+          - es_s3_bucket | length > 0
+        fail_msg: >-
+          es_s3_bucket must be set when es_snapshot_repo_type is 's3'.
+      when: es_snapshot_repo_type == 's3'
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Build fs repository settings
+      ansible.builtin.set_fact:
+        es_snapshot_repo_settings:
+          location: "{{ es_snapshot_fs_location }}"
+      when: es_snapshot_repo_type == 'fs'
+
+    - name: Build s3 repository settings
+      ansible.builtin.set_fact:
+        es_snapshot_repo_settings: >-
+          {{
+            { 'bucket': es_s3_bucket, 'region': es_s3_region }
+            | combine({ 'base_path': es_s3_base_path } if es_s3_base_path | length > 0 else {})
+            | combine({ 'endpoint': es_s3_endpoint } if es_s3_endpoint | length > 0 else {})
+          }}
+      when: es_snapshot_repo_type == 's3'
+
+    - name: Register snapshot repository before restore
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}"
+        method: PUT
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          type: "{{ es_snapshot_repo_type }}"
+          settings: "{{ es_snapshot_repo_settings }}"
+        status_code: [200]
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Verify snapshot repository before restore
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}/_verify"
+        method: POST
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: repo_verify
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Look up snapshot metadata
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}/{{ snapshot_name }}"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: snapshot_metadata
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Build restore request body
+      ansible.builtin.set_fact:
+        es_snapshot_restore_body: >-
+          {{
+            {
+              'indices': restore_indices,
+              'include_global_state': include_global_state | bool,
+              'ignore_unavailable': ignore_unavailable | bool,
+              'partial': partial | bool
+            }
+            | combine({ 'rename_pattern': rename_pattern } if rename_pattern | length > 0 else {})
+            | combine({ 'rename_replacement': rename_replacement } if rename_replacement | length > 0 else {})
+          }}
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Display restore scope warning
+      ansible.builtin.debug:
+        msg: >-
+          Restoring snapshot '{{ snapshot_name }}' from repository '{{ es_snapshot_repo }}'
+          with restore_mode='{{ restore_mode }}', indices='{{ restore_indices }}',
+          and include_global_state={{ include_global_state | bool }}.
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Stop Kibana before fresh-cluster restore
+      ansible.builtin.systemd:
+        name: lme-kibana
+        state: stopped
+      register: kibana_stop_result
+      when:
+        - restore_mode == 'fresh_cluster'
+        - include_global_state | bool
+        - stop_kibana_during_restore | bool
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+      ignore_errors: true
+
+    - name: Restore Elasticsearch snapshot
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_snapshot/{{ es_snapshot_repo }}/{{ snapshot_name }}/_restore?wait_for_completion={{ 'true' if (wait_for_completion | bool) else 'false' }}"
+        method: POST
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body: "{{ es_snapshot_restore_body }}"
+        status_code: [200]
+        timeout: 3600
+      register: snapshot_restore_result
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Check cluster health after synchronous restore
+      ansible.builtin.uri:
+        url: "{{ local_es_url }}/_cluster/health?wait_for_no_relocating_shards=true&timeout=120s"
+        method: GET
+        user: "{{ elastic_username }}"
+        password: "{{ elastic_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [200]
+      register: post_restore_cluster_health
+      when: wait_for_completion | bool
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+
+    - name: Start Kibana after fresh-cluster restore
+      ansible.builtin.systemd:
+        name: lme-kibana
+        state: started
+      when:
+        - restore_mode == 'fresh_cluster'
+        - include_global_state | bool
+        - stop_kibana_during_restore | bool
+        - restart_kibana_after_restore | bool
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"
+      ignore_errors: true
+
+    - name: Display restore summary
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  Snapshot Restore Submitted"
+          - "============================================"
+          - "Repository: {{ es_snapshot_repo }}"
+          - "Snapshot: {{ snapshot_name }}"
+          - "Restore mode: {{ restore_mode }}"
+          - "Indices: {{ restore_indices }}"
+          - "Include global state: {{ include_global_state | bool }}"
+          - "Waited for completion: {{ wait_for_completion | bool }}"
+          - "Verified nodes: {{ repo_verify.json.nodes.values() | map(attribute='name') | list | join(', ') }}"
+          - "Cluster health after restore: {{ post_restore_cluster_health.json.status if post_restore_cluster_health is defined and post_restore_cluster_health.json is defined else 'not checked (async restore)' }}"
+      run_once: true
+      delegate_to: "{{ groups['elasticsearch'][0] }}"

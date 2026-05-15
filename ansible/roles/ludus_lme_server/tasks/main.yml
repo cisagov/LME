@@ -1,0 +1,111 @@
+---
+# @decision DEC-LME-SERVER-001
+# @title Bootstrap LME via install.sh rather than reimplementing in Ansible
+# @status accepted
+# @rationale LME's install.sh is the authoritative, tested install path. Re-implementing
+#   container orchestration, secret generation, and Quadlet setup in Ansible would
+#   duplicate logic, introduce drift, and increase maintenance burden. This role wraps
+#   install.sh with NON_INTERACTIVE=true. Credential extraction is included here
+#   (absorbing the former extract_lme_secrets role) so downstream roles can consume
+#   facts without a separate extraction step.
+
+# @decision DEC-LME-SERVER-002
+# @title Async install with 30-minute timeout
+# @status accepted
+# @rationale LME install.sh pulls container images and bootstraps the full ELK stack,
+#   which can take 15-25 minutes depending on network speed. The 30-minute async
+#   timeout prevents Ansible SSH timeouts while still failing on genuine hangs.
+
+- name: Resolve LME server IP
+  ansible.builtin.set_fact:
+    _lme_server_ip: "{{ ludus_lme_server_ip | default(ansible_default_ipv4.address, true) }}"
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Install LME prerequisites
+  ansible.builtin.package:
+    name:
+      - git
+      - python3
+      - python3-pip
+    state: present
+  become: true
+
+- name: Check if LME is already installed
+  ansible.builtin.stat:
+    path: /opt/lme/config
+  register: lme_installed
+  become: true
+
+- name: Clone LME repository
+  ansible.builtin.git:
+    repo: "{{ ludus_lme_server_repo_url }}"
+    dest: "{{ ludus_lme_server_install_dir }}"
+    version: "{{ ludus_lme_server_git_ref if (ludus_lme_server_git_ref | default('') | length > 0) else ('v' + ludus_lme_server_version) }}"
+    force: true
+  become: true
+  when: not lme_installed.stat.exists
+
+- name: Run LME install script
+  ansible.builtin.shell: bash install.sh
+  args:
+    chdir: "{{ ludus_lme_server_install_dir }}"
+  environment:
+    NON_INTERACTIVE: "true"
+    AUTO_CREATE_ENV: "true"
+    AUTO_IP: "{{ _lme_server_ip }}"
+    LME_MEMORY_LIMIT: "{{ ludus_lme_server_memory_limit }}"
+  become: true
+  async: 1800
+  poll: 15
+  register: lme_install_result
+  changed_when: lme_install_result.rc == 0
+  when: not lme_installed.stat.exists
+
+- name: Display install output
+  ansible.builtin.debug:
+    var: lme_install_result.stdout_lines
+  when: lme_install_result is defined and lme_install_result.stdout_lines is defined
+
+# ---------------------------------------------------------------------------
+# Credential extraction (absorbs former extract_lme_secrets role)
+# ---------------------------------------------------------------------------
+
+- name: Extract LME secrets
+  ansible.builtin.shell: |
+    set -o pipefail
+    {{ ludus_lme_server_install_dir }}/scripts/extract_secrets.sh -p
+  args:
+    executable: /bin/bash
+  become: true
+  register: lme_secrets_raw
+  changed_when: false
+
+- name: Parse elastic password from secrets output
+  ansible.builtin.set_fact:
+    _elastic_password: >-
+      {{ lme_secrets_raw.stdout_lines
+         | select('match', '^elastic=')
+         | first
+         | regex_search('elastic=(.*)', '\1')
+         | first }}
+
+- name: Set LME facts on localhost for downstream roles
+  ansible.builtin.set_fact:
+    lme_ip: "{{ _lme_server_ip }}"
+    elastic_password: "{{ _elastic_password }}"
+  delegate_to: localhost
+  delegate_facts: true
+
+- name: Display LME deployment summary
+  ansible.builtin.debug:
+    msg: |
+      LME {{ ludus_lme_server_version }} installed successfully.
+        Elasticsearch: https://{{ _lme_server_ip }}:9200
+        Kibana:        https://{{ _lme_server_ip }}:5601
+        Fleet:         https://{{ _lme_server_ip }}:8220

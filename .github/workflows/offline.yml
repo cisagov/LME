@@ -25,7 +25,6 @@ on:
           - westeurope
   pull_request:
     branches:
-      - 'cbaxley-offline-github-workflow'
       - 'develop'
       - 'main'
 
@@ -47,7 +46,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4.1.1
+      uses: actions/checkout@v6
       
     - name: Set the environment for docker compose
       run: |

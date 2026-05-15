@@ -1,0 +1,246 @@
+---
+# Bootstrap play: install Python on remote nodes so Ansible modules work.
+# The raw module does not need Python on the target, so this always succeeds.
+- name: Bootstrap Python on cluster nodes
+  hosts: elasticsearch
+  gather_facts: false
+  become: yes
+  tasks:
+    - name: Check if python3 exists
+      ansible.builtin.raw: which python3
+      register: python3_check
+      failed_when: false
+      changed_when: false
+
+    - name: Install python3 via raw (Debian/Ubuntu)
+      ansible.builtin.raw: apt-get update && apt-get install -y python3 python3-apt
+      when: python3_check.rc != 0
+      changed_when: true
+
+- name: Deploy Elasticsearch
+  hosts: elasticsearch
+  become: yes
+  vars:
+    # Common variables (same as site.yml)
+    clone_directory: "{{ clone_dir | default(playbook_dir + '/..') }}"
+    install_user: "{{ ansible_user_id }}"
+    debug_mode: false
+    offline_mode: false
+
+    # Storage configuration
+    storage_runroot: "/run/containers/storage"
+    storage_graphroot: "/var/lib/containers/storage"
+    
+    # Directory configuration
+    config_dir: "/etc/lme"
+    user_config_dir: "/root/.config/containers"
+    user_vault_dir: "/etc/lme/vault"
+    user_secrets_conf: "/root/.config/containers/containers.conf"
+    user_storage_conf: "/root/.config/containers/storage.conf"
+    global_storage_conf: "/etc/containers/storage.conf"
+    password_file: "/etc/lme/pass.sh"
+    
+    # Password configuration
+    min_length: 12
+    
+    # Elasticsearch configuration
+    es_port: 9200
+    
+    # Cluster mode configuration
+    # When running elasticsearch.yml, we're deploying cluster nodes, so enable cluster mode
+    lme_cluster_mode: true
+    
+    # Elasticsearch replicas: 0 for single-node, 1+ for cluster
+    # This is set dynamically based on cluster mode
+    elasticsearch_number_of_replicas: "{{ 1 if lme_cluster_mode | default(false) else 0 }}"
+    
+    # Cluster discovery settings
+    # es_discovery_type: 'single-node' for standalone, 'cluster' for multi-node
+    es_discovery_type: "{{ 'cluster' if lme_cluster_mode | default(false) else 'single-node' }}"
+    
+    # Node name - uses es_node_name from inventory (set per-host), 
+    # or falls back to inventory_hostname in the template
+    # DO NOT set es_node_name here as it would override inventory values
+    
+    # Seed hosts for cluster discovery - should be set in inventory vars
+    # Example: es_cluster_seed_hosts: [node1, node2, node3]
+    # Falls back to es_master_host if es_cluster_seed_hosts not defined
+    # Handle both list and string input (string gets split by comma)
+    es_seed_hosts: >-
+      {%- if es_cluster_seed_hosts is defined -%}
+        {%- if es_cluster_seed_hosts is string -%}
+          {{ es_cluster_seed_hosts | regex_replace('\\[|\\]', '') | split(',') | map('trim') | list }}
+        {%- else -%}
+          {{ es_cluster_seed_hosts }}
+        {%- endif -%}
+      {%- else -%}
+        {{ [es_master_host | default('node1')] }}
+      {%- endif -%}
+    
+    # Initial master nodes - the master node that bootstrapped the cluster
+    es_initial_masters: "{{ es_initial_master_nodes | default(['lme-elasticsearch']) }}"
+    
+    # Whether this node should set initial_master_nodes (only for first-time cluster bootstrap)
+    # Set to false for nodes joining an existing cluster
+    es_is_initial_master: false
+    
+    # Nix configuration
+    nix_profile_symlink_path: /nix/var/nix/profiles/default
+
+    # Prevent podman role from starting the full stack automatically.
+    # We explicitly start the Elasticsearch unit after certs/secrets distribution.
+    lme_autostart: false
+    # Only data nodes (SSH targets) should get ES-only quadlets: copy child graph, prune
+    # non-ES quadlets, remove lme.service. The cluster master uses ansible_connection=local
+    # and must keep the full control-plane quadlets (never set true for every host — that
+    # strips Kibana/Fleet/Wazuh from the master when this playbook runs after site.yml).
+    lme_child_es_only: "{{ (ansible_connection | default('ssh')) != 'local' }}"
+
+    # Skip secret creation on cluster nodes - secrets are copied from master via secrets_distribution.
+    # This prevents the podman role from trying to generate new passwords (which would fail
+    # because ansible-vault may not be fully set up yet, and would also create different
+    # passwords than the master, breaking the cluster).
+    lme_skip_secret_creation: true
+
+  pre_tasks:
+    # Cluster child nodes never run install.sh, so ansible-vault is not present.
+    # The podman shell secret driver uses `ansible-vault view` at container runtime
+    # to decrypt secrets.  We must ensure ansible-core is available on every node.
+    - name: Install ansible-core on cluster nodes (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: ansible
+        state: present
+        update_cache: yes
+      become: yes
+      when:
+        - ansible_os_family == 'Debian'
+        - not (offline_mode | default(false))
+
+    - name: Check if ansible-vault is already available (Red Hat)
+      ansible.builtin.command: which ansible-vault
+      register: ansible_vault_check
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install ansible-core via pip on cluster nodes (Red Hat)
+      when:
+        - ansible_os_family == 'RedHat'
+        - ansible_vault_check.rc != 0
+        - not (offline_mode | default(false))
+      become: yes
+      block:
+        - name: Install python3-pip for ansible
+          ansible.builtin.dnf:
+            name:
+              - python3-pip
+            state: present
+
+        - name: Install ansible-core via pip
+          ansible.builtin.pip:
+            name: ansible-core
+            state: present
+
+        - name: Symlink pip-installed ansible binaries to /usr/bin
+          ansible.builtin.shell: |
+            for f in /usr/local/bin/ansible*; do
+              [ -f "$f" ] && ln -sf "$f" /usr/bin/
+            done
+          args:
+            executable: /bin/bash
+          changed_when: true
+
+  roles:
+    - role: base
+      tags: ['base']
+    - role: nix
+      tags: ['system']
+    - role: podman
+      tags: ['system']
+    - role: secrets_distribution
+      tags: ['secrets']
+    - role: certs
+      tags: ['certs']
+
+  tasks:
+    # Re-extract secrets after secrets_distribution has copied them to cluster nodes.
+    # The initial setup_secrets.yml run during podman role happens BEFORE secrets_distribution,
+    # so global_secrets will be empty on cluster nodes. This task re-extracts them.
+    - name: Re-extract secrets after distribution (cluster nodes)
+      ansible.builtin.shell: |
+        set -a
+        export PATH=$PATH:/nix/var/nix/profiles/default/bin
+        export ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+        
+        # Get secret IDs from podman secret ls
+        elastic_id=""
+        wazuh_id=""
+        kibana_system_id=""
+        wazuh_api_id=""
+        
+        while read -r line; do
+          id=$(echo "$line" | awk '{print $1}')
+          name=$(echo "$line" | awk '{print $2}')
+          case "$name" in
+            elastic) elastic_id="$id" ;;
+            wazuh) wazuh_id="$id" ;;
+            kibana_system) kibana_system_id="$id" ;;
+            wazuh_api) wazuh_api_id="$id" ;;
+          esac
+        done < <(podman secret ls --noheading 2>/dev/null)
+        
+        # Extract each secret from vault
+        elastic=""
+        wazuh=""
+        kibana_system=""
+        wazuh_api=""
+        
+        if [ -n "$elastic_id" ] && [ -f "/etc/lme/vault/$elastic_id" ]; then
+          elastic=$(ansible-vault view "/etc/lme/vault/$elastic_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$wazuh_id" ] && [ -f "/etc/lme/vault/$wazuh_id" ]; then
+          wazuh=$(ansible-vault view "/etc/lme/vault/$wazuh_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$kibana_system_id" ] && [ -f "/etc/lme/vault/$kibana_system_id" ]; then
+          kibana_system=$(ansible-vault view "/etc/lme/vault/$kibana_system_id" 2>/dev/null | tr -d '\n')
+        fi
+        if [ -n "$wazuh_api_id" ] && [ -f "/etc/lme/vault/$wazuh_api_id" ]; then
+          wazuh_api=$(ansible-vault view "/etc/lme/vault/$wazuh_api_id" 2>/dev/null | tr -d '\n')
+        fi
+        
+        echo "elastic=$elastic"
+        echo "wazuh=$wazuh"
+        echo "kibana_system=$kibana_system"
+        echo "wazuh_api=$wazuh_api"
+      args:
+        executable: /bin/bash
+      register: reextract_secrets_vars
+      no_log: "{{ not debug_mode }}"
+      become: yes
+
+    - name: Update global_secrets after re-extraction
+      ansible.builtin.set_fact:
+        global_secrets: "{{ global_secrets | default({}) | combine({ item.split('=', 1)[0]: item.split('=', 1)[1] }) }}"
+      loop: "{{ reextract_secrets_vars.stdout_lines }}"
+      when: item != '' and '=' in item
+      no_log: "{{ not debug_mode }}"
+
+    - name: Debug - Verify secrets after re-extraction
+      debug:
+        msg: "Re-extracted secrets - elastic length: {{ global_secrets.elastic | default('') | length }}, kibana_system length: {{ global_secrets.kibana_system | default('') | length }}"
+      when: debug_mode | bool
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Start Elasticsearch unit
+      ansible.builtin.systemd:
+        name: lme-elasticsearch
+        state: started
+        enabled: true
+
+    - name: Run Elasticsearch post-install configuration
+      ansible.builtin.include_role:
+        name: elasticsearch
+      tags: ['elasticsearch']

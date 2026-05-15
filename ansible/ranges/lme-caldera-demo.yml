@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://docs.ludus.cloud/schemas/range-config.json
+#
+# LME + Caldera Detection Engineering Range
+# Deploys: Caldera server, LME server, 2x Windows workstations with agents
+#
+# No hardcoded credentials required — ludus_lme_agents auto-resolves
+# elastic_password, enrollment_token, and server_ip from localhost facts
+# set by ludus_lme_server. Similarly, ludus_caldera_agent auto-resolves
+# caldera_ip from ludus_caldera_server.
+#
+# Usage:
+#   ludus range config set -f ansible/ranges/lme-caldera-demo.yml
+#   ludus range deploy
+
+ludus:
+  - vm_name: "{{ range_id }}-caldera-server"
+    hostname: "{{ range_id }}-caldera"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 21
+    ram_gb: 8
+    cpus: 2
+    linux: true
+    roles:
+      - ludus_caldera_server
+      - name: ludus_caldera_scripts
+        depends_on:
+          - vm_name: "{{ range_id }}-caldera-server"
+            role: ludus_caldera_server
+
+  - vm_name: "{{ range_id }}-lme-server"
+    hostname: "{{ range_id }}-lme"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 22
+    ram_gb: 32
+    cpus: 4
+    linux: true
+    roles:
+      - ludus_lme_server
+    role_vars:
+      ludus_lme_server_version: "2.3.0"
+
+  - vm_name: "{{ range_id }}-win11-workstation"
+    hostname: "{{ range_id }}-win11-ws"
+    template: win11-22h2-x64-enterprise-template
+    vlan: 10
+    ip_last_octet: 23
+    ram_gb: 8
+    cpus: 2
+    windows:
+      sysprep: false
+    roles:
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: ludus_lme_server
+      - name: ludus_caldera_agent
+        depends_on:
+          - vm_name: "{{ range_id }}-caldera-server"
+            role: ludus_caldera_server
+
+  - vm_name: "{{ range_id }}-win11-workstation-2"
+    hostname: "{{ range_id }}-win11-ws2"
+    template: win11-22h2-x64-enterprise-template
+    vlan: 10
+    ip_last_octet: 24
+    ram_gb: 8
+    cpus: 2
+    windows:
+      sysprep: false
+    roles:
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: ludus_lme_server
+      - name: ludus_caldera_agent
+        depends_on:
+          - vm_name: "{{ range_id }}-caldera-server"
+            role: ludus_caldera_server

@@ -8,6 +8,16 @@
     owner: "{{ install_user }}"
     group: "{{ install_user }}"
     mode: '0644'
+    force: "{{ lme_force_config | default(false) }}"
+  become: yes
+
+- name: Render Elasticsearch config (cluster-aware)
+  template:
+    src: "{{ clone_directory }}/ansible/templates/elasticsearch.yml.j2"
+    dest: /opt/lme/config/elasticsearch.yml
+    owner: "{{ install_user }}"
+    group: "{{ install_user }}"
+    mode: '0644'
   become: yes
 
 # Configure Kibana for offline/air-gapped mode BEFORE starting services
@@ -31,7 +41,25 @@
     mode: '0744'
   become: yes
 
-- name: Copy quadlet files to /etc/containers/systemd 
+- name: Create local quadlet staging directory
+  file:
+    path: "{{ lme_quadlet_source_dir }}"
+    state: directory
+    owner: "root"
+    group: "root"
+    mode: '0755'
+  become: yes
+
+- name: Stage full quadlet source tree under /opt/lme
+  copy:
+    src: "{{ clone_directory }}/quadlet/"
+    dest: "{{ lme_quadlet_source_dir }}/"
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Copy full quadlet files to /etc/containers/systemd
   copy:
     src: "{{ clone_directory }}/quadlet/"
     dest: /etc/containers/systemd/
@@ -39,8 +67,96 @@
     group: "root"
     mode: '0644'
   become: yes
+  when: not (lme_child_es_only | default(false) | bool)
 
-- name: copy lme.service to /etc/systemd/system
+# ---------------------------------------------------------------------------
+# Compute child-absent quadlet/systemd sets from the repo's quadlet/ directory.
+# Source of truth is the filesystem: anything in quadlet/ that is not in
+# `lme_child_active_quadlet_files` or `lme_child_active_extras` is pruned from
+# child (ES-only) nodes. This avoids having to maintain parallel deny lists.
+#
+# The find runs once on the controller (playbook lives on the master / CI host).
+# Do not gate this task on lme_child_es_only: with run_once, other hosts would
+# skip and see a registered dict without `.files`, breaking set_fact on es2/es3.
+# ---------------------------------------------------------------------------
+- name: Enumerate quadlet files shipped in the repo
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../quadlet"
+    file_type: file
+    patterns:
+      - '*.container'
+      - '*.volume'
+      - '*.network'
+      - '*.service'
+  delegate_to: localhost
+  connection: local
+  run_once: true
+  become: false
+  register: lme_quadlet_find_raw
+
+- name: Compute child-absent quadlet files (quadlet/ minus active minus extras)
+  ansible.builtin.set_fact:
+    lme_child_absent_quadlet_files: >-
+      {{ (quadlet_paths.files | default([]) | map(attribute='path') | map('basename') | list)
+         | difference(lme_child_active_quadlet_files + lme_child_active_extras) }}
+  vars:
+    quadlet_paths: "{{ hostvars[ansible_play_hosts[0]]['lme_quadlet_find_raw'] }}"
+  when: lme_child_es_only | default(false) | bool
+
+- name: Compute child-absent systemd units (.container -> .service, skip volumes/networks)
+  ansible.builtin.set_fact:
+    lme_child_absent_systemd_units: >-
+      {{ lme_child_absent_quadlet_files
+         | reject('match', '.*\.(volume|network)$')
+         | map('regex_replace', '\.container$', '.service')
+         | list }}
+  when: lme_child_es_only | default(false) | bool
+
+- name: Show computed child-absent sets (diagnostic)
+  ansible.builtin.debug:
+    msg:
+      absent_quadlet_files: "{{ lme_child_absent_quadlet_files }}"
+      absent_systemd_units: "{{ lme_child_absent_systemd_units }}"
+  when: lme_child_es_only | default(false) | bool
+
+- name: Stop non-ES services before pruning child quadlets
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ lme_child_absent_systemd_units }}"
+  failed_when: false
+  become: yes
+  when: lme_child_es_only | default(false) | bool
+
+- name: Copy child-required quadlet files to /etc/containers/systemd
+  copy:
+    src: "{{ clone_directory }}/quadlet/{{ item }}"
+    dest: "/etc/containers/systemd/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  loop: "{{ lme_child_active_quadlet_files }}"
+  become: yes
+  when: lme_child_es_only | default(false) | bool
+
+- name: Render Elasticsearch quadlet from template (cluster-aware)
+  template:
+    src: "{{ clone_directory }}/ansible/templates/lme-elasticsearch.container.j2"
+    dest: /etc/containers/systemd/lme-elasticsearch.container
+    owner: "root"
+    group: "root"
+    mode: '0644'
+  become: yes
+
+- name: Remove non-ES quadlet source files from child nodes
+  file:
+    path: "/etc/containers/systemd/{{ item }}"
+    state: absent
+  loop: "{{ lme_child_absent_quadlet_files }}"
+  become: yes
+  when: lme_child_es_only | default(false) | bool
+
+- name: Copy lme.service to /etc/systemd/system
   copy:
     src: "{{ clone_directory }}/quadlet/lme.service"
     dest: "/etc/systemd/system/lme.service"
@@ -48,6 +164,14 @@
     group: "root"
     mode: '0644'
   become: yes
+  when: not (lme_child_es_only | default(false) | bool)
+
+- name: Remove lme.service from /etc/systemd/system on child nodes
+  file:
+    path: /etc/systemd/system/lme.service
+    state: absent
+  become: yes
+  when: lme_child_es_only | default(false) | bool
 
 # Ensure quadlet helper and systemd generator are available from standard paths
 # Skip for RHEL offline mode - system podman already has these in place
@@ -144,3 +268,4 @@
     state: started
     enabled: yes
   become: yes 
+  when: lme_autostart | default(true) | bool

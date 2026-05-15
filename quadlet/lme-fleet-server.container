@@ -8,6 +8,7 @@ ConditionPathExists=/opt/lme/FLEET_SETUP_FINISHED
 
 [Service]
 Restart=always
+RestartSec=5
 TimeoutStartSec=5400
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 

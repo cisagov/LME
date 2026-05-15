@@ -97,6 +97,28 @@ Replace `<resource-group>` with the desired resource group name and `<allowed-so
 
 Make sure you have the necessary authentication credentials set up before running the script.
 
+## Output files
+
+The script writes output files to the parent directory (typically `testing/v2/installers/`):
+
+- `{resource_group}.password.txt`: shared password used for all created VMs
+- `{resource_group}.machines.json`: consolidated machine info (names, public IPs, private IPs, username, password)
+- `{resource_group}.ip.txt`: **first Linux VM** public IP (kept for backward compatibility)
+- `{resource_group}.ws1.ip.txt`: Windows server public IP (only when `-w/--add-windows-server` is used)
+
+## Multiple Linux VMs
+
+To create multiple Linux VMs, use `--linux-vm-count`:
+
+```bash
+python build_azure_linux_network.py -g <resource-group> -s 10.1.1.10/32 -c 4 -ast 21:00
+```
+
+Naming and private IPs:
+- First Linux VM uses `--machine-name` (default `ubuntu`) and `--ls-ip` (default `10.1.0.5`)
+- Additional Linux VMs are named `{machine-name}-2`, `{machine-name}-3`, ... and use private IPs `10.1.0.10`, `10.1.0.11`, ...
+- If Windows is added (`-w`), it uses fixed private IP `10.1.0.4`
+
 ## Allowed arguments
 | **Parameter**          | **Alias** | **Description**                                                                                 | **Required** | **Default**                     |
 |------------------------|-----------|--------------------------------------------------------------------------------------------------|--------------|---------------------------------|
@@ -112,9 +134,10 @@ Make sure you have the necessary authentication credentials set up before runnin
 | --ls-ip                | -ip       | IP address for the VM                                                                            | No           | 10.1.0.5                        |
 | --vm-admin             | -u        | Admin username for the VM                                                                        | No           | lme-user                        |
 | --machine-name         | -m        | Name of the VM                                                                                   | No           | ubuntu                          |
-| --ports                | -p        | Ports to open                                                                                    | No           | [22]                            |
-| --priorities           | -pr       | Priorities for the ports                                                                         | No           | [1001]                          |
-| --protocols            | -pt       | Protocols for the ports                                                                          | No           | ['Tcp']                         |
+| --linux-vm-count       | -c        | Total number of Linux VMs to create                                                              | No           | 1                               |
+| --ports                | -p        | Ports to open                                                                                    | No           | [22, 443, 5601, 9200, 9001]     |
+| --priorities           | -pr       | Priorities for the ports                                                                         | No           | [1001, 1002, 1003, 1004, 1005]  |
+| --protocols            | -pt       | Protocols for the ports                                                                          | No           | ['Tcp', 'Tcp', 'Tcp', 'Tcp', 'Tcp'] |
 | --vm-size              | -vs       | Size of the virtual machine                                                                      | No           | Standard_E2d_v4                 |
 | --image-publisher      | -pub      | Publisher of the VM image                                                                        | No           | Canonical                       |
 | --image-offer          | -io       | Offer of the VM image                                                                            | No           | 0001-com-ubuntu-server-jammy    |
@@ -123,6 +146,8 @@ Make sure you have the necessary authentication credentials set up before runnin
 | --os-disk-size-gb      | -os       | Size of the OS disk in GB                                                                        | No           | 128                             |
 | --auto-shutdown-time   | -ast      | Auto-Shutdown time in UTC (HH:MM, e.g. 22:30, 00:00, 19:00). Convert timezone as necessary.      | No           |                                 |
 | --auto-shutdown-email  | -ase      | Auto-shutdown notification email                                                                 | No           |                                 |
+| --add-windows-server   | -w        | Add a Windows server with default settings                                                       | No           | False                           |
+| --use-rhel             |           | Use Red Hat Enterprise Linux 9 instead of Ubuntu 22.04                                            | No           | False                           |
 
 
 

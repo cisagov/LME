@@ -1,0 +1,29 @@
+# Ignore output files
+output/
+*.password.txt
+*.machines.json
+*.ip.txt
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore other build artifacts
+*.log
+*.tmp

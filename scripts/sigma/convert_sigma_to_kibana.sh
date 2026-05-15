@@ -251,6 +251,12 @@ fi
 
 rm -f windows_rules.txt macos_rules.txt linux_rules.txt
 
+# Clean up downloaded sigma rules directory - no longer needed after conversion
+if [ -d "sigma" ]; then
+    echo "Cleaning up downloaded Sigma rules..."
+    rm -rf sigma
+fi
+
 echo ""
 echo "=========================================="
 echo "CONVERSION COMPLETE"
@@ -325,6 +331,10 @@ cat /tmp/upload.ndjson && rm -f /tmp/upload.ndjson)
                 fi
             fi
         done
+
+        # Clean up output files after successful upload
+        echo "Cleaning up converted rule files..."
+        rm -rf output
 
     else
         echo "ERROR: Could not get Elasticsearch credentials"

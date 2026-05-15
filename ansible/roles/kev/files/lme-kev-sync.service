@@ -1,0 +1,17 @@
+[Unit]
+Description=LME CISA Known Exploited Vulnerabilities (KEV) Catalog Sync
+Documentation=https://github.com/cisagov/LME
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/lme/scripts/kev_sync.py
+Environment=KEV_CATALOG_PATH=/opt/lme/config/wazuh_cluster/kev_catalog.json
+Environment=KEV_HISTORY_PATH=/opt/lme/config/kev_history.json
+StandardOutput=journal
+StandardError=journal
+# After a successful sync, refresh the catalog inside the container
+ExecStartPost=/bin/sh -c \
+  'podman cp /opt/lme/config/wazuh_cluster/kev_catalog.json \
+   lme-wazuh-manager:/var/ossec/integrations/kev_catalog.json || true'

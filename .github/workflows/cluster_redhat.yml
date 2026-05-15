@@ -53,7 +53,7 @@ jobs:
           echo "UNIQUE_ID=${RANDOM_NUM}_cluster_redhat_${{ github.run_number }}" >> $GITHUB_ENV
           
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v6
     
       - name: Setup environment variables
         run: |
@@ -171,11 +171,11 @@ jobs:
           ES_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$elastic'" | tail -n 1 | tr -d '\n')
           echo "::add-mask::$ES_PASSWORD"
           echo "ES_PASSWORD=$ES_PASSWORD" >> $GITHUB_ENV
-          echo "Elastic password retrieved successfully"
+          echo "Elastic password retrieved successfully: $ES_PASSWORD"
           KIBANA_PASSWORD=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "ssh lme-user@$AZURE_IP '. /home/lme-user/LME/scripts/extract_secrets.sh -q && echo \$kibana_system'" | tail -n 1 | tr -d '\n')
           echo "::add-mask::$KIBANA_PASSWORD"
           echo "KIBANA_PASSWORD=$KIBANA_PASSWORD" >> $GITHUB_ENV
-          echo "Kibana password retrieved successfully"
+          echo "Kibana password retrieved successfully: $KIBANA_PASSWORD"
 
       - name: Install test requirements on Azure RHEL instance
         run: |
@@ -199,6 +199,14 @@ jobs:
           ES_PASSWORD: ${{ env.ES_PASSWORD }}
         run: |
           cd testing/v2/development
+          POLICY_ID_TEST=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "
+            ssh lme-user@${{ env.AZURE_IP }} '
+              curl -kL -s -u \"$ES_USERNAME:$ES_PASSWORD\" -X GET \"$KIBANA_URL/api/fleet/agent_policies\" \
+                -H \"kbn-xsrf: true\" \
+                -H \"Content-Type: application/json\"  
+            '
+          ")
+          echo "Retrieved Policy ID test: $POLICY_ID_TEST"
           
           # Retrieve policy ID
           POLICY_ID=$(docker compose -p ${{ env.UNIQUE_ID }} exec -T pipeline bash -c "

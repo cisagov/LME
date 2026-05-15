@@ -6,3 +6,29 @@ nix_daemon_service: "nix-daemon"
 
 # Other podman-specific configurations
 # Note: storage paths are now defined in site.yml 
+lme_child_es_only: false
+lme_quadlet_source_dir: /opt/lme/quadlet-source
+
+# Child nodes only need the ES dependency graph under /etc/containers/systemd.
+# The full source tree is still staged locally under lme_quadlet_source_dir so a
+# future promotion workflow can restore the rest of the stack without re-cloning.
+#
+# Maintenance model:
+#   - `lme_child_active_quadlet_files` lists the quadlets that ARE copied onto
+#     child nodes (the minimal ES dependency graph).
+#   - `lme_child_active_extras` lists additional quadlets that must be kept on
+#     child nodes even though they are not copied by the active loop — e.g.
+#     files rendered from templates later in the play (lme-elasticsearch.container).
+#   - The set of quadlets to REMOVE on child nodes is computed at runtime from
+#     `quadlet/` minus (active + extras). See roles/podman/tasks/quadlet_setup.yml.
+#   - Adding a new file under quadlet/ therefore requires no change here unless
+#     it should be kept on child nodes.
+lme_child_active_quadlet_files:
+  - lme.network
+  - lme-backups.volume
+  - lme-esdata01.volume
+  - lme-kibanadata.volume
+  - lme-setup-certs.container
+
+lme_child_active_extras:
+  - lme-elasticsearch.container

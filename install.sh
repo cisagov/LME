@@ -15,6 +15,14 @@ IPVAR=""
 DEBUG_MODE="false"
 OFFLINE_MODE="false"
 SKIP_PACKAGES="false"
+GRAPH_ROOT="/var/lib/containers/storage"
+INSTALL_LLM="false"
+
+# Cluster mode settings
+CLUSTER_MODE=${LME_CLUSTER:-false}
+CLUSTER_INVENTORY=""
+CLUSTER_MASTER_ONLY="false"
+CLUSTER_NODES_ONLY="false"
 
 # Environment variables for non-interactive mode
 NON_INTERACTIVE=${NON_INTERACTIVE:-false}
@@ -28,15 +36,25 @@ usage() {
     echo "OPTIONS:"
     echo "  -i, --ip IP_ADDRESS           Specify IP address manually"
     echo "  -d, --debug                   Enable debug mode for verbose output"
-    echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks)"
+    echo "  -o, --offline                 Enable offline mode (skip internet-dependent tasks; skips LLM unless --llm is also set)"
     echo "  --skip-packages               Skip package installation (for development)"
+    echo "  --llm                         Install LLM stack (llama.cpp, LiteLLM, pgvector, docs ingest)."
+    echo "                                Default: on for non-offline installs; off for --offline unless this flag is set."
     echo "  -p, --playbook PLAYBOOK_PATH  Specify path to playbook (default: ./ansible/site.yml)"
+    echo "  -g, --graph-root GRAPH_ROOT   Change the graphroot directory (where volumes are stored)"
     echo "  -h, --help                    Show this help message"
+    echo
+    echo "Cluster Options:"
+    echo "  --cluster                     Enable cluster mode (validates inventory, runs site.yml + elasticsearch.yml)"
+    echo "  --cluster-inventory PATH      Path to cluster inventory file (default: ansible/inventory/cluster.yml)"
+    echo "  --cluster-master-only         Cluster mode: only run site.yml on the master node"
+    echo "  --cluster-nodes-only          Cluster mode: only run elasticsearch.yml on cluster nodes"
     echo
     echo "Environment Variables:"
     echo "  NON_INTERACTIVE=true          Run in non-interactive mode (default: false)"
     echo "  AUTO_CREATE_ENV=true          Automatically create environment file (default: false)"
     echo "  AUTO_IP=IP_ADDRESS           Automatically use specified IP address"
+    echo "  LME_CLUSTER=true             Enable cluster mode (same as --cluster)"
     echo
     exit 1
 }
@@ -62,9 +80,36 @@ while [[ $# -gt 0 ]]; do
             SKIP_PACKAGES="true"
             shift
             ;;
+        --llm)
+            INSTALL_LLM="true"
+            shift
+            ;;
         -p|--playbook)
             PLAYBOOK_PATH="$2"
             shift 2
+            ;;
+        -g|--graph-root)
+            GRAPH_ROOT="$2"
+            shift 2
+            ;;
+        --cluster)
+            CLUSTER_MODE="true"
+            shift
+            ;;
+        --cluster-inventory)
+            CLUSTER_INVENTORY="$2"
+            CLUSTER_MODE="true"
+            shift 2
+            ;;
+        --cluster-master-only)
+            CLUSTER_MASTER_ONLY="true"
+            CLUSTER_MODE="true"
+            shift
+            ;;
+        --cluster-nodes-only)
+            CLUSTER_NODES_ONLY="true"
+            CLUSTER_MODE="true"
+            shift
             ;;
         -h|--help)
             usage
@@ -75,6 +120,107 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Validate that the offline bundle contains everything --llm needs before
+# ansible runs. Every failure is collected, reported together, and fatal.
+preflight_offline_llm() {
+    local bundle="$SCRIPT_DIR/offline_resources"
+    local manifest="$bundle/MANIFEST"
+    local -a errors=()
+
+    echo -e "${YELLOW}Preflight: validating offline bundle for --llm install...${NC}"
+
+    if [ ! -f "$manifest" ]; then
+        echo -e "${RED}✗ $manifest is missing.${NC}"
+        echo -e "${YELLOW}  Rebuild the bundle with: scripts/prepare_offline.sh --llm${NC}"
+        exit 1
+    fi
+
+    local arch llm_included pages sha_chat sha_embed
+    arch=$(grep -E '^ARCH=' "$manifest" | head -1 | cut -d= -f2-)
+    llm_included=$(grep -E '^LLM_INCLUDED=' "$manifest" | head -1 | cut -d= -f2-)
+    pages=$(grep -E '^DOCS_PAGES=' "$manifest" | head -1 | cut -d= -f2-)
+    sha_chat=$(grep -E '^SHA256_LFM25_CHAT=' "$manifest" | head -1 | cut -d= -f2-)
+    sha_embed=$(grep -E '^SHA256_NOMIC_EMBED=' "$manifest" | head -1 | cut -d= -f2-)
+
+    if [ "$llm_included" != "true" ]; then
+        errors+=("MANIFEST LLM_INCLUDED=$llm_included — bundle was built without --llm")
+    fi
+
+    local host_arch
+    host_arch=$(uname -m)
+    if [ -n "$arch" ] && [ "$arch" != "$host_arch" ]; then
+        errors+=("architecture mismatch: bundle is $arch, host is $host_arch")
+    fi
+
+    local f
+    for f in \
+        "$bundle/container_images/llama.cpp_server.tar" \
+        "$bundle/container_images/litellm_main-latest.tar" \
+        "$bundle/container_images/pgvector_pg17.tar" \
+        "$bundle/container_images/lme-ingest_LME_LATEST.tar" \
+        "$bundle/container_images/lme-log-analyzer_LME_LATEST.tar" \
+        "$bundle/container_images/lme-dashboard_LME_LATEST.tar"
+    do
+        if [ ! -s "$f" ]; then
+            errors+=("missing or empty: $f")
+        fi
+    done
+
+    local chat="$bundle/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
+    local embed="$bundle/models/nomic-embed-text-v1.5.Q4_K_M.gguf"
+    if [ ! -s "$chat" ]; then
+        errors+=("missing or empty: $chat")
+    elif [ -n "$sha_chat" ]; then
+        local actual
+        actual=$(sha256sum "$chat" | cut -d' ' -f1)
+        [ "$actual" = "$sha_chat" ] || errors+=("SHA256 mismatch: $chat (expected $sha_chat, got $actual)")
+    fi
+    if [ ! -s "$embed" ]; then
+        errors+=("missing or empty: $embed")
+    elif [ -n "$sha_embed" ]; then
+        local actual
+        actual=$(sha256sum "$embed" | cut -d' ' -f1)
+        [ "$actual" = "$sha_embed" ] || errors+=("SHA256 mismatch: $embed (expected $sha_embed, got $actual)")
+    fi
+
+    local scrape_index="$bundle/docs/lme-docs-scrape/index.tsv"
+    if [ ! -f "$scrape_index" ]; then
+        errors+=("missing docs scrape index: $scrape_index")
+    elif [ -n "$pages" ]; then
+        local rows
+        rows=$(wc -l < "$scrape_index")
+        [ "$rows" = "$pages" ] || errors+=("docs-scrape row count $rows != MANIFEST DOCS_PAGES $pages")
+    fi
+
+    if [ ${#errors[@]} -gt 0 ]; then
+        echo -e "${RED}✗ Offline --llm preflight failed:${NC}"
+        local e
+        for e in "${errors[@]}"; do
+            echo -e "${RED}  - $e${NC}"
+        done
+        echo -e "${YELLOW}Rebuild the bundle on an internet-connected host:${NC}"
+        echo -e "${YELLOW}  scripts/prepare_offline.sh --llm --arch $host_arch${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓ Preflight passed (arch=$arch, pages=$pages)${NC}"
+}
+
+if [ "$OFFLINE_MODE" = "true" ] && [ "$INSTALL_LLM" = "true" ]; then
+    preflight_offline_llm
+fi
+
+# Resolve cluster inventory default after SCRIPT_DIR is set
+if [ "$CLUSTER_MODE" = "true" ] && [ -z "$CLUSTER_INVENTORY" ]; then
+    CLUSTER_INVENTORY="$SCRIPT_DIR/ansible/inventory/cluster.yml"
+fi
+
+# site.yml removes config/lme-environment.env after copying to /opt/lme. A second non-interactive
+# run (--cluster-nodes-only) must recreate the repo copy or install.sh exits immediately.
+if [ "$CLUSTER_NODES_ONLY" = "true" ] && [ "$NON_INTERACTIVE" = "true" ] && [ ! -f "$SCRIPT_DIR/config/lme-environment.env" ]; then
+    AUTO_CREATE_ENV="true"
+fi
 
 # Function to check if ansible is installed
 check_ansible() {
@@ -484,6 +630,17 @@ run_playbook() {
         echo -e "${YELLOW}⚠ Running in offline mode - skipping internet-dependent tasks${NC}"
     fi
 
+    # Compute effective install_llm for Ansible.
+    # Offline installs skip LLM unless --llm was explicitly requested, because
+    # the offline LLM path requires the larger `prepare_offline.sh --llm`
+    # bundle. Non-offline installs keep the current LLM-on default.
+    if [ "$OFFLINE_MODE" = "true" ] && [ "$INSTALL_LLM" != "true" ]; then
+        EFFECTIVE_INSTALL_LLM="false"
+        echo -e "${YELLOW}⚠ Offline install without --llm: LLM stack will be skipped${NC}"
+    else
+        EFFECTIVE_INSTALL_LLM="true"
+    fi
+
     # Run the main installation playbook
     echo -e "${YELLOW}Running main installation playbook...${NC}"
 
@@ -494,9 +651,9 @@ run_playbook() {
     sudo chown $(whoami):$(whoami) /opt/ansible-tmp
 
     if [ -f "$SCRIPT_DIR/inventory" ]; then
-        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
+        ansible-playbook -i "$SCRIPT_DIR/inventory" "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"',"install_llm":'"${EFFECTIVE_INSTALL_LLM}"'}' $ANSIBLE_OPTS
     else
-        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"'}' $ANSIBLE_OPTS
+        ansible-playbook "$PLAYBOOK_PATH" --extra-vars '{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"',"install_llm":'"${EFFECTIVE_INSTALL_LLM}"'}' $ANSIBLE_OPTS
     fi
     
     if [ $? -eq 0 ]; then
@@ -507,10 +664,208 @@ run_playbook() {
     fi
 }
 
+# Validate cluster prerequisites: inventory, required vars, connectivity, collections
+validate_cluster_prerequisites() {
+    echo -e "${YELLOW}Validating cluster prerequisites...${NC}"
+
+    # 1. Inventory file exists
+    if [ ! -f "$CLUSTER_INVENTORY" ]; then
+        echo -e "${RED}✗ Cluster inventory file not found: $CLUSTER_INVENTORY${NC}"
+        echo -e "${YELLOW}Create one with: ./scripts/create_cluster_inventory.sh${NC}"
+        echo -e "${YELLOW}Or copy the example: cp ansible/inventory/cluster_example.yml ansible/inventory/cluster.yml${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Cluster inventory found: $CLUSTER_INVENTORY${NC}"
+
+    # 2. Inventory is loadable
+    echo -e "${YELLOW}Validating inventory syntax...${NC}"
+    local inv_json
+    inv_json=$(ansible-inventory -i "$CLUSTER_INVENTORY" --list 2>&1)
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗ Cluster inventory failed to parse:${NC}"
+        echo "$inv_json"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Cluster inventory syntax is valid${NC}"
+
+    # 3. Extract es_cluster_seed_hosts and es_master_publish_host from inventory
+    echo -e "${YELLOW}Extracting cluster configuration from inventory...${NC}"
+    local extracted
+    extracted=$(python3 -c "
+import json, sys
+inv = json.loads(sys.stdin.read())
+
+# Ansible's JSON output often omits all.vars (group vars are merged into _meta.hostvars).
+all_vars = inv.get('all', {}).get('vars', {})
+hostvars = inv.get('_meta', {}).get('hostvars', {})
+es_group = inv.get('elasticsearch', {}).get('hosts', [])
+
+seed_hosts = all_vars.get('es_cluster_seed_hosts', [])
+if not seed_hosts:
+    for host in es_group:
+        hv = hostvars.get(host, {})
+        sh = hv.get('es_cluster_seed_hosts', [])
+        if sh:
+            seed_hosts = sh
+            break
+
+# Derive master publish host: first host in elasticsearch group with es_publish_host,
+# else fall back to es_master_host from all.vars or first elasticsearch hostvars
+master_publish = ''
+for host in es_group:
+    hv = hostvars.get(host, {})
+    if hv.get('es_publish_host'):
+        master_publish = hv['es_publish_host']
+        break
+if not master_publish:
+    master_publish = all_vars.get('es_master_host', '')
+if not master_publish and es_group:
+    master_publish = hostvars.get(es_group[0], {}).get('es_master_host', '')
+
+if not seed_hosts:
+    print('ERROR: es_cluster_seed_hosts is empty or missing from inventory', file=sys.stderr)
+    sys.exit(1)
+if not master_publish:
+    print('ERROR: Could not determine master publish host from inventory', file=sys.stderr)
+    print('Set es_publish_host on the first elasticsearch host, or es_master_host in all.vars', file=sys.stderr)
+    sys.exit(1)
+
+# Output as shell-eval-able lines (seed hosts must be single-quoted: bare JSON breaks eval).
+# Do not use double quotes in this Python source: they terminate bash's python3 -c "..." string.
+sq = chr(39)
+esc_publish = master_publish.replace(sq, sq + chr(92) + sq + sq)
+print('CLUSTER_SEED_HOSTS=' + sq + json.dumps(seed_hosts) + sq)
+print('CLUSTER_MASTER_PUBLISH_HOST=' + sq + esc_publish + sq)
+" <<< "$inv_json" 2>&1)
+
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗ Failed to extract cluster configuration:${NC}"
+        echo "$extracted"
+        exit 1
+    fi
+    eval "$extracted"
+    echo -e "${GREEN}✓ Seed hosts: $CLUSTER_SEED_HOSTS${NC}"
+    echo -e "${GREEN}✓ Master publish host: $CLUSTER_MASTER_PUBLISH_HOST${NC}"
+
+    # 4. Test connectivity to cluster nodes via Ansible ping
+    #    Skip when --cluster-master-only since remote nodes may not be ready yet
+    if [ "$CLUSTER_MASTER_ONLY" != "true" ]; then
+        echo -e "${YELLOW}Testing connectivity to cluster nodes...${NC}"
+        local ping_output
+        ping_output=$(ansible elasticsearch -i "$CLUSTER_INVENTORY" -m ansible.builtin.ping 2>&1)
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}✗ Ansible connectivity check failed:${NC}"
+            echo "$ping_output"
+            echo -e "${YELLOW}Ensure SSH keys are set up and cluster nodes are reachable.${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✓ All cluster nodes are reachable${NC}"
+    else
+        echo -e "${YELLOW}Skipping cluster node connectivity check (--cluster-master-only)${NC}"
+    fi
+
+    # 5. Install Ansible collections
+    echo -e "${YELLOW}Installing Ansible collections...${NC}"
+    if (cd "$SCRIPT_DIR/ansible" && ansible-galaxy collection install -r requirements.yml) 2>&1; then
+        echo -e "${GREEN}✓ Ansible collections installed${NC}"
+    else
+        echo -e "${YELLOW}⚠ ansible-galaxy install failed, continuing with existing collections${NC}"
+    fi
+
+    echo -e "${GREEN}✓ All cluster prerequisites validated${NC}"
+}
+
+# Run playbooks for cluster mode
+run_cluster_playbooks() {
+    echo -e "${YELLOW}Running cluster installation...${NC}"
+
+    # Build ansible opts (same logic as run_playbook)
+    local ANSIBLE_OPTS=""
+    if [ "${HAS_SUDO_ACCESS}" = "false" ]; then
+        ANSIBLE_OPTS="-K"
+        echo -e "${YELLOW}Sudo password will be required for privileged operations${NC}"
+        if ! sudo -v; then
+            echo -e "${RED}✗ Sudo access verification failed.${NC}"
+            exit 1
+        fi
+    fi
+    if [ "$DEBUG_MODE" = "true" ]; then
+        ANSIBLE_OPTS="$ANSIBLE_OPTS -e debug_mode=true -vvvv"
+    fi
+
+    # Set Ansible temp directories under /tmp so the unprivileged SSH user can
+    # create them on remote nodes before Ansible's become escalation takes effect.
+    export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-tmp}"
+    export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-tmp}"
+    mkdir -p "$ANSIBLE_LOCAL_TEMP"
+
+    local BASE_EXTRA_VARS='{"has_sudo_access":"'"${HAS_SUDO_ACCESS}"'","clone_dir":"'"${SCRIPT_DIR}"'","offline_mode":'"${OFFLINE_MODE}"',"storage_graphroot":"'"${GRAPH_ROOT}"'"}'
+
+    # Phase 1: Run site.yml on master with cluster vars (unless --cluster-nodes-only)
+    if [ "$CLUSTER_NODES_ONLY" != "true" ]; then
+        echo -e "${YELLOW}Phase 1: Running site.yml on master in cluster mode...${NC}"
+        local master_extra_vars
+        master_extra_vars=$(python3 -c "
+import json, sys
+base = json.loads(sys.argv[1])
+base['lme_cluster_mode'] = True
+base['es_cluster_seed_hosts'] = json.loads(sys.argv[2])
+base['es_master_publish_host'] = sys.argv[3]
+print(json.dumps(base))
+" "$BASE_EXTRA_VARS" "$CLUSTER_SEED_HOSTS" "$CLUSTER_MASTER_PUBLISH_HOST")
+
+        local site_cmd="ansible-playbook"
+        if [ -f "$SCRIPT_DIR/inventory" ]; then
+            site_cmd="$site_cmd -i $SCRIPT_DIR/inventory"
+        fi
+        site_cmd="$site_cmd $PLAYBOOK_PATH --extra-vars '$master_extra_vars' $ANSIBLE_OPTS"
+
+        eval $site_cmd
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Master installation (site.yml) completed successfully!${NC}"
+        else
+            echo -e "${RED}✗ Master installation (site.yml) failed.${NC}"
+            exit 1
+        fi
+    fi
+
+    # Phase 2: Run elasticsearch.yml on cluster nodes (unless --cluster-master-only)
+    if [ "$CLUSTER_MASTER_ONLY" != "true" ]; then
+        echo -e "${YELLOW}Phase 2: Running elasticsearch.yml on cluster nodes...${NC}"
+        local cluster_cmd="ansible-playbook -i $CLUSTER_INVENTORY $SCRIPT_DIR/ansible/elasticsearch.yml --extra-vars '$BASE_EXTRA_VARS' $ANSIBLE_OPTS"
+
+        eval $cluster_cmd
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}✓ Cluster node installation (elasticsearch.yml) completed successfully!${NC}"
+        else
+            echo -e "${RED}✗ Cluster node installation (elasticsearch.yml) failed.${NC}"
+            exit 1
+        fi
+    fi
+
+    echo -e "${GREEN}✓ Cluster installation completed successfully!${NC}"
+}
+
 # Main script execution
 echo "==============================================="
 echo "    Ansible Setup and Playbook Runner"
 echo "==============================================="
+
+# Reject unsupported flag combinations
+if [ "$CLUSTER_MODE" = "true" ] && [ "$OFFLINE_MODE" = "true" ]; then
+    echo -e "${RED}✗ --cluster and --offline cannot be used together.${NC}"
+    echo -e "${YELLOW}Offline cluster installation is not supported at this time.${NC}"
+    exit 1
+fi
+
+if [ "$CLUSTER_MASTER_ONLY" = "true" ] && [ "$CLUSTER_NODES_ONLY" = "true" ]; then
+    echo -e "${RED}✗ --cluster-master-only and --cluster-nodes-only cannot be used together.${NC}"
+    exit 1
+fi
+
+if [ "$CLUSTER_MODE" = "true" ]; then
+    echo -e "${GREEN}Cluster mode enabled${NC}"
+fi
 
 # Display offline mode status early
 if [ "$OFFLINE_MODE" = "true" ]; then
@@ -910,6 +1265,11 @@ fi
 # Check if playbook exists and run it
 check_playbook
 
+# Validate cluster prerequisites (after ansible is available)
+if [ "$CLUSTER_MODE" = "true" ]; then
+    validate_cluster_prerequisites
+fi
+
 # Import podman from .nar file BEFORE running Ansible (Ubuntu offline only)
 if [ "$OFFLINE_MODE" = "true" ]; then
     if [ -f /etc/os-release ]; then
@@ -980,8 +1340,12 @@ if [ "$OFFLINE_MODE" = "true" ]; then
     fi
 fi
 
-# Run the Ansible playbook FIRST (installs Nix and podman)
-run_playbook
+# Run the Ansible playbook(s)
+if [ "$CLUSTER_MODE" = "true" ]; then
+    run_cluster_playbooks
+else
+    run_playbook
+fi
 
 # Load containers for offline mode AFTER Ansible playbook completes
 if [ "$OFFLINE_MODE" = "true" ]; then

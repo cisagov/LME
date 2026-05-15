@@ -126,7 +126,7 @@ cat /opt/lme/lme-environment.env | grep LME_VERSION
 ```
 
 ### Supported Upgrade Paths
-- **From 2.0.x to 2.2.0**: Supported
+- **From 2.x.x to 2.3.0**: Supported
 - **From 1.x to 2.x**: Not supported (requires manual migration)
 - **Downgrades**: Not supported (use rollback instead)
 

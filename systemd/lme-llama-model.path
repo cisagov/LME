@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch for llama.cpp model switch requests
+
+[Path]
+PathModified=/opt/lme/config/.llama-model-updated
+
+[Install]
+WantedBy=multi-user.target

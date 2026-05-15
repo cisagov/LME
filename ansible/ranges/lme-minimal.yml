@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://docs.ludus.cloud/schemas/range-config.json
+#
+# LME Minimal Range — Self-Monitoring Server
+# Deploys: 1x LME server with agents enrolled against itself.
+# Total footprint: ~34 GB RAM, 4 CPUs (+ Ludus router overhead).
+#
+# This range validates the Galaxy-published roles end-to-end with the
+# smallest possible footprint: install LME, auto-resolve credentials,
+# enroll agents on the same host. No hardcoded credentials required —
+# ludus_lme_agents auto-resolves elastic_password and enrollment_token
+# from localhost facts set by ludus_lme_server.
+#
+# Prerequisites (if using Galaxy-published roles):
+#   ansible-galaxy role install cisagov.ludus_lme_server cisagov.ludus_lme_agents
+#
+# Usage:
+#   ludus range config set -f ansible/ranges/lme-minimal.yml
+#   ludus range deploy
+
+ludus:
+  - vm_name: "{{ range_id }}-lme"
+    hostname: "{{ range_id }}-lme"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 10
+    ram_gb: 32
+    cpus: 4
+    linux: true
+    roles:
+      - ludus_lme_server
+      - name: ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme"
+            role: ludus_lme_server
+    role_vars:
+      ludus_lme_server_git_ref: "develop"

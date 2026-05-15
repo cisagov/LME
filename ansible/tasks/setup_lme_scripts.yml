@@ -1,0 +1,43 @@
+---
+# Ensures /opt/lme/scripts/ contains the latest helper scripts from the LME clone.
+#
+# Include this early in any playbook so subsequent tasks (and operators using
+# documented commands like `source /opt/lme/scripts/extract_secrets.sh`) can
+# rely on the helpers being present and up to date.
+#
+# Required vars (already set by all LME playbooks):
+#   clone_directory  - path to the LME repo on the controller
+#
+# Optional vars:
+#   install_user     - owner of /opt/lme (defaults to ansible_user_id)
+#
+# Usage:
+#   - name: Ensure /opt/lme/scripts is populated
+#     ansible.builtin.include_tasks: tasks/setup_lme_scripts.yml
+
+- name: Ensure /opt/lme directory exists
+  ansible.builtin.file:
+    path: /opt/lme
+    state: directory
+    owner: "{{ install_user | default(ansible_user_id) }}"
+    group: "{{ install_user | default(ansible_user_id) }}"
+    mode: '0700'
+  become: yes
+
+- name: Ensure /opt/lme/scripts directory exists
+  ansible.builtin.file:
+    path: /opt/lme/scripts
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copy LME helper scripts to /opt/lme/scripts (latest from clone)
+  ansible.builtin.copy:
+    src: "{{ clone_directory }}/scripts/"
+    dest: /opt/lme/scripts/
+    owner: root
+    group: root
+    mode: preserve
+  become: yes

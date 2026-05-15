@@ -1,0 +1,32 @@
+# lme-log-analyzer.container
+[Unit]
+Description=LME Log Analyzer - Streamlit Web UI
+Wants=lme-elasticsearch.service lme-litellm.service
+After=lme-elasticsearch.service lme-litellm.service
+PartOf=lme.service
+StartLimitIntervalSec=120
+StartLimitBurst=10
+
+[Install]
+WantedBy=default.target lme.service
+
+[Service]
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
+
+[Container]
+ContainerName=lme-log-analyzer
+Image=localhost/lme-log-analyzer:LME_LATEST
+Network=lme
+PodmanArgs=--network-alias lme-log-analyzer
+PublishPort=8501:8501
+Environment=ELASTICSEARCH_URL=https://lme-elasticsearch:9200
+Environment=ELASTICSEARCH_USER=elastic
+Environment=LITELLM_URL=https://lme-litellm:4000
+Environment=LITELLM_API_KEY=sk-lme-llama-proxy
+Environment=LITELLM_MODEL=gemma-3-1b
+Volume=lme_certs:/certs:ro
+Exec=streamlit run app_simple.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --server.sslCertFile=/certs/log-analyzer/log-analyzer.crt --server.sslKeyFile=/certs/log-analyzer/log-analyzer.key
+Secret=elastic,type=env,target=ELASTICSEARCH_PASSWORD
