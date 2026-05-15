@@ -1,6 +1,7 @@
 name: Publish LME Collection to Ansible Galaxy
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - develop
@@ -42,6 +43,8 @@ jobs:
         working-directory: ansible
 
       - name: Publish collection to Galaxy
+        if: ${{ secrets.GALAXY_API_KEY != '' }}
+        continue-on-error: true
         run: |
           ansible-galaxy collection publish \
             --api-key "${{ secrets.GALAXY_API_KEY }}" \
