@@ -28,7 +28,7 @@ LME is intended for organizations that:
 - **Custom Data Visualization**: Design and customize dashboards with Kibana to meet specific monitoring needs.
 - **Comprehensive Testing**: Expanded unit testing and threat emulation ensure system stability and reliability.
 
-![Architecture](https://cisagov.github.io/lme-docs/docs/imgs/lme-architecture-v2.png)
+![Architecture](https://github.com/cisagov/lme-docs/blob/main/static/img/lme-architecture-v2-3.png)
 
 ## Documentation: 
   - For installation instructions, see the [install documentation](https://cisagov.github.io/lme-docs/docs/markdown/install/).
