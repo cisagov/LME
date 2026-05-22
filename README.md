@@ -9,7 +9,10 @@
 
 CISA's Logging Made Easy (LME) is a no cost, open source platform that centralizes log collection, enhances threat detection, and enables real-time alerting, helping small to medium-sized organizations secure their infrastructure. Whether you're upgrading from a previous version or deploying for the first time, LME offers a scalable, efficient solution for logging and endpoint security. 
 
-Check out the LME introduction video [here](https://www.youtube.com/watch?v=AZFV6ZOLg7s).
+> [!WARNING]
+> **Important Service Notice: Logging Made Easy (LME) Retirement**
+> 
+> After reviewing our cybersecurity services to ensure alignment with our strategic priorities and statutory mission, the Cybersecurity and Infrastructure Security Agency (CISA) made the difficult decision to retire support for the Logging Made Easy (LME) service, effective May 22, 2026. Users may continue to use LME; however, the service will no longer be maintained or supported by CISA.
 
 ## Who is Logging Made Easy for?
 
@@ -18,7 +21,6 @@ LME is intended for organizations that:
 - Need a log management and threat detection system.
 - Do not have an existing Security Operations Center (SOC), Security Information and Event Management (SIEM) solution or log management and monitoring capabilities.
 - Work within limited budgets, time or expertise to set up and manage a logging and threat detection system.
-
 
 ## Features: 
 
