@@ -957,7 +957,7 @@ if [ "$OFFLINE_MODE" = "true" ]; then
                     # Use rpm directly to avoid any repository access (we're always in offline mode here)
                     echo -e "${YELLOW}  Using rpm to install from local packages only${NC}"
                     
-                    if sudo rpm -Uvh --replacepkgs *.rpm 2>&1 | tee /tmp/rpm_install.log; then
+                    if ( set -o pipefail; sudo rpm -Uvh --replacepkgs *.rpm 2>&1 | tee /tmp/rpm_install.log ); then
                         echo -e "${GREEN}✓ All packages installed successfully${NC}"
                     else
                         # Check the error - might be that packages are already installed
@@ -1033,7 +1033,7 @@ if [ "$OFFLINE_MODE" = "true" ]; then
 
                         # Try to install the package
                         echo -e "${YELLOW}  Installing $PACKAGE_NAME...${NC}"
-                        if sudo dpkg -i "$deb_file" 2>&1 | tee /tmp/dpkg_install.log; then
+                        if ( set -o pipefail; sudo dpkg -i "$deb_file" 2>&1 | tee /tmp/dpkg_install.log ); then
                             echo -e "${GREEN}  ✓ Installed $PACKAGE_NAME${NC}"
                         else
                             # Check if it failed due to conflict
