@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://docs.ludus.cloud/schemas/range-config.json
+#
+# LME 2-VM Range (Galaxy Collection)
+# Deploys: 1x LME server + 1x Windows 11 with agents
+# Total footprint: ~40 GB RAM, 6 CPUs
+#
+# No hardcoded credentials — agents auto-resolve elastic_password and
+# enrollment_token from localhost facts set by the server role.
+#
+# Prerequisites:
+#   ansible-galaxy collection install mreeve_snl.lme
+#   # Or for cisagov production:
+#   # ansible-galaxy collection install cisagov.lme
+#
+# Usage:
+#   ludus range config set -f ansible/ranges/lme-2vm-galaxy.yml
+#   ludus range deploy
+
+ludus:
+  - vm_name: "{{ range_id }}-lme-server"
+    hostname: "{{ range_id }}-lme"
+    template: ubuntu-24.04-x64-server-template
+    vlan: 10
+    ip_last_octet: 10
+    ram_gb: 32
+    cpus: 4
+    linux: true
+    roles:
+      - mreeve_snl.lme.ludus_lme_server
+    role_vars:
+      ludus_lme_server_git_ref: "develop"
+
+  - vm_name: "{{ range_id }}-win11"
+    hostname: "{{ range_id }}-win11"
+    template: win11-22h2-x64-enterprise-template
+    vlan: 10
+    ip_last_octet: 20
+    ram_gb: 8
+    cpus: 2
+    windows:
+      sysprep: false
+    roles:
+      - name: mreeve_snl.lme.ludus_lme_agents
+        depends_on:
+          - vm_name: "{{ range_id }}-lme-server"
+            role: mreeve_snl.lme.ludus_lme_server
+    role_vars:
+      ludus_lme_agents_manager_ssh_user: "localuser"
+      ludus_lme_agents_manager_ssh_pass: "password"
+      ludus_lme_agents_wazuh_version: "4.9.2"

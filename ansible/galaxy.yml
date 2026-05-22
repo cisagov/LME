@@ -1,0 +1,74 @@
+---
+# Namespace and name are overridden by CI:
+#   main/tags  → cisagov.lme (production)
+#   develop    → cisagov.lme_dev (pre-release)
+namespace: cisagov
+name: lme
+version: 1.0.0
+readme: README.md
+authors:
+  - CISA (cisagov)
+description: >-
+  Ludus-compatible roles for deploying LME (Logging Made Easy) and
+  MITRE Caldera on cyber ranges. Includes server deployment, agent
+  enrollment with auto-credential resolution, and Caldera C2 setup.
+license:
+  - CC0-1.0
+tags:
+  - security
+  - logging
+  - elasticsearch
+  - caldera
+  - ludus
+  - detection
+  - lme
+repository: https://github.com/cisagov/LME
+documentation: https://github.com/cisagov/LME/tree/main/ansible
+issues: https://github.com/cisagov/LME/issues
+
+# Exclude non-collection files from ansible/ root and non-ludus roles.
+# Patterns are recursive (fnmatch), so we list paths explicitly rather
+# than using wildcards like "*.yml" which would nuke role task files.
+build_ignore:
+  # Root-level playbooks and configs
+  - site.yml
+  - backup_lme.yml
+  - change_passwords.yml
+  - cluster_backup_lme.yml
+  - convert_to_cluster.yml
+  - elasticsearch.yml
+  - pre_upgrade_checks.yml
+  - restore_elasticsearch_snapshot.yml
+  - restore_lme_master.yml
+  - rollback_lme.yml
+  - rolling_upgrade.yml
+  - snapshot_elasticsearch.yml
+  - upgrade_lme.yml
+  - requirements.yml
+  # Root-level directories (not part of collection)
+  - inventory
+  - ranges
+  - spec
+  - tasks
+  - templates
+  # Non-collection docs
+  - BACKUP_README.md
+  - CLUSTER_RECOVERY_README.md
+  - PASSWORD_README.md
+  - ROLLBACK_README.md
+  - SNAPSHOT_README.md
+  - UPGRADE_README.md
+  # Non-ludus roles (internal LME roles, not for Galaxy)
+  - roles/backup_lme
+  - roles/base
+  - roles/certs
+  - roles/cleanup
+  - roles/dashboards
+  - roles/elasticsearch
+  - roles/fleet
+  - roles/kev
+  - roles/kibana
+  - roles/nix
+  - roles/podman
+  - roles/secrets_distribution
+  - roles/wazuh

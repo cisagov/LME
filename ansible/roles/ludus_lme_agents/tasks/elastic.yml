@@ -16,8 +16,8 @@
 
 - name: Fetch Elastic version from Elasticsearch API
   when:
-    - ludus_lme_agents_elastic_password | length > 0
-    - ludus_lme_agents_elastic_version is not defined
+    - ludus_lme_agents_elastic_password | default('') | length > 0
+    - ludus_lme_agents_elastic_version | default('') | length == 0
   block:
     - name: Query Elasticsearch root endpoint
       ansible.builtin.uri:
@@ -40,8 +40,8 @@
 
 - name: Fetch Fleet enrollment token from Kibana API
   when:
-    - ludus_lme_agents_elastic_password | length > 0
-    - not (ludus_lme_agents_enrollment_token | length > 0)
+    - ludus_lme_agents_elastic_password | default('') | length > 0
+    - ludus_lme_agents_enrollment_token | default('') | length == 0
   block:
     - name: Query Kibana Fleet enrollment API keys
       ansible.builtin.uri:

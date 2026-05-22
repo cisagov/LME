@@ -22,9 +22,13 @@
   register: wazuh_version_raw
   delegate_to: "{{ _resolved_wazuh_manager_ip }}"
   vars:
+    ansible_connection: ssh
     ansible_user: "{{ ludus_lme_agents_manager_ssh_user }}"
     ansible_ssh_pass: "{{ ludus_lme_agents_manager_ssh_pass }}"
     ansible_become_pass: "{{ ludus_lme_agents_manager_ssh_pass }}"
+    ansible_ssh_private_key_file: ""
+    ansible_become: true
+    ansible_remote_tmp: /tmp/.ansible-tmp
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
   become: true
   changed_when: false

@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
 LME Documentation Ingestion Pipeline
-Crawls https://cisagov.github.io/lme-docs/, converts pages to markdown,
-chunks them intelligently, embeds with nomic-embed-text via lme-embeddings,
-and stores in pgvector for RAG retrieval.
+Reads LME docs from a git clone of cisagov/lme-docs (preferred) or a
+pre-scraped --source-dir, converts to markdown, chunks, embeds with
+nomic-embed-text via lme-embeddings, and stores in pgvector for RAG.
 
 Usage (run inside the lme podman network):
     podman run --rm --network lme \\
       -e PGVECTOR_PASS=<secret> \\
       -v $(pwd)/scripts:/scripts:z \\
-      python:3.11-slim bash -c "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py [--reset]"
+      -v /tmp/lme-docs-repo:/repo:z \\
+      python:3.11-slim bash -c "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py --reset --docs-repo /repo"
 
-    --reset : drop and recreate the docs_chunks table before ingesting
+    --reset      : drop and recreate the docs_chunks table before ingesting
+    --docs-repo  : path to a git clone of cisagov/lme-docs (reads docs/*.md)
+    --source-dir : path to pre-scraped index.tsv + page_NNNN.html (offline)
 """
 
 import os
@@ -198,6 +201,44 @@ def load_pages_from_disk(source_dir: str) -> dict[str, str]:
                 continue
             url, filename = line.split("\t", 1)
             pages[url] = (src / filename).read_text(encoding="utf-8")
+    return pages
+
+
+# ── Git repo → pages (replaces broken Docusaurus crawl) ─────────────────────
+
+def load_pages_from_repo(repo_dir: str) -> dict[str, str]:
+    """
+    Walk a git clone of cisagov/lme-docs and convert each .md file into the
+    same {url: html} dict that crawl() and load_pages_from_disk() return.
+
+    The .md content is wrapped in minimal HTML so the existing
+    html_to_markdown() pipeline (extract_main_content → markdownify) passes
+    it through cleanly.
+    """
+    src = pathlib.Path(repo_dir) / "docs"
+    if not src.is_dir():
+        # Caller may have pointed at the docs/ dir directly
+        src = pathlib.Path(repo_dir)
+        if not any(src.rglob("*.md")):
+            raise FileNotFoundError(
+                f"No .md files found in {repo_dir} or {repo_dir}/docs"
+            )
+
+    pages: dict[str, str] = {}
+    for md_file in sorted(src.rglob("*.md")):
+        text = md_file.read_text(encoding="utf-8", errors="replace")
+        if not text.strip():
+            continue
+        title = md_file.stem.replace("-", " ").title()
+        rel = md_file.relative_to(src)
+        url = f"https://cisagov.github.io/lme-docs/docs/{rel}".replace(".md", "")
+        # Wrap in minimal HTML so extract_main_content() finds <article><main>
+        html = (
+            f"<html><head><title>{title}</title></head>"
+            f"<body><article><main>{text}</main></article></body></html>"
+        )
+        pages[url] = html
+
     return pages
 
 
@@ -390,7 +431,8 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def ingest(reset: bool = False, source_dir: str | None = None):
+def ingest(reset: bool = False, source_dir: str | None = None,
+           docs_repo: str | None = None):
     print(f"\n{'='*60}")
     print("LME Documentation RAG Ingestion Pipeline")
     print(f"{'='*60}\n")
@@ -400,8 +442,11 @@ def ingest(reset: bool = False, source_dir: str | None = None):
     conn = get_conn()
     setup_db(conn, reset=reset)
 
-    # 2. Obtain pages — from disk snapshot (airgap) or live crawl (online)
-    if source_dir:
+    # 2. Obtain pages — from git repo (preferred), disk snapshot, or live crawl
+    if docs_repo:
+        print(f"\n[2/4] Loading pages from git repo {docs_repo} ...")
+        pages = load_pages_from_repo(docs_repo)
+    elif source_dir:
         print(f"\n[2/4] Loading pages from {source_dir} ...")
         pages = load_pages_from_disk(source_dir)
     else:
@@ -466,13 +511,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingest LME docs into pgvector")
     parser.add_argument("--reset", action="store_true",
                         help="Drop and recreate the docs_chunks table first")
+    parser.add_argument("--docs-repo", default=None,
+                        help="Path to a git clone of cisagov/lme-docs. "
+                             "Reads docs/*.md directly — no web scraping needed. "
+                             "This is the preferred method.")
     parser.add_argument("--source-dir", default=None,
                         help="Read pre-scraped HTML from PATH/index.tsv "
                              "instead of crawling (offline installs)")
     parser.add_argument("--scrape-only", action="store_true",
-                        help="Crawl BASE_URL and dump raw HTML + index.tsv to "
+                        help="Dump docs to index.tsv + page_NNNN.html in "
                              "--output-dir, skipping DB/embedding. Used by "
-                             "prepare_offline.sh --llm to bundle docs.")
+                             "prepare_offline.sh --llm to bundle docs. "
+                             "Reads from --docs-repo if given, else crawls.")
     parser.add_argument("--output-dir", default=None,
                         help="Destination for --scrape-only output")
     args = parser.parse_args()
@@ -480,10 +530,15 @@ if __name__ == "__main__":
     if args.scrape_only:
         if not args.output_dir:
             parser.error("--scrape-only requires --output-dir")
-        print(f"Scraping {BASE_URL} → {args.output_dir}")
-        pages = crawl(BASE_URL)
+        if args.docs_repo:
+            print(f"Loading docs from repo {args.docs_repo} → {args.output_dir}")
+            pages = load_pages_from_repo(args.docs_repo)
+        else:
+            print(f"Crawling {BASE_URL} → {args.output_dir}")
+            pages = crawl(BASE_URL)
         print(f"  Found {len(pages)} pages.")
         dump_pages_to_disk(pages, args.output_dir)
         sys.exit(0)
 
-    ingest(reset=args.reset, source_dir=args.source_dir)
+    ingest(reset=args.reset, source_dir=args.source_dir,
+           docs_repo=args.docs_repo)

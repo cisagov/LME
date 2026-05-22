@@ -4,6 +4,8 @@ Description=Kibana Container Service
 Requires=lme-setup-accts.service lme-elasticsearch.service lme-kibanadata-volume.service
 After=lme-setup-accts.service lme-elasticsearch.service lme-kibanadata-volume.service
 PartOf=lme.service
+StartLimitIntervalSec=120
+StartLimitBurst=10
 
 [Install]
 WantedBy=default.target lme.service
@@ -11,8 +13,6 @@ WantedBy=default.target lme.service
 [Service]
 Restart=always
 RestartSec=5
-StartLimitIntervalSec=120
-StartLimitBurst=10
 TimeoutStartSec=5400
 Environment=ANSIBLE_VAULT_PASSWORD_FILE=/etc/lme/pass.sh
 

@@ -296,14 +296,26 @@
   become: yes
   when: embed_model_download is succeeded
 
-- name: Run LME documentation ingestion into pgvector (online, live crawl)
+- name: Clone lme-docs repo for RAG ingestion (online)
+  ansible.builtin.git:
+    repo: "https://github.com/cisagov/lme-docs.git"
+    dest: /tmp/lme-docs
+    depth: 1
+    force: true
+  become: yes
+  when:
+    - embed_model_download is succeeded
+    - not (offline_mode | default(false))
+
+- name: Run LME documentation ingestion into pgvector (online, from git repo)
   shell: |
     source /root/.profile
     sudo -i podman run --rm --network lme \
       --secret pgvector,type=env,target=PGVECTOR_PASS \
       -v {{ clone_directory }}/scripts:/scripts:z \
+      -v /tmp/lme-docs:/repo:z \
       docker.io/library/python:3.11-slim bash -c \
-      "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py --reset"
+      "pip install -q requests beautifulsoup4 markdownify psycopg2-binary pgvector lxml && python /scripts/ingest_docs.py --reset --docs-repo /repo"
   args:
     executable: /bin/bash
   become: yes
@@ -361,6 +373,14 @@
 - name: Enable and start LME Dashboard service
   systemd:
     name: lme-dashboard.service
+    enabled: yes
+    state: started
+  become: yes
+  when: model_download is succeeded
+
+- name: Enable and start LME Log Analyzer service
+  systemd:
+    name: lme-log-analyzer.service
     enabled: yes
     state: started
   become: yes

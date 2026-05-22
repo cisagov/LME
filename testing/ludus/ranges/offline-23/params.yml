@@ -1,0 +1,8 @@
+RANGE_NAME: "offline-23"
+LME_BRANCH: "snl-ludus-test-framework"
+LME_BRANCH_COMMIT: "a9952a1"
+LME_VERSION: "2.3.0"
+LME_REPO_URL: "/home/mreeve/vibe-home/LME"
+SSH_USER: "localuser"
+SSH_PASS: "password"
+NOTES: "Air-gapped install from snl-ludus-test-framework"

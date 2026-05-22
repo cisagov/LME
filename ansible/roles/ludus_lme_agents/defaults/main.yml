@@ -34,7 +34,7 @@ ludus_lme_agents_manager_ssh_pass: "password"
 
 # Wazuh manager version. If set, skips the delegate_to query to the manager.
 # Format: "4.9.1" (without leading 'v').
-ludus_lme_agents_wazuh_version: ""
+ludus_lme_agents_wazuh_version: "4.9.1"
 
 # How long to wait for Wazuh agents to become Active on the manager.
 ludus_lme_agents_wazuh_retries: 30
