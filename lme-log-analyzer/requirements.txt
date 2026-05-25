@@ -1,4 +1,4 @@
-streamlit==1.40.1
+streamlit==1.54.0
 requests==2.32.3
 urllib3==2.2.3
 
